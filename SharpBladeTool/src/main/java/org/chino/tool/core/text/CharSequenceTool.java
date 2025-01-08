@@ -56,8 +56,8 @@ public class CharSequenceTool {
             // 返回null字符串
             return "null";
         } else { // 模板字符串不为空
-            // 数组参数不为空 并且 模板字符串不为空
-            return !ArrayTool.isEmpty(params) && !isBlank(template) ? "StrFormatter.format" : template.toString();
+            // 数组参数不为空 并且 模板字符串不为空 格式化处理 否则 直接返回模板字符串
+            return !ArrayTool.isEmpty(params) && !isBlank(template) ? StrFormatter.format(template.toString(), params) : template.toString();
         }
     }
 }
