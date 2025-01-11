@@ -1,6 +1,7 @@
-package org.chino.tool.core.tool;
+package org.chino.tool.core.text;
 
 import org.chino.tool.core.text.CharSequenceTool;
+import org.chino.tool.core.tool.CharsetTool;
 
 import java.nio.charset.Charset;
 

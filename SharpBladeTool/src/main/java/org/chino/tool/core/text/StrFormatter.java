@@ -1,7 +1,6 @@
 package org.chino.tool.core.text;
 
-import org.chino.tool.core.tool.ArrayTool;
-import org.chino.tool.core.tool.StrTool;
+import org.chino.tool.core.array.ArrayTool;
 
 /**
  * @ClassName StrFormatter

@@ -1,7 +1,7 @@
 package org.chino.tool.core.clone;
 
 import org.chino.tool.core.exception.ExceptionTool;
-import org.chino.tool.core.tool.StrTool;
+import org.chino.tool.core.text.StrTool;
 
 /**
  * @ClassName CloneRuntimeException

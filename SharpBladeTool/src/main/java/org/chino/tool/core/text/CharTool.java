@@ -1,4 +1,4 @@
-package org.chino.tool.core.tool;
+package org.chino.tool.core.text;
 
 /**
  * @ClassName CharTool

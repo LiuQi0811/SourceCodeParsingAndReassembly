@@ -1,6 +1,6 @@
 package org.chino.tool.core.exception;
 
-import org.chino.tool.core.tool.StrTool;
+import org.chino.tool.core.text.StrTool;
 
 /**
  * @ClassName ExceptionTool
