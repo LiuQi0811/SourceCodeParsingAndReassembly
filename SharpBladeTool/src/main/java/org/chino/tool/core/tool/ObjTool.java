@@ -34,13 +34,27 @@ public class ObjTool {
     }
 
     /**
+     * defaultIfNull 默认值（如果为空）
+     *
+     * @param param        参数
+     * @param defaultValue 默认值
+     * @param <T>          泛型
+     * @return {@link T} 默认值（如果为空）
+     * @author LiuQi
+     */
+    public static <T> T defaultIfNull(T param, T defaultValue) {
+        // 如果param参数 是null 则返回 defaultValue 否则返回 param值
+        return isNull(param) ? defaultValue : param;
+    }
+
+    /**
      * isNull 是否为空
      *
      * @param param 参数
      * @return {@link Boolean}
      * @author LiuQi
      */
-    public static Boolean isNull(Object param) {
+    public static boolean isNull(Object param) {
         // 如果param参数 是null 或者 等于 null 则返回 true
         return null == param
                 || param.equals(null);

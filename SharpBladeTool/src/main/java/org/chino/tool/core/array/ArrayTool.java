@@ -25,7 +25,7 @@ public class ArrayTool {
      * @return {@link Boolean} 是否为空数组
      * @author LiuQi
      */
-    public static <T> Boolean isEmpty(T[] array) {
+    public static <T> boolean isEmpty(T[] array) {
         // 数组参数为空 或者 数组参数长度等于0 则返回true 否则返回false
         return array == null || array.length == 0;
     }

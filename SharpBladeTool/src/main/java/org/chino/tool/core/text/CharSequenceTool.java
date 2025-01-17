@@ -27,7 +27,7 @@ public class CharSequenceTool {
      * @return {@link Boolean} 字符序列是否为空 true 是 false 否
      * @author LiuQi
      */
-    public static Boolean isBlank(CharSequence sequence) {
+    public static boolean isBlank(CharSequence sequence) {
         // 声明长度
         int length;
         if (sequence != null && (length = sequence.length()) != 0) { // 字符序列不为空 并且 字符序列长度不为0
