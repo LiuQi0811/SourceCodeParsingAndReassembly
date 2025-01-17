@@ -1,5 +1,6 @@
 package org.chino.tool.core.reflect;
 
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 
@@ -48,6 +49,78 @@ public class TypeTool {
             return (Class<?>) type;
         }
         // TODO 此处可以继续扩展其他类型的处理逻辑
+        return null;
+    }
+
+    /**
+     * getTypeArgument 获取类型参数
+     *
+     * @param type {@link Type} 类型
+     * @return {@link Type} 类型
+     * @author LiuQi
+     */
+    public static Type getTypeArgument(Type type) {
+        // getTypeArgument 获取类型参数处理
+        return getTypeArgument(type, 0);
+    }
+
+    /**
+     * getTypeArgument 获取类型参数
+     *
+     * @param type  {@link Type} 类型
+     * @param index {@link Integer} 索引
+     * @return {@link Type} 类型
+     * @author LiuQi
+     */
+    public static Type getTypeArgument(Type type, int index) {
+        getTypeArguments(type);
+        return null;
+    }
+
+    /**
+     * getTypeArguments 获取类型参数数组
+     *
+     * @param type {@link Type} 类型
+     * @return {@link Type} 类型数组
+     * @author LiuQi
+     */
+    public static Type[] getTypeArguments(Type type) {
+        if (null == type) { // 类型为空
+            // 返回null
+            return null;
+        } else {// 类型不为空
+            // toParameterizedType 将类型转换为参数化类型处理
+            toParameterizedType(type);
+            // TODO
+            return null;
+        }
+    }
+
+    /**
+     * toParameterizedType 将类型转换为参数化类型
+     *
+     * @param type {@link Type} 类型
+     * @return {@link ParameterizedType} 参数化类型接口
+     * @author LiuQi
+     */
+    public static ParameterizedType toParameterizedType(Type type) {
+        // toParameterizedType 将类型转换为参数化类型处理
+        return toParameterizedType(type, 0);
+    }
+
+    /**
+     * toParameterizedType 将类型转换为参数化类型
+     *
+     * @param type           {@link Type} 类型
+     * @param interfaceIndex {@link Integer} 接口索引
+     * @return {@link ParameterizedType} 参数化类型接口
+     * @author LiuQi
+     */
+    public static ParameterizedType toParameterizedType(Type type, int interfaceIndex) {
+        if (type instanceof TypeReference<?>) { // TypeReference 类型
+            System.out.println("TypeReference 类型");
+        }
+        // TODO
         return null;
     }
 }
