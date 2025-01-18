@@ -19,6 +19,18 @@ public class CharTool {
     }
 
     /**
+     * isChar 是否为字符
+     *
+     * @param value {@link Object} 对象
+     * @return {@link Boolean} 返回是否为字符 true 是 false 否
+     * @author LiuQi
+     */
+    public static boolean isChar(Object value) {
+        // 返回 是否为字符处理结果 参数是Character 或者 参数类型为Character.TYPE
+        return value instanceof Character || value.getClass() == Character.TYPE;
+    }
+
+    /**
      * isBlankChar 是否为空白字符
      *
      * @param char_ {@link char} 字符
@@ -47,6 +59,18 @@ public class CharTool {
                 || char_ == 12644
                 || char_ == 10240
                 || char_ == 6158;
+    }
+
+    /**
+     * toString 将字符转换为字符串
+     *
+     * @param char_ {@link char} 字符
+     * @return {@link String} 返回字符串
+     * @author LiuQi
+     */
+    public static String toString(char char_) {
+        // 返回 ASCII字符转换为字符串处理结果
+        return ASCIIStrCache.toString(char_);
     }
 
 }

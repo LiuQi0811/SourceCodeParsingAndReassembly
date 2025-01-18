@@ -22,6 +22,18 @@ public class ConvertTool {
     /**
      * toStr 字符串类型转换处理
      *
+     * @param value {@link Object}值
+     * @return {@link String} 处理后的字符串
+     * @author LiuQi
+     */
+    public static String toStr(Object value) {
+        // 返回 toStr 字符串类型转换处理后的字符串
+        return toStr(value, null);
+    }
+
+    /**
+     * toStr 字符串类型转换处理
+     *
      * @param value        {@link Object}值
      * @param defaultValue {@link String}默认值
      * @return {@link String} 处理后的字符串
