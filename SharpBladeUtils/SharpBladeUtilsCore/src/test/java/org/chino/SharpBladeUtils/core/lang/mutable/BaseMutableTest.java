@@ -143,4 +143,17 @@ public abstract class BaseMutableTest<V, M extends Mutable<V>> {
         System.out.println(value);
     }
 
+    /**
+     * toOptional_Test 转换为 Optional_ 类型测试
+     */
+    @Test
+    void toOptional_Test() {
+        // 获取可变对象
+        Mutable<V> mutable = getMutable(getValue());
+        // 转换为 Optional_ 类型
+        V value = mutable.toOptional_().getOrNull();
+        // 获取值并打印
+        System.out.println(value);
+    }
+
 }

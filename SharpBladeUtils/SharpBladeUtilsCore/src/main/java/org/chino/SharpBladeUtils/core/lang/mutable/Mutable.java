@@ -1,5 +1,7 @@
 package org.chino.SharpBladeUtils.core.lang.mutable;
 
+import org.chino.SharpBladeUtils.core.lang.Optional_;
+
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -99,5 +101,17 @@ public interface Mutable<T> {
         Objects.requireNonNull(function);
         // 返回转换后的值
         return function.apply(get());
+    }
+
+    /**
+     * toOptional_ 转换为 Optional_ 对象
+     *
+     * @return {@link Optional_<T>} 转换后的值
+     * @description 获取值，并将值转换为{@link Optional_}
+     * @author LiuQi
+     */
+    default Optional_<T> toOptional_() {
+        // 返回转换后的值
+        return to(Optional_::ofNullable);
     }
 }
