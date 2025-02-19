@@ -31,6 +31,90 @@ public interface Mutable<T> {
     }
 
     /**
+     * of 静态方法，创建 MutableBoolean 对象
+     *
+     * @param value 当前布尔值
+     * @return 返回 MutableBoolean 对象
+     * @author LiuQi
+     */
+    static MutableBoolean of(final boolean value) {
+        // 创建 MutableBoolean 对象
+        return new MutableBoolean(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableByte 对象
+     *
+     * @param value 当前字节值
+     * @return 返回 MutableByte 对象
+     * @author LiuQi
+     */
+    static MutableByte of(final byte value) {
+        // 创建 MutableByte 对象
+        return new MutableByte(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableFloat 对象
+     *
+     * @param value 当前浮点值
+     * @return 返回 MutableFloat 对象
+     * @author LiuQi
+     */
+    static MutableFloat of(final float value) {
+        // 创建 MutableFloat 对象
+        return new MutableFloat(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableInteger 对象
+     *
+     * @param value 当前整数值
+     * @return 返回 MutableInteger 对象
+     * @author LiuQi
+     */
+    static MutableInteger of(final int value) {
+        // 创建 MutableInteger 对象
+        return new MutableInteger(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableLong 对象
+     *
+     * @param value 当前长整数值
+     * @return 返回 MutableLong 对象
+     * @author LiuQi
+     */
+    static MutableLong of(final long value) {
+        // 创建 MutableLong 对象
+        return new MutableLong(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableDouble 对象
+     *
+     * @param value 当前双精度浮点数值
+     * @return 返回 MutableDouble 对象
+     * @author LiuQi
+     */
+    static MutableDouble of(final double value) {
+        // 创建 MutableDouble 对象
+        return new MutableDouble(value);
+    }
+
+    /**
+     * of 静态方法，创建 MutableShort 对象
+     *
+     * @param value 当前短整数值
+     * @return 返回 MutableShort 对象
+     * @author LiuQi
+     */
+    static MutableShort of(final short value) {
+        // 创建 MutableShort 对象
+        return new MutableShort(value);
+    }
+
+    /**
      * get 获取当前值
      *
      * @return 返回 {@link T}当前值
