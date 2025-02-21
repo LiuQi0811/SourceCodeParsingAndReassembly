@@ -64,4 +64,41 @@ public class CharSequenceUtil extends StrValidator {
         // 使用ReUtil正则匹配处理工具类进行替换操作
         return ReUtil.replaceAll(charSequence, pattern, replaceFunc);
     }
+
+    /**
+     * equals 比较两个字符串是否相等 大小写敏感
+     *
+     * @param charSequence  {@link CharSequence} 字符串
+     * @param charSequence_ {@link CharSequence} 要比较的字符串
+     * @return {@link boolean} 如果相等返回true，否则返回false
+     * @author LiuQi
+     */
+    public static boolean equals(final CharSequence charSequence, final CharSequence charSequence_) {
+        // 直接调用equals方法进行比较，大小写敏感
+        return equals(charSequence, charSequence_, false);
+    }
+
+    /**
+     * equals 比较两个字符串是否相等
+     *
+     * @param charSequence  {@link CharSequence} 字符串
+     * @param charSequence_ {@link CharSequence} 要比较的字符串
+     * @param ignoreCase    是否忽略大小写
+     * @return {@link boolean} 如果相等返回true，否则返回false
+     * @author LiuQi
+     */
+    public static boolean equals(final CharSequence charSequence, final CharSequence charSequence_, final boolean ignoreCase) {
+        // 如果其中一个字符串为null，则直接比较另一个字符串是否也为null
+        if (null == charSequence) return charSequence_ == null;
+        // 如果另一个字符串为null，则直接返回false
+        if (null == charSequence_) return false;
+        if (ignoreCase) { // 忽略大小写的情况
+            // 使用equalsIgnoreCase方法进行比较，忽略大小写
+            return charSequence.toString().equalsIgnoreCase(charSequence_.toString());
+        } else { // 大小写敏感的情况
+            // 使用contentEquals方法进行比较，大小写敏感
+            return charSequence.toString().contentEquals(charSequence_);
+        }
+    }
+
 }
