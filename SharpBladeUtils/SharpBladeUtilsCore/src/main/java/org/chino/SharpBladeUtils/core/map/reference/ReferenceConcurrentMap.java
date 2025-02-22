@@ -1,5 +1,6 @@
 package org.chino.SharpBladeUtils.core.map.reference;
 
+import org.chino.SharpBladeUtils.core.lang.ref.ReferenceUtil;
 import org.chino.SharpBladeUtils.core.lang.ref.Reference_;
 
 import java.io.Serializable;
@@ -80,12 +81,19 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
      */
     @Override
     public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        // result 用于存储计算得到的值。
         V result = null;
-        while (null == result) {
-            dataMap.computeIfAbsent(wrapKey(key), kReference -> wrapValue(mappingFunction.apply(unwrap(kReference))));
-            System.out.println(" ComputeIfAbsent  Message Info " + key + "  " + mappingFunction.apply(key));
-            result = ((V) "? ????? ");
+        while (null == result) { // 循环直到找到或计算值为止。
+            // TODO 清除被GC回收的键和值引用 - 待处理逻辑。
+            // 获取键的引用对象，如果不存在则计算并添加到dataMap中。
+            Reference_<V> vReference = dataMap.computeIfAbsent(wrapKey(key), kReference -> wrapValue(mappingFunction.apply(unwrap(kReference))));
+            // 如果vReference在此时被GC回收，则unwrap后为null，需要循环计算
+            // 此处需要判断vReference是否为NullReference_.NULL，如果是则跳出循环。
+            if (NullReference_.NULL == vReference) return null;
+            // 去除Reference_对象中的引用，并返回实际引用的对象。
+            result = unwrap(vReference);
         }
+        // 返回计算得到的值。
         return result;
     }
 
@@ -117,8 +125,36 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
         return wrapValue(((V) value), referenceQueueValue);
     }
 
+    /**
+     * unwrap 用于获取Reference_对象实际引用的对象。
+     *
+     * @param reference_ {@link Reference_} 引用对象
+     * @param <T>        {@link T}    泛型参数，表示引用对象的类型。
+     * @return {@link T} 实际引用的对象
+     * @description 去除Reference_对象中的引用，并返回实际引用的对象。
+     * @author LiuQi
+     */
     private static <T> T unwrap(final Reference_<T> reference_) {
-        return null;
+        // 返回 ReferenceUtil 引用处理工具的get方法，获取引用对象的实际对象。
+        return ReferenceUtil.get(reference_);
+    }
+
+    /**
+     * NullReference_ 是一个实现了Reference_接口的私有内部类，用于表示一个空的引用对象。
+     *
+     * @author LiuQi
+     */
+    @SuppressWarnings(value = "rawtypes")
+    private static class NullReference_ implements Reference_ {
+        /**
+         * NULL 是一个静态的final字段，表示一个空的引用对象。
+         */
+        public static final Object NULL = new NullReference_();
+
+        @Override
+        public Object get() {
+            return null;
+        }
     }
 
     @Override
