@@ -1,5 +1,6 @@
 package org.chino.SharpBladeUtils.core.map.reference;
 
+import org.chino.SharpBladeUtils.core.lang.WeakObject;
 import org.chino.SharpBladeUtils.core.lang.ref.Reference_;
 import org.chino.SharpBladeUtils.core.map.concurrent.SafeConcurrentHashMap;
 
@@ -40,14 +41,14 @@ public class WeakConcurrentMap<K, V> extends ReferenceConcurrentMap<K, V> {
 
     @Override
     Reference_<K> wrapKey(K key, ReferenceQueue<? super K> referenceQueue) {
-        // TODO Auto-generated method stub
-        return null;
+        // 创建WeakObject对象，并将其 作为Reference_返回
+        return new WeakObject<>(key, referenceQueue);
     }
 
     @Override
     Reference_<V> wrapValue(V value, ReferenceQueue<? super V> referenceQueue) {
-        // TODO Auto-generated method stub
-        return null;
+        // 创建WeakObject对象，并将其作为Reference_返回
+        return new WeakObject<>(value, referenceQueue);
     }
 
 }
