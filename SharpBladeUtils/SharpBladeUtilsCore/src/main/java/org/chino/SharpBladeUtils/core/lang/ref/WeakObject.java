@@ -1,6 +1,4 @@
-package org.chino.SharpBladeUtils.core.lang;
-
-import org.chino.SharpBladeUtils.core.lang.ref.Reference_;
+package org.chino.SharpBladeUtils.core.lang.ref;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -9,9 +7,9 @@ import java.util.Objects;
 /**
  * @ClassName WeakObject
  * @Description WeakObject 弱引用对象
- * <p>
- * 在GC时发现弱引用会回收其对象，可以用来防止内存泄露。
- * </p>
+ * <pre>
+ *     在GC时发现弱引用会回收其对象，可以用来防止内存泄露。
+ * </pre>
  * @Author LiuQi
  * @Date 2025/2/22 10:51
  * @Version 1.0
