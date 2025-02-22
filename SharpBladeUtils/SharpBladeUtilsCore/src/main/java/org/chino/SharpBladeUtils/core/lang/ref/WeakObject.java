@@ -48,4 +48,23 @@ public class WeakObject<T> extends WeakReference<T> implements Reference_<T> {
         return hashCode;
     }
 
+    /**
+     * equals
+     *
+     * @param value {@link Object} 对象
+     * @return boolean 是否相等 true 相等，false 不相等
+     * @description {@link Object#equals(Object)}重写该方法，判断两个对象是否相等。
+     * @author LiuQi
+     */
+    @Override
+    public boolean equals(Object value) {
+        if (value == this) { // 对象本身直接返回 true
+            return true;
+        } else if (value instanceof WeakObject) { // 对象是 {@link WeakObject} 类型
+            // 比较两个对象的引用是否相等
+            // TODO 此处存在问题，因为 {@link WeakObject#get()} 可能返回 null 导致后续的比较出现问题。 需要根据不同的类型进行判断。
+            return Objects.equals(((WeakObject<?>) value).get(), get());
+        }
+        return false;
+    }
 }
