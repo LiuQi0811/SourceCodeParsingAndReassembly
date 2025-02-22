@@ -29,6 +29,21 @@ public class ObjectUtil {
     }
 
     /**
+     * apply 是否应用提供的映射函数并返回结果
+     *
+     * @param value         {@link Object} 对象
+     * @param customHandler {@link Function} 自定义处理器
+     * @param <T>           {@link T} 参数类型
+     * @param <R>           {@link R}返回值类型
+     * @return {@link R} 返回值
+     * @description 如果指定的对象不为 {@code null},则应用提供的映射函数并返回结果,否则返回 {@code null}。
+     */
+    public static <T, R> R apply(final T value, Function<T, R> customHandler) {
+        // 如果指定的对象不为 {@code null},则应用提供的映射函数并返回结果,否则返回 {@code null}
+        return defaultIfNull(value, customHandler, null);
+    }
+
+    /**
      * defaultIfNull 是否为空则返回默认值
      *
      * @param value         {@link Object} 对象
