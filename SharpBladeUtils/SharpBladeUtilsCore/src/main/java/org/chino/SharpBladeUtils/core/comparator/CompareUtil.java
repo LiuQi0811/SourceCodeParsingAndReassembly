@@ -10,6 +10,23 @@ package org.chino.SharpBladeUtils.core.comparator;
 public class CompareUtil {
 
     /**
+     * equals 对象比较
+     *
+     * @param value  {@link T}    对象一 可以为{@code null}
+     * @param value_ {@link T}   对象二 可以为{@code null}
+     * @param <T>    {@link T} 泛型类型 (泛型限定为实现了Comparable接口的类型)
+     * @return {@code true} 表示相等， {@code false} 表示不相等。
+     * @author LiuQi
+     * @see java.util.Comparator#compare(Object, Object)
+     */
+    public static <T extends Comparable<? super T>> boolean equals(final T value, final T value_) {
+        // 调用 {@code compare(value, value_)} compare 对象比较方法
+        // isNullGreater=false 默认null小于任何对象
+        // 返回0 表示相等
+        return compare(value, value_) == 0;
+    }
+
+    /**
      * compare 对象比较
      *
      * @param value  {@link T}    对象一 可以为{@code null}
