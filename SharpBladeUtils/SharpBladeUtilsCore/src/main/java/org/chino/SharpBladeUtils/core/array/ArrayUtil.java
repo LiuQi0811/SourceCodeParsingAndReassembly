@@ -21,4 +21,16 @@ public class ArrayUtil {
         // 返回 数组为空 或者 数组长度为0 的布尔值
         return array == null || array.length == 0;
     }
+
+    /**
+     * isArray 是否为数组
+     *
+     * @param data {@link Object} 对象
+     * @return 返回  true：data不为空 且 data是数组的布尔值  false：data为空 或者 data不是数组的布尔值
+     * @author LiuQi
+     */
+    public static boolean isArray(final Object data) {
+        // 返回  data不为空 且 data是数组的布尔值
+        return null != data && data.getClass().isArray();
+    }
 }
