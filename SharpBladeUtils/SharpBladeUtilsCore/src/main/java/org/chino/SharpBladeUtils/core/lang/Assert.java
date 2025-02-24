@@ -49,4 +49,34 @@ public class Assert {
         // 返回被检查的字符串
         return text;
     }
+
+    /**
+     * isTrue 断言是否为 true
+     *
+     * @param expression           表达式
+     * @param errorMessageTemplate {@link String} 错误消息模板，变量使用{}表示
+     * @param params               {@link Object...}模板参数
+     * @throws IllegalArgumentException 如果表达式为 false，则抛出 IllegalArgumentException 异常
+     * @author LiuQi
+     */
+    public static void isTrue(final boolean expression, final String errorMessageTemplate, final Object... params) throws IllegalArgumentException {
+        // 调取{@code isTrue(expression, ()->{})} isTrue 方法，传入表达式、错误消息模板和参数
+        // expression 为 false，抛出 IllegalArgumentException 异常
+        // TODO 此处省略具体实现 后续参数模板格式化的实现
+        isTrue(expression, () -> new IllegalArgumentException());
+    }
+
+    /**
+     * isTrue 断言是否为 true
+     *
+     * @param expression    表达式
+     * @param errorSupplier {@link Supplier<X>} 自定义异常的提供者
+     * @param <X>           {@link X} 异常类型
+     * @throws X 自定义异常 如果表达式为 false，则抛出异常
+     * @author LiuQi
+     */
+    public static <X extends Throwable> void isTrue(final boolean expression, final Supplier<? extends X> errorSupplier) throws X {
+        // expression 为 false，抛出自定义异常
+        if (!expression) throw errorSupplier.get();
+    }
 }
