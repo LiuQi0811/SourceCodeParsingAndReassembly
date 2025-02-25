@@ -3,6 +3,7 @@ package org.chino.SharpBladeUtils.core.text.placeholder.template;
 import org.chino.SharpBladeUtils.core.text.StringPool;
 import org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate;
 
+import java.util.Arrays;
 import java.util.function.UnaryOperator;
 
 /**
@@ -28,12 +29,13 @@ public class SinglePlaceholderStringTemplate extends StringTemplate {
 
     /**
      * SinglePlaceholderStringTemplate 构造方法
-     * @param placeholder  {@link String} 占位符
-     * @param template   {@link String} 字符串模板
-     * @param escapeChar 转义字符
-     * @param defaultValue {@link String} 默认值
+     *
+     * @param placeholder         {@link String} 占位符
+     * @param template            {@link String} 字符串模板
+     * @param escapeChar          转义字符
+     * @param defaultValue        {@link String} 默认值
      * @param defaultValueHandler {@link UnaryOperator<String>} 默认值处理器
-     * @param features    策略值
+     * @param features            策略值
      * @author LiuQi
      */
     protected SinglePlaceholderStringTemplate(final String placeholder, final String template, final char escapeChar, final String defaultValue, final UnaryOperator<String> defaultValueHandler, final int features) {
@@ -54,6 +56,44 @@ public class SinglePlaceholderStringTemplate extends StringTemplate {
     public static Builder builder(final String template) {
         // 返回 创建Builder 构建器对象
         return new Builder(template);
+    }
+
+    /**
+     * format 字符串格式化
+     *
+     * @param params {@link Object[]} 参数数组
+     * @return {@link String} 格式化后的字符串
+     * @author LiuQi
+     */
+    public String format(final Object... params) {
+        // 调用 {@code formatArray(params)} 方法格式化参数数组 返回格式化后的字符串
+        return formatArray(params);
+    }
+
+    /**
+     * formatArray 字符串格式化数组
+     *
+     * @param array {@link Object[]} 参数数组
+     * @return {@link String} 格式化后的字符串
+     * @author LiuQi
+     */
+    public String formatArray(final Object[] array) {
+        // 如果参数数组为空，则返回模板字符串
+        if (array == null) return getTemplate();
+        // 调用 {@code formatArray(params)} 方法格式化参数数组 返回格式化后的字符串
+        return format(Arrays.asList(array));
+    }
+
+    /**
+     * format 字符串格式化
+     *
+     * @param iterable {@link Iterable<?>} 可迭代对象
+     * @return {@link String} 格式化后的字符串
+     * @author LiuQi
+     */
+    public String format(final Iterable<?> iterable) {
+        // 调用 {@code formatSequence(iterable)} 方法格式化可迭代对象 返回格式化后的字符串
+        return super.formatSequence(iterable);
     }
 
     /**
