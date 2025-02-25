@@ -26,4 +26,24 @@ public abstract class StringTemplate {
         // 返回 SinglePlaceholderStringTemplate.Builder 构建器对象
         return SinglePlaceholderStringTemplate.builder(template);
     }
+
+    /**
+     * @param <BuilderChild>  BuilderChild 构建器子类类型
+     * @param <TemplateChild> TemplateChild 模板子类类型
+     * @ClassName AbstractBuilder
+     * @Description AbstractBuilder 抽象构建器
+     * @Author LiuQi
+     */
+    protected static abstract class AbstractBuilder<BuilderChild extends AbstractBuilder<BuilderChild, TemplateChild>, TemplateChild extends StringTemplate> {
+
+        /**
+         * AbstractBuilder 构造方法
+         *
+         * @param template {@link String} 字符串模板
+         * @author LiuQi
+         */
+        protected AbstractBuilder(final String template) {
+            System.out.println("AbstractBuilder 执行啦 " + template);
+        }
+    }
 }

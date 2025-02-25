@@ -32,8 +32,9 @@ public class SinglePlaceholderStringTemplate extends StringTemplate {
      *
      * @author LiuQi
      * @ClassName Builder
+     * @Description Builder 构建器 用于构建 SinglePlaceholderStringTemplate 对象
      */
-    public static class Builder {
+    public static class Builder extends AbstractBuilder<Builder, SinglePlaceholderStringTemplate> {
         /**
          * placeholder 占位符
          */
@@ -46,8 +47,8 @@ public class SinglePlaceholderStringTemplate extends StringTemplate {
          * @author LiuQi
          */
         public Builder(final String template) {
-            // TODO super(template);
-            System.out.println("构建器构造方法执行了  " + template);
+            // 调用 {@code AbstractBuilder(template)}构造方法
+            super(template);
         }
 
         /**
