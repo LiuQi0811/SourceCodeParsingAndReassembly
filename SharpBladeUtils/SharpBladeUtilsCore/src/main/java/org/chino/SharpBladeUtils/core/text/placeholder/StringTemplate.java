@@ -1,8 +1,11 @@
 package org.chino.SharpBladeUtils.core.text.placeholder;
 
+import org.chino.SharpBladeUtils.core.lang.Assert;
+import org.chino.SharpBladeUtils.core.text.CharPool;
 import org.chino.SharpBladeUtils.core.text.placeholder.template.SinglePlaceholderStringTemplate;
 
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 import static org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate.Feature.*;
 
@@ -14,12 +17,61 @@ import static org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate.Fea
  * @Version 1.0
  */
 public abstract class StringTemplate {
+    /**
+     * DEFAULT_ESCAPE 默认转义符字符
+     */
+    protected static final char DEFAULT_ESCAPE = CharPool.BACKSLASH;
 
     /**
      * globalFeatures 全局策略值
      */
     protected static int globalFeatures = Feature.of(FORMAT_MISSING_KEY_PRINT_WHOLE_PLACEHOLDER, FORMAT_NULL_VALUE_TO_STR,
             MATCH_KEEP_DEFAULT_VALUE, MATCH_EMPTY_VALUE_TO_NULL, MATCH_NULL_STR_TO_NULL);
+
+    /**
+     * template 字符串模板
+     */
+    private final String template;
+    /**
+     * escapeChar 转义符字符
+     */
+    private final char escapeChar;
+    /**
+     * defaultValue 默认值
+     */
+    private final String defaultValue;
+    /**
+     * defaultValueHandler 默认值处理器
+     */
+    private final UnaryOperator<String> defaultValueHandler;
+    /**
+     * features 策略值
+     */
+    private final int features;
+
+
+    /**
+     * StringTemplate 构造方法
+     *
+     * @param template            {@link String} 字符串模板
+     * @param escapeChar          转义字符
+     * @param defaultValue        {@link String} 默认值
+     * @param defaultValueHandler {@link UnaryOperator<String>} 默认值处理器
+     * @param features            策略值
+     * @author LiuQi
+     */
+    protected StringTemplate(final String template, final char escapeChar, final String defaultValue, final UnaryOperator<String> defaultValueHandler, final int features) {
+        Assert.notNull(template, "String template cannot be null");
+        // 设置字符串模板
+        this.template = template;
+        // 设置转义符字符
+        this.escapeChar = escapeChar;
+        // 设置默认值和处理器
+        this.defaultValue = defaultValue;
+        this.defaultValueHandler = defaultValueHandler;
+        // 设置策略值
+        this.features = features;
+    }
 
     /**
      * of 构建模板
@@ -50,9 +102,25 @@ public abstract class StringTemplate {
          */
         protected final String template;
         /**
+         * escapeChar 转义符字符
+         */
+        protected char escapeChar;
+        /**
+         * defaultValue 默认值
+         */
+        protected String defaultValue;
+        /**
+         * defaultValueHandler 默认值处理器
+         */
+        protected UnaryOperator<String> defaultValueHandler;
+        /**
          * features 策略值
          */
         protected int features;
+        /**
+         * hasEscapeChar 是否设置转义符
+         */
+        protected boolean hasEscapeChar;
 
         /**
          * AbstractBuilder 构造方法
@@ -65,6 +133,29 @@ public abstract class StringTemplate {
             this.template = Objects.requireNonNull(template);
             this.features = StringTemplate.globalFeatures;
         }
+
+        /**
+         * build 构建模板对象
+         *
+         * @return {@link TemplateChild} 模板对象
+         * @description 构建模板对象
+         * @author LiuQi
+         */
+        public TemplateChild build() {
+            // 如果没有设置转义符 则使用默认转义符
+            if (!hasEscapeChar) this.escapeChar = DEFAULT_ESCAPE;
+            // 构建模板对象实例 并返回
+            return buildInstance();
+        }
+
+        /**
+         * buildInstance 构建模板对象实例
+         *
+         * @return {@link TemplateChild} 模板对象实例
+         * @description 构建模板对象实例 子类Builder
+         * @author LiuQi
+         */
+        protected abstract TemplateChild buildInstance();
     }
 
     /**
