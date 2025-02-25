@@ -4,6 +4,7 @@ import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.text.CharPool;
 import org.chino.SharpBladeUtils.core.text.placeholder.template.SinglePlaceholderStringTemplate;
 
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -74,6 +75,17 @@ public abstract class StringTemplate {
     }
 
     /**
+     * getTemplate 获取字符串模板
+     *
+     * @return {@link String} 字符串模板
+     * @author LiuQi
+     */
+    public String getTemplate() {
+        // 返回字符串模板
+        return template;
+    }
+
+    /**
      * of 构建模板
      *
      * @param template {@link String} 字符串模板
@@ -87,6 +99,23 @@ public abstract class StringTemplate {
     public static SinglePlaceholderStringTemplate.Builder of(final String template) {
         // 返回 SinglePlaceholderStringTemplate.Builder 构建器对象
         return SinglePlaceholderStringTemplate.builder(template);
+    }
+
+    /**
+     * formatSequence 格式化序列
+     *
+     * @param iterable {@link Iterable<?>} 可迭代对象
+     * @return {@link String} 格式化后的字符串
+     * @description 格式化序列
+     * @author LiuQi
+     */
+    protected String formatSequence(final Iterable<?> iterable) {
+        // 如果可迭代对象为空 则返回字符串模板
+        if (iterable == null) return getTemplate();
+        // 获取迭代器对象
+        Iterator<?> iterator = iterable.iterator();
+        // TODO 此处有待实现
+        return null;
     }
 
     /**
