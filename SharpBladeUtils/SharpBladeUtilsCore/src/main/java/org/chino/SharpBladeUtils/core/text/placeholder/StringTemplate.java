@@ -8,6 +8,7 @@ import org.chino.SharpBladeUtils.core.text.placeholder.segment.StringTemplateSeg
 import org.chino.SharpBladeUtils.core.text.placeholder.template.SinglePlaceholderStringTemplate;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import static org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate.Feature.*;
@@ -181,6 +182,47 @@ public abstract class StringTemplate {
      * @author LiuQi
      */
     protected abstract List<StringTemplateSegment> parseSegments(String template);
+
+    /**
+     * formatRawBySegment 格式化原始片段
+     *
+     * @param valueSupplier valueSupplier {@link Function<AbstractPlaceholderSegment>} 占位符片段对应的值提供者
+     * @return {@link String} 格式化后的字符串模板片段
+     * @description 根据原始数据 生成格式化字符串
+     * @author LiuQi
+     */
+    public String formatRawBySegment(final Function<AbstractPlaceholderSegment, String> valueSupplier) {
+        // 创建 结果字符串集合对象 并初始化大小 = 占位符片段数量
+        final List<String> result = new ArrayList<>(placeholderSegments.size());
+        // totalTextLen 计算固定文本 + 需要格式化的参数的字符串 的总字符数量 (字符串长度)
+        int totalTextLen = this.fixedTextTotalLength;
+        String valueStr;
+        for (final AbstractPlaceholderSegment placeholderSegment : placeholderSegments) { // 遍历占位符片段集合
+            //  valueStr 占位符片段对应的值 提供者 根据 valueSupplier 执行 apply 方法 并传入当前遍历的占位符片段对象
+            valueStr = valueSupplier.apply(placeholderSegment);
+            // 如果 valueStr 为空 则设置为 "null"
+            if (valueStr == null) valueStr = "null";
+            // totalTextLen 计算固定文本 + 需要格式化的参数的字符串 的总字符数量 (字符串长度) += 当前占位符片段对应的值 提供者 的结果
+            totalTextLen += valueStr.length();
+            // 将占位符片段对应的值 提供者的结果 添加到结果字符串集合中
+            result.add(valueStr);
+        }
+        // index 索引
+        int index = 0;
+        // 创建StringBuilder对象 并初始化大小 = 固定文本 + 需要格式化的参数的字符串 的总字符数量 (字符串长度)
+        final StringBuilder resultBuilder = new StringBuilder(totalTextLen);
+        for (final StringTemplateSegment segment : segments) { // 遍历segments集合
+            if (segment instanceof LiteralSegment) { // 如果是固定文本片段 则执行以下操作
+                //  resultBuilder 添加 当前遍历的固定文本片段对象 的文本内容
+                resultBuilder.append(segment.getText());
+            } else {
+                // 替换占位符片段对应的值 提供者的结果  example: this is {} for {} -> this is A for A
+                resultBuilder.append(result.get(index++));
+            }
+        }
+        // 返回结果字符串集合对象 toString 方法的结果 即格式化后的字符串模板片段
+        return resultBuilder.toString();
+    }
 
     /**
      * addLiteralSegment 添加文本片段
