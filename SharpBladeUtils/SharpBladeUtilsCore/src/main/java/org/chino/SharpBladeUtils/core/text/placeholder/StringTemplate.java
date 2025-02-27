@@ -2,14 +2,12 @@ package org.chino.SharpBladeUtils.core.text.placeholder;
 
 import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.text.CharPool;
+import org.chino.SharpBladeUtils.core.text.placeholder.segment.AbstractPlaceholderSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.segment.LiteralSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.segment.StringTemplateSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.template.SinglePlaceholderStringTemplate;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.UnaryOperator;
 
 import static org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate.Feature.*;
@@ -57,6 +55,14 @@ public abstract class StringTemplate {
      * segments 字符串模板片段集合 (所有固定文本和占位符)
      */
     protected List<StringTemplateSegment> segments;
+    /**
+     * placeholderSegments 占位符片段集合 (所有占位符)
+     */
+    protected List<AbstractPlaceholderSegment> placeholderSegments;
+    /**
+     * fixedTextTotalLength 固定文本总长度
+     */
+    protected int fixedTextTotalLength;
 
 
     /**
@@ -135,10 +141,35 @@ public abstract class StringTemplate {
     protected void afterInitialize() {
         // 创建 segments 列表对象
         this.segments = new ArrayList<>(parseSegments(template));
-        System.out.println(" segments = " + this.segments);
-
-        // TODO 此处有待实现
-        System.out.println("afterInitialize() 执行了...");
+        //  计算 固定文本segment 的数量 和文本总长度
+        int literalSegmentSize = 0, fixedTextTotalLen = 0;
+        for (final StringTemplateSegment segment : this.segments) { // 遍历segments集合
+            if (segment instanceof LiteralSegment) { // segment 是固定文本片段 则执行以下操作
+                // ++literalSegmentSize 固定文本片段{} 数量自增
+                ++literalSegmentSize;
+                // fixedTextTotalLen 计算固定文本总长度 += 当前segment的文本长度
+                fixedTextTotalLen += segment.getText().length();
+            }
+        }
+        // 设置固定文本总长度
+        this.fixedTextTotalLength = fixedTextTotalLen;
+        // 计算 占位符片段数量 = segments集合大小 - 固定文本片段{}的数量
+        final int placeholderSegmentsSize = segments.size() - literalSegmentSize;
+        if (placeholderSegmentsSize == 0) { // 占位符片段数量为0 则执行以下操作
+            // 设置 placeholderSegments占位符片段集合为空列表对象
+            this.placeholderSegments = Collections.emptyList();
+        } else {
+            // 创建 placeholderSegments占位符片段集合对象 并初始化大小 = 占位符片段数量
+            List<AbstractPlaceholderSegment> placeholderSegments = new ArrayList<>(placeholderSegmentsSize);
+            for (final StringTemplateSegment segment : segments) { // 遍历segments集合
+                if (segment instanceof AbstractPlaceholderSegment) { // segment 是占位符片段 则执行以下操作
+                    // 将 占位符片段对象 添加到 placeholderSegments占位符片段集合中
+                    placeholderSegments.add((AbstractPlaceholderSegment) segment);
+                }
+            }
+            // 设置 placeholderSegments占位符片段集合 = 遍历segments集合 并过滤出占位符片段
+            this.placeholderSegments = placeholderSegments;
+        }
     }
 
     /**
