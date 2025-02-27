@@ -2,9 +2,13 @@ package org.chino.SharpBladeUtils.core.text.placeholder;
 
 import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.text.CharPool;
+import org.chino.SharpBladeUtils.core.text.placeholder.segment.LiteralSegment;
+import org.chino.SharpBladeUtils.core.text.placeholder.segment.StringTemplateSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.template.SinglePlaceholderStringTemplate;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -36,19 +40,23 @@ public abstract class StringTemplate {
     /**
      * escapeChar 转义符字符
      */
-    private final char escapeChar;
+    protected final char escapeChar;
     /**
      * defaultValue 默认值
      */
-    private final String defaultValue;
+    protected final String defaultValue;
     /**
      * defaultValueHandler 默认值处理器
      */
-    private final UnaryOperator<String> defaultValueHandler;
+    protected final UnaryOperator<String> defaultValueHandler;
     /**
      * features 策略值
      */
     private final int features;
+    /**
+     * segments 字符串模板片段集合 (所有固定文本和占位符)
+     */
+    protected List<StringTemplateSegment> segments;
 
 
     /**
@@ -116,6 +124,56 @@ public abstract class StringTemplate {
         Iterator<?> iterator = iterable.iterator();
         // TODO 此处有待实现
         return null;
+    }
+
+    /**
+     * afterInitialize  initialization after
+     *
+     * @description 初始化后执行的操作
+     * @author LiuQi
+     */
+    protected void afterInitialize() {
+        // 创建 segments 列表对象
+        this.segments = new ArrayList<>(parseSegments(template));
+        System.out.println(" segments = " + this.segments);
+
+        // TODO 此处有待实现
+        System.out.println("afterInitialize() 执行了...");
+    }
+
+    /**
+     * parseSegments 解析字符串模板片段
+     *
+     * @param template {@link String} 字符串模板
+     * @return {@link List<StringTemplateSegment>} 字符串模板片段集合
+     * @description 将 模板 解析为 Segment 列表  - 字符串模板片段
+     * @author LiuQi
+     */
+    protected abstract List<StringTemplateSegment> parseSegments(String template);
+
+    /**
+     * addLiteralSegment 添加文本片段
+     *
+     * @param lastLiteralSegmentText 上一个新增的segment是否是固定文本
+     * @param segments               segments {@link List<StringTemplateSegment>}字符串模板片段集合
+     * @param newText                {@link String}  新的固定文本
+     * @description 添加 固定文本segment，过滤空字符串 并合并相邻的固定文本
+     * @author LiuQi
+     */
+    protected void addLiteralSegment(final boolean lastLiteralSegmentText, final List<StringTemplateSegment> segments, final String newText) {
+        // 新增固定文本片段为空 则直接返回
+        if (newText.isEmpty()) return;
+        if (lastLiteralSegmentText) { // 如果上一个新增的segment是固定文本 则合并
+            // 获取最后一个固定文本片段的索引位置
+            final int lastIdx = segments.size() - 1;
+            // 获取最后一个固定文本片段对象 并合并 新增的固定文本
+            final StringTemplateSegment lastLiteralSegment = segments.get(lastIdx);
+            // 合并 新增的固定文本 到最后一个固定文本片段对象中
+            segments.set(lastIdx, new LiteralSegment(lastLiteralSegment.getText() + newText));
+        } else {
+            // 如果上一个新增的segment不是固定文本 则直接添加
+            segments.add(new LiteralSegment(newText));
+        }
     }
 
     /**
