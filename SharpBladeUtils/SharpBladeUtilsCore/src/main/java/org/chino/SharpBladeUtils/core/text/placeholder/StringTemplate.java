@@ -2,6 +2,7 @@ package org.chino.SharpBladeUtils.core.text.placeholder;
 
 import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.text.CharPool;
+import org.chino.SharpBladeUtils.core.text.StringUtil;
 import org.chino.SharpBladeUtils.core.text.placeholder.segment.AbstractPlaceholderSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.segment.LiteralSegment;
 import org.chino.SharpBladeUtils.core.text.placeholder.segment.StringTemplateSegment;
@@ -129,8 +130,15 @@ public abstract class StringTemplate {
         if (iterable == null) return getTemplate();
         // 获取迭代器对象
         Iterator<?> iterator = iterable.iterator();
-        // TODO 此处有待实现
-        return null;
+        // 调用 {@code formatBySegment} 方法 并传入一个函数式接口 返回下一个元素 或者 null
+        return formatBySegment(segment -> { // 函数式接口 返回下一个元素 或者 null
+            if (iterator.hasNext()) { // 如果迭代器对象中有下一个元素 则执行以下操作
+                return iterator.next();
+            } else {// 如果迭代器对象中没有下一个元素 则执行以下操作
+                // TODO 此处有待实现
+                return null;
+            }
+        });
     }
 
     /**
@@ -182,6 +190,34 @@ public abstract class StringTemplate {
      * @author LiuQi
      */
     protected abstract List<StringTemplateSegment> parseSegments(String template);
+
+    /**
+     * formatBySegment 格式化片段
+     *
+     * @param valueSupplier {@link Function<AbstractPlaceholderSegment>} 占位符片段对应的值提供者
+     *                      根据 占位符 返回 需要序列化的值，如果返回值不是 {@link String}，则使用 {@link org.chino.SharpBladeUtils.core.text.StringUtil#utf8Str(Object)}
+     *                      方法转为字符串
+     * @return {@link String} 格式化后的字符串模板片段
+     * @description <pre>
+     *     1.根据 策略 和 默认值 处理需要序列化的值, 生成格式化字符串
+     *     2.依次遍历模板中的 占位符，根据 占位符 返回 需要序列化的值
+     * </pre>
+     * @author LiuQi
+     */
+    protected String formatBySegment(final Function<AbstractPlaceholderSegment, ?> valueSupplier) {
+        // 调用 {@code formatRawBySegment(final Function<AbstractPlaceholderSegment, String> valueSupplier)} 方法 并传入 valueSupplier 占位符片段对应的值提供者
+        return formatRawBySegment(segment -> {
+            // 如果 valueSupplier 占位符片段对应的值提供者 为空 则返回 "null"
+            Object result = valueSupplier.apply(segment);
+            if (result != null) { // 如果 valueSupplier 占位符片段对应的值提供者 的结果不为空 则执行以下操作
+                // 返回 valueSupplier 占位符片段对应的值提供者 的结果 使用 StringUtil.utf8Str 方法转为字符串
+                return StringUtil.utf8Str(result);
+            } else { // 如果 valueSupplier 占位符片段对应的值提供者 为空 则执行以下操作
+                // TODO 待实现 占位符片段对应的值 提供者 为空 情况下的处理逻辑
+                return null;
+            }
+        });
+    }
 
     /**
      * formatRawBySegment 格式化原始片段
