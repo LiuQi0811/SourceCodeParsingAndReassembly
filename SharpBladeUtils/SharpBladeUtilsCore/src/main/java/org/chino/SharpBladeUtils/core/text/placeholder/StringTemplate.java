@@ -102,6 +102,17 @@ public abstract class StringTemplate {
     }
 
     /**
+     * getFeatures 获取策略值
+     *
+     * @return 策略值
+     * @author LiuQi
+     */
+    public int getFeatures() {
+        // 返回策略值
+        return features;
+    }
+
+    /**
      * of 构建模板
      *
      * @param template {@link String} 字符串模板
@@ -135,8 +146,8 @@ public abstract class StringTemplate {
             if (iterator.hasNext()) { // 如果迭代器对象中有下一个元素 则执行以下操作
                 return iterator.next();
             } else {// 如果迭代器对象中没有下一个元素 则执行以下操作
-                // TODO 此处有待实现
-                return null;
+                // 调用 {@code formatMissingKey} 并传入当前segment对象
+                return formatMissingKey(segment);
             }
         });
     }
@@ -213,8 +224,8 @@ public abstract class StringTemplate {
                 // 返回 valueSupplier 占位符片段对应的值提供者 的结果 使用 StringUtil.utf8Str 方法转为字符串
                 return StringUtil.utf8Str(result);
             } else { // 如果 valueSupplier 占位符片段对应的值提供者 为空 则执行以下操作
-                // TODO 待实现 占位符片段对应的值 提供者 为空 情况下的处理逻辑
-                return null;
+                // 调用 {@code formatNullValue(final AbstractPlaceholderSegment segment)} 方法 并传入当前遍历的占位符片段对象
+                return formatNullValue(segment);
             }
         });
     }
@@ -258,6 +269,59 @@ public abstract class StringTemplate {
         }
         // 返回结果字符串集合对象 toString 方法的结果 即格式化后的字符串模板片段
         return resultBuilder.toString();
+    }
+
+    /**
+     * formatMissingKey 格式化缺失键
+     *
+     * @param placeholderSegment {@link AbstractPlaceholderSegment} 占位符片段对象
+     * @return {@link String} 找不到占位符的字符串默认值
+     * @description 根据策略 返回格式化参数中 找不到占位符时的默认值
+     * @author LiuQi
+     */
+    protected String formatMissingKey(final AbstractPlaceholderSegment placeholderSegment) {
+        // features 策略值
+        final int features = getFeatures();
+        if (FORMAT_MISSING_KEY_PRINT_WHOLE_PLACEHOLDER.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_PRINT_WHOLE_PLACEHOLDER 则执行以下操作
+            // 返回占位符片段对象 的文本内容 - 即找不到占位符的字符串默认值
+            return placeholderSegment.getText();
+        } else if (FORMAT_MISSING_KEY_PRINT_DEFAULT_VALUE.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_PRINT_DEFAULT_VALUE 则执行以下操作
+            System.out.println("FORMAT_MISSING_KEY_PRINT_DEFAULT_VALUE 策略 未实现");
+        } else if (FORMAT_MISSING_KEY_PRINT_NULL.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_PRINT_NULL 则执行以下操作
+            System.out.println("FORMAT_MISSING_KEY_PRINT_NULL 策略 未实现");
+        } else if (FORMAT_MISSING_KEY_PRINT_EMPTY.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_PRINT_EMPTY 则执行以下操作
+            System.out.println("FORMAT_MISSING_KEY_PRINT_EMPTY 策略 未实现");
+        } else if (FORMAT_MISSING_KEY_PRINT_VARIABLE_NAME.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_PRINT_VARIABLE_NAME 则执行以下操作
+            System.out.println("FORMAT_MISSING_KEY_PRINT_VARIABLE_NAME 策略 未实现");
+        } else if (FORMAT_MISSING_KEY_THROWS.contains(features)) { // 如果策略值包含 FORMAT_MISSING_KEY_THROWS 则执行以下操作
+            System.out.println("FORMAT_MISSING_KEY_THROWS 策略 未实现");
+        }
+        // TODO  异常处理 未实现
+        return null;
+    }
+
+    /**
+     * formatNullValue 格式化空值
+     *
+     * @param placeholderSegment {@link AbstractPlaceholderSegment} 占位符片段对象
+     * @return {@link String} 占位符对应的值为 {@code null} 时的返回值
+     * @description 根据策略 返回占位符对应的值为 {@code null} 时的返回值
+     * @author LiuQi
+     */
+    public String formatNullValue(final AbstractPlaceholderSegment placeholderSegment) {
+        // features 策略值
+        int features = getFeatures();
+        if (FORMAT_NULL_VALUE_TO_STR.contains(features)) { // 如果策略值包含 FORMAT_NULL_VALUE_TO_STR 则执行以下操作
+            System.out.println(" FORMAT_NULL_VALUE_TO_STR 策略 未实现");
+        } else if (FORMAT_NULL_VALUE_TO_EMPTY.contains(features)) { // 如果策略值包含 FORMAT_NULL_VALUE_TO_EMPTY 则执行以下操作
+            System.out.println(" FORMAT_NULL_VALUE_TO_EMPTY 策略 未实现");
+        } else if (FORMAT_NULL_VALUE_TO_WHOLE_PLACEHOLDER.contains(features)) { // 如果策略值包含 FORMAT_NULL_VALUE_TO_WHOLE_PLACEHOLDER 则执行以下操作
+            System.out.println(" FORMAT_NULL_VALUE_TO_WHOLE_PLACEHOLDER 策略 未实现");
+        } else if (FORMAT_NULL_VALUE_TO_DEFAULT_VALUE.contains(features)) { // 如果策略值包含 FORMAT_NULL_VALUE_TO_DEFAULT_VALUE 则执行以下操作
+            System.out.println(" FORMAT_NULL_VALUE_TO_DEFAULT_VALUE 策略 未实现");
+        }
+        // TODO  异常处理 未实现
+        return "null";
     }
 
     /**
@@ -365,13 +429,41 @@ public abstract class StringTemplate {
          */
         FORMAT_MISSING_KEY_PRINT_WHOLE_PLACEHOLDER(0, 0, 6),
         /**
+         * FORMAT_MISSING_KEY_PRINT_DEFAULT_VALUE 缺失键时打印默认值
+         */
+        FORMAT_MISSING_KEY_PRINT_DEFAULT_VALUE(1, 0, 6),
+        /**
+         * FORMAT_MISSING_KEY_PRINT_NULL 缺失键时打印 null
+         */
+        FORMAT_MISSING_KEY_PRINT_NULL(2, 0, 6),
+        /**
          * FORMAT_MISSING_KEY_PRINT_EMPTY 缺失键时打印空字符串
          */
         FORMAT_MISSING_KEY_PRINT_EMPTY(3, 0, 6),
         /**
+         * FORMAT_MISSING_KEY_PRINT_VARIABLE_NAME 缺失键时打印变量名
+         */
+        FORMAT_MISSING_KEY_PRINT_VARIABLE_NAME(4, 0, 6),
+        /**
+         * FORMAT_MISSING_KEY_THROWS 缺失键时抛出异常
+         */
+        FORMAT_MISSING_KEY_THROWS(5, 0, 6),
+        /**
          * FORMAT_NULL_VALUE_TO_STR 空值转为字符串 "null"
          */
         FORMAT_NULL_VALUE_TO_STR(6, 6, 4),
+        /**
+         * FORMAT_NULL_VALUE_TO_EMPTY 空值转为空字符串 ""
+         */
+        FORMAT_NULL_VALUE_TO_EMPTY(7, 6, 4),
+        /**
+         * FORMAT_NULL_VALUE_TO_WHOLE_PLACEHOLDER 空值转为整个占位符
+         */
+        FORMAT_NULL_VALUE_TO_WHOLE_PLACEHOLDER(8, 6, 4),
+        /**
+         * FORMAT_NULL_VALUE_TO_DEFAULT_VALUE 空值转为默认值
+         */
+        FORMAT_NULL_VALUE_TO_DEFAULT_VALUE(9, 6, 4),
         /**
          * MATCH_KEEP_DEFAULT_VALUE 匹配时保持默认值，不替换为空字符串
          */
@@ -440,6 +532,18 @@ public abstract class StringTemplate {
             }
             // 返回组合后的策略值
             return result;
+        }
+
+        /**
+         * contains 判断策略值是否包含当前枚举值的掩码值
+         *
+         * @param features 策略值
+         * @return 返回 true 或 false
+         * @author LiuQi
+         */
+        public boolean contains(final int features) {
+            // 返回 true 或 false，判断策略值是否包含当前枚举值的掩码值
+            return (features & mask) != 0;
         }
     }
 }
