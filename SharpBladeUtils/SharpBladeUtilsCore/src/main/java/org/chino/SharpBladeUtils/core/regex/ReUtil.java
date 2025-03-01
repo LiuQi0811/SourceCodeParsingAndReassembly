@@ -2,7 +2,7 @@ package org.chino.SharpBladeUtils.core.regex;
 
 import org.chino.SharpBladeUtils.core.func.SerializeFunction;
 import org.chino.SharpBladeUtils.core.lang.mutable.MutableObject;
-import org.chino.SharpBladeUtils.core.text.StrUtil;
+import org.chino.SharpBladeUtils.core.text.StringUtil;
 
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -66,7 +66,7 @@ public class ReUtil {
      */
     public static String replaceAll(final CharSequence charSequence, final Pattern pattern, SerializeFunction<Matcher, String> replaceFunc) {
         // 参数为空直接返回 - 将对象转为字符串，如果为null则返回null
-        if (StrUtil.isEmpty(charSequence) || null == pattern) return StrUtil.toStringOrNull(charSequence);
+        if (StringUtil.isEmpty(charSequence) || null == pattern) return StringUtil.toStringOrNull(charSequence);
         // 替换文本的函数为空则使用默认的匹配内容作为替换文本
         if (null == replaceFunc) replaceFunc = Matcher::group;
         // 获取匹配器

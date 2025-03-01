@@ -5,10 +5,7 @@ import org.chino.SharpBladeUtils.core.lang.ref.Reference_;
 
 import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -84,7 +81,8 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
         // result 用于存储计算得到的值。
         V result = null;
         while (null == result) { // 循环直到找到或计算值为止。
-            // TODO 清除被GC回收的键和值引用 - 待处理逻辑。
+            // 清除被GC回收的键和值引用
+            purgeGCGarbage();
             // 获取键的引用对象，如果不存在则计算并添加到dataMap中。
             Reference_<V> vReference = dataMap.computeIfAbsent(wrapKey(key), kReference -> wrapValue(mappingFunction.apply(unwrap(kReference))));
             // 如果vReference在此时被GC回收，则unwrap后为null，需要循环计算
@@ -121,6 +119,8 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
      */
     @SuppressWarnings(value = "unchecked")
     private Reference_<V> wrapValue(final Object value) {
+        // 如果value为null，则返回NullReference_.NULL对象。
+        if (null == value) return (Reference_<V>) NullReference_.NULL;
         // 返回wrapValue对应的Reference对象。
         return wrapValue(((V) value), referenceQueueValue);
     }
@@ -159,66 +159,94 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
 
     @Override
     public int size() {
-        // TODO Auto-generated method stub
-        return 0;
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap的大小，即当前存储的键值对数量。
+        return dataMap.size();
     }
 
     @Override
     public boolean isEmpty() {
-        //TODO Auto-generated method stub
-        return false;
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap是否为空，即当前没有存储的键值对。
+        return dataMap.isEmpty();
     }
 
     @Override
-    public V get(Object key) {
-        // TODO Auto-generated method stub
-        return null;
+    public V get(final Object key) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap中键对应的值，如果存在则去除Reference_对象中的引用并返回实际引用的对象。
+        return unwrap(dataMap.get(wrapKey(key)));
     }
 
     @Override
-    public boolean containsKey(Object key) {
-        // TODO Auto-generated method stub
-        return false;
+    public boolean containsKey(final Object key) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap是否包含给定的键，即当前是否有该键的映射。
+        return dataMap.containsKey(wrapKey(key));
     }
 
     @Override
-    public boolean containsValue(Object value) {
-        // TODO Auto-generated method stub
-        return false;
+    public boolean containsValue(final Object value) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap是否包含给定的值，即当前是否有该值的映射。
+        return dataMap.containsValue(wrapValue(value));
     }
 
     @Override
-    public V put(K key, V value) {
-        // TODO Auto-generated method stub
-        return null;
+    public V put(final K key, final V value) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 将键值对放入dataMap中，并返回之前的映射的值（如果有的话）。
+        final Reference_<V> vReference = dataMap.put(wrapKey(key), wrapValue(value));
+        // 如果vReference在此时被GC回收，则unwrap后为null，需要循环计算
+        return unwrap(vReference);
     }
 
     @Override
-    public V putIfAbsent(K key, V value) {
-        // TODO Auto-generated method stub
-        return null;
+    public V putIfAbsent(final K key, final V value) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 将键值对放入dataMap中，如果之前没有该键的映射则返回null。
+        final Reference_<V> vReference = dataMap.putIfAbsent(wrapKey(key), wrapValue(value));
+        // 如果vReference在此时被GC回收，则unwrap后为null，需要循环计算
+        return unwrap(vReference);
     }
 
     @Override
-    public void putAll(Map<? extends K, ? extends V> m) {
-        // TODO Auto-generated method stub
+    public void putAll(final Map<? extends K, ? extends V> dataMap) {
+        // dataMap中的所有键值对到当前map中。
+        dataMap.forEach(this::put);
     }
 
     @Override
-    public boolean replace(K key, V oldValue, V newValue) {
-        // TODO Auto-generated method stub
-        return false;
+    public V replace(final K key, final V value) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 替换dataMap中键对应的值，如果之前有该键的映射则返回之前的值。
+        Reference_<V> vReference = dataMap.replace(wrapKey(key), wrapValue(value));
+        // 如果vReference在此时被GC回收，则unwrap后为null，需要循环计算
+        return unwrap(vReference);
     }
 
     @Override
-    public V replace(K key, V value) {
-        // TODO Auto-generated method stub
-        return null;
+    public boolean replace(final K key, final V oldValue, final V newValue) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 替换dataMap中键对应的值，如果之前有该键的映射且旧值为oldValue则返回true。
+        return dataMap.replace(wrapKey(key), wrapValue(oldValue), wrapValue(newValue));
     }
 
     @Override
-    public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
-        // TODO Auto-generated method stub
+    public void replaceAll(final BiFunction<? super K, ? super V, ? extends V> function) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 对dataMap中的每个键值对应用function函数，并替换为新的值。
+        dataMap.replaceAll((kReference, vReference) -> wrapValue(function.apply(unwrap(kReference), unwrap(vReference))));
     }
 
     @Override
@@ -228,26 +256,50 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
     }
 
     @Override
-    public V remove(Object key) {
-        // TODO Auto-generated method stub
-        return null;
+    public V remove(final Object key) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 移除dataMap中键对应的键值对，并返回之前的映射的值（如果有的话）。
+        return unwrap(dataMap.remove(wrapKey(key)));
     }
 
+    @SuppressWarnings(value = "unchecked")
     @Override
-    public boolean remove(Object key, Object value) {
-        // TODO Auto-generated method stub
-        return false;
+    public boolean remove(final Object key, final Object value) {
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 移除dataMap中键对应的值，如果之前有该键的映射且值为value则返回true。
+        return dataMap.remove(wrapKey((K) key, null), value);
     }
 
+    @SuppressWarnings(value = "StatementWithEmptyBody")
     @Override
     public void clear() {
-        // TODO Auto-generated method stub
+        // 清除dataMap中的所有键值对，并清空引用队列
+        dataMap.clear();
+        // referenceQueueKey.poll()和referenceQueueValue.poll()用于清除被GC回收的键值对引用
+        while (referenceQueueKey.poll() != null) ;
+        while (referenceQueueValue.poll() != null) ;
     }
 
     @Override
     public Set<K> keySet() {
-        // TODO Auto-generated method stub
-        return null;
+        // 清除被GC回收的键和值引用
+        purgeGCGarbage();
+        // 返回dataMap的键集合，即当前存储的所有键。
+        Set<Reference_<K>> referenceSet = dataMap.keySet();
+        // 返回一个抽象集合，其中包含dataMap的键引用。
+        return new AbstractSet<K>() {
+            @Override
+            public Iterator<K> iterator() {
+                return null;
+            }
+
+            @Override
+            public int size() {
+                return 0;
+            }
+        };
     }
 
     @Override
@@ -283,5 +335,29 @@ public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V
     public V merge(K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    /**
+     * purgeGCGarbage 清除被回收的键值对垃圾
+     *
+     * @description <pre> Purge GC Garbage 清理垃圾，清除被GC回收的键值对 </pre>
+     * @author LiuQi
+     */
+    @SuppressWarnings(value = "unchecked")
+    private void purgeGCGarbage() {
+        /**
+         * referenceKey 引用键
+         */
+        Reference_<? extends K> referenceKey;
+        /**
+         * referenceValue 引用值
+         */
+        Reference_<? extends V> referenceValue;
+        while ((referenceKey = (Reference_<? extends K>) referenceQueueKey.poll()) != null) { // 清除无效key对应键值对
+            System.out.println("清除被回收的键值对垃圾" + referenceQueueKey.poll() + " - " + referenceKey);
+        }
+        while ((referenceValue = (Reference_<? extends V>) referenceQueueValue.poll()) != null) { // 清除无效value对应键值对
+            System.out.println("清除被回收的键值对垃圾" + referenceQueueValue.poll() + " - " + referenceValue);
+        }
     }
 }
