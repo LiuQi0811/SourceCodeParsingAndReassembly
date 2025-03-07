@@ -2,6 +2,8 @@ package org.chino.SharpBladeUtils.core.text;
 
 import org.chino.SharpBladeUtils.core.func.SerializeFunction;
 import org.chino.SharpBladeUtils.core.regex.ReUtil;
+import org.chino.SharpBladeUtils.core.text.placeholder.StringFormatter;
+import org.chino.SharpBladeUtils.core.text.replacer.SearchReplacer;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +39,7 @@ import java.util.regex.Pattern;
  * @Date 2025/2/19 14:49
  * @Version 1.0
  */
-public class CharSequenceUtil extends StrValidator {
+public class CharSequenceUtil extends StringValidator {
 
     /**
      * toStringOrNull 将对象转为字符串，如果为null则返回null
@@ -63,6 +65,40 @@ public class CharSequenceUtil extends StrValidator {
     public static String replace(final CharSequence charSequence, final Pattern pattern, final SerializeFunction<Matcher, String> replaceFunc) {
         // 使用ReUtil正则匹配处理工具类进行替换操作
         return ReUtil.replaceAll(charSequence, pattern, replaceFunc);
+    }
+
+    /**
+     * replace 替换字符串中的指定字符串
+     *
+     * @param charSequence {@link CharSequence} 字符串
+     * @param search       {@link CharSequence} 被查找的字符串
+     * @param replacement  {@link CharSequence} 被替换的字符串
+     * @return 返回替换后的字符串
+     * @author LiuQi
+     */
+    public static String replace(final CharSequence charSequence, final CharSequence search, final CharSequence replacement) {
+        // 返回 替换后的字符串  调取{@code replace(final CharSequence charSequence, final int formIndex, final CharSequence search, final CharSequence replacement, final boolean ignoreCase)} 方法
+        return replace(charSequence, 0, search, replacement, false);
+    }
+
+    /**
+     * replace 替换字符串中的指定字符串
+     *
+     * @param charSequence {@link CharSequence} 字符串
+     * @param formIndex    开始位置（包括）
+     * @param search       {@link CharSequence} 被查找的字符串
+     * @param replacement  {@link CharSequence} 被替换的字符串
+     * @param ignoreCase   是否忽略大小写
+     * @return 返回替换后的字符串
+     * @description 如果指定字符串出现多次，则全部替换
+     * @author LiuQi
+     */
+    public static String replace(final CharSequence charSequence, final int formIndex, final CharSequence search, final CharSequence replacement, final boolean ignoreCase) {
+        // 字符串为空 或者 被查找的字符串为空 返回转换后的字符串，如果对象为null则返回null
+        if (isEmpty(charSequence) || isEmpty(search)) return toStringOrNull(charSequence);
+        // 返回
+        return new SearchReplacer(formIndex, search, replacement, ignoreCase)
+                .apply(charSequence);
     }
 
     /**
@@ -99,6 +135,28 @@ public class CharSequenceUtil extends StrValidator {
             // 使用contentEquals方法进行比较，大小写敏感
             return charSequence.toString().contentEquals(charSequence_);
         }
+    }
+
+    /**
+     * format 格式化文本, {} 表示占位符<br>
+     * 此方法只是简单将占位符 {} 按照顺序替换为参数<br>
+     * 如果想输出 {} 使用 \\转义 { 即可，如果想输出 {} 之前的 \ 使用双转义符 \\\\ 即可<br>
+     * 例：<br>
+     * 通常使用：format("this is {} for {}", "a", "b") =》 this is a for b<br>
+     * 转义{}： format("this is \\{} for {}", "a", "b") =》 this is {} for a<br>
+     * 转义\： format("this is \\\\{} for {}", "a", "b") =》 this is \a for b<br>
+     *
+     * @param template {@link CharSequence} 文本模板，被替换的部分用 {} 表示，如果模板为null，返回"null"
+     * @param params   {@link Object}  参数值
+     * @return 格式化后的文本，如果模板为null，返回"null"
+     * @author LiuQi
+     */
+    public static String format(final CharSequence template, final Object... params) {
+        // 文本模版为空 返回null
+        if (null == template) return NULL;
+        // TODO 其他类型 待优化
+        // 返回 调取 {@code format(final String pattern, final Object... params)} format 格式化字符串方法
+        return StringFormatter.format(template.toString(), params);
     }
 
 }
