@@ -1,6 +1,7 @@
 package org.chino.SharpBladeUtils.core.lang;
 
-import org.chino.SharpBladeUtils.core.text.StrUtil;
+
+import org.chino.SharpBladeUtils.core.text.StringUtil;
 
 import java.util.function.Supplier;
 
@@ -43,7 +44,7 @@ public class Assert {
      */
     public static <T extends CharSequence, X extends Throwable> T notEmpty(final T text, final Supplier<X> errorSupplier) throws X {
         // 检查给定字符串是否为空，为空抛出自定义异常
-        if (StrUtil.isEmpty(text)) throw errorSupplier.get();
+        if (StringUtil.isEmpty(text)) throw errorSupplier.get();
         // 返回被检查的字符串
         return text;
     }
