@@ -8,8 +8,6 @@ package org.chino.SharpBladeUtils.core.lang.ref;
  *     2. 提供自定义的无需回收对象
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/21 13:12
- * @Version 1.0
  */
 @FunctionalInterface
 public interface Reference_<T> {

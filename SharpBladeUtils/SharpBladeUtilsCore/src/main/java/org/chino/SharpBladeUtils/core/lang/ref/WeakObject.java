@@ -11,8 +11,6 @@ import java.util.Objects;
  *     在GC时发现弱引用会回收其对象，可以用来防止内存泄露。
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/22 10:51
- * @Version 1.0
  */
 public class WeakObject<T> extends WeakReference<T> implements Reference_<T> {
 

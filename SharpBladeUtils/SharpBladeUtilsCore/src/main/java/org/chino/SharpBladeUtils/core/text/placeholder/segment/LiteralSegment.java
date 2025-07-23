@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.text.placeholder.segment;
  * @ClassName LiteralSegment
  * @Description LiteralSegment 字符串模板-固定文本 Segment
  * @Author LiuQi
- * @Date 2025/2/26 17:56
- * @Version 1.0
  */
 public class LiteralSegment implements StringTemplateSegment {
     /**

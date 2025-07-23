@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.lang.mutable;
  * @ClassName MutableInteger
  * @Description MutableInteger 可变整数
  * @Author LiuQi
- * @Date 2025/2/19 13:42
- * @Version 1.0
  */
 public class MutableInteger extends Number implements Comparable<MutableInteger>, Mutable<Number> {
     private static final long serialVersionUID = 1L;

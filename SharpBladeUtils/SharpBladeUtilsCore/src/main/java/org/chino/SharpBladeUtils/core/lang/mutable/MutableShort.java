@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.lang.mutable;
  * @ClassName MutableShort
  * @Description MutableShort 可变短整数
  * @Author LiuQi
- * @Date 2025/2/19 13:42
- * @Version 1.0
  */
 public class MutableShort extends Number implements Comparable<MutableShort>, Mutable<Number> {
     private static final long serialVersionUID = 1L;

@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Test;
  * @ClassName CharUtilTest
  * @Description CharUtilTest 字符处理工具单元测试类
  * @Author LiuQi
- * @Date 2025/2/17 14:30
- * @Version 1.0
  */
 public class CharUtilTest {
 

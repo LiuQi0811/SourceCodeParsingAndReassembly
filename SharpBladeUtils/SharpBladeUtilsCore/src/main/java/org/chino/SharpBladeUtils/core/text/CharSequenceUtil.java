@@ -36,8 +36,6 @@ import java.util.regex.Pattern;
  *     <li>unWrap：强调去包装，要求包装的前后字符都要存在，只有一个则不做处理，如去掉双引号包装。</li>
  * </ul>
  * @Author LiuQi
- * @Date 2025/2/19 14:49
- * @Version 1.0
  */
 public class CharSequenceUtil extends StringValidator {
 

@@ -19,8 +19,6 @@ import java.util.function.UnaryOperator;
  *     例如，"?", "{}", "$$$"
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/24 15:04
- * @Version 1.0
  */
 public class SinglePlaceholderStringTemplate extends StringTemplate {
     /**

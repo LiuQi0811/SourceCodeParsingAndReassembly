@@ -10,8 +10,6 @@ import java.util.function.Function;
  *     用于解决在JDK8中调用{@link ConcurrentHashMap#computeIfAbsent(Object, Function)}可能造成的死循环问题。<br>
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/21 13:04
- * @Version 1.0
  */
 public class SafeConcurrentHashMap<K, V> extends ConcurrentHashMap<K, V> {
     private static final long serialVersionUID = 1L;

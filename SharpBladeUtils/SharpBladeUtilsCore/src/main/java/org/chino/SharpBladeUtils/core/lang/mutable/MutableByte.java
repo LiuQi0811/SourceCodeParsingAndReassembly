@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.lang.mutable;
  * @ClassName MutableByte
  * @Description MutableByte 可变字节
  * @Author LiuQi
- * @Date 2025/2/19 13:26
- * @Version 1.0
  */
 public class MutableByte extends Number implements Comparable<MutableByte>, Mutable<Number> {
     private static final long serialVersionUID = 1L;

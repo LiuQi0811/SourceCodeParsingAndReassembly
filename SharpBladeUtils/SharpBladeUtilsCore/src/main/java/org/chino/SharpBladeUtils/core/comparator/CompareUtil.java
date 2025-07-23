@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.comparator;
  * @ClassName CompareUtil
  * @Description CompareUtil Compare比较处理工具
  * @Author LiuQi
- * @Date 2025/2/24 9:15
- * @Version 1.0
  */
 public class CompareUtil {
 

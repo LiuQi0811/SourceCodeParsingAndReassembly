@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.lang.mutable;
  * @ClassName MutableFloat
  * @Description MutableFloat 可变浮点数
  * @Author LiuQi
- * @Date 2025/2/19 13:42
- * @Version 1.0
  */
 public class MutableFloat extends Number implements Comparable<MutableFloat>, Mutable<Number> {
     private static final long serialVersionUID = 1L;

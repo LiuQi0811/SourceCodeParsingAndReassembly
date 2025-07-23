@@ -5,8 +5,6 @@ package org.chino.SharpBladeUtils.core.text.finder;
  * @ClassName StringFinder
  * @Description StringFinder 字符串查找器
  * @Author LiuQi
- * @Date 2025/2/20 12:33
- * @Version 1.0
  */
 public class StringFinder extends TextFinder {
     private static final long serialVersionUID = 1L;

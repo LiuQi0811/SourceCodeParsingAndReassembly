@@ -6,8 +6,6 @@ import java.io.Serializable;
  * @ClassName MutableBoolean
  * @Description MutableBoolean 可变布尔类型
  * @Author LiuQi
- * @Date 2025/2/19 13:04
- * @Version 1.0
  */
 public class MutableBoolean implements Comparable<MutableBoolean>, Mutable<Boolean>, Serializable {
     private static final long serialVersionUID = 1L;

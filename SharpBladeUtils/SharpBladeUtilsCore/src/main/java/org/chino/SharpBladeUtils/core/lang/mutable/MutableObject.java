@@ -6,8 +6,6 @@ import java.io.Serializable;
  * @ClassName MutableObject
  * @Description MutableObject 可变对象{@link Object}
  * @Author LiuQi
- * @Date 2025/2/18 17:19
- * @Version 1.0
  */
 public class MutableObject<T> implements Mutable<T>, Serializable {
     private static final long serialVersionUID = 1L;

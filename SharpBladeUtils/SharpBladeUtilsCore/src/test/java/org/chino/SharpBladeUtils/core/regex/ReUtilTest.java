@@ -8,8 +8,6 @@ import java.util.regex.Pattern;
  * @ClassName ReUtilTest
  * @Description ReUtilTest 正则处理工具单元测试类
  * @Author LiuQi
- * @Date 2025/2/18 15:15
- * @Version 1.0
  */
 public class ReUtilTest {
 

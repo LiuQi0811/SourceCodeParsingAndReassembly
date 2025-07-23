@@ -18,8 +18,6 @@ import static org.chino.SharpBladeUtils.core.text.placeholder.StringTemplate.Fea
  * @ClassName StringTemplate
  * @Description StringTemplate 字符串模板
  * @Author LiuQi
- * @Date 2025/2/24 14:59
- * @Version 1.0
  */
 public abstract class StringTemplate {
     /**

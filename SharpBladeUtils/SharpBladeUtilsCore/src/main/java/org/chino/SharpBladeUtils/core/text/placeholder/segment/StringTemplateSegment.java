@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.text.placeholder.segment;
  * @ClassName StringTemplateSegment
  * @Description StringTemplateSegment 字符串模板片段接口
  * @Author LiuQi
- * @Date 2025/2/26 16:22
- * @Version 1.0
  */
 public interface StringTemplateSegment {
 

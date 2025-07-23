@@ -6,8 +6,6 @@ import java.util.Map;
  * @ClassName AbstractEntry
  * @Description AbstractEntry {@link java.util.Map.Entry}抽象
  * @Author LiuQi
- * @Date 2025/2/21 14:37
- * @Version 1.0
  */
 public abstract class AbstractEntry<K, V> implements Map.Entry<K, V> {
     /**

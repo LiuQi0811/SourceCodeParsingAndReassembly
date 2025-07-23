@@ -8,8 +8,6 @@ import java.util.function.Supplier;
  * @ClassName Assert
  * @Description Assert 断言
  * @Author LiuQi
- * @Date 2025/2/20 13:08
- * @Version 1.0
  */
 public class Assert {
 

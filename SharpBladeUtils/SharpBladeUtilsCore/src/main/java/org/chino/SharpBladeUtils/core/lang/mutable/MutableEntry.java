@@ -9,8 +9,6 @@ import java.util.Map;
  * @ClassName MutableEntry
  * @Description MutableEntry 可变键和值的{@link Map.Entry}实现
  * @Author LiuQi
- * @Date 2025/2/21 14:22
- * @Version 1.0
  */
 public class MutableEntry<K, V> extends AbstractEntry<K, V> implements Mutable<Map.Entry<K, V>>, Serializable {
     private static final long serialVersionUID = 1L;

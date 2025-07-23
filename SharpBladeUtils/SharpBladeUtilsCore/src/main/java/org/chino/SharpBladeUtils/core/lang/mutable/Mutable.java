@@ -12,8 +12,6 @@ import java.util.function.UnaryOperator;
  * @ClassName Mutable
  * @Description Mutable 提供可变值类型接口
  * @Author LiuQi
- * @Date 2025/2/18 17:14
- * @Version 1.0
  */
 public interface Mutable<T> {
 

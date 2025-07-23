@@ -9,8 +9,6 @@ import java.util.function.UnaryOperator;
  * @ClassName StringReplacer
  * @Description StringReplacer 字符串替换器
  * @Author LiuQi
- * @Date 2025/2/19 17:09
- * @Version 1.0
  */
 public abstract class StringReplacer implements UnaryOperator<CharSequence>, Serializable {
     private static final long serialVersionUID = 1L;

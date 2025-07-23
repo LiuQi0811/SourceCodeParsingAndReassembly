@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.lang.mutable;
  * @ClassName MutableDouble
  * @Description MutableDouble 可变双精度浮点数
  * @Author LiuQi
- * @Date 2025/2/19 13:42
- * @Version 1.0
  */
 public class MutableDouble extends Number implements Comparable<MutableDouble>, Mutable<Number> {
     private static final long serialVersionUID = 1L;

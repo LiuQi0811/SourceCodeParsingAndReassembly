@@ -9,8 +9,6 @@ import java.util.Objects;
  * @ClassName BaseMutableTest
  * @Description BaseMutableTest 可变基类单元测试类
  * @Author LiuQi
- * @Date 2025/2/18 17:13
- * @Version 1.0
  */
 public abstract class BaseMutableTest<V, M extends Mutable<V>> {
 

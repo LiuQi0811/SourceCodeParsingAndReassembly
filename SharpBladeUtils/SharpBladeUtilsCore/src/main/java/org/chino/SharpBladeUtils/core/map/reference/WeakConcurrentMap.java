@@ -14,8 +14,6 @@ import java.util.concurrent.ConcurrentMap;
  *     键和值都为Weak引用，即，在GC时发现弱引用会回收其对象
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/21 11:47
- * @Version 1.0
  */
 public class WeakConcurrentMap<K, V> extends ReferenceConcurrentMap<K, V> {
     private static final long serialVersionUID = 1L;

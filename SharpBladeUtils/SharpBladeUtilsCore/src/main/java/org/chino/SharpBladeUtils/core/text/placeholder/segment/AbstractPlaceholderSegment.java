@@ -4,8 +4,6 @@ package org.chino.SharpBladeUtils.core.text.placeholder.segment;
  * @ClassName AbstractPlaceholderSegment
  * @Description AbstractPlaceholderSegment 抽象占位符片段
  * @Author LiuQi
- * @Date 2025/2/26 17:22
- * @Version 1.0
  */
 public abstract class AbstractPlaceholderSegment implements StringTemplateSegment {
 

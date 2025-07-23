@@ -11,8 +11,6 @@ import java.util.function.Function;
  *    3. 序列化
  * </pre>
  * @Author LiuQi
- * @Date 2025/2/22 11:38
- * @Version 1.0
  */
 public class ObjectUtil {
 

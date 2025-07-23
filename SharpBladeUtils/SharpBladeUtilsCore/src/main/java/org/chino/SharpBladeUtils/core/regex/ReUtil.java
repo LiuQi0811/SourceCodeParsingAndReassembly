@@ -12,8 +12,6 @@ import java.util.regex.Pattern;
  * @ClassName ReUtil
  * @Description ReUtil 正则处理工具
  * @Author LiuQi
- * @Date 2025/2/18 15:13
- * @Version 1.0
  * @see <a href="https://any86.github.io/any-rule/">any86.github.io</a>
  */
 public class ReUtil {

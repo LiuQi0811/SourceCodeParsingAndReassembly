@@ -15,8 +15,6 @@ import java.util.function.Function;
  * @ClassName ReferenceConcurrentMap
  * @Description ReferenceConcurrentMap 线程安全的ReferenceMap实现
  * @Author LiuQi
- * @Date 2025/2/21 11:27
- * @Version 1.0
  */
 public abstract class ReferenceConcurrentMap<K, V> implements ConcurrentMap<K, V>, Iterable<Map.Entry<K, V>>, Serializable {
     private static final long serialVersionUID = 1L;
