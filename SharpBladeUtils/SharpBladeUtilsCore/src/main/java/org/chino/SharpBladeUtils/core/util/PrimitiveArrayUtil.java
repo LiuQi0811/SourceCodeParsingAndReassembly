@@ -52,5 +52,71 @@ public class PrimitiveArrayUtil {
         return array == null || array.length == 0;
     }
 
+    /**
+     * range 生成一个从0开始到指定结束值（不包含）的整数数组，步长为1。
+     *
+     * @param excludedEnd {@link Integer} 结束值（不包含在结果中）
+     * @return 生成的整数数组，如 excludedEnd=5 则返回 [0, 1, 2, 3, 4]
+     * @author LiuQi
+     */
+    public static int[] range(int excludedEnd) {
+        // 调用三参数版本`range`方法，起始值为0，步长为1
+        return range(0, excludedEnd, 1);
+    }
+
+    /**
+     * range 生成一个从指定起始值（包含）到结束值（不包含）的整数数组，步长为1。
+     *
+     * @param includedStart {@link Integer} 起始值（包含在结果中）
+     * @param excludedEnd   {@link Integer}   结束值（不包含在结果中）
+     * @return 生成的整数数组，如 includedStart=2, excludedEnd=5 则返回 [2, 3, 4]
+     * @author LiuQi
+     */
+    public static int[] range(int includedStart, int excludedEnd) {
+        // 调用三参数版本`range`方法，步长为1
+        return range(includedStart, excludedEnd, 1);
+    }
+
+    /**
+     * range 生成一个从指定起始值（包含）到结束值（不包含）的整数数组，支持自定义步长。
+     *
+     * @param includedStart {@link Integer} 起始值（包含在结果中）
+     * @param excludedEnd   {@link Integer}  结束值（不包含在结果中）
+     * @param step          {@link Integer}       步长（必须为正数，若<=0则默认为1）
+     * @return 生成的整数数组
+     * @author LiuQi
+     */
+    public static int[] range(int includedStart, int excludedEnd, int step) {
+        // 处理起始值大于结束值的情况：自动交换两者
+        if (includedStart > excludedEnd) {
+            int temp = includedStart;
+            includedStart = excludedEnd;
+            excludedEnd = temp;
+        }
+        // 处理步长<=0的情况：强制设置为1
+        if (step <= 0) {
+            step = 1;
+        }
+        // 计算数组长度：
+        // 1. 先计算理论长度：(excludedEnd - includedStart) / step
+        // 2. 如果有余数，则长度+1（确保覆盖所有值）
+        int deviation = excludedEnd - includedStart;
+        int length = deviation / step;
+        if (deviation % step != 0) {
+            length += 1;
+        }
+        // 创建结果数组
+        int[] range = new int[length];
+        // 填充数组：
+        // 1. 每次循环将当前起始值存入数组
+        // 2. 起始值按步长递增
+        for (int i = 0; i < length; i++) {
+            range[i] = includedStart;
+            includedStart += step;
+        }
+        // 返回结果数组
+        return range;
+    }
+
 
 }
