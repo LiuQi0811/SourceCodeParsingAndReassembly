@@ -7,6 +7,10 @@ package org.chino.SharpBladeUtils.core.util;
  * @Author LiuQi
  */
 public class PrimitiveArrayUtil {
+    /**
+     * INDEX_NOT_FOUND 数组中元素未找到的下标，值为-1
+     */
+    public static final int INDEX_NOT_FOUND = -1;
 
     /**
      * isNotEmpty 判断一个整型数组是否为非空状态。

@@ -1,7 +1,9 @@
 package org.chino.SharpBladeUtils.core.util;
 
+import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.lang.Editor;
 import org.chino.SharpBladeUtils.core.lang.Filter;
+import org.chino.SharpBladeUtils.core.lang.Matcher;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -457,5 +459,242 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         // 返回  data不为空 且 data是数组的布尔值
         return null != data && data.getClass().isArray();
     }
+
+    /**
+     * indexOf 在数组中查找指定值的索引位置
+     *
+     * @param <T>   数组元素的类型
+     * @param array {@link T[]}要搜索的数组
+     * @param value {@link Object}要查找的值(可以是任意Object类型，会进行类型转换比较)
+     * @return 如果找到值则返回其索引，否则返回INDEX_NOT_FOUND(通常定义为-1)
+     * @author LiuQi
+     */
+    public static <T> int indexOf(T[] array, Object value) {
+        // 使用matchIndex方法，传入一个匹配器(比较value和数组元素是否相等)来查找索引
+        return matchIndex(R -> ObjectUtil.equal(value, R), array);
+    }
+
+    /**
+     * indexOf 在long类型基本数据类型的数组中查找指定值的索引位置
+     *
+     * @param array {@link  Long[]}要搜索的long类型数组
+     * @param value {@link Long}要查找的long类型值
+     * @return 如果找到值则返回其索引(从0开始)，否则返回INDEX_NOT_FOUND(通常定义为-1)
+     * <p>
+     * 这个方法是专门为基本数据类型long数组设计的，与泛型版本的indexOf方法不同，
+     * 它直接处理基本数据类型，避免了自动装箱/拆箱操作，提高了性能。
+     * @author LiuQi
+     */
+    public static <T> int indexOf(long[] array, long value) {
+        // 检查数组是否非空
+        if (isNotEmpty(array)) {
+            // 遍历数组
+            for (int i = 0; i < array.length; i++) {
+                // 直接使用==比较基本数据类型的值
+                if (value == array[i]) {
+                    // 如果找到匹配的值，返回当前索引
+                    return i;
+                }
+            }
+        }
+        // 如果没有找到匹配的值，返回INDEX_NOT_FOUND(通常定义为-1)
+        return INDEX_NOT_FOUND;
+    }
+
+    /**
+     * lastIndexOf 在泛型数组中查找指定值的最后一个出现位置（从后向前搜索）。
+     * 如果数组为空，则返回 INDEX_NOT_FOUND（通常是一个表示未找到的常量，如 -1）。
+     *
+     * @param <T>   数组元素的类型，为泛型
+     * @param array {@link T[]} 要搜索的泛型数组
+     * @param value {@link Object}要查找的值，类型为 Object，以支持与数组元素进行比较
+     * @return 指定值在数组中的最后一个索引，如果未找到则返回 INDEX_NOT_FOUND
+     * @author LiuQi
+     */
+    public static <T> int lastIndexOf(T[] array, Object value) {
+        // 检查数组是否为空
+        if (isEmpty(array)) {
+            // 如果未找到，返回 INDEX_NOT_FOUND
+            return INDEX_NOT_FOUND;
+        }
+        // 调用重载方法，从数组的最后一个元素开始搜索
+        return lastIndexOf(array, value, array.length - 1);
+    }
+
+
+    /**
+     * lastIndexOf 在基本类型 long 的数组中查找指定值的最后一个出现位置（从后向前搜索）。
+     * 如果数组不为空，则遍历数组从最后一个元素到第一个元素，寻找与指定值相等的元素。
+     *
+     * @param array {@link Long[]} 要搜索的 long 类型数组
+     * @param value {@link Long[]} 要查找的 long 值
+     * @return 指定值在数组中的最后一个索引，如果未找到则返回 INDEX_NOT_FOUND
+     * @author LiuQi
+     */
+    public static int lastIndexOf(long[] array, long value) {
+        // 检查数组是否不为空
+        if (isNotEmpty(array)) {
+            // 从数组的最后一个元素开始，向前遍历
+            for (int i = array.length - 1; i >= 0; i--) {
+                // 如果当前元素等于要查找的值
+                if (value == array[i]) {
+                    // 返回当前索引
+                    return i;
+                }
+            }
+        }
+        // 如果未找到，返回 INDEX_NOT_FOUND
+        return INDEX_NOT_FOUND;
+    }
+
+    /**
+     * lastIndexOf 在泛型数组中查找指定值的最后一个出现位置（从后向前搜索），并指定搜索的结束索引（包含）。
+     * 使用 ObjectUtil.equal 方法进行元素的比较，以支持更灵活的相等性判断（如处理 null 值）。
+     *
+     * @param <T>        数组元素的类型，为泛型
+     * @param array      {@link T[]}  要搜索的泛型数组
+     * @param value      {@link Object} 要查找的值，类型为 Object，以支持与数组元素进行比较
+     * @param endInclude {@link Integer} 搜索的结束索引（包含），即从该索引开始向前搜索
+     * @return 指定值在数组中的最后一个索引，如果未找到则返回 INDEX_NOT_FOUND
+     * @author LiuQi
+     */
+    public static <T> int lastIndexOf(T[] array, Object value, int endInclude) {
+        // 检查数组是否不为空
+        if (isNotEmpty(array)) {
+            // 从指定的结束索引开始，向前遍历到数组的第一个元素
+            for (int i = endInclude; i >= 0; i--) {
+                // 使用 ObjectUtil.equal 方法比较当前元素与要查找的值
+                // 这种方法可以正确处理 null 值的比较
+                if (ObjectUtil.equal(value, array[i])) {
+                    // 如果相等，返回当前索引
+                    return i;
+                }
+            }
+        }
+        // 如果未找到，返回 INDEX_NOT_FOUND
+        return INDEX_NOT_FOUND;
+    }
+
+    /**
+     * matchIndex 在数组中查找满足匹配器条件的元素的索引位置
+     *
+     * @param <T>     {@link T}数组元素的类型
+     * @param matcher {@link Matcher}匹配器接口，用于定义匹配条件
+     * @param array   {@link T...} 要搜索的数组
+     * @return 如果找到满足条件的元素则返回其索引，否则返回INDEX_NOT_FOUND
+     * @author LiuQi
+     */
+    public static <T> int matchIndex(Matcher<T> matcher, T... array) {
+        // 调用matcherIndex方法，从数组起始位置(0)开始搜索
+        return matcherIndex(matcher, 0, array);
+    }
+
+    /**
+     * matcherIndex 在数组中从指定位置开始查找满足匹配器条件的元素的索引位置
+     *
+     * @param <T>               数组元素的类型
+     * @param matcher           {@link Matcher<T>} 匹配器接口，用于定义匹配条件
+     * @param beginIndexInclude {@link Integer} 开始搜索的起始索引(包含该索引)
+     * @param array             {@link T...}要搜索的数组
+     * @return 如果找到满足条件的元素则返回其索引，否则返回INDEX_NOT_FOUND
+     * @author LiuQi
+     */
+    public static <T> int matcherIndex(Matcher<T> matcher, int beginIndexInclude, T... array) {
+        // 断言检查：确保matcher不为null
+        Assert.notNull(matcher, "Matcher must be not null !");
+        // 检查数组是否非空
+        if (isNotEmpty(array)) {
+            // 从beginIndexInclude开始遍历数组
+            for (int i = beginIndexInclude; i < array.length; i++) {
+                // 使用matcher判断当前元素是否满足条件
+                if (matcher.match(array[i])) {
+                    // 如果满足条件，返回当前索引
+                    return i;
+                }
+            }
+        }
+        // 如果没有找到满足条件的元素，返回INDEX_NOT_FOUND(通常定义为-1)
+        return INDEX_NOT_FOUND;
+    }
+
+    /**
+     * contains 判断泛型数组中是否包含指定的值。
+     * 如果数组为空或未找到指定值，则返回 `false`；否则返回 `true`。
+     *
+     * @param <T>   数组元素的类型（泛型）
+     * @param array {@link T[]}要搜索的泛型数组
+     * @param value {@link T}要查找的值（类型为 `T`）
+     * @return 如果数组包含指定值，返回 `true`；否则返回 `false`
+     * @author LiuQi
+     */
+    public static <T> boolean contains(T[] array, T value) {
+        // 调用 `indexOf` 方法查找指定值的索引
+        // 如果返回的索引大于 `INDEX_NOT_FOUND`（即找到了该值），则返回 `true`
+        return indexOf(array, value) > INDEX_NOT_FOUND;
+    }
+
+    /**
+     * contains 判断基本类型 `long` 数组中是否包含指定的值。
+     * 如果数组为空或未找到指定值，则返回 `false`；否则返回 `true`。
+     *
+     * @param array {@link Long[]}要搜索的 `long` 类型数组
+     * @param value {@link Long}要查找的 `long` 值
+     * @return 如果数组包含指定值，返回 `true`；否则返回 `false`
+     * @author LiuQi
+     */
+    public static boolean contains(long[] array, long value) {
+        // 调用 `indexOf(array, value)` 方法查找指定值的索引
+        // 如果返回的索引大于 `INDEX_NOT_FOUND`（即找到了该值），则返回 `true`
+        return indexOf(array, value) > INDEX_NOT_FOUND;
+    }
+
+    /**
+     * containsAny 判断泛型数组中是否包含给定值中的任意一个。
+     * 如果数组或给定值数组为空，则返回 `false`。
+     * 只要数组中包含任意一个给定值，立即返回 `true`；否则遍历完所有给定值后返回 `false`。
+     *
+     * @param <T>    数组元素的类型（泛型）
+     * @param array  {@link T[]}要搜索的泛型数组
+     * @param values {@link T...}要查找的一组值（可变参数，类型为 `T`）
+     * @return 如果数组包含任意一个给定值，返回 `true`；否则返回 `false`
+     * @author LiuQi
+     */
+    public static <T> boolean containsAny(T[] array, T... values) {
+        // 遍历给定值数组中的每一个值
+        for (T value : values) {
+            // 调用 `contains` 方法检查当前值是否存在于目标数组中
+            if (contains(array, value)) {
+                // 如果找到任意一个匹配的值，立即返回 `true`
+                return true;
+            }
+        }
+        // 遍历完所有给定值后仍未找到匹配项，返回 `false`
+        return false;
+    }
+
+    /**
+     * containsAll 判断泛型数组中是否包含给定值中的所有元素。
+     * 如果数组或给定值数组为空，则返回 `false`（除非 `values` 也为空，此时视为包含所有值）。
+     * 只要数组中缺少任意一个给定值，立即返回 `false`；否则遍历完所有给定值后返回 `true`。
+     *
+     * @param <T>    数组元素的类型（泛型）
+     * @param array  {@link T[]} 要搜索的泛型数组
+     * @param values {@link T...} 要查找的一组值（可变参数，类型为 `T`）
+     * @return 如果数组包含所有给定值，返回 `true`；否则返回 `false`
+     * @author LiuQi
+     */
+    public static <T> boolean containsAll(T[] array, T... values) {
+        // 遍历给定值数组中的每一个值
+        for (T value : values) {
+            // 调用 `contains` 方法检查当前值是否存在于目标数组中
+            if (!contains(array, value)) {
+                // 如果发现任意一个值不存在于数组中，立即返回 `false`
+                return false;
+            }
+        }
+        // 遍历完所有给定值后均未发现缺失项，返回 `true`
+        return true;
+    }
+
 
 }
