@@ -4,9 +4,12 @@ import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.lang.Editor;
 import org.chino.SharpBladeUtils.core.lang.Filter;
 import org.chino.SharpBladeUtils.core.lang.Matcher;
+import org.chino.SharpBladeUtils.core.map.MapUtil;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @ClassName ArrayUtil
@@ -694,6 +697,75 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         }
         // 遍历完所有给定值后均未发现缺失项，返回 `true`
         return true;
+    }
+
+    /**
+     * zip 将两个数组（键数组和值数组）组合成一个Map。
+     * 如果任一数组为空，则返回null。
+     * 组合时只处理两个数组中较短的长度，忽略多余的元素。
+     * 可以选择生成的Map是否保持插入顺序（LinkedHashMap）或使用默认HashMap。
+     *
+     * @param <K>     键的类型（泛型）
+     * @param <V>     值的类型（泛型）
+     * @param keys    {@link K[]}    键数组
+     * @param values  {@link V[]} 值数组
+     * @param isOrder {@link Boolean} 是否保持插入顺序（true=LinkedHashMap，false=HashMap）
+     * @return 组合后的Map，如果任一数组为空则返回null
+     * @author LiuQi
+     */
+    public static <K, V> Map<K, V> zip(K[] keys, V[] values, boolean isOrder) {
+        // 检查键数组或值数组是否为空（包括null或长度为0）
+        if (isEmpty(keys) || isEmpty(values)) {
+            return null;
+        }
+        // 计算两个数组中较短的长度，避免数组越界
+        final int minSize = Math.min(keys.length, values.length);
+        // 创建新的Map：
+        // - 初始容量设置为 minSize / DEFAULT_LOAD_FACTOR + 1（优化哈希表性能）
+        // - 根据isOrder参数决定使用HashMap还是LinkedHashMap
+        final Map<K, V> kvHashMap = MapUtil.newHashMap(minSize, isOrder);
+        // 遍历较短的长度，将键值对依次放入Map中
+        for (int i = 0; i < minSize; i++) {
+            kvHashMap.put(keys[i], values[i]);
+        }
+        // 返回组合后的Map
+        return kvHashMap;
+    }
+
+    /**
+     * cast 将Object数组强制转换为指定组件类型的数组
+     *
+     * @param classType  {@link Class<?>}  目标数组组件类型的Class对象
+     * @param arrayValue {@link Object}待转换的Object数组
+     * @return 转换后的新数组
+     * @throws NullPointerException     当arrayValue为null时抛出
+     * @throws IllegalArgumentException 当arrayValue不是数组时抛出
+     * @author LiuQi
+     */
+    public static Object[] cast(Class<?> classType, Object arrayValue) throws NullPointerException, IllegalArgumentException {
+        // 检查输入数组是否为null
+        if (null == arrayValue) {
+            throw new NullPointerException("Argument [arrayValue] is null !");
+        }
+        // 检查输入是否为数组类型
+        if (!arrayValue.getClass().isArray()) {
+            throw new IllegalArgumentException("Argument [arrayValue] is not array !");
+        }
+        // 如果目标类型为null，直接返回原始数组(强制转换为Object[])
+        if (null == classType) {
+            return ((Object[]) arrayValue);
+        }
+        // 确定目标数组的组件类型
+        // 如果classType是数组类型，则取其组件类型；否则直接使用classType
+        final Class<?> componentType = classType.isArray() ? classType.getComponentType() : classType;
+        // 将输入强制转换为Object数组
+        Object[] valueArray = (Object[]) arrayValue;
+        // 创建目标类型的新数组
+        Object[] result = ArrayUtil.newArray(componentType, valueArray.length);
+        // 复制原始数组内容到新数组
+        System.arraycopy(valueArray, 0, result, 0, valueArray.length);
+        // 返回转换后的数组
+        return result;
     }
 
 
