@@ -1,6 +1,6 @@
 package org.chino.SharpBladeUtils.core.text;
 
-import org.chino.SharpBladeUtils.core.util.ArrayUtil;
+import org.chino.SharpBladeUtils.core.arrray.ArrayUtil;
 import org.chino.SharpBladeUtils.core.util.CharsetUtil;
 
 import java.nio.ByteBuffer;

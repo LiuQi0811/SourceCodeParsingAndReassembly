@@ -1,4 +1,4 @@
-package org.chino.SharpBladeUtils.core.util;
+package org.chino.SharpBladeUtils.core.arrray;
 
 
 

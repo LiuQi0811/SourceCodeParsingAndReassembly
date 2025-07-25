@@ -100,6 +100,21 @@ public class CharSequenceUtil extends StringValidator {
     }
 
     /**
+     * equalsIgnoreCase 比较两个 CharSequence 对象是否相等，忽略大小写。
+     * <p>
+     * 该方法是一个便捷方法，通过调用另一个重载的 equals 方法来实现忽略大小写的比较。
+     *
+     * @param first  第一个要比较的 CharSequence 对象。
+     * @param second 第二个要比较的 CharSequence 对象。
+     * @return 如果两个 CharSequence 对象在忽略大小写的情况下相等，则返回 true；否则返回 false。
+     * @author LiuQi
+     */
+    public static boolean equalsIgnoreCase(final CharSequence first, final CharSequence second) {
+        // 调用重载的 equals 方法，传入两个 CharSequence 对象以及一个表示是否忽略大小写的布尔值 true
+        return equals(first, second, true);
+    }
+
+    /**
      * equals 比较两个字符串是否相等 大小写敏感
      *
      * @param charSequence  {@link CharSequence} 字符串

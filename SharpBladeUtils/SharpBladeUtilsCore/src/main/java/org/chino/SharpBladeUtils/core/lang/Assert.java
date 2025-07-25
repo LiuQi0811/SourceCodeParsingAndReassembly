@@ -1,6 +1,5 @@
 package org.chino.SharpBladeUtils.core.lang;
 
-
 import org.chino.SharpBladeUtils.core.text.StringUtil;
 
 import java.util.function.Supplier;

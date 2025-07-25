@@ -1,4 +1,4 @@
-package org.chino.SharpBladeUtils.core.util;
+package org.chino.SharpBladeUtils.core.arrray;
 
 import org.chino.SharpBladeUtils.core.comparator.CompareUtil;
 import org.chino.SharpBladeUtils.core.lang.Assert;
@@ -6,11 +6,14 @@ import org.chino.SharpBladeUtils.core.lang.Editor;
 import org.chino.SharpBladeUtils.core.lang.Filter;
 import org.chino.SharpBladeUtils.core.lang.Matcher;
 import org.chino.SharpBladeUtils.core.map.MapUtil;
+import org.chino.SharpBladeUtils.core.text.StringUtil;
+import org.chino.SharpBladeUtils.core.util.ObjectUtil;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * @ClassName ArrayUtil
@@ -262,6 +265,20 @@ public class ArrayUtil extends PrimitiveArrayUtil {
     }
 
     /**
+     * newArray 创建并返回一个指定大小的 Object 类型数组。
+     *
+     * @param newSize int 类型的参数，表示要创建的数组的大小（即数组中可以容纳的元素个数）。
+     *                使用 final 修饰符表示该参数在方法内部不可被修改，确保其值在方法执行过程中保持不变。
+     * @return Object[] 类型的数组，即一个可以存储任何对象类型的数组，其大小由参数 newSize 决定。
+     * @author LiuQi
+     */
+    public static Object[] newArray(final int newSize) {
+        // 使用 new 关键字创建一个新的 Object 类型数组，数组的大小由参数 newSize 指定。
+        // 例如，如果 newSize 为 5，则创建一个可以容纳 5 个 Object 类型元素的数组。
+        return new Object[newSize];
+    }
+
+    /**
      * newArray 创建一个指定类型和长度的新数组。
      * <p>
      * 此方法通过Java反射机制动态生成一个指定元素类型和长度的空数组，
@@ -283,7 +300,7 @@ public class ArrayUtil extends PrimitiveArrayUtil {
      * @author LiuQi
      */
     @SuppressWarnings("unchecked")  // 抑制类型转换警告（因为反射创建的数组实际是Object[]，但保证类型安全）
-    public static <T> T[] newArray(Class<?> componentType, int newSize) {
+    public static <T> T[] newArray(final Class<?> componentType, final int newSize) {
         // 参数校验：newSize不能为负数
         if (newSize < 0) {
             throw new IllegalArgumentException("数组长度不能为负数: " + newSize);
@@ -804,6 +821,129 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         }
         // 返回找到的最大值
         return maxNumber;
+    }
+
+    /**
+     * containsIgnoreCase 检查给定的 CharSequence 数组中是否包含指定的 CharSequence 值，忽略大小写。
+     * <p>
+     * 该方法通过调用 `indexOfIgnoreCase` 方法来查找目标值在数组中的索引。
+     * 如果找到的索引大于 `INDEX_NOT_FOUND`（即不为 -1），则表示数组中包含该值，返回 true；
+     * 否则，返回 false。
+     *
+     * @param array 要搜索的 CharSequence 数组。
+     * @param value 要查找的 CharSequence 值。
+     * @return 如果数组中包含指定的值（忽略大小写），返回 true；否则返回 false。
+     * @author LiuQi
+     */
+    public static boolean containsIgnoreCase(final CharSequence[] array, final CharSequence value) {
+        // 调用 indexOfIgnoreCase 方法，查找 value 在 array 中的索引
+        // 如果返回的索引大于 INDEX_NOT_FOUND（即不为 -1），表示找到了匹配的元素
+        return indexOfIgnoreCase(array, value) > INDEX_NOT_FOUND;
+    }
+
+    /**
+     * indexOfIgnoreCase 在给定的 CharSequence 数组中查找指定 CharSequence 值的索引，忽略大小写。
+     * <p>
+     * 该方法遍历数组中的每个元素，使用 `StringUtil.equalsIgnoreCase` 方法比较每个元素与目标值，
+     * 如果找到相等的元素，则返回其索引；如果未找到，则返回一个表示未找到的常量 `INDEX_NOT_FOUND`。
+     *
+     * @param array 要搜索的 CharSequence 数组。
+     * @param value 要查找的 CharSequence 值。
+     * @return 如果找到匹配的元素，返回其索引；如果未找到，返回 `INDEX_NOT_FOUND`。
+     * @author LiuQi
+     */
+    public static int indexOfIgnoreCase(final CharSequence[] array, final CharSequence value) {
+        // 检查数组是否非空（即数组不为 null 且长度大于 0）
+        if (isNotEmpty(array)) {
+            // 遍历数组中的每个元素
+            for (int i = 0; i < array.length; i++) {
+                // 使用 StringUtil.equalsIgnoreCase 方法比较当前数组元素与目标值，忽略大小写
+                if (StringUtil.equalsIgnoreCase(array[i], value)) {
+                    // 如果找到相等的元素，返回当前索引
+                    return i;
+                }
+            }
+        }
+        // 如果数组为空或未找到匹配的元素，返回表示未找到的常量 INDEX_NOT_FOUND -1
+        return INDEX_NOT_FOUND;
+    }
+
+    /**
+     * map 将任意数组的元素通过映射函数转换为指定类型的新数组。
+     * <p>
+     * 功能描述：
+     * 1. 遍历输入数组的每个元素
+     * 2. 对每个元素应用映射函数(function)进行转换
+     * 3. 将转换结果收集到新类型的数组中返回
+     *
+     * @param <R>                 目标数组元素的类型（由调用方指定）
+     * @param array               要转换的原始数组（支持任意对象数组）
+     * @param targetComponentType 目标数组元素的Class对象（用于创建新数组）
+     * @param function            映射函数，接收原始元素类型(?), 返回目标类型R
+     * @return 包含转换后元素的新数组
+     * @apiNote 1. 使用泛型<R>实现类型安全的数组转换
+     * 2. 依赖{@link #get(Object, int)}方法获取原始元素（支持负数索引/越界返回null）
+     * 3. 依赖{@link #newArray(Class, int)}方法创建目标类型数组
+     * 4. 如果原始数组包含null元素，且function不支持null输入，可能抛出NullPointerException
+     * @author LiuQi
+     */
+    public static <R> R[] map(final Object array, final Class<R> targetComponentType, final Function<?, ? extends R> function) {
+        // 获取原始数组长度（支持通过ArrayWrapper处理的负数索引逻辑）
+        final int length = length(array);
+        // 创建目标类型的新数组（长度与原始数组相同）
+        final R[] result = newArray(targetComponentType, length);
+        // 遍历原始数组，逐个转换元素
+        for (int i = 0; i < length; i++) {
+            // 通过get方法获取原始元素（自动处理负数索引和越界情况） 应用映射函数进行类型转换 将转换结果存入新数组
+            result[i] = function.apply(get(array, i));
+        }
+        // 返回转换后的新数组
+        return result;
+    }
+
+    /**
+     * get 安全地从任意数组中获取指定索引位置的元素（支持负数索引和越界返回null）。
+     * <p>
+     * 这是一个静态泛型工具方法，通过内部封装ArrayWrapper实现功能，提供更简洁的调用方式。
+     *
+     * @param <E>   期望的元素类型（由调用方指定，实际类型安全由运行时保证）
+     * @param array 要访问的数组对象（支持任意对象数组）
+     * @param index 元素索引（支持负数，-1表示最后一个元素）
+     * @return 指定索引处的元素；如果索引越界则返回null
+     * @apiNote 1. 使用{@link ArrayWrapper}作为底层实现，继承其所有特性（负数索引、越界处理等）
+     * 2. 需要{@code @SuppressWarnings("unchecked")}是因为泛型类型擦除后，强制类型转换(E)无法在编译期验证
+     * 3. 调用方需自行确保类型安全（如传入正确的泛型参数<E>）
+     * @author LiuQi
+     */
+    @SuppressWarnings("unchecked") // 压制未经检查的类型转换警告（因泛型擦除导致）
+    public static <E> E get(final Object array, final int index) {
+        // 1. 通过ArrayWrapper.of()将原始数组包装为类型安全的容器
+        // 2. 调用包装器的get()方法处理索引逻辑（包括负数转换和越界检查）
+        // 3. 将结果强制转换为泛型类型E（运行时实际类型由array.getComponentType()决定）
+        return (E) ArrayWrapper.of(array).get(index);
+    }
+
+    /**
+     * length 获取给定数组对象的长度。如果传入的对象为 null，则返回 0；否则，返回该数组的长度。
+     * <p>
+     * 该方法通过 Java 的反射机制（`Array.getLength`）来获取任意类型数组的长度，
+     * 因此可以适用于所有类型的数组（如 `int[]`, `String[]`, 自定义对象数组等）。
+     *
+     * @param array 要获取长度的数组对象。可以是任意类型的数组。
+     * @return 数组的长度。如果传入的对象为 null，则返回 0。
+     * @throws IllegalArgumentException 如果传入的对象不是一个数组（即不是由 `new` 关键字创建的数组实例），
+     *                                  则抛出 `IllegalArgumentException` 异常。
+     * @author LiuQi
+     */
+    public static int length(final Object array) throws IllegalArgumentException {
+        // 检查传入的对象是否为 null
+        if (null == array) {
+            // 如果对象为 null，返回 0，表示没有长度
+            return 0;
+        }
+        // 使用 Java 反射机制中的 Array.getLength 方法获取数组的长度
+        // 该方法适用于所有类型的数组，包括基本类型数组和对象类型数组
+        return Array.getLength(array);
     }
 
 

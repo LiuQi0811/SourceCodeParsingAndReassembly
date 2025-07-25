@@ -1,5 +1,7 @@
 package org.chino.SharpBladeUtils.core.util;
 
+import org.chino.SharpBladeUtils.core.math.NumberUtil;
+
 import java.util.Objects;
 import java.util.function.Function;
 

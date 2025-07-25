@@ -6,6 +6,8 @@ import org.chino.SharpBladeUtils.core.text.StringUtil;
  * @ClassName SearchReplacer
  * @Description SearchReplacer 搜索替换器
  * @Author LiuQi
+ * @Date 2025/2/19 17:07
+ * @Version 1.0
  */
 public class SearchReplacer extends StringReplacer {
     private static final long serialVersionUID = 1L;

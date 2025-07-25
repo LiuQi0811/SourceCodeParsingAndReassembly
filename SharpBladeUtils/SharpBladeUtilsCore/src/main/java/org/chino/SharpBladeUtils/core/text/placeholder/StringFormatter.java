@@ -1,6 +1,6 @@
 package org.chino.SharpBladeUtils.core.text.placeholder;
 
-import org.chino.SharpBladeUtils.core.util.ArrayUtil;
+import org.chino.SharpBladeUtils.core.arrray.ArrayUtil;
 import org.chino.SharpBladeUtils.core.lang.mutable.MutableEntry;
 import org.chino.SharpBladeUtils.core.map.reference.WeakConcurrentMap;
 import org.chino.SharpBladeUtils.core.text.StringUtil;
