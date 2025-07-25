@@ -1,5 +1,6 @@
 package org.chino.SharpBladeUtils.core.util;
 
+import org.chino.SharpBladeUtils.core.comparator.CompareUtil;
 import org.chino.SharpBladeUtils.core.lang.Assert;
 import org.chino.SharpBladeUtils.core.lang.Editor;
 import org.chino.SharpBladeUtils.core.lang.Filter;
@@ -8,7 +9,7 @@ import org.chino.SharpBladeUtils.core.map.MapUtil;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.Map;
 
 /**
@@ -766,6 +767,43 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         System.arraycopy(valueArray, 0, result, 0, valueArray.length);
         // 返回转换后的数组
         return result;
+    }
+
+    /**
+     * max 在指定数组中找出最大值（支持自定义比较器）
+     *
+     * @param <T>         泛型类型参数，要求T必须实现Comparable接口（或父类实现Comparable接口）
+     * @param numberArray 要查找最大值的数组，数组元素必须实现Comparable接口
+     * @param comparator  自定义比较器，用于定义元素间的比较规则。如果为null，则使用元素的自然顺序（Comparable接口）
+     * @return 数组中的最大值
+     * @throws IllegalArgumentException 如果输入数组为空（null或长度为0）
+     *                                  <p>
+     *                                  方法特点：
+     *                                  1. 支持泛型数组，但要求数组元素类型T必须实现Comparable接口（或父类实现Comparable接口）
+     *                                  2. 支持自定义比较器，提供更灵活的比较方式
+     *                                  3. 当比较器为null时，自动使用元素的自然顺序（Comparable接口）进行比较
+     *                                  4. 如果数组为空，抛出IllegalArgumentException异常
+     * @author LiuQi
+     */
+    public static <T extends Comparable<? super T>> T max(T[] numberArray, Comparator<T> comparator) {
+        // 检查数组是否为空（null或长度为0）
+        if (isEmpty(numberArray)) {
+            // 如果数组为空，抛出IllegalArgumentException异常，提示数组不能为空
+            throw new IllegalArgumentException("Number array must not empty !");
+        }
+        // 假设数组第一个元素为当前最大值
+        T maxNumber = numberArray[0];
+        // 从数组第二个元素开始遍历
+        for (int i = 1; i < numberArray.length; i++) {
+            // 使用CompareUtil.compare方法比较当前最大值和当前元素
+            // 如果比较结果小于0，说明当前元素比当前最大值大
+            if (CompareUtil.compare(maxNumber, numberArray[i], comparator) < 0) {
+                // 更新最大值
+                maxNumber = numberArray[i];
+            }
+        }
+        // 返回找到的最大值
+        return maxNumber;
     }
 
 
