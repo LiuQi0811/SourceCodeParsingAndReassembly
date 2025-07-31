@@ -23,14 +23,20 @@ interface Config {
      * 如果未提供，则可能使用默认路径或其他方式确定目录
      */
     dir?: string;
+    builtin?: {
+        koraElement: any;
+        koraLayer: any;
+        koraUtil: any;
+    };
+    host?: string;
 }
 
-/**
- * 定义全局对象 KoraUIGlobal 的类型
- */
-declare const KoraUIGlobal: {
-    dir?: string; // KoraUIGlobal.dir 可能存在，也可能是 undefined
-};
+interface Cache_ {
+    modules: {};
+    status: {};
+    event: {};
+    callback: {};
+}
 
 /**
  * 扩展 window 对象的类型定义，明确 KoraUIGlobal 的结构
@@ -47,6 +53,13 @@ interface Window {
 interface HTMLScriptElement {
     readyState?: 'loading' | 'interactive' | 'complete'; // 定义可能的 readyState 值
 }
+
+/**
+ * 定义全局对象 KoraUIGlobal 的类型
+ */
+declare const KoraUIGlobal: {
+    dir?: string; // KoraUIGlobal.dir 可能存在，也可能是 undefined
+};
 
 /**
  * 立即执行函数表达式 (IIFE)，接收 window 对象作为参数，并显式声明其类型为 Window & typeof globalThis
@@ -70,15 +83,14 @@ interface HTMLScriptElement {
         debugMode: false, // 是否启用调试模式，默认关闭
         version: false // 版本标识（布尔值），当前未启用版本控制
     };
-    // 在 Class 的原型上定义 use 方法
-    // 该方法用于加载模块，接收四个参数：
-    // - mods: 模块标识（类型暂定为 any，需根据实际需求明确）
-    // - callback: 回调函数（类型暂定为 Function，需根据实际需求明确）
-    // - exports: 导出对象（类型暂定为 any，需根据实际需求明确）
-    // - from: 来源标识（类型暂定为 any，需根据实际需求明确）
-    Class.prototype.use = function (mods: any, callback: Function, exports: any, from: any): void {
-        console.error(" USE ", "use is ..........", getPath)
+
+    const cache: Cache_ = {
+        modules: {},
+        status: {},
+        event: {},
+        callback: {}
     };
+
     // 定义全局对象 GLOBAL，并初始化为 window.KoraUIGlobal 或空对象
     // 如果 window.KoraUIGlobal 存在，则使用它；否则使用空对象 {}
     // 这种写法确保了 GLOBAL 对象至少是一个对象，避免访问未定义属性时报错
@@ -142,6 +154,145 @@ interface HTMLScriptElement {
 
         return directoryPath; // 返回最终的目录路径
     })();
+
+    const builtInModule = config.builtin = {
+        koraElement: "koraElement",
+        koraLayer: "koraLayer",
+        koraUtil: "koraUtil"
+    };
+
+    const onNodeLoad = function (node: HTMLElement, done: any, error: any) {
+        console.error(" 节点加载触发中 ........");
+        console.error(node)
+        console.error(done)
+        console.error(error)
+    };
+
+    Class.prototype.temporaryCacheInformation = Object.assign(config, cache);
+
+    Class.prototype.globalConfig = function () {
+        console.error(" globalConfig ", "全局配置");
+    };
+
+    Class.prototype.definitionModule = function () {
+        console.error(" definitionModule ", "定义模块");
+    };
+
+    // 在 Class 的原型上定义 useModules 方法
+    // 该方法用于加载模块，接收四个参数：
+    // - modules: 模块标识（类型暂定为 any，需根据实际需求明确）
+    // - callback: 回调函数（类型暂定为 Function，需根据实际需求明确）
+    // - exports: 导出对象（类型暂定为 any，需根据实际需求明确）
+    // - from: 来源标识（类型暂定为 any，需根据实际需求明确）
+    Class.prototype.useModules = function (modules: any, callback: Function, exports: any, from: any): void {
+        let dir: string = config.dir = config.dir ? config.dir : getPath;
+        modules = (function () {
+            if (typeof modules === "string") {
+                return [modules];
+            } else if (typeof modules === "function") {
+                callback = modules;
+                return ["koraAll"]
+            }
+            return modules;
+        })();
+
+        if (!config.host) {
+            config.host = (dir.match(/\/\/([\s\S]+?)\//) || ["//" + location.host + "/"])[0];
+        }
+        if (!modules) return this;
+
+        exports = exports || [];
+        const module = modules[0];
+        console.error(" M ", module);
+        const moduleInfo = this.recordAllModules[module];
+        const isExternalModule = typeof moduleInfo === "object";
+        const onCallBack = function () {
+            console.error(" 触发了回调 ");
+        };
+        const pollingCallback = function () {
+            console.error(" 触发了轮询回调 ");
+        };
+    };
+
+    Class.prototype.recordAllModules = Object.assign({}, builtInModule);
+
+    Class.prototype.expansionModule = function () {
+        console.error(" expansionModule ", " 拓展模块");
+    };
+
+    Class.prototype.discardTheSpecifiedModule = function () {
+        console.error(" discardTheSpecifiedModule ", " 弃用模块");
+    };
+
+    Class.prototype.getNodeAttributeStyleValues = function () {
+        console.error("getNodeAttributeStyleValues ", " 获取节点style");
+    };
+    Class.prototype.cssExternalLoader = function () {
+        console.error("cssExternalLoader ", "CSS 外部加载器");
+    };
+
+    Class.prototype.cssInternalLoader = function () {
+        console.error("cssInternalLoader ", "CSS 内部加载器");
+    };
+
+    Class.prototype.executeDefinitionModuleCallbackFactory = function () {
+        console.error("executeDefinitionModuleCallbackFactory ", "获取执行定义模块时的回调函数，factory 为向下兼容");
+    };
+
+    Class.prototype.imagePreload = function () {
+        console.error("imagePreload ", "图片预加载");
+    };
+    Class.prototype.routeResolution = Class.prototype.hash = function () {
+        console.error("routeResolution ", "location.hash 路由解析");
+    };
+    Class.prototype.urlResolution = Class.prototype.hash = function () {
+        console.error("routeResolution ", "URL 解析");
+    };
+    Class.prototype.localPersistentStorage = function () {
+        console.error("localPersistentStorage ", "本地持久存储");
+    };
+    Class.prototype.localTemporaryStorage = function () {
+        console.error("localTemporaryStorage ", "本地临时存储");
+    };
+    Class.prototype.equipmentInformation = function () {
+        console.error("equipmentInformation ", "设备信息");
+    };
+    Class.prototype.prompt = function () {
+        console.error("prompt ", "提示");
+    };
+    Class.prototype.typeofRefinement = Class.prototype.type = function () {
+        console.error("typeofRefinement ", "typeof 类型细化");
+    };
+    Class.prototype.arrayStructure = Class.prototype.isArray = function () {
+        console.error("arrayStructure ", "对象是否具备数组结构");
+    };
+    Class.prototype.traverseEach = function () {
+        console.error("traverseEach ", "遍历每个");
+    };
+    Class.prototype.sort = function () {
+        console.error("sort ", "排序");
+    };
+    Class.prototype.preventEvents = function () {
+        console.error("preventEvents ", "阻止事件冒泡");
+    };
+    Class.prototype.moduleEvents = function () {
+        console.error("moduleEvents ", "模块事件");
+    };
+    Class.prototype.executeEvents = function () {
+        console.error("executeEvents ", "执行事件");
+    };
+    Class.prototype.addEvents = function () {
+        console.error("addEvents ", "添加事件");
+    };
+    Class.prototype.removeEvents = function () {
+        console.error("removeEvents ", "移除事件");
+    };
+    Class.prototype.debounce = function () {
+        console.error("debounce ", "防抖");
+    };
+    Class.prototype.throttle = function () {
+        console.error("throttle ", "节流");
+    };
 
     // 将 KoraUI 实例挂载到 window 对象上，使其成为全局可访问的对象
     // @ts-ignore 用于忽略 TypeScript 的类型检查错误（如果存在）
