@@ -37,7 +37,7 @@ declare const KoraUIGlobal: {
  */
 interface Window {
     KoraUIGlobal?: {
-        dir?: string; // 扩展 window 对象，明确 LAYUI_GLOBAL 的结构
+        dir?: string; // 扩展 window 对象，明确 KoraUIGlobal 的结构
     };
 }
 
