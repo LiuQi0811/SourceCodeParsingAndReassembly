@@ -1,0 +1,44 @@
+/**
+ * 作用：封装模块，避免全局污染，支持链式调用。
+ *
+ * 关键机制：
+ *
+ * koraJS 是入口函数。
+ *
+ * koraJS.fn 是原型对象，存放所有公共方法。
+ *
+ * init 是真正的构造函数，实例化后能访问 koraJS.fn 的方法。
+ */
+((global, factory: (...args: any[]) => any) => {
+    "use strict";
+    console.log("[IIFE] 使用箭头函数，模块系统封装开始");
+})(typeof window !== 'undefined' ? window : globalThis, function (window, noGlobal) {
+    "use strict";
+
+    interface KoraJS {
+        (selector: any, context?: any): any;
+
+        fn: {
+            init: new (selector: any, context?: any) => KoraJS;
+        };
+    }
+
+    console.log("[Factory] 模块逻辑执行，global:", window);
+    const koraJS: KoraJS = (function (): KoraJS {
+        const _koraJS = function (selector: any, context?: any) {
+            return new (_koraJS.fn.init)(selector, context);
+        } as KoraJS;
+
+        _koraJS.fn = {
+            init: function (this: KoraJS, selector: any, context?: any) {
+                // 初始化逻辑
+                console.error(" csh project......")
+            } as any
+        };
+        _koraJS.fn.init.prototype = _koraJS.fn;
+        return _koraJS;
+    })();
+
+    // 返回模块对外暴露的 API
+    return koraJS;
+});
