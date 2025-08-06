@@ -23,6 +23,7 @@ interface BuiltinModules {
      * Kora ALl
      */
     koraAll: string;
+    koraJS: string;
     /**
      * Kora  聚合标识
      * 功能性的，非真实模块
@@ -273,6 +274,7 @@ interface HTMLScriptElement {
          * Kora ALL
          */
         koraAll: "koraAll",
+        koraJS: "koraJS",
         /**
          * Kora 聚合标识（功能性的，非真实模块）
          */
@@ -400,8 +402,23 @@ interface HTMLScriptElement {
      * @param dependencies 模块依赖数组
      * @param callback 模块定义完成后的回调函数
      */
-    Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: () => void): void {
-        console.error(" definitionModule ", "定义模块");
+    Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: (module?: any, exports?: any) => void): void {
+        console.error(" definitionModule ", "定义模块 ", dependencies);
+        console.error(" definitionModule ", "定义模块 ", callback());
+        const useCallback = () => {
+            const setModule = function () {
+            };
+            typeof callback === "function" && callback(function (module: any, exports: any) {
+
+            });
+            return this;
+        };
+        console.error(" TYPE ",typeof dependencies)
+        if(typeof dependencies === "function"){
+           alert(1111)
+        }
+        this.useModules(dependencies, useCallback, null, "define");
+        return this;
     };
 
     // 在 Class 的原型上定义 useModules 方法
@@ -439,6 +456,8 @@ interface HTMLScriptElement {
         }
         // 如果没有传入任何模块，或者传入的是空数组，则直接返回当前 Class 实例（支持链式调用）
         if (!modules || (Array.isArray(modules) && modules.length === 0)) return this;
+        //TODO 。。。。
+        console.error(" TODO ..... ", " koraJS 逻辑计算");
         // 如果未传入 exports，则初始化为空数组，用于存储已加载模块的引用
         exports = exports || [];
         // 如果传入的是多个模块，取第一个模块作为当前要处理的模块；否则直接使用 modules（字符串情况）
