@@ -39,6 +39,9 @@
         return _koraJS;
     })();
 
+
+    console.warn(" Type Of Object ............... ")
+
     // 返回模块对外暴露的 API
     return koraJS;
 });

@@ -273,7 +273,7 @@ interface HTMLScriptElement {
         /**
          * Kora ALL
          */
-        koraAll: "koraAll",
+        koraAll: "koraOmni-",
         koraJS: "koraJS",
         /**
          * Kora 聚合标识（功能性的，非真实模块）
@@ -404,18 +404,20 @@ interface HTMLScriptElement {
      */
     Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: (module?: any, exports?: any) => void): void {
         console.error(" definitionModule ", "定义模块 ", dependencies);
-        console.error(" definitionModule ", "定义模块 ", callback());
+        console.error(" definitionModule ", "回调函数 ", callback());
         const useCallback = () => {
             const setModule = function () {
+                console.warn(" 设置 Module ")
             };
-            typeof callback === "function" && callback(function (module: any, exports: any) {
-
+            typeof callback === "function" && callback(function (module: any, exports: any): void {
+                setModule();
+                console.warn(" 回调 callback")
             });
             return this;
         };
-        console.error(" TYPE ",typeof dependencies)
-        if(typeof dependencies === "function"){
-           alert(1111)
+        console.warn(" Dependencies Type ", typeof dependencies)
+        if (typeof dependencies === "function") {
+            alert(1111)
         }
         this.useModules(dependencies, useCallback, null, "define");
         return this;
@@ -456,8 +458,10 @@ interface HTMLScriptElement {
         }
         // 如果没有传入任何模块，或者传入的是空数组，则直接返回当前 Class 实例（支持链式调用）
         if (!modules || (Array.isArray(modules) && modules.length === 0)) return this;
-        //TODO 。。。。
-        console.error(" TODO ..... ", " koraJS 逻辑计算");
+        if(window.jQuery && window.jQuery.fn.on){
+            console.warn("window.jQuery  存在...... ")
+        }
+        console.error(" TODO ..... ", " koraJS 逻辑计算", window.jQuery);
         // 如果未传入 exports，则初始化为空数组，用于存储已加载模块的引用
         exports = exports || [];
         // 如果传入的是多个模块，取第一个模块作为当前要处理的模块；否则直接使用 modules（字符串情况）
@@ -472,7 +476,7 @@ interface HTMLScriptElement {
          * 实际项目中，这里应该执行用户传入的 callback 或进行后续处理
          */
         const onCallBack = function (): void {
-            console.error(" 触发了回调 ", window.KoraUI);// 打印 KoraUI 对象，调试用
+            console.warn(" use Module onCallBack 触发了回调 ", window.KoraUI);// 打印 KoraUI 对象，调试用
         };
         /**
          * pollingCallback 轮询模块加载状态的函数
@@ -668,14 +672,25 @@ interface HTMLScriptElement {
      * @param key 设备信息键名
      */
     Class.prototype.equipmentInformation = function (key: string): void {
-        console.error("equipmentInformation ", "设备信息");
+        const userAgent = navigator.userAgent.toLowerCase();
+        const getVersion = function (label: string){
+            console.warn("getVersion 获取版本 ",label);
+        };
+        let result = {
+            os: function (){},
+            ie: function (){},
+            wechat: getVersion("microMessenger")
+        };
+        console.warn(" Result ", result)
     };
 
     /**
      * prompt 通用提示功能
      */
-    Class.prototype.prompt = function (): void {
-        console.error("prompt ", "提示");
+    Class.prototype.prompt = function (): {errorMessage: Function} {
+        return {
+            errorMessage: errorMessage
+        };
     };
 
     /**

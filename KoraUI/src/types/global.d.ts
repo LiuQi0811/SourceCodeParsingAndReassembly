@@ -8,5 +8,6 @@ declare global {
         KoraUIGlobal?: {
             dir?: string;
         };
+        jQuery: any;
     }
 }
