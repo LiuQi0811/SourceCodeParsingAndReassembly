@@ -458,8 +458,8 @@ interface HTMLScriptElement {
         }
         // 如果没有传入任何模块，或者传入的是空数组，则直接返回当前 Class 实例（支持链式调用）
         if (!modules || (Array.isArray(modules) && modules.length === 0)) return this;
-        if(window.jQuery && window.jQuery.fn.on){
-            console.warn("window.jQuery  存在...... ")
+        if (window.jQuery && window.jQuery.fn.on) {
+            console.warn("window.jQuery  存在...... ");
         }
         console.error(" TODO ..... ", " koraJS 逻辑计算", window.jQuery);
         // 如果未传入 exports，则初始化为空数组，用于存储已加载模块的引用
@@ -671,23 +671,75 @@ interface HTMLScriptElement {
      * equipmentInformation 设备信息获取
      * @param key 设备信息键名
      */
-    Class.prototype.equipmentInformation = function (key: string): void {
-        const userAgent = navigator.userAgent.toLowerCase();
-        const getVersion = function (label: string){
-            console.warn("getVersion 获取版本 ",label);
+    Class.prototype.equipmentInformation = function (key: string): any {
+        // 获取当前浏览器的用户代理字符串（User Agent String），并将其转换为小写形式
+        // 用户代理字符串包含了浏览器的名称、版本、操作系统等信息，常用于浏览器检测
+        const userAgent: string = navigator.userAgent.toLowerCase();
+        /**
+         * 定义一个名为 getVersion 的函数，用于从 userAgent 字符串中提取指定标签（如浏览器名称）对应的版本号
+         * @param label {@link string} 要匹配的标签名称，比如 "chrome"、"safari"、"edge" 等，类型为字符串
+         */
+        const getVersion = function (label: string): string | false {
+            // 构建一个正则表达式，用于从 userAgent 中匹配类似 "Chrome/120.0.0.0" 这样的字符串
+            // 正则含义：
+            //   label + "/" ：匹配传入的标签后跟一个斜杠，比如 "chrome/"
+            //   ([^\s\_\-]+) ：捕获组，匹配一个或多个字符，这些字符不能是空格(\s)、下划线(_)或连字符(-)
+            //                  目的是匹配版本号，比如 "120.0.0.0"
+            const regExp = new RegExp(label + "/([^\\s\\_\\-]+)");
+            // 使用正则表达式在 userAgent 中进行匹配
+            // userAgent.match(regExp) 返回一个匹配结果数组，如果没有匹配到，则返回 null
+            // 为了防止 null 导致的报错，使用 || [] 将 null 转为空数组
+            // 然后通过 [1] 取出正则中第一个捕获组的内容，也就是版本号部分
+            // 如果没有匹配到，label 最终会是 undefined
+            label = (userAgent.match(regExp) || [])[1];
+            // 如果成功提取到了版本号（label 有值），则返回该版本号；否则返回 false
+            return label || false;
+        }
+        // 定义一个变量 result，它的类型可以是空对象 {} 或任意类型 any，
+        // 初始值是一个包含多个检测结果的对象
+        let result: {} | any = {
+            // 检测操作系统类型，通过正则匹配 userAgent 字符串来判断
+            os: function () {
+                if (/windows/.test(userAgent)) {
+                    return "windows"; // 匹配到 windows，返回 "windows"
+                } else if (/linux/.test(userAgent)) {
+                    return "linux";  // 匹配到 linux，返回 "linux"
+                } else if (/iphone|ipod|ipad|ios/.test(userAgent)) {
+                    return "ios"; // 匹配到 iphone、ipod、ipad 或 ios，返回 "ios"
+                } else if (/mac/.test(userAgent)) {
+                    return "mac"; // 匹配到 mac，返回 "mac"
+                }
+            }(), // 立即执行函数，将返回值赋给 os
+            // 检测是否为 IE 浏览器，以及其版本号
+            ie: function () {
+                // 判断是否存在 ActiveXObject（IE 特有）或者全局是否有 ActiveXObject 属性
+                return (!!window.ActiveXObject || "ActiveXObject" in window)
+                    ? ((userAgent.match(/msie\s(\d+)/) || [])[1] || "11") // 如果是 IE，尝试从 userAgent 中提取版本号，如 msie 10，取数字部分；如果没有匹配到，默认返回 "11"
+                    : false; // 不是 IE，返回 false
+            }(),// 立即执行函数，将返回值赋给 ie
+            // 获取微信浏览器的版本信息，调用了一个名为 getVersion 的函数，参数是 "micromessenger"
+            wechat: getVersion("micromessenger")
         };
-        let result = {
-            os: function (){},
-            ie: function (){},
-            wechat: getVersion("microMessenger")
-        };
-        console.warn(" Result ", result)
+        // 如果传入了 key 参数，并且 result 中没有该 key 对应的值（即 result[key] 为假值）
+        if (key && !result[key]) {
+            // 则调用 getVersion 函数，传入 key，将返回的版本信息赋值给 result[key]
+            result[key] = getVersion(key);
+        }
+        // 移动设备
+        // 检测是否为 Android 设备：如果 userAgent 中包含 android，则为 true
+        result.android = /android/.test(userAgent);
+        // 将之前 os 检测中返回的 "ios" 字符串，转换为布尔值 true（表示是 iOS 设备）
+        result.ios = result.ios === "ios";
+        // 判断是否为移动设备：只要 是 android 或 ios 其中之一，就是移动设备
+        result.mobile = (result.android || result.ios);
+        // 最终返回这个包含操作系统、浏览器、设备类型等信息的对象
+        return result;
     };
 
     /**
      * prompt 通用提示功能
      */
-    Class.prototype.prompt = function (): {errorMessage: Function} {
+    Class.prototype.prompt = function (): { errorMessage: Function } {
         return {
             errorMessage: errorMessage
         };
