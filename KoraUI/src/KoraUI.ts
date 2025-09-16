@@ -399,28 +399,45 @@ interface HTMLScriptElement {
 
     /**
      * definitionModule 定义模块及其依赖关系
-     * @param dependencies 模块依赖数组
-     * @param callback 模块定义完成后的回调函数
+     * 该方法用于定义一个模块（module），并指定其依赖项（dependencies），
+     * 在依赖加载完成后，通过回调函数执行模块初始化逻辑，比如将模块接口挂载到全局对象。
+     *
+     * @param dependencies 模块的依赖项，类型为字符串或函数的数组，比如 ['dep1', 'dep2']，或者 []
+     * @param callback 模块定义完成后的回调函数，用于在模块加载后执行初始化逻辑
+     *                 回调函数接收两个可选参数：module（模块名）、exports（模块导出内容）
      */
-    Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: (module?: any, exports?: any) => void): void {
+
+    Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: (module?: any, exports?: any) => void) {
         console.error(" definitionModule ", "定义模块 ", dependencies);
-        console.error(" definitionModule ", "回调函数 ", callback());
+        console.error(" definitionModule ", "回调函数 ", callback);
+        // 定义一个内部函数 useCallback，用于封装模块注册与回调逻辑
         const useCallback = () => {
-            const setModule = function () {
-                console.warn(" 设置 Module ")
+            /**
+             * setModule：将模块的导出内容挂载到 window.KoraUI 上，并标记模块状态为已完成
+             * @param module 模块名称（字符串）
+             * @param exports 模块导出的内容（对象、函数等）
+             */
+            const setModule = function (module: any, exports: any) {
+                window.KoraUI[module] = exports; // 将模块接口赋值在KoraUI
+                cache.status[module] = true; //  标记模块注册完成
             };
+            // 如果传入的 callback 是函数，则执行它，并传入一个新的函数
             typeof callback === "function" && callback(function (module: any, exports: any): void {
-                setModule();
-                console.warn(" 回调 callback")
+                setModule(module, exports); // 调用 setModule，注册模块
+                cache.callback[module] = function () {
+                    callback(setModule); // 缓存回调
+                }
             });
-            return this;
+            return this;// 支持链式调用
         };
-        console.warn(" Dependencies Type ", typeof dependencies)
+        console.warn(" Dependencies Type ", typeof dependencies);
+        // 如果 dependencies 是函数
         if (typeof dependencies === "function") {
             alert(1111)
         }
-        this.useModules(dependencies, useCallback, null, "define");
-        return this;
+        // 调用 this.useModules，传入依赖、回调、以及模块类型标识
+        this.useModules(dependencies, useCallback, null, "definitionModule");
+        return this;// 支持链式调用
     };
 
     // 在 Class 的原型上定义 useModules 方法
@@ -747,27 +764,113 @@ interface HTMLScriptElement {
 
     /**
      * typeofRefinement 类型细化检查
-     * @param operand 要检查的操作数
+     * 该方法用于对任意值进行更细致的类型判断，特别是在基础 `typeof` 操作不够精确时（比如 object / function 类型），
+     * 通过 Object.prototype.toString 获取更准确的内部类型标识，比如 Array、Date、RegExp 等。
+     * @param operand 要检查的操作数（任意类型的值）
+     * @returns 返回一个表示操作数类型的字符串，比如 "string"、"number"、"array"、"date"、"object" 等
      */
-    Class.prototype.typeofRefinement = Class.prototype.type = function (operand: any): void {
-        console.error("typeofRefinement ", "typeof 类型细化");
+    Class.prototype.typeofRefinement = Class.prototype.type = function (operand: any) {
+        // 如果操作数是 null，直接返回字符串 "null"（因为 typeof null === "object"，这是 JS 历史遗留问题）
+        if (operand === null) return String(operand); // 返回 "null"
+        // 如果操作数是 object 类型 或 function 类型，则进行更深入的类型判断
+        return (
+            typeof operand === "object"
+            ||
+            typeof operand === "function")
+            // 如果是 object 或 function，使用 Object.prototype.toString.call 获取标准类型标签
+            ? function () {
+                // 调用 Object.prototype.toString 方法，得到类似 "[object Array]"、"[object Date]" 的字符串
+                let prototype: any = Object.prototype
+                    .toString
+                    .call(operand)
+                    .match(/\s(.+)\]$/) || [];  // 正则提取中间的类型单词，比如 "Array"、"Date"
+                // 从正则匹配结果中取出类型名，如果没有匹配到，默认为 "Object"
+                const classType: string = "Function|Array|Date|RegExp|Object|Error|Symbol";
+                prototype = prototype[1] || "Object"; // 比如得到 "Array"，或者默认 "Object"
+                // 定义我们关心的内置类型，用正则去匹配 prototype（即刚取出的类型名）
+                // 如果匹配成功，返回对应的小写类型名，比如 "array"、"date"、"regexp" 等
+                // 如果没匹配上，就返回通用的 "object"
+                return new RegExp("\\b(" + classType + ")\\b")
+                    .test(prototype)
+                    ? prototype.toLowerCase() // 比如 "Array" -> "array"
+                    : "object"; // 默认返回 "object"
+            }()
+            : typeof operand;  // 如果不是 object 也不是 function，直接返回 JS 原生的 typeof 结果，比如 "string"、"number"、"boolean" 等
     };
 
     /**
-     * arrayStructure 检查对象是否为数组结构
-     * @param arbitrary 任意对象
+     * arrayStructure / isArray 检查对象是否为数组或类数组结构
+     * 该方法用于判断传入的任意值是否是一个数组（Array）或类数组对象（array-like object）。
+     *
+     * 所谓类数组对象，是指具有数字索引和 length 属性的对象，比如：
+     *   - { 0: 'a', 1: 'b', length: 2 }
+     *   - arguments 对象
+     *   - DOM 集合（如 NodeList、HTMLCollection）
+     *   - 或者自定义的对象模拟数组结构
+     *
+     * 该方法不仅会检查是否是原生的数组（通过 this.type === 'array'），
+     * 还会检查是否是具有合法 length 属性、并且索引可访问的类数组对象。
+     *
+     * @param arbitrary 任意类型的值，可以是数组、对象、类数组、null、undefined 等
+     * @returns 返回一个布尔值：
+     *           - true：如果 arbitrary 是一个数组，或者是一个合法的类数组对象
+     *           - false：如果 arbitrary 不是数组，也不是合法的类数组对象，或者为 null / undefined / window 等特殊情况
      */
-    Class.prototype.arrayStructure = Class.prototype.isArray = function (arbitrary: any): void {
-        console.error("arrayStructure ", "对象是否具备数组结构");
+    Class.prototype.arrayStructure = Class.prototype.isArray = function (arbitrary: any): boolean {
+        // 调用 this.type(arbitrary)，返回该值的细化类型，比如 "array"、"object"、"string" 等
+        const structType = this.type(arbitrary);
+        // 如果 arbitrary 是假值（如 null、undefined、false）、
+        // 或者它不是对象类型（typeof !== 'object'）、
+        // 或者它是 window 对象（特殊全局对象，不是数组也不是类数组），
+        // 则直接返回 false
+        if (!arbitrary
+            || (typeof arbitrary !== "object")
+            || arbitrary === window) return false;
+        // 检查该对象是否具有 "length" 属性，并获取其 length 值
+        const arrayLen = "length" in arbitrary && arbitrary.length;
+        // 判断条件汇总：
+        // 1. structType === 'array' → 通过 type 方法判断它确实是数组（最直接的判断）
+        // 2. arrayLen === 0         → 如果 length 为 0，可能是一个空数组或空类数组（合理存在）
+        // 3. (typeof arrayLen === 'number' && arrayLen > 0 && (arrayLen - 1) in arbitrary)
+        //    → 如果 length 是一个大于 0 的数字，并且该对象的索引 0, 1, ..., length-1 至少存在一个可访问的（验证类数组结构的合法性）
+        return structType === "array"
+            || arrayLen === 0
+            || (typeof arrayLen === "number"
+                && arrayLen > 0
+                && (arrayLen - 1) in arbitrary);
     };
 
     /**
      * traverseEach 遍历每个元素
-     * @param arbitrary 任意集合
-     * @param fn 遍历回调函数
+     * @param arbitrary 任意集合，可以是一个数组、对象、类数组等
+     * @param fn 遍历回调函数，用于对每个元素/属性执行自定义逻辑
+     * @returns 返回当前 Class 的实例（支持链式调用），即 this
      */
-    Class.prototype.traverseEach = function (arbitrary: any, fn: Function): void {
-        console.error("traverseEach ", "遍历每个");
+    Class.prototype.traverseEach = function (arbitrary: any, fn: Function): any {
+        // 定义一个内部回调函数 callback
+        // 它尝试调用传入的 fn，并将 this 绑定到 value[key]（通常是值本身），并传入 key 和 value[key]
+        const callback = function (key: any, value: any) {
+            // fn.call(value[key], key, value[key]) 的含义是：
+            // - 将 fn 的 this 上下文绑定为 value[key]（即当前值）
+            // - 并传入两个参数：key（键名）、value[key]（键对应的值）
+            return fn.call(value[key], key, value[key]);
+        }
+        // 如果传入的 fn 不是一个函数，则直接返回当前实例（this），不执行遍历
+        if (typeof fn !== "function") return this;
+        // 如果没有传入 arbitrary（比如是 undefined 或 null），则默认设置为一个空数组 []
+        arbitrary = arbitrary || [];
+        // 判断 arbitrary 是否是一个数组（通过你之前定义的 this.isArray 方法）
+        if (this.isArray(arbitrary)) {
+            alert(" 数组结构");
+        } else {
+            // 如果不是数组，则认为它是一个对象（或类数组、类对象），使用 for...in 遍历它的可枚举属性
+            for (let arbitraryKey in arbitrary) {
+                // 调用 callback(arbitraryKey, arbitrary)
+                if (callback(arbitraryKey, arbitrary)) break;
+            }
+        }
+        // 返回当前实例
+        return this;
     };
 
     /**
