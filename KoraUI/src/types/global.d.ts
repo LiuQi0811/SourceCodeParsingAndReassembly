@@ -8,6 +8,7 @@ declare global {
         KoraUIGlobal?: {
             dir?: string;
         };
-        jQuery: any;
+        ActiveXObject?: any;
+        koraJS: any;
     }
 }

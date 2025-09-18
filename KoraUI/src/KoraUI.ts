@@ -126,6 +126,13 @@ interface HTMLScriptElement {
 }
 
 /**
+ * IClass Class 拓展接口 TS this支持
+ */
+interface IClass {
+    koraVersion: string;
+}
+
+/**
  * 立即执行函数表达式 (IIFE)，接收 window 对象作为参数，并显式声明其类型为 Window & typeof globalThis
  * 这种写法确保了在函数内部可以安全地访问 window 和全局对象 (globalThis) 的属性和方法
  *
@@ -142,7 +149,7 @@ interface HTMLScriptElement {
         timeout: 10, // 超时时间（单位：毫秒），默认值为 10
         debugMode: false, // 是否启用调试模式，默认关闭
         enabledVersion: false, // 版本标识（布尔值），当前未启用版本控制
-        version: "7.7.7"
+        version: "6.7.0"
     };
 
     /**
@@ -174,9 +181,9 @@ interface HTMLScriptElement {
 
     // 定义一个空的 Class 构造函数
     // 目前 Class 内部没有具体实现，可能是一个占位符或待扩展的基类
-    const Class = function () {
+    const Class = function (this: IClass) {
         // Class 构造函数体（当前为空）
-
+        this.koraVersion = "6.7.0";
     };
 
 
@@ -197,7 +204,7 @@ interface HTMLScriptElement {
 
         // 如果 document.currentScript 存在且其标签名为 'SCRIPT'，直接使用其 src 属性
         // document.currentScript 是浏览器提供的属性，指向当前正在执行的 <script> 标签
-        if (document.currentScript && document.currentScript.tagName.toUpperCase() === 'SCRIPT') {
+        if (document.currentScript && document.currentScript.tagName.toUpperCase() === "SCRIPT") {
             // 检查 currentScript 是否有 src 属性（避免访问未定义属性）
             if ("src" in document.currentScript) {
                 // 如果存在 src 属性，则将其值赋给 jsPath
@@ -206,7 +213,7 @@ interface HTMLScriptElement {
         } else {
             // 备选方案：如果 document.currentScript 不可用，则通过遍历所有 <script> 标签查找路径
             // document.getElementsByTagName('script') 返回一个 HTMLCollection，包含所有 <script> 标签
-            const scripts: HTMLCollectionOf<HTMLScriptElement> = document.getElementsByTagName('script');
+            const scripts: HTMLCollectionOf<HTMLScriptElement> = document.getElementsByTagName("script");
             const last: number = scripts.length - 1; // 获取最后一个 <script> 标签的索引
             let src: string | undefined; // 定义 src 变量，用于存储找到的脚本路径
 
@@ -406,12 +413,12 @@ interface HTMLScriptElement {
      * @param callback 模块定义完成后的回调函数，用于在模块加载后执行初始化逻辑
      *                 回调函数接收两个可选参数：module（模块名）、exports（模块导出内容）
      */
-
     Class.prototype.definitionModule = function (dependencies: Array<string | Function>, callback: (module?: any, exports?: any) => void) {
         console.error(" definitionModule ", "定义模块 ", dependencies);
         console.error(" definitionModule ", "回调函数 ", callback);
         // 定义一个内部函数 useCallback，用于封装模块注册与回调逻辑
         const useCallback = () => {
+            alert(" Use Callback")
             /**
              * setModule：将模块的导出内容挂载到 window.KoraUI 上，并标记模块状态为已完成
              * @param module 模块名称（字符串）
@@ -430,10 +437,10 @@ interface HTMLScriptElement {
             });
             return this;// 支持链式调用
         };
-        console.warn(" Dependencies Type ", typeof dependencies);
         // 如果 dependencies 是函数
         if (typeof dependencies === "function") {
-            alert(1111)
+            callback = dependencies;
+            dependencies = [];
         }
         // 调用 this.useModules，传入依赖、回调、以及模块类型标识
         this.useModules(dependencies, useCallback, null, "definitionModule");
@@ -452,6 +459,7 @@ interface HTMLScriptElement {
         exports: any[] = [],// 已加载模块的导出对象数组，默认为空数组
         from: any = {} // 标识模块加载来源，比如 'define' 或其他上下文，默认为空对象
     ): void {
+        const _this = this;
         // 设置模块加载的基础路径 dir，优先使用 config.dir，否则使用 getPath（可能是一个函数或字符串）
         let dir: string = config.dir = config.dir ? config.dir : getPath;
         // 对 modules 参数进行标准化处理，统一转为字符串数组，便于后续遍历处理
@@ -474,25 +482,31 @@ interface HTMLScriptElement {
             config.host = dirMatch ? dirMatch[0] : "//" + location.host + "/";
         }
         // 如果没有传入任何模块，或者传入的是空数组，则直接返回当前 Class 实例（支持链式调用）
-        if (!modules || (Array.isArray(modules) && modules.length === 0)) return this;
-        if (window.jQuery && window.jQuery.fn.on) {
-            console.warn("window.jQuery  存在...... ");
+        if (!modules) return _this;
+        if (window.koraJS && window.koraJS.fn.on) {
+            console.warn("window.koraJS  存在...... ");
         }
-        console.error(" TODO ..... ", " koraJS 逻辑计算", window.jQuery);
+        console.error(" TODO ..... ", " koraJS 逻辑计算", window);
         // 如果未传入 exports，则初始化为空数组，用于存储已加载模块的引用
         exports = exports || [];
         // 如果传入的是多个模块，取第一个模块作为当前要处理的模块；否则直接使用 modules（字符串情况）
         const module: string = Array.isArray(modules) ? modules[0] : modules;
+
         // 从 this.recordAllModules 中获取当前模块的元信息（比如模块路径、是否外部模块、API 等）
-        const moduleInfo: any = this.recordAllModules[module];
+        const moduleInfo: any = _this.recordAllModules[module];
         // 判断当前模块是否为外部模块：即 moduleInfo 是否是一个非空对象
         const isExternalModule: boolean = typeof moduleInfo === "object" && moduleInfo !== null;
-
         /**
-         * onCallBack 模块加载成功后触发的回调函数（简化版，仅打印日志）
-         * 实际项目中，这里应该执行用户传入的 callback 或进行后续处理
+         * onCallBack 模块加载成功后触发的回调函数
          */
-        const onCallBack = function (): void {
+        const onCallBack = function () {
+            exports.push(window.KoraUI[module]);
+            modules.length > 1
+                ? _this.useModules(modules.slice(1), callback, exports, from)
+                : (typeof callback === "function" && function () {
+                    // TODO 保证文档加载完毕再执行回调
+                    callback.apply(window.KoraUI, exports);
+                }());
             console.warn(" use Module onCallBack 触发了回调 ", window.KoraUI);// 打印 KoraUI 对象，调试用
         };
         /**
@@ -501,7 +515,7 @@ interface HTMLScriptElement {
          * 如果超时仍未加载，则调用错误处理；如果加载完成，则触发 onCallBack
          */
         const pollingCallback = function (): void {
-            console.error(" 触发了轮询回调 ");// 打印轮询触发日志
+            console.error(" 触发了轮询回调 ", window.KoraUI, module);// 打印轮询触发日志
             let timeout: number = 0; // 超时计数器，单位为秒
             const delay: number = 5; // 每次轮询的间隔时间，单位毫秒
             /**
@@ -523,7 +537,7 @@ interface HTMLScriptElement {
         };
         // 如果模块为空，或者内置模块 koraUI.all 已加载且当前模块是内置模块，则直接触发回调并返回
         if (modules.length === 0 || (window.KoraUI["koraUI.all"] && builtInModule[module as keyof typeof builtInModule])) {
-            return onCallBack(), this;// 触发回调，并返回当前实例以支持链式调用
+            return onCallBack(), _this;// 触发回调，并返回当前实例以支持链式调用
         }
         // 判断当前模块是外部模块还是内部模块，获取模块资源路径
         let modelSrc: string = isExternalModule
@@ -578,7 +592,7 @@ interface HTMLScriptElement {
             pollingCallback();
         }
         // 返回当前 Class 实例，支持链式调用
-        return this;
+        return _this;
     };
 
     /**

@@ -9,39 +9,48 @@
  *
  * init 是真正的构造函数，实例化后能访问 koraJS.fn 的方法。
  */
-((global, factory: (...args: any[]) => any) => {
+(function (global, factory) {
     "use strict";
     console.log("[IIFE] 使用箭头函数，模块系统封装开始");
-})(typeof window !== 'undefined' ? window : globalThis, function (window, noGlobal) {
+    if (typeof module === "object" && typeof module.exports === "object") {
+        module.exports = global.document ? factory(global, true)
+            : function (D: any) {
+                if (!D.document) throw new Error("koraJS requires a window with a document");
+                return factory(D);
+            }
+    } else {
+        factory(global);
+    }
+})(typeof window !== 'undefined' ? window : this, function (window: any, noGlobal?: any) {
     "use strict";
 
     interface KoraJS {
         (selector: any, context?: any): any;
 
         fn: {
-            init: new (selector: any, context?: any) => KoraJS;
+            initialize: new (selector: any, context?: any) => KoraJS;
         };
     }
 
     console.log("[Factory] 模块逻辑执行，global:", window);
     const koraJS: KoraJS = (function (): KoraJS {
         const _koraJS = function (selector: any, context?: any) {
-            return new (_koraJS.fn.init)(selector, context);
+            return new (_koraJS.fn.initialize)(selector, context);
         } as KoraJS;
-
         _koraJS.fn = {
-            init: function (this: KoraJS, selector: any, context?: any) {
+            initialize: function (this: KoraJS, selector: any, context?: any) {
                 // 初始化逻辑
                 console.error(" csh project......")
             } as any
         };
-        _koraJS.fn.init.prototype = _koraJS.fn;
+        _koraJS.fn.initialize.prototype = _koraJS.fn;
         return _koraJS;
     })();
 
-
-    console.warn(" Type Of Object ............... ")
-
+    typeof window.KoraUI === "object" && window.KoraUI.definitionModule(function (exports: Function) {
+        window.KoraUI.K = koraJS;
+        exports("koraJS", koraJS);
+    });
     // 返回模块对外暴露的 API
     return koraJS;
 });
