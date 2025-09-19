@@ -455,7 +455,7 @@ interface IClass {
     // - from: 来源标识，标识模块加载的上下文或方式（类型暂定为 any，建议后续明确）
     Class.prototype.useModules = function (
         modules: string | Function | string[],// 模块标识：可以是字符串、函数或者字符串数组
-        callback: Function | undefined, // 加载完成后的回调函数，可选
+        callback: Function | undefined | any, // 加载完成后的回调函数，可选
         exports: any[] = [],// 已加载模块的导出对象数组，默认为空数组
         from: any = {} // 标识模块加载来源，比如 'define' 或其他上下文，默认为空对象
     ): void {
@@ -500,15 +500,43 @@ interface IClass {
          * onCallBack 模块加载成功后触发的回调函数
          */
         const onCallBack = function () {
+            // 将当前模块的导出对象（window.KoraUI[module]）添加到 exports 数组中
+            // 通常 exports 用于收集所有已加载模块的导出内容
             exports.push(window.KoraUI[module]);
-            modules.length > 1
-                ? _this.useModules(modules.slice(1), callback, exports, from)
-                : (typeof callback === "function" && function () {
-                    // TODO 保证文档加载完毕再执行回调
-                    callback.apply(window.KoraUI, exports);
-                }());
-            console.warn(" use Module onCallBack 触发了回调 ", window.KoraUI);// 打印 KoraUI 对象，调试用
-        };
+
+            // 如果还有更多的模块需要加载（modules.length > 1）
+            if (modules.length > 1) {
+                // 递归调用 useModules，加载剩余的模块（去掉第一个，即当前已处理的模块）
+                // 传入：剩余模块列表、回调函数、已收集的导出数组、来源标识
+                _this.useModules(modules.slice(1), callback, exports, from);
+            } else {
+                // 如果当前是最后一个模块（modules.length === 1），开始处理回调逻辑
+                // 先判断 callback 是否是一个函数（避免 callback 为 undefined 时调用 .apply() 报错）
+                if (typeof callback === "function") {
+                    // 判断是否支持使用 window.KoraUI.koraJS 来包装回调执行
+                    // 条件包括：
+                    // 1. window.KoraUI.koraJS 存在
+                    // 2. 它是一个函数
+                    // 3. 当前模块加载的来源不是 'definitionModule'
+                    if (window.KoraUI.koraJS && typeof window.KoraUI.koraJS === "function" && from !== "definitionModule") {
+                        // 如果满足条件，使用 window.KoraUI.koraJS 包裹回调函数的执行
+                        // 目的可能是为了保证在文档/环境就绪之后再执行回调，或者是统一管理异步流程
+                        window.KoraUI.koraJS(() => {
+                            // 在 koraJS 提供的上下文中，调用用户传入的回调函数
+                            // 使用 .apply() 指定 this 为 window.KoraUI，并传入 exports 作为参数
+                            callback.apply(window.KoraUI, exports);
+                        });
+                    } else {
+                        // 如果不满足上述条件（比如没有 koraJS 或者来源是 definitionModule），
+                        // 则直接调用用户传入的回调函数
+                        // 同样指定 this 为 window.KoraUI，传入 exports 数组作为参数
+                        callback.apply(window.KoraUI, exports);
+                    }
+                }
+            }
+
+            console.warn(" use Module onCallBack 触发了回调 ", window.KoraUI);
+        }
         /**
          * pollingCallback 轮询模块加载状态的函数
          * 用于定时检查某个模块是否已经加载完成（比如通过检测 window[xxx] 或 cache.status[module]）
