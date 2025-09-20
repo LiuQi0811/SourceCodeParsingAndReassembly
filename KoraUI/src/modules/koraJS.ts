@@ -84,9 +84,9 @@
                     console.warn(" // TODO selector.nodeType ");
                 } else if (isFunction(selector)) {
                     // 如果传入的是函数，可能是 ready 回调，或者是模块化加载函数
-                    return koraJS.fn.ready !== undefined
-                        ? new koraJS.fn.ready(selector) // 如果有 ready 构造函数，使用它
-                        : selector(koraJS) // 否则直接调用该函数并传入 koraJS
+                    return _koraJS.fn.ready !== undefined
+                        ? new _koraJS.fn.ready(selector) // 如果有 ready 构造函数，使用它
+                        : selector(_koraJS) // 否则直接调用该函数并传入 koraJS
                 }
             } as any,
             /**
@@ -94,6 +94,8 @@
              * 目前只是占位，后续可实现 DOMContentLoaded 逻辑
              */
             ready: function (fn: Function) {
+                _koraJS.Deferred();
+                _koraJS.E();
                 console.warn(" READY !!!!! ", fn);
             } as any,
             /**
@@ -103,7 +105,7 @@
             extend: function (extensions: any) {
                 for (const key in extensions) {
                     if (extensions.hasOwnProperty(key)) {
-                        koraJS[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
+                        _koraJS[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
                     }
                 }
             } as any
@@ -121,6 +123,43 @@
         // 返回最终的 koraJS 函数
         return _koraJS;
     })();
+
+    /**
+     *  Extend Related Core
+     *  @author LiuQi
+     */
+    koraJS.Extend({
+        /**
+         * Deferred
+         * @param fn
+         * @constructor
+         * @author LiuQi
+         */
+        Deferred: function (fn: Function) {
+            let tuples: [(string | number)[], (string | number)[], (string | number)[]] = [
+                ["notify", "progress", 2],
+                ["resolve", "done", 0, "resolved"],
+                ["reject", "fail", 1, "rejected"]
+            ];
+            const state: string = "pending";
+            class _Promise {
+                constructor() {
+                }
+                state() {
+                    return state;
+                }
+
+                always() {
+
+                }
+            }
+            const promise = new _Promise();
+            console.warn("Deferred ", tuples, promise);
+        },
+        E: function () {
+            console.warn("E ");
+        }
+    });
 
     /**
      * isFunction 是否函数

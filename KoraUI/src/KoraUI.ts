@@ -418,7 +418,6 @@ interface IClass {
         console.error(" definitionModule ", "回调函数 ", callback);
         // 定义一个内部函数 useCallback，用于封装模块注册与回调逻辑
         const useCallback = () => {
-            alert(" Use Callback")
             /**
              * setModule：将模块的导出内容挂载到 window.KoraUI 上，并标记模块状态为已完成
              * @param module 模块名称（字符串）

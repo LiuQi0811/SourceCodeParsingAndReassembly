@@ -4,6 +4,7 @@ window.KoraUI.definitionModule("koraJS", function (exports: Function) {
     koraUI.prompt(); // prompt 通用提示
     koraUI.equipmentInformation(); // equipmentInformation 设备信息
     const MODULE_NAME: string = "koraElement";
+
     class Element {
         config: object;
 
@@ -16,27 +17,27 @@ window.KoraUI.definitionModule("koraJS", function (exports: Function) {
         }
 
         on() {
-            alert("事件");
+            console.warn("事件");
         }
 
         tab() {
-            alert("标签选项卡");
+            console.warn("标签选项卡");
         }
 
         insertTab() {
-            alert("新增标签选项卡");
+            console.warn("新增标签选项卡");
         }
 
         removeTab() {
-            alert("移除标签选项卡");
+            console.warn("移除标签选项卡");
         }
 
         changeTab() {
-            alert("切换标签选项卡");
+            console.warn("切换标签选项卡");
         }
 
         progress() {
-            alert("进度条");
+            console.warn("进度条");
         }
 
         initialize(type?: any, filter?: any) {
@@ -44,20 +45,25 @@ window.KoraUI.definitionModule("koraJS", function (exports: Function) {
                 return (typeof filter === "string" && filter) ? ('[koraUI-filter="' + filter + '"]') : "";
             }();
             const resultItem: any = {
-                tab: function () {
-                    alert(" TAB");
+                /**
+                 * Tab 选项卡
+                 *
+                 */
+                tab: function (element: any) {
+                    const KORA_UI_TAB = ".koraUI-tab";
+                    console.warn(" TAB", element,KORA_UI_TAB);
                 },
                 nav: function () {
-                    alert("NAV");
+                    console.warn("NAV");
                 },
                 breadcrumb: function () {
-                    alert("BREADCRUMB");
+                    console.warn("BREADCRUMB");
                 },
                 progress: function () {
-                    alert("PROGRESS");
+                    console.warn("PROGRESS");
                 },
                 collapse: function () {
-                    alert("COLLAPSE");
+                    console.warn("COLLAPSE");
                 }
             };
             return resultItem[type] ? resultItem[type]() : koraUI.traverseEach(resultItem, function (indexKey: string, fnValue: any) {
