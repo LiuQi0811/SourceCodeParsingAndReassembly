@@ -25,7 +25,7 @@
         // 浏览器全局环境或其他，直接调用 factory(global)
         factory(global);
     }
-})(typeof window !== 'undefined' ? window : this, function (window: any, noGlobal?: any) {
+})(typeof window !== "undefined" ? window : this, function (window: any, noGlobal?: any) {
     "use strict";
 
     /**
@@ -45,10 +45,38 @@
         fn: {
             initialize: new (selector: any, context?: any) => KoraJS; // 构造函数类，用于创建实例
             ready: new (fn: Function) => KoraJS; // （预留）DOM ready 回调构造函数
-            extend: new () => KoraJS; // （预留）扩展方法构造函数
+            koraExtendFn: new () => KoraJS; // koraExtendFn 扩展方法构造函数
+            koraEach: new (fn: Function) => KoraJS; // koraEach
+            koraEachFn: new (fn: Function) => KoraJS; // koraEachFn
+            koraChildren: new (data: string) => KoraJS; // koraChildren
         };
         Extend: Function;  // 暴露的扩展方法，用于挂载工具方法
+        Each: Function;  // 暴露的扩展方法，用于挂载工具方法
     }
+
+    /**
+     * isFunction 是否函数
+     * @param value
+     */
+    const isFunction = function (value: any) {
+        return typeof value === "function"
+            && typeof value.nodeType !== "number"
+            && typeof value.item !== "function";
+    }
+
+    /**
+     * createExtender  创建一个通用的“挂载器”，用于将方法挂载到 koraJS
+     * @author LiuQi
+     */
+    const createExtender = function (_koraJS: KoraJS) {
+        return function (extensions: Record<string, any>) {
+            for (const key in extensions) {
+                if (extensions.hasOwnProperty(key)) {
+                    _koraJS[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
+                }
+            }
+        }
+    } as any;
 
     console.log("[Factory] 模块逻辑执行，global:", window);
 
@@ -95,26 +123,39 @@
              */
             ready: function (fn: Function) {
                 _koraJS.Deferred();
-                _koraJS.E();
                 console.warn(" READY !!!!! ", fn);
             } as any,
             /**
-             * extend 方法（核心功能之一）
-             * 用于扩展 koraJS 的静态方法
+             * koraEach
+             * @author LiuQi
              */
-            extend: function (extensions: any) {
-                for (const key in extensions) {
-                    if (extensions.hasOwnProperty(key)) {
-                        _koraJS[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
-                    }
-                }
-            } as any
+            koraEach: function (this: KoraJS, callback: Function) {
+                return _koraJS.each(this, callback);
+            } as any,
+            /**
+             * koraChildren
+             * @author LiuQi
+             */
+            koraChildren: function (data: string) {
+                return _koraJS.children(data);
+            } as any,
+            /**
+             * koraExtendFn 方法（核心功能之一）
+             * 用于扩展 koraJS 的静态方法
+             * @author LiuQi
+             */
+            koraExtendFn: createExtender(_koraJS),
+            /**
+             * koraEachFn
+             */
+            koraEachFn: createExtender(_koraJS)
         };
         /**
          * 将 fn.extend 暴露为 koraJS 的静态方法 Extend
          * 用法：koraJS.Extend({ fn() { ... } })
          */
-        _koraJS.Extend = _koraJS.fn.extend;
+        _koraJS.Extend = _koraJS.fn.koraExtendFn;
+        _koraJS.Each = _koraJS.fn.koraEachFn;
         /**
          * 原型继承：将 fn 设为 _koraJS.fn.initialize 的原型
          * 即：new _koraJS.fn.initialize() 的实例能访问 _koraJS.fn 上的属性和方法
@@ -142,34 +183,28 @@
                 ["reject", "fail", 1, "rejected"]
             ];
             const state: string = "pending";
-            class _Promise {
-                constructor() {
-                }
-                state() {
-                    return state;
-                }
-
-                always() {
-
-                }
-            }
-            const promise = new _Promise();
-            console.warn("Deferred ", tuples, promise);
+            const promise = {};
         },
-        E: function () {
-            console.warn("E ");
+        /**
+         * each
+         * @param data
+         * @param callback
+         * @author LiuQi
+         */
+        each: function (data: any, callback: any) {
+            console.warn("E *** ", data, callback());
         }
     });
 
     /**
-     * isFunction 是否函数
-     * @param value
+     *  Each Related Core
+     *  @author LiuQi
      */
-    const isFunction = function (value: any) {
-        return typeof value === "function"
-            && typeof value.nodeType !== "number"
-            && typeof value.item !== "function";
-    }
+    koraJS.Each({
+        children: function (data: string) {
+            alert(" ....Children" + data)
+        }
+    });
 
     /**
      * 与外部模块系统（如 KoraUI）集成的逻辑
