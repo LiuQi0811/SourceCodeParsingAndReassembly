@@ -29,6 +29,46 @@
     "use strict";
 
     /**
+     * isFunction 是否函数
+     * @param value
+     * @author LiuQi
+     */
+    const isFunction = function (value: any) {
+        return typeof value === "function"
+            && typeof value.nodeType !== "number"
+            && typeof value.item !== "function";
+    }
+    /**
+     * isWindow
+     * @param value
+     * @author LiuQi
+     */
+    const isWindow = function (value: any) {
+        return value !== null && value.window;
+    }
+    /**
+     * toType
+     * @param value
+     * @author LiuQi
+     */
+    const toType = function (value: any) {
+        if (value === null) return value + "";
+    }
+    /**
+     * isArrayLike
+     * @param value
+     * @author LiuQi
+     */
+    const isArrayLike = function (value: any) {
+        let length = !!value && "length" in value && value.length;
+        let type = toType(value);
+        if (isFunction(value) || isWindow(value)) return false;
+        return type === "array"
+            || length === 0
+            || typeof length === "number" && length > 0 && (length - 1) in value;
+    }
+
+    /**
      * TypeScript 类型定义：描述 koraJS 的整体结构
      *
      * koraJS 是一个函数，同时也是一个对象：
@@ -45,34 +85,22 @@
         fn: {
             initialize: new (selector: any, context?: any) => KoraJS; // 构造函数类，用于创建实例
             ready: new (fn: Function) => KoraJS; // （预留）DOM ready 回调构造函数
-            koraExtendFn: new () => KoraJS; // koraExtendFn 扩展方法构造函数
             koraEach: new (fn: Function) => KoraJS; // koraEach
-            koraEachFn: new (fn: Function) => KoraJS; // koraEachFn
             koraChildren: new (data: string) => KoraJS; // koraChildren
         };
-        Extend: Function;  // 暴露的扩展方法，用于挂载工具方法
-        Each: Function;  // 暴露的扩展方法，用于挂载工具方法
-    }
-
-    /**
-     * isFunction 是否函数
-     * @param value
-     */
-    const isFunction = function (value: any) {
-        return typeof value === "function"
-            && typeof value.nodeType !== "number"
-            && typeof value.item !== "function";
+        Extend: (extensions: Record<string, any>) => void;  // 暴露的扩展方法，用于挂载工具方法
+        Each: (extensions: Record<string, any>) => void;  // 暴露的扩展方法，用于挂载工具方法
     }
 
     /**
      * createExtender  创建一个通用的“挂载器”，用于将方法挂载到 koraJS
      * @author LiuQi
      */
-    const createExtender = function (_koraJS: KoraJS) {
+    const createExtender = function (target: any) {
         return function (extensions: Record<string, any>) {
             for (const key in extensions) {
                 if (extensions.hasOwnProperty(key)) {
-                    _koraJS[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
+                    target[key] = extensions[key]; // 将扩展的属性/方法挂载到 koraJS 上
                 }
             }
         }
@@ -129,7 +157,7 @@
              * koraEach
              * @author LiuQi
              */
-            koraEach: function (this: KoraJS, callback: Function) {
+            koraEach: function (this: any, callback: Function) {
                 return _koraJS.each(this, callback);
             } as any,
             /**
@@ -138,24 +166,14 @@
              */
             koraChildren: function (data: string) {
                 return _koraJS.children(data);
-            } as any,
-            /**
-             * koraExtendFn 方法（核心功能之一）
-             * 用于扩展 koraJS 的静态方法
-             * @author LiuQi
-             */
-            koraExtendFn: createExtender(_koraJS),
-            /**
-             * koraEachFn
-             */
-            koraEachFn: createExtender(_koraJS)
+            } as any
         };
         /**
          * 将 fn.extend 暴露为 koraJS 的静态方法 Extend
          * 用法：koraJS.Extend({ fn() { ... } })
          */
-        _koraJS.Extend = _koraJS.fn.koraExtendFn;
-        _koraJS.Each = _koraJS.fn.koraEachFn;
+        _koraJS.Extend = createExtender(_koraJS);
+        _koraJS.Each = createExtender(_koraJS);
         /**
          * 原型继承：将 fn 设为 _koraJS.fn.initialize 的原型
          * 即：new _koraJS.fn.initialize() 的实例能访问 _koraJS.fn 上的属性和方法
@@ -192,7 +210,19 @@
          * @author LiuQi
          */
         each: function (data: any, callback: any) {
-            console.warn("E *** ", data, callback());
+            let length;
+            let i = 0;
+            if (isArrayLike(data)) {
+                length = data.length;
+                for (; i < length; i++) {
+                    if (callback.call(data[i], i, data[i]) === false) break;
+                }
+            } else {
+                for (let key in data) {
+                    if (callback.call(data[key], key, data[key]) === false) break;
+                }
+            }
+            return data;
         }
     });
 
@@ -218,4 +248,5 @@
     console.warn(" KORA_JS_FN => ", koraJS.fn);
     // 返回模块的对外 API，即 koraJS 函数本身
     return koraJS;
-});
+})
+;
