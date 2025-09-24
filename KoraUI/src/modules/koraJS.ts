@@ -38,6 +38,7 @@
             && typeof value.nodeType !== "number"
             && typeof value.item !== "function";
     }
+
     /**
      * isWindow
      * @param value
@@ -46,6 +47,7 @@
     const isWindow = function (value: any) {
         return value !== null && value.window;
     }
+
     /**
      * toType
      * @param value
@@ -54,6 +56,7 @@
     const toType = function (value: any) {
         if (value === null) return value + "";
     }
+
     /**
      * isArrayLike
      * @param value
@@ -69,6 +72,21 @@
     }
 
     /**
+     * siblings
+     * @author LiuQi
+     */
+    const siblings = function (node?: Node | null, element?: any) {
+        const matches: Node[] = [];
+        for (; node; node = node?.nextSibling) {
+            if (node.nodeType === 1 && node !== element) {
+                matches.push(node);
+            }
+        }
+        return matches;
+    }
+
+
+    /**
      * TypeScript 类型定义：描述 koraJS 的整体结构
      *
      * koraJS 是一个函数，同时也是一个对象：
@@ -79,7 +97,7 @@
      * @author LiuQi
      */
     interface KoraJS {
-        (selector: any, context?: any): any; // koraJS 可被当作函数调用，如 koraJS('#id')
+        (selector?: any, context?: any): any; // koraJS 可被当作函数调用，如 koraJS('#id')
 
         [key: string]: any;// 允许通过字符串 key 动态挂载任意属性或方法
         fn: {
@@ -87,6 +105,10 @@
             ready: new (fn: Function) => KoraJS; // （预留）DOM ready 回调构造函数
             koraEach: new (fn: Function) => KoraJS; // koraEach
             koraChildren: new (data: string) => KoraJS; // koraChildren
+            koraPushStack: (element: Record<string, any>) => any;
+            KoraJSConstructor: KoraJS;
+            length: number;
+            koraFind: (selector: Record<string, any>, context: Document, results: any, seed?: any) => any;
         };
         Extend: (extensions: Record<string, any>) => void;  // 暴露的扩展方法，用于挂载工具方法
         Each: (extensions: Record<string, any>) => void;  // 暴露的扩展方法，用于挂载工具方法
@@ -114,11 +136,16 @@
      * @author LiuQi
      */
     const koraJS: KoraJS = (function (): KoraJS {
+        // SIMPLE_IDENTIFIER_PATTERN
+        const SIMPLE_IDENTIFIER_PATTERN: RegExp = /^(?:#([\w-]+)|(\w+)|\.([\w-]+))$/;
+        // TAG_OR_HASH_ID_PATTERN
+        const TAG_OR_HASH_ID_PATTERN: RegExp = /^(?:\s*(<[\w\W]+>)[^>]*|#([\w-]+))$/;
         /**
          * _koraJS 是实际的构造函数入口
          * 调用 koraJS(...) 时，实际是 new _koraJS.fn.initialize(...)
          */
         const _koraJS = function (selector: any, context?: any) {
+            console.log(" KoraJS -> " ,selector, context);
             return new (_koraJS.fn.initialize)(selector, context); // 实例化真正的初始化类
         } as KoraJS;
 
@@ -126,16 +153,34 @@
          * _koraJS.fn 是原型对象，用于存放所有实例共享的方法
          */
         _koraJS.fn = {
+            KoraJSConstructor: _koraJS,
+            length: 0,
             /**
              * initialize 是真正的“构造函数”类
              * 当你调用 new _koraJS.fn.initialize(selector) 时，会进入这里
              */
             initialize: function (this: KoraJS, selector: any, context?: any) {
+                let match;
                 // initialize start .....
                 if (!selector) return this;
 
                 if (typeof selector === "string") {
-                    console.warn(" // TODO typeof selector === \"string\" ");
+                    if (selector[0] === "<"
+                        && selector[selector.length - 1] === ">"
+                        && selector.length >= 3
+                    ) {
+                        match = [null, selector, null];
+                    } else {
+                        match = TAG_OR_HASH_ID_PATTERN.exec(selector);
+                    }
+                    if (match && (match[1] || !context)) {
+                        alert(1);
+                    } else if (!context || context.koraJS) {
+                        return (context || koraJS).find(selector);
+                    } else {
+                        alert(3);
+                    }
+                    console.warn(" // TODO typeof selector === \"string\" ", match, context);
                 } else if (selector.nodeType) {
                     console.warn(" // TODO selector.nodeType ");
                 } else if (isFunction(selector)) {
@@ -150,8 +195,7 @@
              * 目前只是占位，后续可实现 DOMContentLoaded 逻辑
              */
             ready: function (fn: Function) {
-                _koraJS.Deferred();
-                console.warn(" READY !!!!! ", fn);
+                console.log(" READY !!!!! ", fn);
             } as any,
             /**
              * koraEach
@@ -166,7 +210,42 @@
              */
             koraChildren: function (data: string) {
                 return _koraJS.children(data);
-            } as any
+            } as any,
+            /**
+             * koraPushStack
+             * @author LiuQi
+             */
+            koraPushStack: function (elements: Record<string, any>) {
+                return _koraJS.pushStack(elements);
+            } as any,
+            /**
+             * koraFind
+             * @param selector
+             * @param context
+             * @param results
+             * @param seed
+             * @author LiuQi
+             */
+            koraFind: function (selector: Record<string, any>, context: Document, results: any, seed: any) {
+                let m;
+                let i;
+                let element;
+                let nodeId;
+                let match;
+                let groups;
+                let newSelector;
+                let newContext = context && context.ownerDocument;
+                let nodeType = context ? context.nodeType : 9;
+                results = results || [];
+                // 如果选择器或上下文无效，则提前从函数调用中返回​
+                if (typeof selector !== "string"
+                    || !selector
+                    || nodeType !== 1 && nodeType !== 9 && nodeType !== 11) return results;
+                // 尽量在 HTML 文档中优先使用“查找（find）操作的快捷方式”（而不是“过滤（filter）操作”）
+                if (!seed) {
+                }
+                // TODO ......................
+            }
         };
         /**
          * 将 fn.extend 暴露为 koraJS 的静态方法 Extend
@@ -223,6 +302,50 @@
                 }
             }
             return data;
+        },
+        /**
+         * find
+         * @param selector
+         * @author LiuQi
+         */
+        find: function (selector: Record<string, any>) {
+            let i;
+            let result;
+            let length = this.length
+            let self = this;
+            if (typeof selector !== "string") {
+                alert(" -----1")
+            }
+            result = this.pushStack([]);
+            for (i = 0; i < length; i++) {
+                koraJS.fn.koraFind(selector, self[i], result);
+            }
+        },
+        /**
+         * pushStack
+         * @param elements
+         * @author LiuQi
+         */
+        pushStack: function (elements: Record<string, any>) {
+            let result = this.merge(koraJS.fn.KoraJSConstructor(), elements);
+            result.preventObject = this;
+            return result;
+        },
+        /**
+         * merge
+         * @param value
+         * @param value_
+         * @author LiuQi
+         */
+        merge: function (value: any, value_: any) {
+            let length: number = +value_.length;
+            let k: number = 0;
+            let m: number = value.length;
+            for (; k < length; k++) {
+                value[m++] = value_[k];
+            }
+            value.length = m;
+            return value;
         }
     });
 
@@ -231,8 +354,9 @@
      *  @author LiuQi
      */
     koraJS.Each({
-        children: function (data: string) {
-            alert(" ....Children" + data)
+        children: function (element: HTMLElement) {
+            console.warn(" Element => ", element);
+            return siblings(element.firstChild);
         }
     });
 

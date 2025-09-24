@@ -1,6 +1,7 @@
 window.KoraUI.definitionModule("koraJS", function (exports: Function) {
     "use strict";
-    const koraUI = window.KoraUI;
+    const koraUI = (window as any).KoraUI;
+    const _K = koraUI.K;
     koraUI.prompt(); // prompt 通用提示
     koraUI.equipmentInformation(); // equipmentInformation 设备信息
     const MODULE_NAME: string = "koraElement";
@@ -51,7 +52,9 @@ window.KoraUI.definitionModule("koraJS", function (exports: Function) {
                  */
                 tab: function (element: any) {
                     const KORA_UI_TAB = ".koraUI-tab";
-                    console.warn(" TAB", element,KORA_UI_TAB);
+                    const targetElement= element || _K(KORA_UI_TAB + elementFilter);
+                    console.log(" TAR ", targetElement)
+                    callCommand.tabAutomatic.call({},null,targetElement);
                 },
                 nav: function () {
                     console.warn("NAV");
@@ -81,16 +84,24 @@ window.KoraUI.definitionModule("koraJS", function (exports: Function) {
         }
     }
 
+    let callCommand = {
+        tabClick: function (){
+            alert(" tabClick ");
+        },
+        tabAutomatic: function (spread: any,element:any){
+            _K("a");
+            const targetElement = element || _K(".koraUI-tab");
+            targetElement.koraEach(function (el: HTMLElement){
+                const _this = _K(el);
+                const tabTitle = _this.koraChildren(".koraUI-tab-title");
+            });
+        }
+    };
+
     const element = new Element();
-    if (document.readyState === "loading") {
-        // 如果 DOM 还在加载中，才监听
-        document.addEventListener("DOMContentLoaded", () => {
-            element.render();
-        });
-    } else {
-        // 如果 DOM 已经加载好了，直接调用
-        element.render();
-    }
+    _K(function (){
+        element.render()
+    });
     window.addEventListener("resize", function () {
         alert(" 自适应");
     });
