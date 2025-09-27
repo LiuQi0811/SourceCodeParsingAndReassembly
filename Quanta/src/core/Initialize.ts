@@ -5,6 +5,7 @@
 import {_Quanta} from '../Core.js';
 import {document} from '../variable/Document.js';
 
+// A central reference to the root _Quanta(document)(对根 _Quanta(document) 对象的一个中心引用)
 let rootQuanta_: any,
     /**
      * initialize
@@ -27,7 +28,7 @@ let rootQuanta_: any,
                 : selector(_Quanta);
         }
     };
-
+// Give the initialize function the _Quanta prototype for later instantiation (将 _Quanta 原型赋值给 initialize 函数，以便后续进行实例化)
 initialize.prototype = _Quanta.fn;
 
 // Initialize central reference (初始化中心引用)
