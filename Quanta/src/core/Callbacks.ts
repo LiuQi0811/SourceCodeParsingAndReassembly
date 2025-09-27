@@ -4,6 +4,7 @@
  */
 import {_Quanta} from '../Core.js';
 import {rotHtmlWhite} from '../variable/RNotHtmlWhite.js';
+import {toType} from '../core/ToType.js';
 
 /**
  * createOptions 将字符串格式的选项转换为对象格式的选项
@@ -73,56 +74,65 @@ _Quanta.Callbacks = function (options: any) {
                     }
                     (function add(args: IArguments) {
                         _Quanta.each(args, function (_: any, arg: any) {
-                            if (typeof arg === "function") {
-                                console.warn(" ADD CALL ", !options.unique && self.has(arg))
+                            if (typeof arg === "function") { // A function parameter ( function类型参数)
+                                if (!options.unique || !self.has(arg)) {
+                                    // parameter push to list (将参数添加到列表中)
+                                    list.push(arg);
+                                } else if (arg && arg.length && toType(arg) !== "string") { // The parameter exists and its type is not string. (参数存在 并且类型不是string)
+                                    console.warn(" // TODO .... ")
+                                }
                             }
                         });
                     })(arguments);
+                    if(memory && !firing){
+                        console.warn(" // TODO ....")
+                    }
                 }
                 return this;
             },
             // Remove a callback from the list (从列表中移除一个回调函数)
             remove: function () {
-
+                console.warn("// TODO remove... ");
             },
             // Check if a given callback is in the list. ( 检查给定的回调函数是否存在于列表中。)
             // If no argument is given, return whether or not list has callbacks attached. (如果没有传入任何参数，则返回列表中是否绑定了任何回调函数。)
             has: function (func: any) {
-                console.warn(" HAS CALL ", func)
+                return func ? _Quanta.inArray(func, list)
+                    : list.length > 0;
             },
             // Remove all callbacks from the list (从列表中移除所有回调函数)
             empty: function () {
-
+                console.warn("// TODO empty... ");
             },
             // Disable .fire and .add (禁用 .fire 和 .add 方法)
             // Abort any current/pending executions (中止任何当前或等待中的执行)
             // Clear all callbacks and values (清空所有回调函数和缓存值)
             disable: function () {
-
+                console.warn("// TODO disable... ");
             },
             disabled: function () {
-
+                console.warn("// TODO disabled... ");
             },
             // Disable .fire (禁用 .fire 方法)
             // Also disable .add unless we have memory (since it would have no effect) (同时也禁用 .add 方法，除非启用了 memory 选项（否则添加回调也没有效果）)
             // Abort any pending executions (中止任何等待中的执行)
             lock: function () {
-
+                console.warn("// TODO lock... ");
             },
             locked: function () {
-
+                console.warn("// TODO locked... ");
             },
             // Call all callbacks with the given context and arguments (使用给定的上下文（this 值）和参数，调用所有的回调函数)
             fireWith: function () {
-
+                console.warn("// TODO fireWith... ");
             },
             // Call all the callbacks with the given arguments (使用给定的参数，调用所有的回调函数)
             fire: function () {
-
+                console.warn("// TODO fire... ");
             },
             // To know if the callbacks have already been called at least once (用于判断回调函数是否至少已经被调用过一次)
             fired: function () {
-
+                console.warn("// TODO fired... ");
             }
         };
     return self;

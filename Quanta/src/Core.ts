@@ -5,6 +5,7 @@
 import {arr} from './variable/Arr.js';
 import {isArrayLike} from './core/IsArrayLike.js';
 import {class2type} from './variable/Class2type.js';
+import {indexOf} from './variable/IndexOf.js';
 
 let version = "@VERSION",
     rhtmlSuffix = /HTML$/i,
@@ -27,6 +28,7 @@ let version = "@VERSION",
         isReady?: boolean;
         readyWait: number;
         Callbacks?: any;
+        inArray?: any;
     };
 _Quanta.fn = _Quanta.prototype = {
     // 当前正在使用的 Quanta 版本
@@ -103,6 +105,9 @@ _Quanta.extend({
             }
         }
         return value;
+    },
+    inArray: function (element: any, array: any, i: any) {
+        return array === null ? -1 : indexOf.call(array, element, i);
     }
 });
 

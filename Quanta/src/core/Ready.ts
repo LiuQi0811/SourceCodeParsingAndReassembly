@@ -12,11 +12,11 @@ import {_window} from '../variable/Window.js';
  * @author LiuQi
  */
 // The deferred used on DOM ready (在 DOM 就绪时使用的 deferred（延迟对象）)
-let readyList = _Quanta.Deferred();
-let ready = _Quanta.fn.ready = function (fn: Record<string, any>) {
-    console.log(" This Ready..... -> ", fn);
-};
-
+let readyList = _Quanta.Deferred(),
+    ready = _Quanta.fn.ready = function (fn: Record<string, any>) {
+        // Execute a function using Promise's then()method (通过 Promise 的 then() 方法执行函数)
+        readyList.then(fn);
+    };
 _Quanta.extend({
     // Is the DOM ready to be used? Set to true once it occurs.(DOM 是否已经可以安全使用？一旦就绪，将其设为 true)
     isReady: false,
@@ -30,7 +30,7 @@ _Quanta.extend({
         // If a normal DOM Ready event fired, decrement, and wait if need be (如果触发了正常的 DOM 就绪事件，则减少计数，并根据需要等待)
         if (wait !== true && --_Quanta.readyWait > 0) return;
         // If there are functions bound, to execute (如果有已绑定的函数，则执行它们)
-        console.error(" readyList " , readyList)
+        console.error(" readyList ", readyList)
     }
 });
 
