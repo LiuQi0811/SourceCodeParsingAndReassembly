@@ -1,11 +1,12 @@
-package org.chino.SharpBladeUtils.core.text;
+package org.chino.SharpBladeUtils.core.util;
 
+import org.chino.SharpBladeUtils.core.text.CharUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
  * @ClassName CharUtilTest
- * @Description CharUtilTest 字符处理工具单元测试类
+ * @Description CharUtilTest {@link CharUtil}字符处理工具单元测试类
  * @Author LiuQi
  */
 public class CharUtilTest {
