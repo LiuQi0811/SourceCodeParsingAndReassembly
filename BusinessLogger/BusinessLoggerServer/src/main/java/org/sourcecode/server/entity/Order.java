@@ -1,6 +1,7 @@
 package org.sourcecode.server.entity;
 
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -90,6 +91,21 @@ public class Order {
 
     public void setExtInfo(String[] extInfo) {
         this.extInfo = extInfo;
+    }
+
+    @Override
+    public String toString() {
+        return "Order{" +
+                "orderId=" + orderId +
+                ", orderNo='" + orderNo + '\'' +
+                ", purchaseName='" + purchaseName + '\'' +
+                ", productName='" + productName + '\'' +
+                ", createTime=" + createTime +
+                ", creator=" + creator +
+                ", updater=" + updater +
+                ", items=" + items +
+                ", extInfo=" + Arrays.toString(extInfo) +
+                '}';
     }
 
     public static class UserInfo {

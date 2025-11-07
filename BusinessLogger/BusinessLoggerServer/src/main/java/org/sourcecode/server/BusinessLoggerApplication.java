@@ -1,6 +1,7 @@
 package org.sourcecode.server;
 
 
+import org.sourcecode.toolkit.starter.annotation.EnableLoggerRecord;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -10,6 +11,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @Description BusinessLoggerApplication
  * @Author LiuQi
  */
+@EnableLoggerRecord(tenant = "")
 @SpringBootApplication
 public class BusinessLoggerApplication {
     public static void main(String[] args) {

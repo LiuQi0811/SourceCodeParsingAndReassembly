@@ -1,0 +1,57 @@
+package org.sourcecode.toolkit.starter.configuration;
+
+
+import org.sourcecode.toolkit.service.ILoggerRecordService;
+import org.sourcecode.toolkit.service.impl.DefaultLoggerRecordServiceImpl;
+import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
+import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
+import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.*;
+import org.springframework.core.type.AnnotationMetadata;
+
+/**
+ * @ClassName LoggerRecordProxyAutoConfiguration
+ * @Description LoggerRecordProxyAutoConfiguration
+ * @Author LiuQi
+ */
+@Configuration
+public class LoggerRecordProxyAutoConfiguration implements ImportAware {
+
+    @Bean
+    @ConditionalOnMissingBean(value = ILoggerRecordService.class)
+    @Role(value = BeanDefinition.ROLE_APPLICATION)
+    public ILoggerRecordService recordService() {
+        return new DefaultLoggerRecordServiceImpl();
+    }
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public LoggerRecordOperationSource loggerRecordOperationSource() {
+        return new LoggerRecordOperationSource();
+    }
+
+    @Bean
+    @DependsOn(value = "loggerRecordInterceptor")
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public BeanFactoryLoggerRecordAdvisor loggerRecordAdvisor(LoggerRecordInterceptor loggerRecordInterceptor) {
+        BeanFactoryLoggerRecordAdvisor beanFactoryLoggerRecordAdvisor = new BeanFactoryLoggerRecordAdvisor();
+        beanFactoryLoggerRecordAdvisor.setLoggerRecordOperationSource(loggerRecordOperationSource());
+        beanFactoryLoggerRecordAdvisor.setAdvice(loggerRecordInterceptor);
+        return beanFactoryLoggerRecordAdvisor;
+    }
+
+    @Bean
+    @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+    public LoggerRecordInterceptor loggerRecordInterceptor() {
+        LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
+        loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
+        return loggerRecordInterceptor;
+    }
+
+    @Override
+    public void setImportMetadata(AnnotationMetadata importMetadata) {
+
+    }
+}
