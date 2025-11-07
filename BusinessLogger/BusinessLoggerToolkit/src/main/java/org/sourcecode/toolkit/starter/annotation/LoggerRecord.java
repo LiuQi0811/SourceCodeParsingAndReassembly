@@ -8,6 +8,7 @@ import java.lang.annotation.*;
  * @Description LoggerRecord
  * @Author LiuQi
  */
+@Repeatable(LoggerRecords.class)
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

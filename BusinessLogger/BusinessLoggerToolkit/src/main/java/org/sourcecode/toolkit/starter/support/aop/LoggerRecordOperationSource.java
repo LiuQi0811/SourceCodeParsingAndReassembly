@@ -3,6 +3,7 @@ package org.sourcecode.toolkit.starter.support.aop;
 
 import org.sourcecode.toolkit.bean.LoggerRecordOptions;
 import org.sourcecode.toolkit.starter.annotation.LoggerRecord;
+import org.sourcecode.toolkit.starter.annotation.LoggerRecords;
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ClassUtils;
@@ -11,10 +12,7 @@ import org.springframework.util.StringUtils;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @ClassName LoggerRecordOperationSource
@@ -30,10 +28,11 @@ public class LoggerRecordOperationSource {
         Method mostSpecificMethod = ClassUtils.getMostSpecificMethod(method, targetClass);
         mostSpecificMethod = BridgeMethodResolver.findBridgedMethod(mostSpecificMethod);
         Collection<LoggerRecordOptions> loggerRecordOptions = parseLoggerRecordAnnotations(mostSpecificMethod);
-        if (!loggerRecordOptions.isEmpty()){
-            System.out.println(" @@@@@@@@@@@@@@@ " + loggerRecordOptions);
-        }
-        return Collections.emptyList();
+        Collection<LoggerRecordOptions> loggerRecordsOptions = parseLoggerRecordsAnnotations(mostSpecificMethod);
+        Set<LoggerRecordOptions> result = new HashSet<>();
+        result.addAll(loggerRecordOptions);
+        result.addAll(loggerRecordsOptions);
+        return result;
     }
 
     private Collection<LoggerRecordOptions> parseLoggerRecordAnnotations(AnnotatedElement annotatedElement) {
@@ -47,6 +46,20 @@ public class LoggerRecordOperationSource {
         return loggerRecordOptionsCollection;
     }
 
+
+    private Collection<LoggerRecordOptions> parseLoggerRecordsAnnotations(AnnotatedElement annotatedElement) {
+        Collection<LoggerRecordOptions> loggerRecordOptionsCollection = new ArrayList<>();
+        Collection<LoggerRecords> allMergedAnnotations = AnnotatedElementUtils.findAllMergedAnnotations(annotatedElement, LoggerRecords.class);
+        if (!allMergedAnnotations.isEmpty()) {
+            allMergedAnnotations.forEach(annotation -> {
+                LoggerRecord[] value = annotation.value();
+                Arrays.stream(value).forEach(loggerRecord -> {
+                    loggerRecordOptionsCollection.add(parseLoggerRecordAnnotation(annotatedElement, loggerRecord));
+                });
+            });
+        }
+        return loggerRecordOptionsCollection;
+    }
 
     private LoggerRecordOptions parseLoggerRecordAnnotation(AnnotatedElement annotatedElement, LoggerRecord loggerRecord) {
         LoggerRecordOptions loggerRecordOptions = new LoggerRecordOptions();
