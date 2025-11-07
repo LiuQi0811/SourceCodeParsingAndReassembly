@@ -12,5 +12,21 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface LoggerRecord {
+    String success();
 
+    String fail() default "";
+
+    String operator() default "";
+
+    String type();
+
+    String subType() default "";
+
+    String bizNo();
+
+    String extra() default "";
+
+    String condition() default "";
+
+    String successCondition() default "";
 }

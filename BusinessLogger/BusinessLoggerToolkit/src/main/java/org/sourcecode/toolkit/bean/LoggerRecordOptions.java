@@ -8,7 +8,7 @@ package org.sourcecode.toolkit.bean;
  */
 public class LoggerRecordOptions {
     private String successLoggerTemplate;
-    private String failLogTemplate;
+    private String failLoggerTemplate;
     private String operatorId;
     private String type;
     private String bizNo;
@@ -25,12 +25,12 @@ public class LoggerRecordOptions {
         this.successLoggerTemplate = successLoggerTemplate;
     }
 
-    public String getFailLogTemplate() {
-        return failLogTemplate;
+    public String getFailLoggerTemplate() {
+        return failLoggerTemplate;
     }
 
-    public void setFailLogTemplate(String failLogTemplate) {
-        this.failLogTemplate = failLogTemplate;
+    public void setFailLoggerTemplate(String failLoggerTemplate) {
+        this.failLoggerTemplate = failLoggerTemplate;
     }
 
     public String getOperatorId() {
@@ -87,5 +87,20 @@ public class LoggerRecordOptions {
 
     public void setIsSuccess(String isSuccess) {
         this.isSuccess = isSuccess;
+    }
+
+    @Override
+    public String toString() {
+        return "LoggerRecordOptions{" +
+                "successLoggerTemplate='" + successLoggerTemplate + '\'' +
+                ", failLoggerTemplate='" + failLoggerTemplate + '\'' +
+                ", operatorId='" + operatorId + '\'' +
+                ", type='" + type + '\'' +
+                ", bizNo='" + bizNo + '\'' +
+                ", subType='" + subType + '\'' +
+                ", extra='" + extra + '\'' +
+                ", condition='" + condition + '\'' +
+                ", isSuccess='" + isSuccess + '\'' +
+                '}';
     }
 }
