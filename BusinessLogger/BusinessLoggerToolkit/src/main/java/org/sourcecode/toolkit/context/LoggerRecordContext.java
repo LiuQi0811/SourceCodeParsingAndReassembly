@@ -19,6 +19,8 @@ public class LoggerRecordContext {
     // 这种设计可以支持嵌套的上下文（比如方法调用链中的多级上下文）
     private static final InheritableThreadLocal<Deque<Map<String, Object>>> VARIABLE_MAP_STACK = new InheritableThreadLocal<>();
 
+    private static final InheritableThreadLocal<Map<String, Object>> GLOBAL_VARIABLE_MAP = new InheritableThreadLocal<>();
+
     /**
      * putVariable 向当前线程的上下文变量栈顶的 Map 中添加一个键值对变量
      *
@@ -26,8 +28,6 @@ public class LoggerRecordContext {
      * @param value 变量的值（value）
      */
     public static void putVariable(String name, Object value) {
-        // 打印日志，用于调试，显示正在存入的变量名和值
-        System.out.printf("putVariable %s %s\n", name, value);
         // 检查当前线程是否已经有一个变量栈（Deque）
         if (VARIABLE_MAP_STACK.get() == null) {
             // 如果还没有，则创建一个新的双端队列（栈），并设置到 ThreadLocal 中
@@ -68,6 +68,15 @@ public class LoggerRecordContext {
         return null;
     }
 
+    public static Map<String, Object> getVariables() {
+        Deque<Map<String, Object>> mapStack = VARIABLE_MAP_STACK.get();
+        return mapStack == null ? new HashMap<>() : mapStack.peek();
+    }
+
+    public static Map<String, Object> getGlobalVariableMap() {
+        return GLOBAL_VARIABLE_MAP.get();
+    }
+
     /**
      * pushContext 压入一个新的空上下文到栈顶，用于开始一个新的变量作用域
      * 相当于开启一个新的“上下文层级”，后续 put 的变量会放入这个新的 Map 中
@@ -94,6 +103,26 @@ public class LoggerRecordContext {
         // 如果栈存在并且不为空，则移除栈顶的 Map（即当前上下文）
         if (stack != null && !stack.isEmpty()) {
             stack.pop();
+        }
+    }
+
+    public static void putEmptySpan() {
+        Deque<Map<String, Object>> mapStack = VARIABLE_MAP_STACK.get();
+        if (mapStack == null) {
+            Deque<Map<String, Object>> stack = new ArrayDeque<>();
+            VARIABLE_MAP_STACK.set(stack);
+        }
+        VARIABLE_MAP_STACK
+                .get()
+                .push(new HashMap<>());
+        if (GLOBAL_VARIABLE_MAP.get() == null) {
+            GLOBAL_VARIABLE_MAP.set(new HashMap<>());
+        }
+    }
+
+    public static void clear() {
+        if (VARIABLE_MAP_STACK.get() != null) {
+            VARIABLE_MAP_STACK.get().pop();
         }
     }
 }
