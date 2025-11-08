@@ -19,7 +19,7 @@ public class Order {
     private UserInfo creator;
     private UserInfo updater;
     private List<String> items;
-    private String[] extInfo;
+    private String[] extraInfo;
 
     public Long getOrderId() {
         return orderId;
@@ -85,12 +85,12 @@ public class Order {
         this.items = items;
     }
 
-    public String[] getExtInfo() {
-        return extInfo;
+    public String[] getExtraInfo() {
+        return extraInfo;
     }
 
-    public void setExtInfo(String[] extInfo) {
-        this.extInfo = extInfo;
+    public void setExtraInfo(String[] extraInfo) {
+        this.extraInfo = extraInfo;
     }
 
     @Override
@@ -104,7 +104,7 @@ public class Order {
                 ", creator=" + creator +
                 ", updater=" + updater +
                 ", items=" + items +
-                ", extInfo=" + Arrays.toString(extInfo) +
+                ", extraInfo=" + Arrays.toString(extraInfo) +
                 '}';
     }
 
