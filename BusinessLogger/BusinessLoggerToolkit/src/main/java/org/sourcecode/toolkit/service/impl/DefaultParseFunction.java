@@ -18,4 +18,9 @@ public class DefaultParseFunction implements IParseFunction {
     public boolean executeBefore() {
         return true;
     }
+
+    @Override
+    public String apply(Object value) {
+        return "";
+    }
 }

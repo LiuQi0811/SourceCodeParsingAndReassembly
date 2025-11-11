@@ -12,4 +12,6 @@ public interface IParseFunction {
     default boolean executeBefore() {
         return false;
     }
+
+    String apply(Object value);
 }

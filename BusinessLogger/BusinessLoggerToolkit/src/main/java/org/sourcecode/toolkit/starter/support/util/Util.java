@@ -11,6 +11,7 @@ import java.util.Collection;
  * @Author LiuQi
  */
 public abstract class Util {
+    public static final String EMPTY = "";
     public static boolean isEmpty(@Nullable Object value) {
         return value == null || value.equals("");
     }

@@ -45,13 +45,13 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
                     AnnotatedElementKey annotatedElementKey = new AnnotatedElementKey(method, targetClass);
                     String functionName = matcher.group(1);
                     if (loggerFunctionParser.beforeFunction(functionName)) {
-                        System.out.println(" evaluationContext " + evaluationContext);
-                        System.out.println(" annotatedElementKey " + annotatedElementKey);
-                        System.out.println(" DAY_BY_DAY " + functionName);
+                        Object value = loggerRecordExpressionEvaluator.parseExpression(expression, annotatedElementKey, evaluationContext);
+                        String functionReturnValue = loggerFunctionParser.getFunctionReturnValue(null, value, expression, functionName);
+                        String functionCallInstanceKey = loggerFunctionParser.getFunctionCallInstanceKey(functionName, expression);
+                        functionNameAndReturnValueMap.put(functionCallInstanceKey, functionReturnValue);
                     }
                 }
             }
-
         });
         return functionNameAndReturnValueMap;
     }

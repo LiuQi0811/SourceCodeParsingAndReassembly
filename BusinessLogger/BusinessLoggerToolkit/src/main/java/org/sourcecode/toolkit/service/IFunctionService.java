@@ -8,4 +8,6 @@ package org.sourcecode.toolkit.service;
  */
 public interface IFunctionService {
     boolean beforeFunction(String functionName);
+
+    String apply(String functionName, Object value);
 }

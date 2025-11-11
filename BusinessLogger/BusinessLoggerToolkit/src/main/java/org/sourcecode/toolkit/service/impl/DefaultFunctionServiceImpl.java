@@ -2,6 +2,7 @@ package org.sourcecode.toolkit.service.impl;
 
 
 import org.sourcecode.toolkit.service.IFunctionService;
+import org.sourcecode.toolkit.service.IParseFunction;
 
 /**
  * @ClassName DefaultFunctionServiceImpl
@@ -18,5 +19,14 @@ public class DefaultFunctionServiceImpl implements IFunctionService {
     @Override
     public boolean beforeFunction(String functionName) {
         return parseFunctionFactory.isBeforeFunction(functionName);
+    }
+
+    @Override
+    public String apply(String functionName, Object value) {
+        IParseFunction function = parseFunctionFactory.getFunction(functionName);
+        if (function == null) {
+            return value.toString();
+        }
+        return function.apply(value);
     }
 }
