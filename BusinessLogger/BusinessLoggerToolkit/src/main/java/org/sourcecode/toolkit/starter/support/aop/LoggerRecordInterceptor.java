@@ -192,7 +192,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         } else {
             action = operation.getSuccessLoggerTemplate();
         }
-        if (action == null || action.isEmpty()) {
+        if (Util.isEmpty(action)) {
             return;
         }
         List<String> spELTemplates = getSpELTemplates(operation, action);
@@ -245,7 +245,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     }
 
     private String getRealOperatorId(LoggerRecordOperations operation, String operatorIdFromServiceAndPutTemplate, Map<String, String> expressionValues) {
-        return (operatorIdFromServiceAndPutTemplate != null || !operatorIdFromServiceAndPutTemplate.isEmpty()) ? operatorIdFromServiceAndPutTemplate : expressionValues.get(operation.getOperatorId());
+        return !Util.isEmpty(operatorIdFromServiceAndPutTemplate) ? operatorIdFromServiceAndPutTemplate : expressionValues.get(operation.getOperatorId());
     }
 
     private Map<CodeVariableType, Object> getCodeVariable(Method method) {

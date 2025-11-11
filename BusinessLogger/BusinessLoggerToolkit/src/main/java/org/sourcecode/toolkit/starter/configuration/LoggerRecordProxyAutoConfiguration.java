@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.*;
 import org.sourcecode.toolkit.service.impl.*;
+import org.sourcecode.toolkit.starter.annotation.EnableLoggerRecord;
 import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.*;
+import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
 
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordProxyAutoConfiguration.class);
+    private AnnotationAttributes annotationAttributes;
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
@@ -97,6 +100,9 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
     @Override
     public void setImportMetadata(AnnotationMetadata importMetadata) {
-        LOGGER.info(" // IMPORT META DATA ");
+        this.annotationAttributes = AnnotationAttributes.fromMap(importMetadata.getAnnotationAttributes(EnableLoggerRecord.class.getName(), false));
+        if (this.annotationAttributes == null) {
+            LOGGER.error("EnableLoggerRecord is not present on importing class");
+        }
     }
 }
