@@ -14,6 +14,7 @@ import org.sourcecode.toolkit.service.IFunctionService;
 import org.sourcecode.toolkit.service.ILoggerRecordPerformanceMonitor;
 import org.sourcecode.toolkit.service.ILoggerRecordService;
 import org.sourcecode.toolkit.service.IOperatorGetService;
+import org.sourcecode.toolkit.service.impl.DiffParseFunction;
 import org.sourcecode.toolkit.starter.support.parse.LoggerFunctionParser;
 import org.sourcecode.toolkit.starter.support.parse.LoggerRecordValueParser;
 import org.sourcecode.toolkit.starter.support.util.Util;
@@ -201,14 +202,14 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     }
 
     private void failRecordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
-        if (Util.isEmpty(operation.getFailLoggerTemplate())){
+        if (Util.isEmpty(operation.getFailLoggerTemplate())) {
             return;
         }
         String failLoggerTemplate = operation.getFailLoggerTemplate();
         List<String> spELTemplates = getSpELTemplates(operation, failLoggerTemplate);
         String operatorIdFromServiceAndPutTemplate = getOperatorIdFromServiceAndPutTemplate(operation, spELTemplates);
         Map<String, String> expressionValues = processTemplate(spELTemplates, methodExecuteResult, functionNameAndReturnMap);
-        saveLogger(methodExecuteResult.getMethod(),true,operation,operatorIdFromServiceAndPutTemplate,failLoggerTemplate,expressionValues);
+        saveLogger(methodExecuteResult.getMethod(), true, operation, operatorIdFromServiceAndPutTemplate, failLoggerTemplate, expressionValues);
     }
 
     private String getOperatorIdFromServiceAndPutTemplate(LoggerRecordOperations operation, List<String> spELTemplates) {
@@ -259,6 +260,6 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         loggerRecordService = beanFactory.getBean(ILoggerRecordService.class);
         operatorGetService = beanFactory.getBean(IOperatorGetService.class);
         this.setLoggerFunctionParser(new LoggerFunctionParser(beanFactory.getBean(IFunctionService.class)));
-        LOGGER.info(" SINGLETON ");
+        this.setDiffParseFunction(beanFactory.getBean(DiffParseFunction.class));
     }
 }

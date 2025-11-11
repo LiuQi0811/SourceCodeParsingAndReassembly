@@ -8,4 +8,7 @@ package org.sourcecode.toolkit.service.impl;
  */
 public class DiffParseFunction {
     public static final String DIFF_FUNCTION_NAME = "_DIFF";
+    static {
+        System.out.println(" ................................. DiffParseFunction ................................. ");
+    }
 }

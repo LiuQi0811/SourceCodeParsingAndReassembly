@@ -77,6 +77,11 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     }
 
     @Bean
+    public DiffParseFunction diffParseFunction() {
+        return new DiffParseFunction();
+    }
+
+    @Bean
     @ConditionalOnMissingBean(value = ILoggerRecordService.class)
     @Role(value = BeanDefinition.ROLE_APPLICATION)
     public ILoggerRecordService recordService() {
@@ -92,6 +97,6 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
     @Override
     public void setImportMetadata(AnnotationMetadata importMetadata) {
-
+        LOGGER.info(" // IMPORT META DATA ");
     }
 }

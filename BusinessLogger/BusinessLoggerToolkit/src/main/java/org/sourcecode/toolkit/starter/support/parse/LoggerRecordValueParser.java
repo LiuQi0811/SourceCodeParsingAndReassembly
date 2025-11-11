@@ -29,6 +29,7 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
     private final LoggerRecordExpressionEvaluator loggerRecordExpressionEvaluator = new LoggerRecordExpressionEvaluator();
     private LoggerFunctionParser loggerFunctionParser;
     protected BeanFactory beanFactory;
+    private DiffParseFunction diffParseFunction;
     protected boolean diffSameWhetherSaveLogger;
 
     public Map<String, String> processBeforeExecuteFunctionTemplate(Collection<String> templates, Class<?> targetClass, Method method, Object[] arguments) {
@@ -58,6 +59,10 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
 
     public void setLoggerFunctionParser(LoggerFunctionParser loggerFunctionParser) {
         this.loggerFunctionParser = loggerFunctionParser;
+    }
+
+    public void setDiffParseFunction(DiffParseFunction diffParseFunction) {
+        this.diffParseFunction = diffParseFunction;
     }
 
     public Map<String, String> processTemplate(Collection<String> templates, MethodExecuteResult methodExecuteResult, Map<String, String> beforeFunctionNameAndReturnMap) {
