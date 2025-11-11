@@ -22,7 +22,7 @@ public class OrderServiceImpl implements IOrderService {
         // 创建Order 对象
         final Order orderInfo = new Order();
         orderInfo.setProductName("辣椒炒肉");
-        LoggerRecordContext.putVariable("INNER_ORDER", orderInfo);
+        LoggerRecordContext.putVariable("innerOrder", orderInfo);
         return true;
     }
 }

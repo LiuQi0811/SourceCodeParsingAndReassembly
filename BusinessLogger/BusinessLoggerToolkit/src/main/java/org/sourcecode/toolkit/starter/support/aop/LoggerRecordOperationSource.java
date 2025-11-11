@@ -1,13 +1,13 @@
 package org.sourcecode.toolkit.starter.support.aop;
 
 
-import org.sourcecode.toolkit.bean.LoggerRecordOptions;
+import org.sourcecode.toolkit.bean.LoggerRecordOperations;
 import org.sourcecode.toolkit.starter.annotation.LoggerRecord;
 import org.sourcecode.toolkit.starter.annotation.LoggerRecords;
+import org.sourcecode.toolkit.starter.support.util.Util;
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
@@ -21,23 +21,23 @@ import java.util.*;
  */
 public class LoggerRecordOperationSource {
 
-    public Collection<LoggerRecordOptions> computeLoggerRecordOperations(Method method, Class<?> targetClass) {
+    public Collection<LoggerRecordOperations> computeLoggerRecordOperations(Method method, Class<?> targetClass) {
         if (!Modifier.isPublic(method.getModifiers())) {
             return Collections.emptyList();
         }
         Method mostSpecificMethod = ClassUtils.getMostSpecificMethod(method, targetClass);
         mostSpecificMethod = BridgeMethodResolver.findBridgedMethod(mostSpecificMethod);
-        Collection<LoggerRecordOptions> loggerRecordOptions = parseLoggerRecordAnnotations(mostSpecificMethod);
-        Collection<LoggerRecordOptions> loggerRecordsOptions = parseLoggerRecordsAnnotations(mostSpecificMethod);
-        Set<LoggerRecordOptions> result = new HashSet<>();
+        Collection<LoggerRecordOperations> loggerRecordOptions = parseLoggerRecordAnnotations(mostSpecificMethod);
+        Collection<LoggerRecordOperations> loggerRecordsOptions = parseLoggerRecordsAnnotations(mostSpecificMethod);
+        Set<LoggerRecordOperations> result = new HashSet<>();
         result.addAll(loggerRecordOptions);
         result.addAll(loggerRecordsOptions);
         return result;
     }
 
-    private Collection<LoggerRecordOptions> parseLoggerRecordAnnotations(AnnotatedElement annotatedElement) {
+    private Collection<LoggerRecordOperations> parseLoggerRecordAnnotations(AnnotatedElement annotatedElement) {
         Set<LoggerRecord> allMergedAnnotations = AnnotatedElementUtils.findAllMergedAnnotations(annotatedElement, LoggerRecord.class);
-        Collection<LoggerRecordOptions> loggerRecordOptionsCollection = new ArrayList<>();
+        Collection<LoggerRecordOperations> loggerRecordOptionsCollection = new ArrayList<>();
         if (!allMergedAnnotations.isEmpty()) {
             allMergedAnnotations.forEach(annotation -> {
                 loggerRecordOptionsCollection.add(parseLoggerRecordAnnotation(annotatedElement, annotation));
@@ -47,8 +47,8 @@ public class LoggerRecordOperationSource {
     }
 
 
-    private Collection<LoggerRecordOptions> parseLoggerRecordsAnnotations(AnnotatedElement annotatedElement) {
-        Collection<LoggerRecordOptions> loggerRecordOptionsCollection = new ArrayList<>();
+    private Collection<LoggerRecordOperations> parseLoggerRecordsAnnotations(AnnotatedElement annotatedElement) {
+        Collection<LoggerRecordOperations> loggerRecordOptionsCollection = new ArrayList<>();
         Collection<LoggerRecords> allMergedAnnotations = AnnotatedElementUtils.findAllMergedAnnotations(annotatedElement, LoggerRecords.class);
         if (!allMergedAnnotations.isEmpty()) {
             allMergedAnnotations.forEach(annotation -> {
@@ -61,8 +61,8 @@ public class LoggerRecordOperationSource {
         return loggerRecordOptionsCollection;
     }
 
-    private LoggerRecordOptions parseLoggerRecordAnnotation(AnnotatedElement annotatedElement, LoggerRecord loggerRecord) {
-        LoggerRecordOptions loggerRecordOptions = new LoggerRecordOptions();
+    private LoggerRecordOperations parseLoggerRecordAnnotation(AnnotatedElement annotatedElement, LoggerRecord loggerRecord) {
+        LoggerRecordOperations loggerRecordOptions = new LoggerRecordOperations();
         loggerRecordOptions.setSuccessLoggerTemplate(loggerRecord.success());
         loggerRecordOptions.setFailLoggerTemplate(loggerRecord.fail());
         loggerRecordOptions.setType(loggerRecord.type());
@@ -76,8 +76,8 @@ public class LoggerRecordOperationSource {
         return loggerRecordOptions;
     }
 
-    private void validateLoggerRecordOperation(AnnotatedElement annotatedElement, LoggerRecordOptions loggerRecordOptions) {
-        if (!StringUtils.hasText(loggerRecordOptions.getSuccessLoggerTemplate()) && !StringUtils.hasText(loggerRecordOptions.getFailLoggerTemplate())) {
+    private void validateLoggerRecordOperation(AnnotatedElement annotatedElement, LoggerRecordOperations loggerRecordOptions) {
+        if (!Util.hasText(loggerRecordOptions.getSuccessLoggerTemplate()) && !Util.hasText(loggerRecordOptions.getFailLoggerTemplate())) {
             throw new IllegalStateException("Invalid loggerRecord annotation configuration on '" +
                     annotatedElement.toString() + "'. 'one of successTemplate and failLoggerTemplate' attribute must be set.");
         }

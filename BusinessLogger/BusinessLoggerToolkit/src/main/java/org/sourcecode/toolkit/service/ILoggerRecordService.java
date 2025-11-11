@@ -11,5 +11,7 @@ import java.util.List;
  * @Author LiuQi
  */
 public interface ILoggerRecordService {
-    List<LoggerRecord> queryLoggerRecord(String bizNo,String type);
+    List<LoggerRecord> queryLoggerRecord(String bizNo, String type);
+
+    void record(LoggerRecord loggerRecord);
 }

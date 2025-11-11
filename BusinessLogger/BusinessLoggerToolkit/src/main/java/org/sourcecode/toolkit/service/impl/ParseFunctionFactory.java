@@ -2,8 +2,7 @@ package org.sourcecode.toolkit.service.impl;
 
 
 import org.sourcecode.toolkit.service.IParseFunction;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
+import org.sourcecode.toolkit.starter.support.util.Util;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,12 +17,12 @@ public class ParseFunctionFactory {
     private Map<String, IParseFunction> allFunctionMap;
 
     public ParseFunctionFactory(final List<IParseFunction> parseFunctions) {
-        if (CollectionUtils.isEmpty(parseFunctions)) {
+        if (Util.isEmpty(parseFunctions)) {
             return;
         }
         allFunctionMap = new HashMap<>();
         for (IParseFunction parseFunction : parseFunctions) {
-            if (StringUtils.isEmpty(parseFunction.functionName())) {
+            if (Util.isEmpty(parseFunction.functionName())) {
                 continue;
             }
             allFunctionMap.put(parseFunction.functionName(), parseFunction);

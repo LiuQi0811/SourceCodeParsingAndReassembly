@@ -29,11 +29,7 @@ public class OrderServiceTest extends BaseTest{
         order.setPurchaseName("云悠悠");
         orderService.createOrder(order);
         List<LoggerRecord> loggerRecordList = loggerRecordService.queryLoggerRecord(order.getOrderNo(), "ORDER");
-        System.out.println(" LENGTH " + loggerRecordList.size());
         LoggerRecord  loggerRecord = !loggerRecordList.isEmpty() ? loggerRecordList.get(0) : null;
-        if(loggerRecord != null){
-            System.out.println(" L " + loggerRecord);
-        }
         System.out.println(
                 loggerRecord
         );

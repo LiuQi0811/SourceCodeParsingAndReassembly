@@ -2,11 +2,11 @@ package org.sourcecode.toolkit.bean;
 
 
 /**
- * @ClassName LoggerRecordOptions
- * @Description LoggerRecordOptions
+ * @ClassName LoggerRecordOperations
+ * @Description LoggerRecordOperations
  * @Author LiuQi
  */
-public class LoggerRecordOptions {
+public class LoggerRecordOperations {
     private String successLoggerTemplate;
     private String failLoggerTemplate;
     private String operatorId;

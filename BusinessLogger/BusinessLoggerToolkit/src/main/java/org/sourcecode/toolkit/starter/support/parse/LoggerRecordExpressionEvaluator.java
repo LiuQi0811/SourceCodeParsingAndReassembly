@@ -19,11 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Author LiuQi
  */
 public class LoggerRecordExpressionEvaluator extends CachedExpressionEvaluator {
-    private final Map<AnnotatedElementKey, Method> targetMethodCache = new ConcurrentHashMap<>();
+    private final Map<AnnotatedElementKey, Method> targetMethodCache = new ConcurrentHashMap<>(64);
+    private final Map<ExpressionKey, Expression> expressionCache = new ConcurrentHashMap<>(64);
 
-    @Override
-    protected Expression parseExpression(String expression) {
-        return super.parseExpression(expression);
+    public Object parseExpression(String conditionExpression, AnnotatedElementKey annotatedElementKey, EvaluationContext evaluationContext) {
+        return getExpression(expressionCache, annotatedElementKey, conditionExpression).getValue(evaluationContext, Object.class);
     }
 
     public EvaluationContext createEvaluationContext(Method method, Object[] arguments, Class<?> targetClass, Object value, String errorMessage, BeanFactory beanFactory) {

@@ -1,6 +1,8 @@
 package org.sourcecode.toolkit.starter.support.parse;
 
 
+import org.sourcecode.toolkit.bean.MethodExecuteResult;
+import org.sourcecode.toolkit.service.impl.DiffParseFunction;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -24,6 +26,7 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
     private final LoggerRecordExpressionEvaluator loggerRecordExpressionEvaluator = new LoggerRecordExpressionEvaluator();
     private LoggerFunctionParser loggerFunctionParser;
     protected BeanFactory beanFactory;
+    protected boolean diffSameWhetherSaveLogger;
 
     public Map<String, String> processBeforeExecuteFunctionTemplate(Collection<String> templates, Class<?> targetClass, Method method, Object[] arguments) {
         Map<String, String> functionNameAndReturnValueMap = new HashMap<>();
@@ -52,6 +55,51 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
 
     public void setLoggerFunctionParser(LoggerFunctionParser loggerFunctionParser) {
         this.loggerFunctionParser = loggerFunctionParser;
+    }
+
+    public Map<String, String> processTemplate(Collection<String> templates, MethodExecuteResult methodExecuteResult, Map<String, String> beforeFunctionNameAndReturnMap) {
+        Map<String, String> expressionValues = new HashMap<>();
+        EvaluationContext evaluationContext = loggerRecordExpressionEvaluator.createEvaluationContext(methodExecuteResult.getMethod(),
+                methodExecuteResult.getArguments(),
+                methodExecuteResult.getTargetClass(),
+                methodExecuteResult.getResult(),
+                methodExecuteResult.getErrorMessage(),
+                beanFactory
+        );
+        for (String expressionTemplate : templates) {
+            if (expressionTemplate.contains("{")) {
+                Matcher matcher = PATTERN.matcher(expressionTemplate);
+                StringBuffer parsedStrBuffer = new StringBuffer();
+                AnnotatedElementKey annotatedElementKey = new AnnotatedElementKey(methodExecuteResult.getMethod(), methodExecuteResult.getTargetClass());
+                boolean sameDiff = false;
+                while (matcher.find()) {
+                    String expression = matcher.group(2);
+                    String functionName = matcher.group(1);
+                    if (DiffParseFunction.DIFF_FUNCTION_NAME.equals(functionName)) {
+                        // TODO
+                    } else {
+                        Object value = loggerRecordExpressionEvaluator.parseExpression(expression, annotatedElementKey, evaluationContext);
+                        expression = loggerFunctionParser.getFunctionReturnValue(beforeFunctionNameAndReturnMap, value, expression, functionName);
+                    }
+                    matcher.appendReplacement(parsedStrBuffer, Matcher.quoteReplacement(expression == null ? "" : expression));
+                }
+                matcher.appendTail(parsedStrBuffer);
+                expressionValues.put(expressionTemplate, recordSameDiff(sameDiff, diffSameWhetherSaveLogger) ? parsedStrBuffer.toString() : expressionTemplate);
+            } else {
+                expressionValues.put(expressionTemplate, expressionTemplate);
+            }
+        }
+        return expressionValues;
+    }
+
+    private boolean recordSameDiff(boolean sameDiff, boolean diffSameWhetherSaveLogger) {
+        if (diffSameWhetherSaveLogger) {
+            return true;
+        }
+        if (!diffSameWhetherSaveLogger && sameDiff) {
+            return false;
+        }
+        return true;
     }
 
     @Override

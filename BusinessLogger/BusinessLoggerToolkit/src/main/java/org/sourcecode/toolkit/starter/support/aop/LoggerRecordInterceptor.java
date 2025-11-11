@@ -3,17 +3,22 @@ package org.sourcecode.toolkit.starter.support.aop;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
-import org.sourcecode.toolkit.bean.LoggerRecordOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.sourcecode.toolkit.bean.CodeVariableType;
+import org.sourcecode.toolkit.bean.LoggerRecord;
+import org.sourcecode.toolkit.bean.LoggerRecordOperations;
 import org.sourcecode.toolkit.bean.MethodExecuteResult;
 import org.sourcecode.toolkit.context.LoggerRecordContext;
 import org.sourcecode.toolkit.service.IFunctionService;
 import org.sourcecode.toolkit.service.ILoggerRecordService;
+import org.sourcecode.toolkit.service.IOperatorGetService;
 import org.sourcecode.toolkit.starter.support.parse.LoggerFunctionParser;
 import org.sourcecode.toolkit.starter.support.parse.LoggerRecordValueParser;
+import org.sourcecode.toolkit.starter.support.util.Util;
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StopWatch;
 
 import java.io.Serializable;
@@ -29,8 +34,19 @@ import static org.sourcecode.toolkit.service.ILoggerRecordPerformanceMonitor.MON
  * @Author LiuQi
  */
 public class LoggerRecordInterceptor extends LoggerRecordValueParser implements MethodInterceptor, Serializable, SmartInitializingSingleton {
+    private static final Logger log = LoggerFactory.getLogger(LoggerRecordInterceptor.class);
+    private String tenantId;
     private LoggerRecordOperationSource loggerRecordOperationSource;
     private ILoggerRecordService loggerRecordService;
+    private IOperatorGetService operatorGetService;
+
+    public String getTenant() {
+        return tenantId;
+    }
+
+    public void setTenant(String tenantId) {
+        this.tenantId = tenantId;
+    }
 
     public LoggerRecordOperationSource getLoggerRecordOperationSource() {
         return loggerRecordOperationSource;
@@ -60,7 +76,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         Object result = null;
         MethodExecuteResult methodExecuteResult = new MethodExecuteResult(method, arguments, targetClass);
         LoggerRecordContext.putEmptySpan();
-        Collection<LoggerRecordOptions> operations = new ArrayList<>();
+        Collection<LoggerRecordOperations> operations = new ArrayList<>();
         Map<String, String> functionNameAndReturnMap = new HashMap<>();
         try {
             operations = loggerRecordOperationSource.computeLoggerRecordOperations(method, targetClass);
@@ -82,9 +98,9 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         }
         stopWatch.start(MONITOR_TASK_AFTER_EXECUTE);
         try {
-            if (!CollectionUtils.isEmpty(operations)) {
+            if (!Util.isEmpty(operations)) {
                 // TODO
-                System.out.println(" TE " + operations);
+                recordExecute(methodExecuteResult, functionNameAndReturnMap, operations);
             }
         } catch (Exception e) {
             System.out.printf("logger record parse exception %s", e);
@@ -106,18 +122,18 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         return AopProxyUtils.ultimateTargetClass(target);
     }
 
-    private List<String> getBeforeExecuteFunctionTemplate(Collection<LoggerRecordOptions> operations) {
+    private List<String> getBeforeExecuteFunctionTemplate(Collection<LoggerRecordOperations> operations) {
         List<String> spELTemplates = new ArrayList<>();
         operations.forEach(operation -> {
             List<String> templates = getSpELTemplates(operation, operation.getSuccessLoggerTemplate());
-            if (!CollectionUtils.isEmpty(templates)) {
+            if (!Util.isEmpty(templates)) {
                 spELTemplates.addAll(templates);
             }
         });
         return spELTemplates;
     }
 
-    private List<String> getSpELTemplates(LoggerRecordOptions operation, String... actions) {
+    private List<String> getSpELTemplates(LoggerRecordOperations operation, String... actions) {
         List<String> spELTemplates = new ArrayList<>();
         spELTemplates.add(operation.getType());
         spELTemplates.add(operation.getBizNo());
@@ -127,9 +143,100 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         return spELTemplates;
     }
 
+    private void recordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, Collection<LoggerRecordOperations> operations) {
+        for (LoggerRecordOperations operation : operations) {
+            try {
+                if (Util.isEmpty(operation.getSuccessLoggerTemplate())
+                        && Util.isEmpty(operation.getFailLoggerTemplate())) {
+                    continue;
+                }
+                if (exitsCondition(methodExecuteResult, functionNameAndReturnMap, operation)) {
+                    continue;
+                }
+                if (!methodExecuteResult.isSuccess()) {
+                    // TODO
+                } else {
+                    successRecordExecute(methodExecuteResult, functionNameAndReturnMap, operation);
+                }
+            } catch (Exception e) {
+                System.out.printf("logger record execute exception %s", e);
+            }
+        }
+    }
+
+    private boolean exitsCondition(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
+        if (!Util.isEmpty(operation.getCondition())) {
+            // TODO
+            System.out.println("exitsCondition  ........." + operation);
+
+        }
+        return false;
+    }
+
+    private void successRecordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
+        String action = "";
+        boolean flag = true;
+        if (!Util.isEmpty(operation.getIsSuccess())) {
+            System.out.println(" !1");
+        } else {
+            action = operation.getSuccessLoggerTemplate();
+        }
+        if (action == null || action.isEmpty()) {
+            return;
+        }
+        List<String> spELTemplates = getSpELTemplates(operation, action);
+        String operatorIdFromServiceAndPutTemplate = getOperatorIdFromServiceAndPutTemplate(operation, spELTemplates);
+        Map<String, String> expressionValues = processTemplate(spELTemplates, methodExecuteResult, functionNameAndReturnMap);
+        saveLogger(methodExecuteResult.getMethod(), !flag, operation, operatorIdFromServiceAndPutTemplate, action, expressionValues);
+    }
+
+    private String getOperatorIdFromServiceAndPutTemplate(LoggerRecordOperations operation, List<String> spELTemplates) {
+        String realOperatorId = "";
+        if (Util.isEmpty(operation.getOperatorId())) {
+            realOperatorId = operatorGetService.getUser().getOperatorId();
+            if (Util.isEmpty(realOperatorId)) {
+                throw new IllegalArgumentException("[LoggerRecord] operator is null");
+            }
+        } else {
+            spELTemplates.add(operation.getOperatorId());
+        }
+        return realOperatorId;
+    }
+
+    private void saveLogger(Method method, boolean flag, LoggerRecordOperations operation, String operatorIdFromServiceAndPutTemplate, String action, Map<String, String> expressionValues) {
+        if (Util.isEmpty(expressionValues.get(action)) ||
+                (!diffSameWhetherSaveLogger && action.contains("#") && Objects.equals(action, expressionValues.get(action)))) {
+            return;
+        }
+        LoggerRecord loggerRecord = new LoggerRecord();
+        loggerRecord.setBizNo(expressionValues.get(operation.getBizNo()));
+        loggerRecord.setType(expressionValues.get(operation.getType()));
+        loggerRecord.setSubType(expressionValues.get(operation.getSubType()));
+        loggerRecord.setTenant(tenantId);
+        loggerRecord.setOperator(getRealOperatorId(operation, operatorIdFromServiceAndPutTemplate, expressionValues));
+        loggerRecord.setCodeVariable(getCodeVariable(method));
+        loggerRecord.setExtra(expressionValues.get(operation.getExtra()));
+        loggerRecord.setAction(expressionValues.get(action));
+        loggerRecord.setFail(flag);
+        loggerRecord.setCreateTime(new Date());
+        loggerRecordService.record(loggerRecord);
+    }
+
+    private String getRealOperatorId(LoggerRecordOperations operation, String operatorIdFromServiceAndPutTemplate, Map<String, String> expressionValues) {
+        return (operatorIdFromServiceAndPutTemplate != null || !operatorIdFromServiceAndPutTemplate.isEmpty()) ? operatorIdFromServiceAndPutTemplate : expressionValues.get(operation.getOperatorId());
+    }
+
+    private Map<CodeVariableType, Object> getCodeVariable(Method method) {
+        Map<CodeVariableType, Object> variableTypeObjectMap = new HashMap<>();
+        variableTypeObjectMap.put(CodeVariableType.ClassName, method.getDeclaringClass());
+        variableTypeObjectMap.put(CodeVariableType.MethodName, method.getName());
+        return variableTypeObjectMap;
+    }
+
     @Override
     public void afterSingletonsInstantiated() {
         loggerRecordService = beanFactory.getBean(ILoggerRecordService.class);
+        operatorGetService = beanFactory.getBean(IOperatorGetService.class);
         this.setLoggerFunctionParser(new LoggerFunctionParser(beanFactory.getBean(IFunctionService.class)));
         System.out.println(" SINGLETON ");
     }

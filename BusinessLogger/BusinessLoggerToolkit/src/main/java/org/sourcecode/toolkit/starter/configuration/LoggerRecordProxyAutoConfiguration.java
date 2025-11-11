@@ -3,11 +3,9 @@ package org.sourcecode.toolkit.starter.configuration;
 
 import org.sourcecode.toolkit.service.IFunctionService;
 import org.sourcecode.toolkit.service.ILoggerRecordService;
+import org.sourcecode.toolkit.service.IOperatorGetService;
 import org.sourcecode.toolkit.service.IParseFunction;
-import org.sourcecode.toolkit.service.impl.DefaultFunctionServiceImpl;
-import org.sourcecode.toolkit.service.impl.DefaultLoggerRecordServiceImpl;
-import org.sourcecode.toolkit.service.impl.DefaultParseFunction;
-import org.sourcecode.toolkit.service.impl.ParseFunctionFactory;
+import org.sourcecode.toolkit.service.impl.*;
 import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
@@ -47,6 +45,7 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public LoggerRecordInterceptor loggerRecordInterceptor() {
         LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
+        loggerRecordInterceptor.setTenant("TENANT_");
         loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
         return loggerRecordInterceptor;
     }
@@ -73,6 +72,13 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     @Role(value = BeanDefinition.ROLE_APPLICATION)
     public ILoggerRecordService recordService() {
         return new DefaultLoggerRecordServiceImpl();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(value = IOperatorGetService.class)
+    @Role(BeanDefinition.ROLE_APPLICATION)
+    public IOperatorGetService operatorGetService() {
+        return new DefaultOperatorGetServiceImpl();
     }
 
     @Override

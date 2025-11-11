@@ -110,4 +110,21 @@ public class LoggerRecord {
     public void setCodeVariable(Map<CodeVariableType, Object> codeVariable) {
         this.codeVariable = codeVariable;
     }
+
+    @Override
+    public String toString() {
+        return "LoggerRecord{" +
+                "id=" + id +
+                ", tenant='" + tenant + '\'' +
+                ", type='" + type + '\'' +
+                ", subType='" + subType + '\'' +
+                ", bizNo='" + bizNo + '\'' +
+                ", operator='" + operator + '\'' +
+                ", action='" + action + '\'' +
+                ", fail=" + fail +
+                ", createTime=" + createTime +
+                ", extra='" + extra + '\'' +
+                ", codeVariable=" + codeVariable +
+                '}';
+    }
 }

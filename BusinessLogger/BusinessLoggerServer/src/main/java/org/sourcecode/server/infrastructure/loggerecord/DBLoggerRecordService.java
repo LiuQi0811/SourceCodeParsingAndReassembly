@@ -3,6 +3,7 @@ package org.sourcecode.server.infrastructure.loggerecord;
 
 import jakarta.annotation.Resource;
 import org.sourcecode.server.repository.LoggerRecordRepository;
+import org.sourcecode.server.repository.entity.LoggerRecordEntity;
 import org.sourcecode.toolkit.bean.LoggerRecord;
 import org.sourcecode.toolkit.service.ILoggerRecordService;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,13 @@ public class DBLoggerRecordService implements ILoggerRecordService {
 
     @Override
     public List<LoggerRecord> queryLoggerRecord(String bizNo, String type) {
-        loggerRecordRepository.queryLogger(bizNo, type);
-        return List.of();
+        List<LoggerRecordEntity> loggerRecordEntityList = loggerRecordRepository.queryLogger(bizNo, type);
+        return LoggerRecordEntity.translate(loggerRecordEntityList);
+    }
+
+    @Override
+    public void record(LoggerRecord loggerRecord) {
+        LoggerRecordEntity translate = LoggerRecordEntity.translate(loggerRecord);
+        loggerRecordRepository.save(translate);
     }
 }

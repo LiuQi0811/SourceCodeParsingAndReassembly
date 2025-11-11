@@ -4,8 +4,13 @@ package org.sourcecode.server.repository.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.sourcecode.toolkit.bean.LoggerRecord;
+import org.springframework.beans.BeanUtils;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * @ClassName LoggerRecordEntity
@@ -115,6 +120,10 @@ public class LoggerRecordEntity {
         this.codeVariable = codeVariable;
     }
 
+    public LoggerRecordEntity() {
+
+    }
+
     public LoggerRecordEntity(Long id, String tenant, String type, String subType, String bizNo, String operator, String action, boolean fail, Date createTime, String extra, String codeVariable) {
         this.id = id;
         this.tenant = tenant;
@@ -127,5 +136,28 @@ public class LoggerRecordEntity {
         this.createTime = createTime;
         this.extra = extra;
         this.codeVariable = codeVariable;
+    }
+
+    public static LoggerRecordEntity translate(LoggerRecord loggerRecord) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            LoggerRecordEntity loggerRecordEntity = new LoggerRecordEntity();
+            BeanUtils.copyProperties(loggerRecord, loggerRecordEntity);
+            loggerRecordEntity.setCodeVariable(objectMapper.writeValueAsString(loggerRecord.getCodeVariable()));
+            return loggerRecordEntity;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static List<LoggerRecord> translate(List<LoggerRecordEntity> loggerRecordEntities){
+        List<LoggerRecord> loggerRecordList = new ArrayList<>(loggerRecordEntities.size());
+        for (LoggerRecordEntity loggerRecordEntity : loggerRecordEntities) {
+            LoggerRecord loggerRecord = new LoggerRecord();
+            BeanUtils.copyProperties(loggerRecordEntity,loggerRecord);
+            loggerRecordList.add(loggerRecord);
+        }
+        return loggerRecordList;
     }
 }

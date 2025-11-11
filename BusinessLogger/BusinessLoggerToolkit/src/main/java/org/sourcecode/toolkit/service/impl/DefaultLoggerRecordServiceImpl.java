@@ -18,4 +18,9 @@ public class  DefaultLoggerRecordServiceImpl implements ILoggerRecordService {
         System.out.println(" DEFAULT 。。。。。。");
         return List.of();
     }
+
+    @Override
+    public void record(LoggerRecord loggerRecord) {
+        System.out.println(" RE 4 ");
+    }
 }
