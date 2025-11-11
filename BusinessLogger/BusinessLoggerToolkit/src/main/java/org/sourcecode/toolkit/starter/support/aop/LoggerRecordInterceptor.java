@@ -34,7 +34,7 @@ import static org.sourcecode.toolkit.service.ILoggerRecordPerformanceMonitor.MON
  * @Author LiuQi
  */
 public class LoggerRecordInterceptor extends LoggerRecordValueParser implements MethodInterceptor, Serializable, SmartInitializingSingleton {
-    private static final Logger log = LoggerFactory.getLogger(LoggerRecordInterceptor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordInterceptor.class);
     private String tenantId;
     private LoggerRecordOperationSource loggerRecordOperationSource;
     private ILoggerRecordService loggerRecordService;
@@ -83,7 +83,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
             List<String> spELTemplates = getBeforeExecuteFunctionTemplate(operations);
             functionNameAndReturnMap = processBeforeExecuteFunctionTemplate(spELTemplates, targetClass, method, arguments);
         } catch (Exception e) {
-            System.out.printf("logger record parse before function exception %s", e);
+            LOGGER.info("logger record parse before function exception {}", e);
         } finally {
             stopWatch.stop();
         }
@@ -103,7 +103,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
                 recordExecute(methodExecuteResult, functionNameAndReturnMap, operations);
             }
         } catch (Exception e) {
-            System.out.printf("logger record parse exception %s", e);
+            LOGGER.error("logger record parse exception {}", e);
             throw e;
         } finally {
             LoggerRecordContext.clear();
@@ -111,7 +111,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
             try {
                 // TODO
             } catch (Exception e) {
-                System.out.printf("execute exception %s", e);
+                LOGGER.error("execute exception {}", e);
             }
         }
 
@@ -154,12 +154,12 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
                     continue;
                 }
                 if (!methodExecuteResult.isSuccess()) {
-                    // TODO
+                    failRecordExecute(methodExecuteResult, functionNameAndReturnMap, operation);
                 } else {
                     successRecordExecute(methodExecuteResult, functionNameAndReturnMap, operation);
                 }
             } catch (Exception e) {
-                System.out.printf("logger record execute exception %s", e);
+                LOGGER.error("logger record execute exception {}", e);
             }
         }
     }
@@ -167,7 +167,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     private boolean exitsCondition(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
         if (!Util.isEmpty(operation.getCondition())) {
             // TODO
-            System.out.println("exitsCondition  ........." + operation);
+            LOGGER.info("exitsCondition  ......... {}", operation);
 
         }
         return false;
@@ -188,6 +188,17 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         String operatorIdFromServiceAndPutTemplate = getOperatorIdFromServiceAndPutTemplate(operation, spELTemplates);
         Map<String, String> expressionValues = processTemplate(spELTemplates, methodExecuteResult, functionNameAndReturnMap);
         saveLogger(methodExecuteResult.getMethod(), !flag, operation, operatorIdFromServiceAndPutTemplate, action, expressionValues);
+    }
+
+    private void failRecordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
+        if (Util.isEmpty(operation.getFailLoggerTemplate())){
+            return;
+        }
+        String failLoggerTemplate = operation.getFailLoggerTemplate();
+        List<String> spELTemplates = getSpELTemplates(operation, failLoggerTemplate);
+        String operatorIdFromServiceAndPutTemplate = getOperatorIdFromServiceAndPutTemplate(operation, spELTemplates);
+        Map<String, String> expressionValues = processTemplate(spELTemplates, methodExecuteResult, functionNameAndReturnMap);
+        saveLogger(methodExecuteResult.getMethod(),true,operation,operatorIdFromServiceAndPutTemplate,failLoggerTemplate,expressionValues);
     }
 
     private String getOperatorIdFromServiceAndPutTemplate(LoggerRecordOperations operation, List<String> spELTemplates) {
@@ -238,6 +249,6 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         loggerRecordService = beanFactory.getBean(ILoggerRecordService.class);
         operatorGetService = beanFactory.getBean(IOperatorGetService.class);
         this.setLoggerFunctionParser(new LoggerFunctionParser(beanFactory.getBean(IFunctionService.class)));
-        System.out.println(" SINGLETON ");
+        LOGGER.info(" SINGLETON ");
     }
 }
