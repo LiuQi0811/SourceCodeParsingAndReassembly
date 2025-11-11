@@ -1,6 +1,8 @@
 package org.sourcecode.toolkit.starter.support.parse;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.bean.MethodExecuteResult;
 import org.sourcecode.toolkit.service.impl.DiffParseFunction;
 import org.springframework.beans.BeansException;
@@ -22,6 +24,7 @@ import java.util.regex.Pattern;
  * @Author LiuQi
  */
 public class LoggerRecordValueParser implements BeanFactoryAware {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordValueParser.class);
     private static final Pattern PATTERN = Pattern.compile("\\{\\s*(\\w*)\\s*\\{(.*?)}}");
     private final LoggerRecordExpressionEvaluator loggerRecordExpressionEvaluator = new LoggerRecordExpressionEvaluator();
     private LoggerFunctionParser loggerFunctionParser;
@@ -77,6 +80,7 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
                     String functionName = matcher.group(1);
                     if (DiffParseFunction.DIFF_FUNCTION_NAME.equals(functionName)) {
                         // TODO
+                        LOGGER.info(" // TODO .....");
                     } else {
                         Object value = loggerRecordExpressionEvaluator.parseExpression(expression, annotatedElementKey, evaluationContext);
                         expression = loggerFunctionParser.getFunctionReturnValue(beforeFunctionNameAndReturnMap, value, expression, functionName);

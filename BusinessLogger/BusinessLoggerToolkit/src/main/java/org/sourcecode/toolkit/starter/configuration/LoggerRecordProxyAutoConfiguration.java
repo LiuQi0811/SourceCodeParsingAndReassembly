@@ -1,10 +1,9 @@
 package org.sourcecode.toolkit.starter.configuration;
 
 
-import org.sourcecode.toolkit.service.IFunctionService;
-import org.sourcecode.toolkit.service.ILoggerRecordService;
-import org.sourcecode.toolkit.service.IOperatorGetService;
-import org.sourcecode.toolkit.service.IParseFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.sourcecode.toolkit.service.*;
 import org.sourcecode.toolkit.service.impl.*;
 import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
@@ -25,6 +24,8 @@ import java.util.List;
 @Configuration
 public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordProxyAutoConfiguration.class);
+
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public LoggerRecordOperationSource loggerRecordOperationSource() {
@@ -44,10 +45,18 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public LoggerRecordInterceptor loggerRecordInterceptor() {
+        LOGGER.info(" // TODO ........");
         LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
         loggerRecordInterceptor.setTenant("TENANT_");
         loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
+        loggerRecordInterceptor.setLoggerRecordPerformanceMonitor(loggerRecordPerformanceMonitor());
         return loggerRecordInterceptor;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(value = ILoggerRecordPerformanceMonitor.class)
+    public ILoggerRecordPerformanceMonitor loggerRecordPerformanceMonitor() {
+        return new DefaultLoggerRecordPerformanceMonitor();
     }
 
     @Bean

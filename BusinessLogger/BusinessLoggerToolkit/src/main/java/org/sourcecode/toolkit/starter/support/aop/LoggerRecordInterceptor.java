@@ -11,6 +11,7 @@ import org.sourcecode.toolkit.bean.LoggerRecordOperations;
 import org.sourcecode.toolkit.bean.MethodExecuteResult;
 import org.sourcecode.toolkit.context.LoggerRecordContext;
 import org.sourcecode.toolkit.service.IFunctionService;
+import org.sourcecode.toolkit.service.ILoggerRecordPerformanceMonitor;
 import org.sourcecode.toolkit.service.ILoggerRecordService;
 import org.sourcecode.toolkit.service.IOperatorGetService;
 import org.sourcecode.toolkit.starter.support.parse.LoggerFunctionParser;
@@ -36,6 +37,7 @@ import static org.sourcecode.toolkit.service.ILoggerRecordPerformanceMonitor.MON
 public class LoggerRecordInterceptor extends LoggerRecordValueParser implements MethodInterceptor, Serializable, SmartInitializingSingleton {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordInterceptor.class);
     private String tenantId;
+    private ILoggerRecordPerformanceMonitor loggerRecordPerformanceMonitor;
     private LoggerRecordOperationSource loggerRecordOperationSource;
     private ILoggerRecordService loggerRecordService;
     private IOperatorGetService operatorGetService;
@@ -46,6 +48,14 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
 
     public void setTenant(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public ILoggerRecordPerformanceMonitor getLoggerRecordPerformanceMonitor() {
+        return loggerRecordPerformanceMonitor;
+    }
+
+    public void setLoggerRecordPerformanceMonitor(ILoggerRecordPerformanceMonitor loggerRecordPerformanceMonitor) {
+        this.loggerRecordPerformanceMonitor = loggerRecordPerformanceMonitor;
     }
 
     public LoggerRecordOperationSource getLoggerRecordOperationSource() {
@@ -83,7 +93,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
             List<String> spELTemplates = getBeforeExecuteFunctionTemplate(operations);
             functionNameAndReturnMap = processBeforeExecuteFunctionTemplate(spELTemplates, targetClass, method, arguments);
         } catch (Exception e) {
-            LOGGER.info("logger record parse before function exception {}", e);
+            LOGGER.error("logger record parse before function exception {}", e);
         } finally {
             stopWatch.stop();
         }
@@ -99,7 +109,6 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         stopWatch.start(MONITOR_TASK_AFTER_EXECUTE);
         try {
             if (!Util.isEmpty(operations)) {
-                // TODO
                 recordExecute(methodExecuteResult, functionNameAndReturnMap, operations);
             }
         } catch (Exception e) {
@@ -109,7 +118,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
             LoggerRecordContext.clear();
             stopWatch.stop();
             try {
-                // TODO
+                loggerRecordPerformanceMonitor.printLogger(stopWatch);
             } catch (Exception e) {
                 LOGGER.error("execute exception {}", e);
             }
@@ -167,6 +176,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     private boolean exitsCondition(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
         if (!Util.isEmpty(operation.getCondition())) {
             // TODO
+            LOGGER.info(" // TODO ...");
             LOGGER.info("exitsCondition  ......... {}", operation);
 
         }

@@ -1,6 +1,8 @@
 package org.sourcecode.toolkit.starter.support.parse;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.IFunctionService;
 import org.sourcecode.toolkit.starter.support.util.Util;
 
@@ -12,6 +14,7 @@ import java.util.Map;
  * @Author LiuQi
  */
 public class LoggerFunctionParser {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LoggerFunctionParser.class);
     private final IFunctionService functionService;
 
     public LoggerFunctionParser(IFunctionService functionService) {
@@ -29,6 +32,7 @@ public class LoggerFunctionParser {
         String functionReturnValue = "";
 
         // TODO
+        LOGGER.info(" // TODO ....");
         return functionReturnValue;
     }
 
