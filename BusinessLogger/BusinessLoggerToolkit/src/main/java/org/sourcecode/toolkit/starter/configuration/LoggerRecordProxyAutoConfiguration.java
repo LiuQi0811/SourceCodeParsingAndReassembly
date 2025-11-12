@@ -1,6 +1,7 @@
 package org.sourcecode.toolkit.starter.configuration;
 
 
+import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.*;
@@ -14,6 +15,7 @@ import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.*;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
@@ -27,6 +29,7 @@ import java.util.List;
  * @Author LiuQi
  */
 @Configuration
+@EnableConfigurationProperties(value = {LoggerRecordProperties.class})
 public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggerRecordProxyAutoConfiguration.class);
@@ -50,10 +53,10 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public LoggerRecordInterceptor loggerRecordInterceptor() {
-        LOGGER.info(" // TODO ........");
+    public LoggerRecordInterceptor loggerRecordInterceptor(LoggerRecordProperties properties) {
+        LOGGER.info(" // TODO ........ {}",properties);
         LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
-        loggerRecordInterceptor.setTenant("TENANT_");
+        loggerRecordInterceptor.setTenant(annotationAttributes.getString("tenant"));
         loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
         loggerRecordInterceptor.setLoggerRecordPerformanceMonitor(loggerRecordPerformanceMonitor());
         return loggerRecordInterceptor;
@@ -83,7 +86,7 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     }
 
     @Bean
-    public DiffParseFunction diffParseFunction(IDiffItemsToLoggerContentService diffItemsToLoggerContentService) {
+    public DiffParseFunction diffParseFunction(IDiffItemsToLoggerContentService diffItemsToLoggerContentService, LoggerRecordProperties properties) {
         DiffParseFunction diffParseFunction = new DiffParseFunction();
         diffParseFunction.addUseEqualsClass(LocalDateTime.class);
         diffParseFunction.setDiffItemsToLoggerContentService(diffItemsToLoggerContentService);
@@ -94,8 +97,8 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     @Bean
     @ConditionalOnMissingBean(value = IDiffItemsToLoggerContentService.class)
     @Role(BeanDefinition.ROLE_APPLICATION)
-    public IDiffItemsToLoggerContentService diffItemsToLoggerContentService() {
-        return new DefaultDiffItemsToLoggerContentService();
+    public IDiffItemsToLoggerContentService diffItemsToLoggerContentService(LoggerRecordProperties properties) {
+        return new DefaultDiffItemsToLoggerContentService(properties);
     }
 
     @Bean

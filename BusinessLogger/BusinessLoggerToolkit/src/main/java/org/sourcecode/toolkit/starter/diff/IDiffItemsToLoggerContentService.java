@@ -9,5 +9,5 @@ import de.danielbechler.diff.node.DiffNode;
  * @Author LiuQi
  */
 public interface IDiffItemsToLoggerContentService {
-    String toLoggerContent(DiffNode diffNode, final Object value, final Object value_);
+    String toLoggerContent(DiffNode diffNode, final Object sourceObject, final Object targetObject);
 }
