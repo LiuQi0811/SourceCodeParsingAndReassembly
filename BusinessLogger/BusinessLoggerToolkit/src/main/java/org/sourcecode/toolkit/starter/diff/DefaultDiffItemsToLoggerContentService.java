@@ -4,6 +4,7 @@ package org.sourcecode.toolkit.starter.diff;
 import de.danielbechler.diff.node.DiffNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sourcecode.toolkit.service.IFunctionService;
 import org.sourcecode.toolkit.starter.annotation.DiffLoggerAllFields;
 import org.sourcecode.toolkit.starter.annotation.DiffLoggerField;
 import org.sourcecode.toolkit.starter.annotation.DiffLoggerIgnore;
@@ -14,9 +15,7 @@ import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @ClassName DefaultDiffItemsToLoggerContentService
@@ -26,6 +25,8 @@ import java.util.Set;
 public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLoggerContentService, BeanFactoryAware, SmartInitializingSingleton {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDiffItemsToLoggerContentService.class);
     private final LoggerRecordProperties loggerRecordProperties;
+    private IFunctionService functionService;
+    private BeanFactory beanFactory;
 
     public DefaultDiffItemsToLoggerContentService(LoggerRecordProperties properties) {
         this.loggerRecordProperties = properties;
@@ -78,7 +79,7 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
 
     private String getParentFieldName(DiffNode diffNode, boolean isField) {
         DiffNode parentNode = diffNode.getParentNode();
-        String fieldNamePrefix = "";
+        String fieldNamePrefix = Util.EMPTY;
         while (parentNode != null) {
             DiffLoggerField diffLoggerFieldAnnotation = parentNode.getFieldAnnotation(DiffLoggerField.class);
             if ((diffLoggerFieldAnnotation == null && !isField) || parentNode.isRootNode()) {
@@ -112,8 +113,13 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
     }
 
     private String getCollectionDiffLoggerContent(String filedLoggerName, DiffNode diffNode, Object sourceObject, Object targetObject, String functionName) {
-        // TODO
-        return null;
+        Collection<Object> sourceCollection = getCollectionValue(diffNode, sourceObject);
+        Collection<Object> targetCollection = getCollectionValue(diffNode, targetObject);
+        Collection<Object> insertItemCollection = collectionSubtract(targetCollection, sourceCollection);
+        Collection<Object> removeItemCollection = collectionSubtract(sourceCollection, targetCollection);
+        String insertContent = collectionToContent(functionName, insertItemCollection);
+        String removeContent = collectionToContent(functionName, removeItemCollection);
+        return loggerRecordProperties.formatList(filedLoggerName,insertContent,removeContent);
     }
 
     private String getDiffLoggerContent(String filedLoggerName, DiffNode diffNode, Object sourceObject, Object targetObject, String functionName) {
@@ -121,15 +127,49 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
         return null;
     }
 
+    private Collection<Object> getCollectionValue(DiffNode diffNode, Object value) {
+        Object fieldSourceValue = getFieldValue(diffNode, value);
+        if (fieldSourceValue != null && fieldSourceValue.getClass().isArray()) {
+            return new ArrayList<>(Arrays.asList(((Object[]) fieldSourceValue)));
+        }
+        return fieldSourceValue == null ? new ArrayList<>() : ((Collection<? super Object>) fieldSourceValue);
+    }
+
+    private Collection<Object> collectionSubtract(Collection<Object> minuend, Collection<Object> subTractor) {
+        Collection<Object> result = new ArrayList<>(minuend);
+        result.removeAll(subTractor);
+        return result;
+    }
+
+    private String collectionToContent(String functionName, Collection<Object> collection) {
+        StringBuilder builder = new StringBuilder();
+        if (!Util.isEmpty(collection)) {
+            for (Object value : collection) {
+                builder.append(getFunctionValue(value, functionName))
+                        .append(loggerRecordProperties.getListItemSeparator());
+            }
+        }
+        return builder.toString().replaceAll(loggerRecordProperties.getListItemSeparator() + Util.DOLLAR, Util.EMPTY);
+    }
+
+    private String getFunctionValue(Object canonicalGet, String functionName) {
+        if (Util.isEmpty(functionName)) {
+            return canonicalGet.toString();
+        }
+        return functionService.apply(functionName, canonicalGet.toString());
+    }
+
+    private Object getFieldValue(DiffNode diffNode, Object value) {
+        return diffNode.canonicalGet(value);
+    }
+
     @Override
     public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
-        // TODO .....
-        LOGGER.info(" // TODO DefaultDiffItemsToLoggerContentService  setBeanFactory");
+        this.beanFactory = beanFactory;
     }
 
     @Override
     public void afterSingletonsInstantiated() {
-        // TODO .....
-        LOGGER.info(" // TODO DefaultDiffItemsToLoggerContentService  afterSingletonsInstantiated");
+        functionService = beanFactory.getBean(IFunctionService.class);
     }
 }

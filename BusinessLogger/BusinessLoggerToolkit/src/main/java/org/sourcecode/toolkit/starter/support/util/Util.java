@@ -12,6 +12,7 @@ import java.util.Collection;
  */
 public abstract class Util {
     public static final String EMPTY = "";
+    public static final String DOLLAR = "$";
 
     public static boolean isEmpty(@Nullable Object value) {
         return value == null || value.equals("");
