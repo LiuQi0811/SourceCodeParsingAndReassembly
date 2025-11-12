@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.*;
 import org.sourcecode.toolkit.service.impl.*;
 import org.sourcecode.toolkit.starter.annotation.EnableLoggerRecord;
+import org.sourcecode.toolkit.starter.diff.DefaultDiffItemsToLoggerContentService;
+import org.sourcecode.toolkit.starter.diff.IDiffItemsToLoggerContentService;
 import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
@@ -16,6 +18,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -80,8 +83,19 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     }
 
     @Bean
-    public DiffParseFunction diffParseFunction() {
-        return new DiffParseFunction();
+    public DiffParseFunction diffParseFunction(IDiffItemsToLoggerContentService diffItemsToLoggerContentService) {
+        DiffParseFunction diffParseFunction = new DiffParseFunction();
+        diffParseFunction.addUseEqualsClass(LocalDateTime.class);
+        diffParseFunction.setDiffItemsToLoggerContentService(diffItemsToLoggerContentService);
+        // TODO ...............
+        return diffParseFunction;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(value = IDiffItemsToLoggerContentService.class)
+    @Role(BeanDefinition.ROLE_APPLICATION)
+    public IDiffItemsToLoggerContentService diffItemsToLoggerContentService() {
+        return new DefaultDiffItemsToLoggerContentService();
     }
 
     @Bean

@@ -12,6 +12,7 @@ import java.util.Collection;
  */
 public abstract class Util {
     public static final String EMPTY = "";
+
     public static boolean isEmpty(@Nullable Object value) {
         return value == null || value.equals("");
     }
@@ -22,5 +23,15 @@ public abstract class Util {
 
     public static boolean hasText(@Nullable String valueStr) {
         return valueStr != null && !valueStr.isBlank();
+    }
+
+    public static int strCount(String srcText, String findText) {
+        int count = 0;
+        int index = 0;
+        while ((index = srcText.indexOf(findText, index)) != -1) {
+            index = index + findText.length();
+            count++;
+        }
+        return count;
     }
 }
