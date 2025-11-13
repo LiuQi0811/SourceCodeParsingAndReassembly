@@ -146,20 +146,19 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
     private String getDiffLoggerContent(String filedLoggerName, DiffNode diffNode, Object sourceObject, Object targetObject, String functionName) {
         switch (diffNode.getState()) {
             case ADDED -> {
-                // TODO
+                return loggerRecordProperties.formatAdd(filedLoggerName, getFunctionValue(getFieldValue(diffNode, targetObject), functionName));
             }
             case CHANGED -> {
                 return loggerRecordProperties.formatUpdate(filedLoggerName, getFunctionValue(getFieldValue(diffNode, sourceObject), functionName), getFunctionValue(getFieldValue(diffNode, targetObject), functionName));
             }
             case REMOVED -> {
-                // TODO
+                return loggerRecordProperties.formatDeleted(filedLoggerName, getFunctionValue(getFieldValue(diffNode, sourceObject), functionName));
             }
             default -> {
                 LOGGER.warn("diff logger not support");
                 return Util.EMPTY;
             }
         }
-        return null;
     }
 
     private Collection<Object> getCollectionValue(DiffNode diffNode, Object value) {

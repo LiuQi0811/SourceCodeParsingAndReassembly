@@ -59,6 +59,16 @@ public class LoggerRecordProperties {
         this.fieldSeparator = fieldSeparator;
     }
 
+    public String formatAdd(String fieldName, Object targetValue) {
+        return addTemplate.replace(FIELD_PLACEHOLDER, fieldName)
+                .replace(TARGET_VALUE_PLACEHOLDER, String.valueOf(targetValue));
+    }
+
+    public String formatDeleted(String fieldName, Object sourceValue) {
+        return deleteTemplate.replace(FIELD_PLACEHOLDER, fieldName)
+                .replace(SOURCE_VALUE_PLACEHOLDER, String.valueOf(sourceValue));
+    }
+
     public String formatUpdate(String fieldName, Object sourceValue, Object targetValue) {
         return updateTemplate.replace(FIELD_PLACEHOLDER, fieldName)
                 .replace(SOURCE_VALUE_PLACEHOLDER, String.valueOf(sourceValue))
