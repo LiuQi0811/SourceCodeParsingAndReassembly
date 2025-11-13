@@ -40,4 +40,12 @@ public abstract class Util {
         }
         return count;
     }
+
+    public static boolean startsWithIgnoreCase(@Nullable String str, @Nullable String prefix) {
+        return str != null && prefix != null && str.length() >= prefix.length() && str.regionMatches(true, 0, prefix, 0, prefix.length());
+    }
+
+    public static boolean endsWithIgnoreCase(@Nullable String str, @Nullable String suffix) {
+        return str != null && suffix != null && str.length() >= suffix.length() && str.regionMatches(true, str.length() - suffix.length(), suffix, 0, suffix.length());
+    }
 }

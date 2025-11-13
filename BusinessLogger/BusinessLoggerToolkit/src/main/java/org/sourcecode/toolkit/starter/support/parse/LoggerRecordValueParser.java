@@ -13,10 +13,7 @@ import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.expression.EvaluationContext;
 
 import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,6 +63,11 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
 
     public void setDiffParseFunction(DiffParseFunction diffParseFunction) {
         this.diffParseFunction = diffParseFunction;
+    }
+
+    public String singleProcessTemplate(MethodExecuteResult methodExecuteResult, String templates, Map<String, String> beforeFunctionNameAndReturnMap) {
+        Map<String, String> templateMap = processTemplate(Collections.singletonList(templates), methodExecuteResult, beforeFunctionNameAndReturnMap);
+        return templateMap.get(templates);
     }
 
     public Map<String, String> processTemplate(Collection<String> templates, MethodExecuteResult methodExecuteResult, Map<String, String> beforeFunctionNameAndReturnMap) {

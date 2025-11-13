@@ -176,10 +176,10 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
 
     private boolean exitsCondition(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
         if (!Util.isEmpty(operation.getCondition())) {
-            // TODO
-            LOGGER.info(" // TODO ...");
-            LOGGER.info("exitsCondition  ......... {}", operation);
-
+            String condition = singleProcessTemplate(methodExecuteResult, operation.getCondition(), functionNameAndReturnMap);
+            if (Util.endsWithIgnoreCase(condition, "false")) {
+                return true;
+            }
         }
         return false;
     }
