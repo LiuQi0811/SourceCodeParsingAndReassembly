@@ -1,5 +1,7 @@
 package org.sourcecode.toolkit.context;
 
+import org.sourcecode.toolkit.starter.support.util.Util;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -75,6 +77,19 @@ public class LoggerRecordContext {
 
     public static Map<String, Object> getGlobalVariableMap() {
         return GLOBAL_VARIABLE_MAP.get();
+    }
+
+    public static Object getMethodOrGlobal(String key) {
+        Object result = null;
+        Map<String, Object> variableMap = VARIABLE_MAP_STACK.get().peek();
+        if (!Util.isEmpty(variableMap) && (result = variableMap.get(key)) != null) {
+            return result;
+        }
+        Map<String, Object> globalMap = GLOBAL_VARIABLE_MAP.get();
+        if (!Util.isEmpty(globalMap)) {
+            return result;
+        }
+        return result;
     }
 
     /**

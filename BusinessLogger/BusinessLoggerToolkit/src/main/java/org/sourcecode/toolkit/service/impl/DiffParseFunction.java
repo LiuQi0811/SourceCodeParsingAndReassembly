@@ -6,6 +6,7 @@ import de.danielbechler.diff.comparison.ComparisonService;
 import de.danielbechler.diff.node.DiffNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sourcecode.toolkit.context.LoggerRecordContext;
 import org.sourcecode.toolkit.starter.diff.ArrayDiffer;
 import org.sourcecode.toolkit.starter.diff.IDiffItemsToLoggerContentService;
 import org.sourcecode.toolkit.starter.support.util.Util;
@@ -25,6 +26,7 @@ import java.util.Set;
 public class DiffParseFunction {
     private static final Logger LOGGER = LoggerFactory.getLogger(DiffParseFunction.class);
     public static final String DIFF_FUNCTION_NAME = "_DIFF";
+    public static final String OUTDATED_OBJECT = "_OUTDATED_OBJECT";
     public final Set<Class<?>> COMPARISON_SET = new HashSet<>();
 
     private IDiffItemsToLoggerContentService diffItemsToLoggerContentService;
@@ -35,6 +37,11 @@ public class DiffParseFunction {
 
     static {
         LOGGER.info(" ................................. DiffParseFunction ................................. ");
+    }
+
+    public String diff(Object value) {
+        Object sourceValue = LoggerRecordContext.getMethodOrGlobal(OUTDATED_OBJECT);
+        return diff(sourceValue, value);
     }
 
     public String diff(Object source, Object target) {

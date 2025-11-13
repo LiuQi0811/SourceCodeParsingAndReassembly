@@ -107,7 +107,8 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
     private String getDiffFunctionValue(EvaluationContext evaluationContext, AnnotatedElementKey annotatedElementKey, String expression) {
         String[] params = parseDiffFunction(expression);
         if (params.length == 1) {
-            LOGGER.info("  // TODO 1 {}", params);
+            Object targetObject = loggerRecordExpressionEvaluator.parseExpression(params[0], annotatedElementKey, evaluationContext);
+            expression = diffParseFunction.diff(targetObject);
         } else if (params.length == 2) {
             Object sourceObject = loggerRecordExpressionEvaluator.parseExpression(params[0], annotatedElementKey, evaluationContext);
             Object targetObject = loggerRecordExpressionEvaluator.parseExpression(params[1], annotatedElementKey, evaluationContext);

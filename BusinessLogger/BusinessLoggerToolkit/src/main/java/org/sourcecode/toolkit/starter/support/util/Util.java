@@ -4,6 +4,7 @@ package org.sourcecode.toolkit.starter.support.util;
 import org.springframework.lang.Nullable;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  * @ClassName Util
@@ -16,6 +17,10 @@ public abstract class Util {
 
     public static boolean isEmpty(@Nullable Object value) {
         return value == null || value.equals("");
+    }
+
+    public static boolean isEmpty(@Nullable Map<?, ?> mapValue) {
+        return mapValue == null || mapValue.isEmpty();
     }
 
     public static boolean isEmpty(@Nullable Collection<?> collection) {
