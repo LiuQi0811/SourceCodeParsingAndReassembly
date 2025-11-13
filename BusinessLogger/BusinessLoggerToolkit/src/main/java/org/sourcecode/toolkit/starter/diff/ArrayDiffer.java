@@ -45,11 +45,15 @@ public class ArrayDiffer implements Differ {
             _diffNode.setChildIdentityStrategy(identityStrategy);
         }
         if (instances.hasBeenAdded()) {
-            LOGGER.info(" // TODO instances.hasBeenAdded() ");
+            Collection<?> collectionSearch2Add = collectionSearch(instances.getWorking());
+            compareWith(_diffNode, instances, collectionSearch2Add, identityStrategy);
+            _diffNode.setState(DiffNode.State.ADDED);
         } else if (instances.hasBeenRemoved()) {
-            LOGGER.info(" // TODO instances.hasBeenRemoved() ");
+            Collection<?> collectionSearch2Deleted = collectionSearch(instances.getBase());
+            compareWith(_diffNode, instances, collectionSearch2Deleted, identityStrategy);
+            _diffNode.setState(DiffNode.State.REMOVED);
         } else if (instances.areSame()) {
-            LOGGER.info(" // TODO  instances.areSame() ");
+            _diffNode.setState(DiffNode.State.UNTOUCHED);
         } else {
             ComparisonStrategy comparisonStrategy = comparisonStrategyResolver.resolveComparisonStrategy(_diffNode);
             if (comparisonStrategy == null) {
@@ -61,6 +65,10 @@ public class ArrayDiffer implements Differ {
         return _diffNode;
     }
 
+    private Collection<?> collectionSearch(Object value) {
+        return value == null ? new ArrayList<>() : new LinkedList<>(Arrays.asList((Object[]) value));
+    }
+
     private DiffNode createDiffNode(final DiffNode parentNode, final Instances instances) {
         Accessor accessor = instances.getSourceAccessor();
         Class<?> valueType = instances.getType();
@@ -70,7 +78,7 @@ public class ArrayDiffer implements Differ {
     private void compareInternally(final DiffNode diffNode, final Instances instances, final IdentityStrategy identityStrategy) {
         Collection<?> working = Arrays.asList(((Object[]) instances.getWorking()));
         Collection<?> base = Arrays.asList(((Object[]) instances.getBase()));
-        
+
         Iterable<?> addLinkedList = new LinkedList<Object>(working);
         Iterable<?> removeLinkedList = new LinkedList<Object>(base);
         Iterable<?> knownLinkedList = new LinkedList<Object>(base);
