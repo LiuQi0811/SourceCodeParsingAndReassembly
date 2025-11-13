@@ -26,8 +26,14 @@ public class LoggerRecordProperties {
     private static final String LIST_ADD_VALUE_PLACEHOLDER = "__addValues";
     private static final String LIST_DELETE_VALUE_PLACEHOLDER = "__deleteValues";
 
+    private String addTemplate = "【" + FIELD_PLACEHOLDER + "】从【空】修改为【" + TARGET_VALUE_PLACEHOLDER + "】";
+    private static final String addTemplateForList = "【" + FIELD_PLACEHOLDER + "】添加了【" + LIST_ADD_VALUE_PLACEHOLDER + "】";
+
+    private String deleteTemplate = "删除了【" + FIELD_PLACEHOLDER + "】：【" + SOURCE_VALUE_PLACEHOLDER + "】";
+    private String deleteTemplateForList = "【" + FIELD_PLACEHOLDER + "】删除了【" + LIST_DELETE_VALUE_PLACEHOLDER + "】";
+
     private static final String updateTemplate = "【" + FIELD_PLACEHOLDER + "】从【" + SOURCE_VALUE_PLACEHOLDER + "】修改为【" + TARGET_VALUE_PLACEHOLDER + "】";
-    private  static  final String updateTemplateForList = "【" + FIELD_PLACEHOLDER + "】添加了【" + LIST_ADD_VALUE_PLACEHOLDER + "】删除了【" + LIST_DELETE_VALUE_PLACEHOLDER + "】";
+    private static final String updateTemplateForList = "【" + FIELD_PLACEHOLDER + "】添加了【" + LIST_ADD_VALUE_PLACEHOLDER + "】删除了【" + LIST_DELETE_VALUE_PLACEHOLDER + "】";
 
     public String getOfWord() {
         return ofWord;
@@ -61,10 +67,12 @@ public class LoggerRecordProperties {
 
     public String formatList(String fieldName, String insertContent, String removeContent) {
         if (!Util.isEmpty(insertContent) && Util.isEmpty(removeContent)) {
-            LOGGER.info(" >>>>>>>1>>>>>>>>>> {} {} {} ", fieldName, insertContent, removeContent);
+            return addTemplateForList.replace(FIELD_PLACEHOLDER, fieldName)
+                    .replace(LIST_ADD_VALUE_PLACEHOLDER, insertContent);
         }
         if (Util.isEmpty(insertContent) && !Util.isEmpty(removeContent)) {
-            LOGGER.info(" >>>>>>>>>2>>>>>>>> {} {} {} ", fieldName, insertContent, removeContent);
+            return deleteTemplateForList.replace(FIELD_PLACEHOLDER, fieldName)
+                    .replace(LIST_DELETE_VALUE_PLACEHOLDER, removeContent);
         }
         if (!Util.isEmpty(insertContent) && !Util.isEmpty(removeContent)) {
             return updateTemplateForList.replace(FIELD_PLACEHOLDER, fieldName)
