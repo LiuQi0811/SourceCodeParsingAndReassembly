@@ -2,6 +2,7 @@ package org.sourcecode.toolkit.starter.diff;
 
 
 import de.danielbechler.diff.node.DiffNode;
+import de.danielbechler.diff.selector.ElementSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.IFunctionService;
@@ -14,7 +15,9 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -24,6 +27,7 @@ import java.util.*;
  */
 public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLoggerContentService, BeanFactoryAware, SmartInitializingSingleton {
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDiffItemsToLoggerContentService.class);
+    private static final String CHILDREN = "children";
     private final LoggerRecordProperties loggerRecordProperties;
     private IFunctionService functionService;
     private BeanFactory beanFactory;
@@ -37,12 +41,12 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
         if (!diffNode.hasChanges()) {
             return Util.EMPTY;
         }
-        // TODO .....
         DiffLoggerAllFields annotation = sourceObject.getClass().getAnnotation(DiffLoggerAllFields.class);
         StringBuilder builder = new StringBuilder();
         Set<DiffNode> diffNodes = new HashSet<>();
         diffNode.visit((node, visit) -> allFieldLoggerGenerate(sourceObject, targetObject, builder, node, annotation, diffNodes));
-        return "";
+        diffNodes.clear();
+        return builder.toString().replaceAll(loggerRecordProperties.getFieldSeparator().concat(Util.DOLLAR), Util.EMPTY);
     }
 
     private void allFieldLoggerGenerate(Object sourceObject, Object targetObject, StringBuilder builder, DiffNode diffNode, DiffLoggerAllFields annotation, Set<DiffNode> diffNodes) {
@@ -65,8 +69,25 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
         String functionName = diffLoggerFieldAnnotation != null ? diffLoggerFieldAnnotation.function() : Util.EMPTY;
         String loggerContent = isValueContainer ? getCollectionDiffLoggerContent(fieldLoggerName, diffNode, sourceObject, targetObject, functionName)
                 : getDiffLoggerContent(fieldLoggerName, diffNode, sourceObject, targetObject, functionName);
-        LOGGER.info(" // TODO allFieldLoggerGenerate =>   {} ", loggerContent);
+        if (!Util.isEmpty(loggerContent)) {
+            builder.append(loggerContent)
+                    .append(loggerRecordProperties.getFieldSeparator());
+        }
+        memorandumHandler(diffNode, diffNodes);
+    }
 
+    private void memorandumHandler(DiffNode diffNode, Set<DiffNode> diffNodes) {
+        diffNodes.add(diffNode);
+        if (diffNode.hasChildren()) {
+            Field childrenField = ReflectionUtils.findField(DiffNode.class, CHILDREN);
+            assert childrenField != null;
+            ReflectionUtils.makeAccessible(childrenField);
+            Map<ElementSelector, DiffNode> field = (Map<ElementSelector, DiffNode>) ReflectionUtils.getField(childrenField, diffNode);
+            assert field != null;
+            for (DiffNode value : field.values()) {
+                memorandumHandler(value, diffNodes);
+            }
+        }
     }
 
     private String getFieldLoggerName(DiffNode diffNode, DiffLoggerField diffLoggerFieldAnnotation, boolean isField) {
@@ -119,11 +140,25 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
         Collection<Object> removeItemCollection = collectionSubtract(sourceCollection, targetCollection);
         String insertContent = collectionToContent(functionName, insertItemCollection);
         String removeContent = collectionToContent(functionName, removeItemCollection);
-        return loggerRecordProperties.formatList(filedLoggerName,insertContent,removeContent);
+        return loggerRecordProperties.formatList(filedLoggerName, insertContent, removeContent);
     }
 
     private String getDiffLoggerContent(String filedLoggerName, DiffNode diffNode, Object sourceObject, Object targetObject, String functionName) {
-        // TODO
+        switch (diffNode.getState()) {
+            case ADDED -> {
+                // TODO
+            }
+            case CHANGED -> {
+                return loggerRecordProperties.formatUpdate(filedLoggerName, getFunctionValue(getFieldValue(diffNode, sourceObject), functionName), getFunctionValue(getFieldValue(diffNode, targetObject), functionName));
+            }
+            case REMOVED -> {
+                // TODO
+            }
+            default -> {
+                LOGGER.warn("diff logger not support");
+                return Util.EMPTY;
+            }
+        }
         return null;
     }
 

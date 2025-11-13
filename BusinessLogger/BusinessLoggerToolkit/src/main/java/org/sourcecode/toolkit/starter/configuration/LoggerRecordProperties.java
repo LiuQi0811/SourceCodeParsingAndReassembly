@@ -17,12 +17,17 @@ public class LoggerRecordProperties {
 
     private String ofWord = "的";
     private String listItemSeparator = "，";
+    private String fieldSeparator = "；";
 
 
-    private final String FIELD_PLACEHOLDER = "__fieldName";
-    private final String LIST_ADD_VALUE_PLACEHOLDER = "__addValues";
-    private final String LIST_DELETE_VALUE_PLACEHOLDER = "__deleteValues";
-    private String updateTemplateForList = "【" + FIELD_PLACEHOLDER + "】添加了【" + LIST_ADD_VALUE_PLACEHOLDER + "】删除了【" + LIST_DELETE_VALUE_PLACEHOLDER + "】";
+    private static final String FIELD_PLACEHOLDER = "__fieldName";
+    private static final String SOURCE_VALUE_PLACEHOLDER = "__sourceValue";
+    private static final String TARGET_VALUE_PLACEHOLDER = "__targetValue";
+    private static final String LIST_ADD_VALUE_PLACEHOLDER = "__addValues";
+    private static final String LIST_DELETE_VALUE_PLACEHOLDER = "__deleteValues";
+
+    private static final String updateTemplate = "【" + FIELD_PLACEHOLDER + "】从【" + SOURCE_VALUE_PLACEHOLDER + "】修改为【" + TARGET_VALUE_PLACEHOLDER + "】";
+    private  static  final String updateTemplateForList = "【" + FIELD_PLACEHOLDER + "】添加了【" + LIST_ADD_VALUE_PLACEHOLDER + "】删除了【" + LIST_DELETE_VALUE_PLACEHOLDER + "】";
 
     public String getOfWord() {
         return ofWord;
@@ -38,6 +43,20 @@ public class LoggerRecordProperties {
 
     public void setListItemSeparator(String listItemSeparator) {
         this.listItemSeparator = listItemSeparator;
+    }
+
+    public String getFieldSeparator() {
+        return fieldSeparator;
+    }
+
+    public void setFieldSeparator(String fieldSeparator) {
+        this.fieldSeparator = fieldSeparator;
+    }
+
+    public String formatUpdate(String fieldName, Object sourceValue, Object targetValue) {
+        return updateTemplate.replace(FIELD_PLACEHOLDER, fieldName)
+                .replace(SOURCE_VALUE_PLACEHOLDER, String.valueOf(sourceValue))
+                .replace(TARGET_VALUE_PLACEHOLDER, String.valueOf(targetValue));
     }
 
     public String formatList(String fieldName, String insertContent, String removeContent) {

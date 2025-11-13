@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -86,14 +87,13 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
                     String expression = matcher.group(2);
                     String functionName = matcher.group(1);
                     if (DiffParseFunction.DIFF_FUNCTION_NAME.equals(functionName)) {
-                        // TODO
                         expression = getDiffFunctionValue(evaluationContext, annotatedElementKey, expression);
-                        LOGGER.info(" // TODO _DIFF..... {}", expression);
+                        sameDiff = Objects.equals(Util.EMPTY, expression);
                     } else {
                         Object value = loggerRecordExpressionEvaluator.parseExpression(expression, annotatedElementKey, evaluationContext);
                         expression = loggerFunctionParser.getFunctionReturnValue(beforeFunctionNameAndReturnMap, value, expression, functionName);
                     }
-                    matcher.appendReplacement(parsedStrBuffer, Matcher.quoteReplacement(expression == null ? "" : expression));
+                    matcher.appendReplacement(parsedStrBuffer, Matcher.quoteReplacement(expression == null ? Util.EMPTY : expression));
                 }
                 matcher.appendTail(parsedStrBuffer);
                 expressionValues.put(expressionTemplate, recordSameDiff(sameDiff, diffSameWhetherSaveLogger) ? parsedStrBuffer.toString() : expressionTemplate);
@@ -105,7 +105,6 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
     }
 
     private String getDiffFunctionValue(EvaluationContext evaluationContext, AnnotatedElementKey annotatedElementKey, String expression) {
-        LOGGER.info(" {} {} {}", evaluationContext, annotatedElementKey, expression);
         String[] params = parseDiffFunction(expression);
         if (params.length == 1) {
             LOGGER.info("  // TODO 1 {}", params);
@@ -113,9 +112,8 @@ public class LoggerRecordValueParser implements BeanFactoryAware {
             Object sourceObject = loggerRecordExpressionEvaluator.parseExpression(params[0], annotatedElementKey, evaluationContext);
             Object targetObject = loggerRecordExpressionEvaluator.parseExpression(params[1], annotatedElementKey, evaluationContext);
             expression = diffParseFunction.diff(sourceObject, targetObject);
-            LOGGER.info("  // {}", expression);
         }
-        return null;
+        return expression;
     }
 
     private String[] parseDiffFunction(String expression) {

@@ -198,7 +198,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
         List<String> spELTemplates = getSpELTemplates(operation, action);
         String operatorIdFromServiceAndPutTemplate = getOperatorIdFromServiceAndPutTemplate(operation, spELTemplates);
         Map<String, String> expressionValues = processTemplate(spELTemplates, methodExecuteResult, functionNameAndReturnMap);
-//        saveLogger(methodExecuteResult.getMethod(), !flag, operation, operatorIdFromServiceAndPutTemplate, action, expressionValues);
+        saveLogger(methodExecuteResult.getMethod(), !flag, operation, operatorIdFromServiceAndPutTemplate, action, expressionValues);
     }
 
     private void failRecordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
@@ -213,7 +213,7 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     }
 
     private String getOperatorIdFromServiceAndPutTemplate(LoggerRecordOperations operation, List<String> spELTemplates) {
-        String realOperatorId = "";
+        String realOperatorId = Util.EMPTY;
         if (Util.isEmpty(operation.getOperatorId())) {
             realOperatorId = operatorGetService.getUser().getOperatorId();
             if (Util.isEmpty(realOperatorId)) {
