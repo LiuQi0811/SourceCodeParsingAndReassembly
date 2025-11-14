@@ -54,9 +54,9 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
     public LoggerRecordInterceptor loggerRecordInterceptor(LoggerRecordProperties properties) {
-        LOGGER.info(" // TODO ........ {}",properties);
         LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
         loggerRecordInterceptor.setTenant(annotationAttributes.getString("tenant"));
+        loggerRecordInterceptor.setEnrolTransaction(annotationAttributes.getBoolean("enrolTransaction"));
         loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
         loggerRecordInterceptor.setLoggerRecordPerformanceMonitor(loggerRecordPerformanceMonitor());
         return loggerRecordInterceptor;

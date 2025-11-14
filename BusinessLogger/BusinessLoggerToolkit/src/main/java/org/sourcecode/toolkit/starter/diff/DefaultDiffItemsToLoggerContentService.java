@@ -55,7 +55,8 @@ public class DefaultDiffItemsToLoggerContentService implements IDiffItemsToLogge
         }
         DiffLoggerIgnore diffLoggerIgnoreAnnotation = diffNode.getFieldAnnotation(DiffLoggerIgnore.class);
         if (diffLoggerIgnoreAnnotation != null) {
-            LOGGER.info("// TODO diffLoggerIgnoreAnnotation != null ");
+            memorandumHandler(diffNode,diffNodes);
+            return;
         }
         DiffLoggerField diffLoggerFieldAnnotation = diffNode.getFieldAnnotation(DiffLoggerField.class);
         if (annotation == null && diffLoggerFieldAnnotation == null) {

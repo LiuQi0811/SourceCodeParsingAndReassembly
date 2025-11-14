@@ -19,7 +19,6 @@ public class ArrayAccessor implements TypeAwareAccessor, Accessor {
     public ArrayAccessor(final Object value, final IdentityStrategy identityStrategy) {
         this.value = value;
         this.identityStrategy = identityStrategy;
-
     }
 
     @Override
@@ -35,6 +34,7 @@ public class ArrayAccessor implements TypeAwareAccessor, Accessor {
 
     @Override
     public Object get(Object o) {
+        System.out.println(" // TODO ............ GET .....................");
         return null;
     }
 
@@ -45,7 +45,7 @@ public class ArrayAccessor implements TypeAwareAccessor, Accessor {
 
     @Override
     public void unset(Object o) {
-
+        System.out.println(" // TODO ............ UNSET .....................");
     }
 
     @Override

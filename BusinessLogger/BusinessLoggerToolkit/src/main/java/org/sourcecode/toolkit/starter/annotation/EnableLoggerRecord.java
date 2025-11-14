@@ -23,5 +23,7 @@ public @interface EnableLoggerRecord {
 
     AdviceMode mode() default AdviceMode.PROXY;
 
+    boolean enrolTransaction() default false;
+
     int order() default Ordered.LOWEST_PRECEDENCE;
 }

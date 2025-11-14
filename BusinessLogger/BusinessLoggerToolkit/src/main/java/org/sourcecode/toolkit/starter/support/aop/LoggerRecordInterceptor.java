@@ -42,33 +42,26 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     private LoggerRecordOperationSource loggerRecordOperationSource;
     private ILoggerRecordService loggerRecordService;
     private IOperatorGetService operatorGetService;
-
-    public String getTenant() {
-        return tenantId;
-    }
+    private boolean enrolTransaction;
 
     public void setTenant(String tenantId) {
         this.tenantId = tenantId;
-    }
-
-    public ILoggerRecordPerformanceMonitor getLoggerRecordPerformanceMonitor() {
-        return loggerRecordPerformanceMonitor;
     }
 
     public void setLoggerRecordPerformanceMonitor(ILoggerRecordPerformanceMonitor loggerRecordPerformanceMonitor) {
         this.loggerRecordPerformanceMonitor = loggerRecordPerformanceMonitor;
     }
 
-    public LoggerRecordOperationSource getLoggerRecordOperationSource() {
-        return loggerRecordOperationSource;
-    }
-
     public void setLoggerRecordOperationSource(LoggerRecordOperationSource loggerRecordOperationSource) {
         this.loggerRecordOperationSource = loggerRecordOperationSource;
     }
 
-    public void setLoggerRecordService(ILoggerRecordService loggerRecordService) {
-        this.loggerRecordService = loggerRecordService;
+    public void setDiffSameWhetherSaveLogger(boolean diffLogger) {
+        this.diffSameWhetherSaveLogger = diffLogger;
+    }
+
+    public void setEnrolTransaction(boolean enrolTransaction) {
+        this.enrolTransaction = enrolTransaction;
     }
 
     @Override
@@ -170,6 +163,9 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
                 }
             } catch (Exception e) {
                 LOGGER.error("logger record execute exception {}", e);
+                if (enrolTransaction) {
+                    throw e;
+                }
             }
         }
     }
@@ -185,10 +181,16 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
     }
 
     private void successRecordExecute(MethodExecuteResult methodExecuteResult, Map<String, String> functionNameAndReturnMap, LoggerRecordOperations operation) {
-        String action = "";
+        String action = Util.EMPTY;
         boolean flag = true;
         if (!Util.isEmpty(operation.getIsSuccess())) {
-            System.out.println(" !1");
+            String condition = singleProcessTemplate(methodExecuteResult, operation.getIsSuccess(), functionNameAndReturnMap);
+            if (Util.endsWithIgnoreCase(condition, "true")) {
+                action = operation.getSuccessLoggerTemplate();
+            } else {
+                action = operation.getFailLoggerTemplate();
+                flag = false;
+            }
         } else {
             action = operation.getSuccessLoggerTemplate();
         }

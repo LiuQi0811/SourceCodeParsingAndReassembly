@@ -51,6 +51,13 @@ public class LoggerRecordContext {
                 .put(name, value);
     }
 
+    public static void putGlobalVariable(String name, Object value) {
+        if (GLOBAL_VARIABLE_MAP.get() == null) {
+            GLOBAL_VARIABLE_MAP.set(new HashMap<>());
+        }
+        GLOBAL_VARIABLE_MAP.get().put(name, value);
+    }
+
     /**
      * getVariable 从当前线程的上下文栈顶的 Map 中获取指定名称的变量值
      *
