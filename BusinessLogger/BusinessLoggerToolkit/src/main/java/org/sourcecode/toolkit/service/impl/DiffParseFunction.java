@@ -79,6 +79,15 @@ public class DiffParseFunction {
     }
 
     public void addUseEqualsClass(List<String> classList) {
-        LOGGER.info(" {} ", classList);
+        if (classList != null && !classList.isEmpty()) {
+            for (String strClass : classList) {
+                try {
+                    Class<?> aClass = Class.forName(strClass);
+                    COMPARISON_SET.add(aClass);
+                } catch (ClassNotFoundException e) {
+                    LOGGER.warn("Invalid comparison type, className={}", strClass);
+                }
+            }
+        }
     }
 }

@@ -8,6 +8,7 @@ import org.sourcecode.toolkit.starter.support.util.Util;
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.ConcurrentReferenceHashMap;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
@@ -20,6 +21,7 @@ import java.util.*;
  * @Author LiuQi
  */
 public class LoggerRecordOperationSource {
+    private static final Map<Method, Method> INTERFACE_METHOD_CACHE = new ConcurrentReferenceHashMap<>(256);
 
     public Collection<LoggerRecordOperations> computeLoggerRecordOperations(Method method, Class<?> targetClass) {
         if (!Modifier.isPublic(method.getModifiers())) {
@@ -27,12 +29,36 @@ public class LoggerRecordOperationSource {
         }
         Method mostSpecificMethod = ClassUtils.getMostSpecificMethod(method, targetClass);
         mostSpecificMethod = BridgeMethodResolver.findBridgedMethod(mostSpecificMethod);
-        Collection<LoggerRecordOperations> loggerRecordOptions = parseLoggerRecordAnnotations(mostSpecificMethod);
-        Collection<LoggerRecordOperations> loggerRecordsOptions = parseLoggerRecordsAnnotations(mostSpecificMethod);
+        Collection<LoggerRecordOperations> loggerRecordOperations = parseLoggerRecordAnnotations(mostSpecificMethod);
+        Collection<LoggerRecordOperations> loggerRecordsOperations = parseLoggerRecordsAnnotations(mostSpecificMethod);
+        Collection<LoggerRecordOperations> abstractLoggerRecordOperations = parseLoggerRecordAnnotations(getInterfaceMethodIfPossible(method));
+        Collection<LoggerRecordOperations> abstractLoggerRecordsOperations = parseLoggerRecordsAnnotations(getInterfaceMethodIfPossible(method));
         Set<LoggerRecordOperations> result = new HashSet<>();
-        result.addAll(loggerRecordOptions);
-        result.addAll(loggerRecordsOptions);
+        result.addAll(loggerRecordOperations);
+        result.addAll(abstractLoggerRecordOperations);
+        result.addAll(loggerRecordsOperations);
+        result.addAll(abstractLoggerRecordsOperations);
         return result;
+    }
+
+    public static Method getInterfaceMethodIfPossible(Method method) {
+        if (!Modifier.isPublic(method.getModifiers()) || method.getDeclaringClass().isInterface()) {
+            return method;
+        }
+        return INTERFACE_METHOD_CACHE.computeIfAbsent(method, KEY -> {
+            Class<?> declaringClass = KEY.getDeclaringClass();
+            while (declaringClass != null && declaringClass != Object.class) {
+                for (Class<?> declaringClassInterface : declaringClass.getInterfaces()) {
+                    try {
+                        return declaringClassInterface.getMethod(KEY.getName(), KEY.getParameterTypes());
+                    } catch (NoSuchMethodException e) {
+                        // ignore exception
+                    }
+                }
+                declaringClass = declaringClass.getSuperclass();
+            }
+            return KEY;
+        });
     }
 
     private Collection<LoggerRecordOperations> parseLoggerRecordAnnotations(AnnotatedElement annotatedElement) {

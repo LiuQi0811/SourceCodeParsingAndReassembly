@@ -59,7 +59,7 @@ public class ArrayDiffer implements Differ {
             if (comparisonStrategy == null) {
                 compareInternally(_diffNode, instances, identityStrategy);
             } else {
-                LOGGER.info(" // TODO comparisonStrategy is not null");
+                compareUsingComparisonStrategy(_diffNode, instances, comparisonStrategy);
             }
         }
         return _diffNode;
@@ -91,6 +91,11 @@ public class ArrayDiffer implements Differ {
         compareWith(diffNode, instances, addLinkedList, identityStrategy);
         compareWith(diffNode, instances, removeLinkedList, identityStrategy);
         compareWith(diffNode, instances, knownLinkedList, identityStrategy);
+    }
+
+    private void compareUsingComparisonStrategy(final DiffNode diffNode, final Instances instances, final ComparisonStrategy comparisonStrategy) {
+        comparisonStrategy
+                .compare(diffNode, instances.getType(), instances.getWorking(Collection.class), instances.getBase(Collection.class));
     }
 
     private void removeOperate(final Iterable<?> from, final Iterable<?> these, final IdentityStrategy identityStrategy) {

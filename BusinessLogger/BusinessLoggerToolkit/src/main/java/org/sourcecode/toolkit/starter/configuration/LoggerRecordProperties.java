@@ -18,7 +18,8 @@ public class LoggerRecordProperties {
     private String ofWord = "的";
     private String listItemSeparator = "，";
     private String fieldSeparator = "；";
-
+    private Boolean diffLogger = false;
+    private String useEqualsMethod;
 
     private static final String FIELD_PLACEHOLDER = "__fieldName";
     private static final String SOURCE_VALUE_PLACEHOLDER = "__sourceValue";
@@ -57,6 +58,22 @@ public class LoggerRecordProperties {
 
     public void setFieldSeparator(String fieldSeparator) {
         this.fieldSeparator = fieldSeparator;
+    }
+
+    public Boolean getDiffLogger() {
+        return diffLogger;
+    }
+
+    public void setDiffLogger(Boolean diffLogger) {
+        this.diffLogger = diffLogger;
+    }
+
+    public String getUseEqualsMethod() {
+        return useEqualsMethod;
+    }
+
+    public void setUseEqualsMethod(String useEqualsMethod) {
+        this.useEqualsMethod = useEqualsMethod;
     }
 
     public String formatAdd(String fieldName, Object targetValue) {

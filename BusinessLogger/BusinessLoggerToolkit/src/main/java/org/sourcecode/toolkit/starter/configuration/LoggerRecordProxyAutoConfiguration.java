@@ -1,7 +1,6 @@
 package org.sourcecode.toolkit.starter.configuration;
 
 
-import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sourcecode.toolkit.service.*;
@@ -12,6 +11,7 @@ import org.sourcecode.toolkit.starter.diff.IDiffItemsToLoggerContentService;
 import org.sourcecode.toolkit.starter.support.aop.BeanFactoryLoggerRecordAdvisor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordInterceptor;
 import org.sourcecode.toolkit.starter.support.aop.LoggerRecordOperationSource;
+import org.sourcecode.toolkit.starter.support.util.Util;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -21,6 +21,7 @@ import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.type.AnnotationMetadata;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -48,6 +49,7 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
         BeanFactoryLoggerRecordAdvisor beanFactoryLoggerRecordAdvisor = new BeanFactoryLoggerRecordAdvisor();
         beanFactoryLoggerRecordAdvisor.setLoggerRecordOperationSource(loggerRecordOperationSource());
         beanFactoryLoggerRecordAdvisor.setAdvice(loggerRecordInterceptor);
+        beanFactoryLoggerRecordAdvisor.setOrder(annotationAttributes.getNumber("order"));
         return beanFactoryLoggerRecordAdvisor;
     }
 
@@ -57,6 +59,7 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
         LoggerRecordInterceptor loggerRecordInterceptor = new LoggerRecordInterceptor();
         loggerRecordInterceptor.setTenant(annotationAttributes.getString("tenant"));
         loggerRecordInterceptor.setEnrolTransaction(annotationAttributes.getBoolean("enrolTransaction"));
+        loggerRecordInterceptor.setDiffSameWhetherSaveLogger(properties.getDiffLogger());
         loggerRecordInterceptor.setLoggerRecordOperationSource(loggerRecordOperationSource());
         loggerRecordInterceptor.setLoggerRecordPerformanceMonitor(loggerRecordPerformanceMonitor());
         return loggerRecordInterceptor;
@@ -90,7 +93,9 @@ public class LoggerRecordProxyAutoConfiguration implements ImportAware {
         DiffParseFunction diffParseFunction = new DiffParseFunction();
         diffParseFunction.addUseEqualsClass(LocalDateTime.class);
         diffParseFunction.setDiffItemsToLoggerContentService(diffItemsToLoggerContentService);
-        // TODO ...............
+        if (!Util.isEmpty(properties.getUseEqualsMethod())){
+            diffParseFunction.addUseEqualsClass(Arrays.asList(properties.getUseEqualsMethod().split(",")));
+        }
         return diffParseFunction;
     }
 
