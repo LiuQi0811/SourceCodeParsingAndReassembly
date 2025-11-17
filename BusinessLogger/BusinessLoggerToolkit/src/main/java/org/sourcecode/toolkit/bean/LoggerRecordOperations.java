@@ -1,6 +1,8 @@
 package org.sourcecode.toolkit.bean;
 
 
+import java.util.Objects;
+
 /**
  * @ClassName LoggerRecordOperations
  * @Description LoggerRecordOperations
@@ -102,5 +104,17 @@ public class LoggerRecordOperations {
                 ", condition='" + condition + '\'' +
                 ", isSuccess='" + isSuccess + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        LoggerRecordOperations that = (LoggerRecordOperations) o;
+        return Objects.equals(successLoggerTemplate, that.successLoggerTemplate) && Objects.equals(failLoggerTemplate, that.failLoggerTemplate) && Objects.equals(operatorId, that.operatorId) && Objects.equals(type, that.type) && Objects.equals(bizNo, that.bizNo) && Objects.equals(subType, that.subType) && Objects.equals(extra, that.extra) && Objects.equals(condition, that.condition) && Objects.equals(isSuccess, that.isSuccess);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(successLoggerTemplate, failLoggerTemplate, operatorId, type, bizNo, subType, extra, condition, isSuccess);
     }
 }
