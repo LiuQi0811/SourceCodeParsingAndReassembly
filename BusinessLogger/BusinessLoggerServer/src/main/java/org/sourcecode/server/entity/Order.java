@@ -1,6 +1,8 @@
 package org.sourcecode.server.entity;
 
 
+import org.sourcecode.toolkit.starter.annotation.DiffLoggerField;
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -11,14 +13,21 @@ import java.util.List;
  * @Author LiuQi
  */
 public class Order {
+    @DiffLoggerField(name = "订单编号", function = "ORDER")
     private Long orderId;
+    @DiffLoggerField(name = "订单号")
     private String orderNo;
     private String purchaseName;
     private String productName;
+    @DiffLoggerField(name = "创建时间")
     private Date createTime;
+    @DiffLoggerField(name = "创建人")
     private UserInfo creator;
+    @DiffLoggerField(name = "更新人")
     private UserInfo updater;
+    @DiffLoggerField(name = "列表项", function = "ORDER")
     private List<String> items;
+    @DiffLoggerField(name = "拓展信息", function = "extraInfo")
     private String[] extraInfo;
 
     public Long getOrderId() {
@@ -109,7 +118,9 @@ public class Order {
     }
 
     public static class UserInfo {
+        @DiffLoggerField(name = "用户ID")
         private Long userId;
+        @DiffLoggerField(name = "用户名称")
         private String userName;
 
         public Long getUserId() {

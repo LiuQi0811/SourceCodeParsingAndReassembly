@@ -1,4 +1,4 @@
-package org.sourcecode.server.function;
+package org.sourcecode.server.infrastructure.loggerRecord.function;
 
 
 import org.sourcecode.toolkit.service.IParseFunction;
@@ -6,15 +6,15 @@ import org.sourcecode.toolkit.starter.support.util.Util;
 import org.springframework.stereotype.Component;
 
 /**
- * @ClassName ExtraInfoParseFunction
- * @Description ExtraInfoParseFunction
+ * @ClassName OrderParseFunction
+ * @Description OrderParseFunction
  * @Author LiuQi
  */
 @Component
-public class ExtraInfoParseFunction implements IParseFunction {
+public class OrderParseFunction implements IParseFunction {
     @Override
     public String functionName() {
-        return "extraInfo";
+        return "ORDER";
     }
 
     @Override
