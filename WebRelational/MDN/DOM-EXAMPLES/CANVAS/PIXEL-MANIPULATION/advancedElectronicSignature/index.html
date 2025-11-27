@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>advanced Electronic signature INDEX.</title>
+
+    <!-- 全局样式：定义亮色/暗色主题、布局、控件等 -->
+    <style>
+      /* 通用重置和变量定义 */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+    :root {
+      --gap: 32px;  /* 主要间距 */
+      --radius: 12px; /* 圆角大小 */
+      --text: #000; /* 文字颜色（亮色模式）*/
+      --text-light: #666; /* 次要文字颜色 */
+      --bg: #fff;  /* 背景色 */
+      --canvas-bg: #fdfdfd; /* 签名画布背景 */
+      --border-color: rgba(0, 0, 0, 0.08); /* 边框颜色 */
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --shadow-hover: 0 3px 12px rgba(0, 0, 0, 0.08);
+      --placeholder-text: rgba(0, 0, 0, 0.3);
+      --accent-color: #007aff; /* 主题强调色（蓝色）*/
+      --accent-light: rgba(0, 122, 255, 0.1);
+    }
+
+     /* 暗色模式下的颜色变量覆盖 */
+    .dark-mode {
+      --text: #fff;
+      --text-light: #aaa; 
+      --bg: #121212;
+      --canvas-bg: #1e1e1e;
+      --border-color: rgba(255, 255, 255, 0.12);
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      --shadow-hover: 0 3px 12px rgba(0, 0, 0, 0.25);
+      --placeholder-text: rgba(255, 255, 255, 0.4);
+      --accent-color: #0a84ff;
+      --accent-light: rgba(10, 132, 255, 0.2);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: var(--gap);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      transition: background-color 0.3s, color 0.3s; /* 平滑切换主题 */
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    /* 主题切换按钮 */
+    .theme-toggle {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: var(--border-color);
+    }
+
+    h1 {
+      font-weight: 500;
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--text-light);
+      font-size: 15px;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* 签名画布样式 */
+    canvas.signature-area {
+      width: 100%;
+      height: auto;
+      background: var(--canvas-bg);
+      border-radius: var(--radius);
+      display: block;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      transition: box-shadow 0.2s ease;
+    }
+
+    canvas.signature-area:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    /* 输入框样式 */
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-color);
+    }
+
+    input[type="text"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* 控制区域：笔迹粗细、时间戳选项 */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 14px;
+      color: var(--text-light);
+    }
+
+    /* 自定义复选框样式 */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      opacity: 0;
+      position: absolute;
+      width: 0;
+      height: 0;
+    }
+
+    .checkbox-container .checkmark {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .checkbox-container input[type="checkbox"]:checked + .checkmark {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+    }
+
+    .checkbox-container .checkmark::after {
+      content: "✓";
+      color: white;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .checkbox-container input[type="checkbox"]:checked + .checkmark::after {
+      opacity: 1;
+    }
+
+     /* 笔迹粗细控制 */
+    .pen-size-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .pen-size-display {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--bg);
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    /* 滑块样式（笔迹粗细调节） */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border-color);
+      outline: none;
+      position: relative;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input[type="range"]::-moz-range-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 操作按钮组 */
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button {
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--border-color);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* 页面指示器 */
+    .page-indicator {
+      text-align: center;
+      color: var(--text-light);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .page-nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .page-nav button {
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    .batch-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .batch-actions button {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 600px) {
+      .theme-toggle {
+        top: 16px;
+        right: 16px;
+      }
+      body {
+        padding: 24px 16px;
+      }
+      .container {
+        gap: 28px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      canvas.signature-area {
+        height: 180px;
+      }
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .control-group {
+        justify-content: space-between;
+      }
+      .page-nav, .batch-actions {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+  <!-- 引入外部库：jsPDF（生成 PDF）、JSZip（打包多个文件） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <!-- 主题切换按钮 -->
+    <button class="theme-toggle" id="themeToggle" aria-label="切换深色或明亮模式">
+    <!-- 图标由 JS 动态设置 -->
+  </button>
+
+  <div class="container">
+    <header>
+      <h1>请签名</h1>
+      <p class="subtitle">在下方区域手写签名，并输入您的姓名</p>
+    </header>
+
+    <!-- 初始签名预览区（用于引导用户） -->
+    <canvas id="canvas" class="signature-area" width="560" height="200"></canvas>
+
+    <!-- 控制面板：笔迹粗细 & 时间戳开关 -->
+    <div class="controls">
+      <div class="control-group">
+        <label>笔迹粗细:</label>
+        <div class="pen-size-control">
+          <input type="range" id="penSize" min="1" max="10" value="2" />
+          <div class="pen-size-display" id="penSizePreview">2</div>
+          <span id="penSizeValue">2px</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="checkbox-container">
+          <input type="checkbox" id="addTimestamp" checked />
+          <span class="checkmark"></span>
+          添加时间戳
+        </label>
+      </div>
+    </div>
+
+    <!-- 姓名输入框 -->
+    <input type="text" id="nameInput" placeholder="请输入您的姓名" />
+
+    <!-- 多页签名面板（实际签名区域） -->
+    <div>
+      <canvas id="signPanel" class="signature-area" width="560" height="200"></canvas>
+       <!-- 页面指示器 -->
+      <div class="page-indicator">
+        第 <span id="currentPage">1</span> 页，共 <span id="totalPages">1</span> 页
+      </div>
+      <!-- 页面导航按钮 -->
+      <div class="page-nav">
+        <button id="prevPageBtn" disabled>上一页</button>
+        <button id="nextPageBtn" disabled>下一页</button>
+      </div>
+      <!-- 批量导出按钮 -->
+      <div class="batch-actions">
+        <button id="exportAllPngBtn" disabled>批量导出所有 PNG</button>
+      </div>
+      <!-- 主操作按钮 -->
+      <div class="actions">
+        <button id="clearBtn">清除</button>
+        <button id="addPageBtn">添加页面</button>
+        <button id="confirmBtn">确认</button>
+        <button id="exportPngBtn" disabled>保存当前页 PNG</button>
+        <button id="exportPdfBtn" disabled>保存 PDF</button>
+      </div>
+    </div>
+  </div>
+    <script src="index.js"></script>
+</body>
+</html>
