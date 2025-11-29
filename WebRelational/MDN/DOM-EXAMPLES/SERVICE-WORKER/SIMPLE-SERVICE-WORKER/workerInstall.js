@@ -3,7 +3,7 @@
  * @param {string[]} resources - 要缓存的资源 URL 数组
  * @author LiuQi
  */
-const addResourcesToCache = async (resources) => {
+const addResourcesToCache = async(resources) => {
     // 打开名为 "v1.0" 的缓存存储空间
     const cache = await caches.open("v1.0");
     // 使用 addAll() 一次性将所有资源请求并缓存（注意：所有请求必须成功，否则整个操作失败）
@@ -16,7 +16,7 @@ const addResourcesToCache = async (resources) => {
  * @param {Response} response - 对应的响应对象
  * @author LiuQi
  */
-const putInCache = async (request, response) => {
+const putInCache = async(request, response) => {
     const cache = await caches.open("v1.0");
     // 将响应克隆一份后存入缓存（因为 Response 对象只能被消费一次）
     await cache.put(request, response.clone());
@@ -31,7 +31,7 @@ const putInCache = async (request, response) => {
  * @returns {Promise<Response>}
  * @author LiuQi
  */
-const initializeCache = async ({ request, preloadResponsePromise, fallbackUrl }) => {
+const initializeCache = async({ request, preloadResponsePromise, fallbackUrl }) => {
     // 1. 优先检查缓存中是否存在该请求的响应
     const responseFromCache = await caches.match(request);
     if (responseFromCache) {
@@ -72,7 +72,7 @@ const initializeCache = async ({ request, preloadResponsePromise, fallbackUrl })
  * 该功能允许在 Service Worker 激活期间并行发起导航请求，减少延迟
  * @author LiuQi
  */
-const enableNavigationPreload = async () => {
+const enableNavigationPreload = async() => {
     // 检查浏览器是否支持 navigationPreload
     if (self.registration.navigationPreload) {
         await self.registration.navigationPreload.enable();
@@ -97,15 +97,15 @@ self.addEventListener("install", (event) => {
             "./resource/style/index.css",
             "./main.js",
             "./imageList.js",
-            "./resource/images/star-wars-logo.jpg",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/star-wars-logo.jpg",
             // 以下为图库中的具体图片资源（后期通过动态缓存管理，避免硬编码）
-            "./resource/images/02d3a2993b9b53c48aa1016bc52c6cd36b0a80f7.jpg",
-            "./resource/images/0b9dd99e1199b78744e2779aa1dbab47b93402d1.jpg",
-            "./resource/images/0c27a55cc764d0a04c198d06de29399873fd2267.png",
-            "./resource/images/19156cc7f2818c1f2329c572c499f69ae2b80ec4.png",
-            "./resource/images/222ccf5bdd7e3351a8c8e44eb225ac0186f5409e.jpg",
-            "./resource/images/ce5f57e7a7ba0f531f2a6d970057e257106bed2c.jpg",
-            "./resource/images/eeb0f5e8899849d04d78fdc1e85adfe33d42ead1.jpg"
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/02d3a2993b9b53c48aa1016bc52c6cd36b0a80f7.jpg",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/0b9dd99e1199b78744e2779aa1dbab47b93402d1.jpg",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/0c27a55cc764d0a04c198d06de29399873fd2267.png",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/19156cc7f2818c1f2329c572c499f69ae2b80ec4.png",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/222ccf5bdd7e3351a8c8e44eb225ac0186f5409e.jpg",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/ce5f57e7a7ba0f531f2a6d970057e257106bed2c.jpg",
+            "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/eeb0f5e8899849d04d78fdc1e85adfe33d42ead1.jpg"
         ])
     );
 });
@@ -120,7 +120,7 @@ self.addEventListener("fetch", (event) => {
             // 注意：event.preloadResponse 是一个 Promise，代表导航预加载的响应
             preloadResponsePromise: event.preloadResponse,
             // 指定离线兜底图片（建议使用已缓存的资源）
-            fallbackUrl: "./resource/images/02d3a2993b9b53c48aa1016bc52c6cd36b0a80f7.jpg"
+            fallbackUrl: "/WebRelational/MDN/DOM-EXAMPLES/IMAGE/02d3a2993b9b53c48aa1016bc52c6cd36b0a80f7.jpg"
         })
     );
 });
