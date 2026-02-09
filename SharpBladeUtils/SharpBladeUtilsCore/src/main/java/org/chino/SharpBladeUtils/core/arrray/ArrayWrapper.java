@@ -65,6 +65,10 @@ public class ArrayWrapper<A, E> {
         return new ArrayWrapper<>(array);
     }
 
+    public boolean isEmpty() {
+        return 0 == length;
+    }
+
     /**
      * get 安全地获取数组中指定索引位置的元素，支持负数索引（从数组末尾开始计算），并对越界访问返回null而非抛出异常。
      * <p>
@@ -96,5 +100,16 @@ public class ArrayWrapper<A, E> {
         // 通过Java反射API安全地获取数组元素
         // 注意：这里需要进行强制类型转换(E)，由调用方保证类型安全
         return (E) Array.get(array, index);
+    }
+
+    public ArrayWrapper<A, E> insertArray(int index, A arrayToInsert) {
+        final int appendLength = ArrayUtil.length(arrayToInsert);
+        if (0 == appendLength) {
+            return this;
+        }
+        if (isEmpty()) {
+
+        }
+        return null;
     }
 }

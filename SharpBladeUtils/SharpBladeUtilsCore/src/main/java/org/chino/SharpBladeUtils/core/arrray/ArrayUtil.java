@@ -10,10 +10,10 @@ import org.chino.SharpBladeUtils.core.text.StringUtil;
 import org.chino.SharpBladeUtils.core.util.ObjectUtil;
 
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName ArrayUtil
@@ -823,6 +823,19 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         return maxNumber;
     }
 
+    public static <T extends Comparable<? super T>> T min(final T[] numberArray, Comparator<T> comparator) {
+        if (isEmpty(numberArray)) {
+            throw new IllegalArgumentException("Number array must not empty !");
+        }
+        T minNumber = numberArray[0];
+        for (int i = 0; i < numberArray.length; i++) {
+            if (CompareUtil.compare(minNumber, numberArray[i], comparator) > 0) {
+                minNumber = numberArray[i];
+            }
+        }
+        return minNumber;
+    }
+
     /**
      * containsIgnoreCase 检查给定的 CharSequence 数组中是否包含指定的 CharSequence 值，忽略大小写。
      * <p>
@@ -899,6 +912,27 @@ public class ArrayUtil extends PrimitiveArrayUtil {
         }
         // 返回转换后的新数组
         return result;
+    }
+
+    public static <T, R> R[] mapToArray(final T[] array, final Function<? super T, ? extends R> function, final IntFunction<R[]> generator) {
+        return Arrays
+                .stream(array)
+                .map(function)
+                .toArray(generator);
+    }
+
+    public static <T, R> List<R> mapToList(final T[] array, final Function<? super T, ? extends R> function) {
+        return Arrays
+                .stream(array)
+                .map(function)
+                .collect(Collectors.toList());
+    }
+
+    public static <T, R> Set<R> mapToSet(final T[] array, final Function<? super T, ? extends R> function) {
+        return Arrays
+                .stream(array)
+                .map(function)
+                .collect(Collectors.toSet());
     }
 
     /**

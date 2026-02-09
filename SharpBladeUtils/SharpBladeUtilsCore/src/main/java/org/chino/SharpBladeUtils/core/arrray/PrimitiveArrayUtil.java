@@ -1,7 +1,6 @@
 package org.chino.SharpBladeUtils.core.arrray;
 
 
-
 /**
  * @ClassName PrimitiveArrayUtil
  * @Description PrimitiveArrayUtil 原始数组工具
@@ -383,6 +382,45 @@ public class PrimitiveArrayUtil {
         }
         // 返回找到的最大值
         return maxNumber;
+    }
+
+    public static int min(int... numberArray) {
+        if (isEmpty(numberArray)) {
+            throw new IllegalArgumentException("Number array must not empty ! ");
+        }
+        int minNumber = numberArray[0];
+        for (int i = 1; i < numberArray.length; i++) {
+            if (minNumber > numberArray[i]) {
+                minNumber = numberArray[i];
+            }
+        }
+        return minNumber;
+    }
+
+    public static long min(long... numberArray) {
+        if (isEmpty(numberArray)) {
+            throw new IllegalArgumentException("Number array must not empty ! ");
+        }
+        long minNumber = numberArray[0];
+        for (int i = 1; i < numberArray.length; i++) {
+            if (minNumber > numberArray[i]) {
+                minNumber = numberArray[i];
+            }
+        }
+        return minNumber;
+    }
+
+    public static double min(double... numberArray) {
+        if (isEmpty(numberArray)) {
+            throw new IllegalArgumentException("Number array must not empty ! ");
+        }
+        double minNumber = numberArray[0];
+        for (int i = 1; i < numberArray.length; i++) {
+            if (minNumber > numberArray[i]) {
+                minNumber = numberArray[i];
+            }
+        }
+        return minNumber;
     }
 
 
