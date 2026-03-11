@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Scheduling API Pro - 企业级任务调度平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #ecfdf5;
+            --primary-200: #a7f3d0;
+            --primary-500: #10b981;
+            --primary-600: #059669;
+            --primary-700: #047857;
+            --primary-800: #065f46;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #3b82f6;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #047857 0%, #065f46 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(16, 185, 129, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.18rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.25rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.22rem 0.28rem; border-radius: var(--radius-lg); margin-bottom: 0.15rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.08rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.1rem; }
+        .header-title h1 { font-size: 0.5rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.65rem; } }
+        .header-icon { width: 0.85rem; height: 0.85rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.4rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.28rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.08rem; }
+        .header-status { display: flex; align-items: center; gap: 0.04rem; background: rgba(255, 255, 255, 0.1); padding: 0.04rem 0.1rem; border-radius: 99px; font-size: 0.26rem; }
+        .status-dot { width: 0.1rem; height: 0.1rem; border-radius: 50%; background: var(--success-500); }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.04rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.4rem; height: 0.4rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.15rem; left: 0.15rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.04rem 0.08rem; font-size: 0.2rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.1rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.02rem; font-family: monospace; font-size: 0.18rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 22px; padding: 0.08rem 0.04rem; background: transparent; border: none; cursor: pointer; font-size: 0.22rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.02rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 28px; font-size: 0.28rem; padding: 0.1rem 0.18rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.32rem; height: 0.32rem; }
+        .tab-content { display: none; padding: 0.1rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.18rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.12rem; margin-bottom: 0.1rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; padding-bottom: 0.05rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.03rem; }
+        .card-title { font-size: 0.32rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.04rem; }
+        .card-badge { font-size: 0.2rem; padding: 0.02rem 0.05rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.05rem; margin-bottom: 0.1rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.06rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.08rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(16, 185, 129, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.4rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.2rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.01rem; }
+
+        /* Task Display */
+        .task-display { display: flex; align-items: center; justify-content: center; gap: 0.18rem; padding: 0.2rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.1rem; border: 1px solid var(--border-color); }
+        .task-icon { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 4px rgba(16, 185, 129, 0.3); }
+        .task-icon svg { width: 0.55rem; height: 0.55rem; color: white; }
+        .task-info { text-align: left; }
+        .task-status { font-size: 0.35rem; font-weight: 700; color: var(--text-primary); }
+        .task-desc { font-size: 0.25rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.02rem; padding: 0.05rem 0.1rem; border-radius: var(--radius); font-size: 0.22rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.22rem; height: 0.22rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 0.03rem 0.06rem; font-size: 0.2rem; }
+        .btn-lg { padding: 0.08rem 0.16rem; font-size: 0.26rem; }
+
+        /* Demo Buttons */
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.08rem; margin-bottom: 0.1rem; }
+
+        /* Priority Buttons */
+        .priority-btns { display: flex; flex-wrap: wrap; gap: 0.06rem; margin-bottom: 0.1rem; }
+        .priority-btn { padding: 0.06rem 0.12rem; border-radius: var(--radius); font-size: 0.2rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: 2px solid; background: transparent; }
+        .priority-btn.blocking { border-color: var(--error-500); color: var(--error-500); }
+        .priority-btn.blocking:hover { background: var(--error-500); color: white; }
+        .priority-btn.visible { border-color: var(--warning-500); color: var(--warning-500); }
+        .priority-btn.visible:hover { background: var(--warning-500); color: white; }
+        .priority-btn.background { border-color: var(--info-500); color: var(--info-500); }
+        .priority-btn.background:hover { background: var(--info-500); color: white; }
+
+        /* Task Queue */
+        .task-queue { background: var(--bg-tertiary); border-radius: var(--radius); padding: 0.08rem; min-height: 70px; margin-bottom: 0.1rem; }
+        .queue-item { display: flex; align-items: center; gap: 0.06rem; padding: 0.05rem 0.08rem; background: var(--card-bg); border-radius: 2px; margin-bottom: 0.03rem; font-size: 0.2rem; animation: slideIn 0.15s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+        .queue-item:last-child { margin-bottom: 0; }
+        .queue-priority { padding: 0.01rem 0.05rem; border-radius: 2px; font-size: 0.16rem; font-weight: 600; }
+        .queue-priority.blocking { background: var(--error-50); color: var(--error-500); }
+        .queue-priority.visible { background: var(--warning-50); color: var(--warning-500); }
+        .queue-priority.background { background: rgba(59, 130, 246, 0.15); color: var(--info-500); }
+        .queue-name { flex: 1; color: var(--text-primary); }
+        .queue-status { font-size: 0.16rem; color: var(--text-muted); }
+        .queue-status.running { color: var(--success-500); }
+        .queue-status.done { color: var(--primary-500); }
+
+        /* Progress Bar */
+        .progress-container { margin-bottom: 0.1rem; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 0.2rem; color: var(--text-muted); margin-bottom: 0.03rem; }
+        .progress-bar { height: 0.25rem; background: var(--border-color); border-radius: 99px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary-500), var(--primary-600)); border-radius: 99px; transition: width 0.1s; }
+
+        /* Event Log */
+        .event-log { max-height: 80px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.18rem; }
+        .log-item { padding: 0.03rem 0.06rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.04rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-detail { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.1rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2rem; overflow-x: auto; margin: 0.05rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.22rem; }
+        .api-table th, .api-table td { padding: 0.05rem 0.06rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.2rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.01rem 0.05rem; border-radius: 99px; font-size: 0.18rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.03rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.15rem; right: 0.15rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.04rem; max-width: calc(100vw - 0.3rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.18rem; right: 0.18rem; max-width: 100px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.06rem; padding: 0.08rem 0.1rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: toastIn 0.2s ease; border: 1px solid var(--border-color); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.3rem; height: 0.3rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.26rem; }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.03rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.04rem 0.06rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.22rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.2rem; }
+
+        /* Benchmark Result */
+        .benchmark-result { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.06rem; margin-top: 0.08rem; }
+        .benchmark-item { background: var(--bg-tertiary); border-radius: var(--radius); padding: 0.08rem; text-align: center; }
+        .benchmark-label { font-size: 0.18rem; color: var(--text-muted); margin-bottom: 0.02rem; }
+        .benchmark-value { font-size: 0.32rem; font-weight: 700; color: var(--primary-600); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">⚡</div>
+                        <h1>Task Scheduling API</h1>
+                    </div>
+                    <p class="header-subtitle">优先级调度 | 智能任务队列管理</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot"></span><span>API 支持</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>R</kbd> 运行</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="priority"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg><span>优先级</span></button>
+                <button class="tab-btn" data-tab="benchmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg><span>测试</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="task-display">
+                    <div class="task-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+                    <div class="task-info"><div class="task-status">Scheduler API</div><div class="task-desc">优先级任务调度，优化应用性能</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="taskCount">0</div><div class="stat-label">任务数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="completedCount">0</div><div class="stat-label">已完成</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgTime">0ms</div><div class="stat-label">平均耗时</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">添加任务</h3></div>
+                    <div class="priority-btns">
+                        <button class="priority-btn blocking" data-p="user-blocking">🔴 blocking</button>
+                        <button class="priority-btn visible" data-p="user-visible">🟡 visible</button>
+                        <button class="priority-btn background" data-p="background">🔵 background</button>
+                    </div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" id="runBtn">运行队列</button>
+                        <button class="btn btn-secondary btn-lg" id="clearBtn">清空</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">任务队列</h3><span class="card-badge badge-info" id="queueStatus">等待中</span></div>
+                    <div class="task-queue" id="queue"><div style="padding: 0.15rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">点击上方按钮添加任务</div></div>
+                    <div class="progress-container">
+                        <div class="progress-label"><span>进度</span><span id="progressText">0%</span></div>
+                        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Priority Tab -->
+            <div class="tab-content" id="tab-priority">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">优先级说明</h3></div>
+                    <div class="info-list">
+                        <div class="info-item"><span class="info-label">🔴 user-blocking</span><span class="info-value">最高优先级</span></div>
+                        <div class="info-item"><span class="info-label">🟡 user-visible</span><span class="info-value">中等优先级</span></div>
+                        <div class="info-item"><span class="info-label">🔵 background</span><span class="info-value">最低优先级</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">优先级对比</h3></div>
+                    <div class="demo-buttons"><button class="btn btn-primary" id="compareBtn">运行对比测试</button></div>
+                    <div class="event-log" id="priorityLog" style="margin-top: 0.08rem;"><div style="padding: 0.1rem; text-align: center; color: var(--text-muted); font-size: 0.18rem;">点击按钮开始测试</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">使用场景</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>优先级</th><th>场景</th></tr></thead><tbody>
+                            <tr><td><code>user-blocking</code></td><td>用户输入、动画</td></tr>
+                            <tr><td><code>user-visible</code></td><td>UI 更新、渲染</td></tr>
+                            <tr><td><code>background</code></td><td>数据分析、日志</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Benchmark Tab -->
+            <div class="tab-content" id="tab-benchmark">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">性能基准测试</h3></div>
+                    <div class="demo-buttons"><button class="btn btn-primary btn-lg" id="benchBtn">运行基准测试</button></div>
+                    <div class="benchmark-result" id="benchResult" style="display: none;">
+                        <div class="benchmark-item"><div class="benchmark-label">scheduler</div><div class="benchmark-value" id="schedulerTime">--</div></div>
+                        <div class="benchmark-item"><div class="benchmark-label">setTimeout</div><div class="benchmark-value" id="setTimeoutTime">--</div></div>
+                        <div class="benchmark-item"><div class="benchmark-label">rAF</div><div class="benchmark-value" id="rafTime">--</div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">yield() 演示</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-secondary" id="noYieldBtn">不使用 yield</button>
+                        <button class="btn btn-primary" id="yieldBtn">使用 yield</button>
+                    </div>
+                    <div class="progress-container" style="margin-top: 0.08rem;">
+                        <div class="progress-label"><span>UI 响应性</span><span id="yieldStatus">等待测试</span></div>
+                        <div class="progress-bar"><div class="progress-fill" id="yieldProgress" style="width: 0%;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshBtn">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>scheduler.postTask()</code></td><td>发布任务</td></tr>
+                            <tr><td><code>scheduler.yield()</code></td><td>让出控制权</td></tr>
+                            <tr><td><code>TaskController</code></td><td>任务控制器</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="comment">// 发布任务</span>
+scheduler.<span class="function">postTask</span>(() => {
+  console.<span class="function">log</span>(<span class="string">'高优先级'</span>);
+}, { priority: <span class="string">'user-blocking'</span> });
+
+<span class="comment">// 让出控制权</span>
+<span class="keyword">async function</span> <span class="function">work</span>() {
+  <span class="keyword">for</span> (<span class="keyword">let</span> i = 0; i < 100; i++) {
+    <span class="comment">// 处理工作</span>
+    <span class="keyword">await</span> scheduler.<span class="function">yield</span>();
+  }
+}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody>
+                            <tr><td>Chrome</td><td>94+</td></tr>
+                            <tr><td>Edge</td><td>94+</td></tr>
+                            <tr><td>Firefox</td><td>不支持</td></tr>
+                            <tr><td>Safari</td><td>不支持</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = { theme: 'light', tasks: [], done: 0, times: [], running: false };
+        const hasScheduler = 'scheduler' in window;
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('scheduler-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('scheduler-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toasts'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-content"><div class="toast-title">${title}</div></div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'toastIn 0.2s ease reverse'; setTimeout(() => t.remove(), 200); }, 800);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Scheduler ====================
+        const Q = {
+            init() {
+                const el = document.getElementById('apiSupport');
+                el.textContent = hasScheduler ? '支持' : '不支持';
+                el.style.color = hasScheduler ? 'var(--success-500)' : 'var(--error-500)';
+
+                document.querySelectorAll('.priority-btn').forEach(b => b.addEventListener('click', () => this.add(b.dataset.p)));
+                document.getElementById('runBtn').addEventListener('click', () => this.run());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clear());
+                document.getElementById('compareBtn').addEventListener('click', () => this.compare());
+                document.getElementById('benchBtn').addEventListener('click', () => this.bench());
+                document.getElementById('noYieldBtn').addEventListener('click', () => this.yieldTest(false));
+                document.getElementById('yieldBtn').addEventListener('click', () => this.yieldTest(true));
+            },
+
+            add(priority) {
+                S.tasks.push({ id: Date.now(), priority, name: `任务 ${S.tasks.length + 1}`, status: 'pending' });
+                this.render();
+                document.getElementById('taskCount').textContent = S.tasks.length;
+                toast('info', `已添加 ${priority.split('-')[1]}`);
+            },
+
+            render() {
+                const q = document.getElementById('queue');
+                if (S.tasks.length === 0) {
+                    q.innerHTML = '<div style="padding: 0.15rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">点击上方按钮添加任务</div>';
+                    return;
+                }
+                q.innerHTML = S.tasks.map(t => `
+                    <div class="queue-item">
+                        <span class="queue-priority ${t.priority.split('-')[1]}">${t.priority.split('-')[1]}</span>
+                        <span class="queue-name">${t.name}</span>
+                        <span class="queue-status ${t.status}">${t.status === 'pending' ? '等待' : t.status === 'running' ? '运行' : '完成'}</span>
+                    </div>
+                `).join('');
+            },
+
+            async run() {
+                if (S.running || S.tasks.length === 0) { if (S.tasks.length === 0) toast('error', '请先添加任务'); return; }
+
+                S.running = true;
+                S.done = 0;
+                document.getElementById('queueStatus').textContent = '运行中';
+                document.getElementById('queueStatus').className = 'card-badge badge-warning';
+
+                for (const t of S.tasks) {
+                    t.status = 'running';
+                    this.render();
+
+                    const start = performance.now();
+                    if (hasScheduler) {
+                        await scheduler.postTask(() => { let s = 0; for (let i = 0; i < 100000; i++) s += i; }, { priority: t.priority });
+                    } else {
+                        await new Promise(r => setTimeout(r, 10));
+                    }
+                    S.times.push(performance.now() - start);
+
+                    t.status = 'done';
+                    S.done++;
+                    this.render();
+                    this.progress(S.done / S.tasks.length * 100);
+                }
+
+                S.running = false;
+                document.getElementById('queueStatus').textContent = '完成';
+                document.getElementById('queueStatus').className = 'card-badge badge-success';
+                document.getElementById('completedCount').textContent = S.done;
+                document.getElementById('avgTime').textContent = (S.times.reduce((a, b) => a + b, 0) / S.times.length).toFixed(1) + 'ms';
+                toast('success', '所有任务完成');
+            },
+
+            progress(p) {
+                document.getElementById('progressFill').style.width = p + '%';
+                document.getElementById('progressText').textContent = Math.round(p) + '%';
+            },
+
+            clear() {
+                S.tasks = []; S.done = 0; S.times = []; S.running = false;
+                this.render(); this.progress(0);
+                document.getElementById('taskCount').textContent = '0';
+                document.getElementById('completedCount').textContent = '0';
+                document.getElementById('avgTime').textContent = '0ms';
+                document.getElementById('queueStatus').textContent = '等待中';
+                document.getElementById('queueStatus').className = 'card-badge badge-info';
+                toast('info', '已清空');
+            },
+
+            async compare() {
+                if (!hasScheduler) { toast('error', '浏览器不支持'); return; }
+                const log = document.getElementById('priorityLog');
+                log.innerHTML = '';
+                const add = (text) => log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-detail">${text}</span></div>`);
+
+                add('添加 background');
+                scheduler.postTask(() => add('✅ background 执行'), { priority: 'background' });
+                add('添加 visible');
+                scheduler.postTask(() => add('✅ visible 执行'), { priority: 'user-visible' });
+                add('添加 blocking');
+                scheduler.postTask(() => add('✅ blocking 执行'), { priority: 'user-blocking' });
+                toast('info', '查看执行顺序');
+            },
+
+            async bench() {
+                document.getElementById('benchResult').style.display = 'grid';
+                toast('info', '测试中...');
+                const n = 50;
+
+                let start = performance.now();
+                if (hasScheduler) for (let i = 0; i < n; i++) await scheduler.postTask(() => {}, { priority: 'background' });
+                document.getElementById('schedulerTime').textContent = (performance.now() - start).toFixed(0) + 'ms';
+
+                start = performance.now();
+                for (let i = 0; i < n; i++) await new Promise(r => setTimeout(r, 0));
+                document.getElementById('setTimeoutTime').textContent = (performance.now() - start).toFixed(0) + 'ms';
+
+                start = performance.now();
+                for (let i = 0; i < n; i++) await new Promise(r => requestAnimationFrame(r));
+                document.getElementById('rafTime').textContent = (performance.now() - start).toFixed(0) + 'ms';
+
+                toast('success', '测试完成');
+            },
+
+            async yieldTest(useYield) {
+                const p = document.getElementById('yieldProgress');
+                const s = document.getElementById('yieldStatus');
+                s.textContent = useYield ? '使用 yield...' : '不使用 yield...';
+                p.style.width = '0%';
+
+                const start = performance.now();
+                for (let i = 0; i <= 100; i++) {
+                    let sum = 0; for (let j = 0; j < 50000; j++) sum += j;
+                    p.style.width = i + '%';
+                    if (useYield && hasScheduler) await scheduler.yield();
+                }
+                s.textContent = `完成 (${(performance.now() - start).toFixed(0)}ms)`;
+                toast('success', useYield ? 'UI 保持响应' : 'UI 可能卡顿');
+            }
+        };
+
+        // ==================== API ====================
+        const A = {
+            render() {
+                const apis = [
+                    { name: 'scheduler.postTask()', type: '方法', desc: '发布任务', ok: hasScheduler && 'postTask' in scheduler },
+                    { name: 'scheduler.yield()', type: '方法', desc: '让出控制权', ok: hasScheduler && 'yield' in scheduler },
+                    { name: 'TaskController', type: '对象', desc: '任务控制器', ok: 'TaskController' in window },
+                ];
+                document.getElementById('apiTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); }
+            if (e.key.toLowerCase() === 'r' && !e.ctrlKey) { e.preventDefault(); Q.run(); }
+        });
+
+        document.getElementById('themeToggle').addEventListener('click', () => T.toggle());
+        document.getElementById('refreshBtn').addEventListener('click', () => { A.render(); toast('success', '已刷新'); });
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); Q.init(); A.render(); });
+    </script>
+</body>
+</html>
