@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodic Background Sync API Pro - 企业级后台同步平台</title>
+    <style>
+        /* ==================== CSS Reset & Variables ==================== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            /* Primary Colors - Indigo Theme */
+            --primary-50: #eef2ff;
+            --primary-100: #e0e7ff;
+            --primary-200: #c7d2fe;
+            --primary-300: #a5b4fc;
+            --primary-400: #818cf8;
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --primary-700: #4338ca;
+            --primary-800: #3730a3;
+            --primary-900: #312e81;
+
+            /* Neutral Colors */
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+
+            /* Status Colors */
+            --success-500: #22c55e;
+            --success-600: #16a34a;
+            --warning-500: #f59e0b;
+            --warning-600: #d97706;
+            --error-500: #ef4444;
+            --error-600: #dc2626;
+            --info-500: #3b82f6;
+
+            /* Theme Variables */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+
+            /* Shadows */
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+            /* Border Radius */
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+
+            /* Transitions */
+            --transition: 200ms ease;
+        }
+
+        /* Dark Mode */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #3730a3 0%, #312e81 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+            --primary-50: rgba(99, 102, 241, 0.15);
+        }
+
+        /* ==================== Base Styles ==================== */
+        html { font-size: 16px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color var(--transition), color var(--transition);
+        }
+
+        /* ==================== Layout ==================== */
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.35rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.5rem; } }
+
+        /* ==================== Header ==================== */
+        .app-header {
+            background: var(--header-bg);
+            color: white;
+            padding: 0.5rem 0.6rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 0.35rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .header-content { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+
+        .header-title { display: flex; align-items: center; gap: 0.3rem; }
+        .header-title h1 { font-size: 0.75rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.9rem; } }
+
+        .header-icon {
+            width: 1.3rem;
+            height: 1.3rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+        }
+
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.5rem; }
+        @media (min-width: 768px) { .header-subtitle { font-size: 0.6rem; } }
+
+        .header-actions { display: flex; align-items: center; gap: 0.25rem; }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 0.12rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.12rem 0.3rem;
+            border-radius: 99px;
+            font-size: 0.5rem;
+        }
+
+        .status-dot {
+            width: 0.25rem;
+            height: 0.25rem;
+            border-radius: 50%;
+            background: var(--success-500);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error { background: var(--error-500); animation: none; }
+        .status-dot.warning { background: var(--warning-500); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            cursor: pointer;
+            padding: 0.12rem;
+            border-radius: var(--radius);
+            color: white;
+            display: flex;
+        }
+
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.65rem; height: 0.65rem; }
+
+        /* ==================== Shortcuts Panel ==================== */
+        .shortcuts-panel {
+            position: fixed;
+            bottom: 0.35rem;
+            left: 0.35rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0.12rem 0.25rem;
+            font-size: 0.4rem;
+            color: var(--text-muted);
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            display: none;
+        }
+
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.3rem; } }
+
+        .shortcuts-panel kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 0.02rem 0.06rem;
+            font-family: monospace;
+            font-size: 0.35rem;
+        }
+
+        /* ==================== Tabs ==================== */
+        .tabs-container {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .tabs-nav {
+            display: flex;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 38px;
+            padding: 0.25rem 0.12rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.4rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all var(--transition);
+            position: relative;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.06rem;
+        }
+
+        @media (min-width: 640px) {
+            .tab-btn { flex-direction: row; min-width: 50px; font-size: 0.5rem; padding: 0.3rem 0.4rem; }
+        }
+
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-600);
+        }
+
+        .tab-btn svg { width: 0.55rem; height: 0.55rem; }
+
+        .tab-content { display: none; padding: 0.3rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.4rem; } }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ==================== Cards ==================== */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0.35rem;
+            margin-bottom: 0.3rem;
+        }
+
+        @media (min-width: 768px) { .card { padding: 0.4rem; } }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+            padding-bottom: 0.2rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 0.1rem;
+        }
+
+        .card-title { font-size: 0.55rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.12rem; }
+
+        .card-badge { font-size: 0.35rem; padding: 0.05rem 0.15rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-600); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-600); }
+        .badge-error { background: var(--error-50); color: var(--error-600); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* ==================== Stats Grid ==================== */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.15rem; margin-bottom: 0.3rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.2rem; } }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%);
+            border: 1px solid var(--primary-100);
+            border-radius: var(--radius);
+            padding: 0.25rem;
+            text-align: center;
+            transition: all var(--transition);
+        }
+
+        [data-theme="dark"] .stat-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, var(--card-bg) 100%);
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.65rem; font-weight: 700; color: var(--primary-600); }
+        @media (min-width: 768px) { .stat-value { font-size: 0.75rem; } }
+        .stat-label { font-size: 0.35rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.02rem; }
+
+        /* ==================== Sync Status Display ==================== */
+        .sync-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.5rem;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%);
+            border-radius: var(--radius);
+            margin-bottom: 0.3rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .sync-icon {
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .sync-icon.active { animation: rotate 1.5s linear infinite; }
+        .sync-icon svg { width: 1.1rem; height: 1.1rem; color: white; }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .sync-info { text-align: left; }
+        .sync-status { font-size: 0.6rem; font-weight: 700; color: var(--text-primary); }
+        .sync-desc { font-size: 0.45rem; color: var(--text-muted); }
+
+        /* ==================== Buttons ==================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.08rem;
+            padding: 0.15rem 0.3rem;
+            border-radius: var(--radius);
+            font-size: 0.45rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: none;
+            white-space: nowrap;
+        }
+
+        .btn svg { width: 0.45rem; height: 0.45rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-success { background: var(--success-500); color: white; }
+        .btn-danger { background: var(--error-500); color: white; }
+        .btn-sm { padding: 0.1rem 0.2rem; font-size: 0.4rem; }
+        .btn-lg { padding: 0.25rem 0.5rem; font-size: 0.5rem; }
+
+        /* ==================== Form Elements ==================== */
+        .form-group { margin-bottom: 0.15rem; }
+        .form-label { display: block; font-size: 0.45rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.06rem; }
+        .form-input { width: 100%; padding: 0.15rem 0.2rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.45rem; background: var(--card-bg); color: var(--text-primary); }
+        .form-input:focus { outline: none; border-color: var(--primary-500); }
+        select.form-input { cursor: pointer; }
+        .form-row { display: flex; gap: 0.15rem; }
+        .form-row .form-group { flex: 1; }
+
+        /* ==================== Interval Selector ==================== */
+        .interval-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.1rem; margin-bottom: 0.2rem; }
+
+        .interval-option {
+            padding: 0.2rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .interval-option:hover { border-color: var(--primary-300); }
+        .interval-option.selected { border-color: var(--primary-500); background: var(--primary-50); }
+        [data-theme="dark"] .interval-option.selected { background: rgba(99, 102, 241, 0.15); }
+        .interval-value { font-size: 0.5rem; font-weight: 600; color: var(--text-primary); }
+        .interval-label { font-size: 0.35rem; color: var(--text-muted); }
+
+        /* ==================== Sync Log ==================== */
+        .sync-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .log-item {
+            padding: 0.12rem 0.2rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.4rem;
+            display: flex;
+            gap: 0.12rem;
+            align-items: flex-start;
+        }
+
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); font-family: monospace; font-size: 0.35rem; white-space: nowrap; }
+
+        .log-status {
+            font-weight: 600;
+            padding: 0.02rem 0.1rem;
+            border-radius: 2px;
+            font-size: 0.3rem;
+        }
+
+        .log-status.success { background: var(--success-50); color: var(--success-600); }
+        .log-status.error { background: var(--error-50); color: var(--error-600); }
+        .log-status.pending { background: var(--warning-50); color: var(--warning-600); }
+
+        .log-detail { flex: 1; color: var(--text-secondary); }
+
+        /* ==================== Requirement Checklist ==================== */
+        .checklist { display: flex; flex-direction: column; gap: 0.1rem; }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            padding: 0.15rem 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.45rem;
+        }
+
+        .checklist-icon {
+            width: 0.7rem;
+            height: 0.7rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.35rem;
+        }
+
+        .checklist-icon.success { background: var(--success-500); color: white; }
+        .checklist-icon.error { background: var(--error-500); color: white; }
+        .checklist-text { flex: 1; color: var(--text-secondary); }
+        .checklist-text.success { color: var(--text-primary); }
+
+        /* ==================== Code Block ==================== */
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 0.3rem;
+            border-radius: var(--radius);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.4rem;
+            overflow-x: auto;
+            margin: 0.15rem 0;
+            line-height: 1.5;
+        }
+
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .number { color: #f78c6c; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+        .code-block .property { color: #ffcb6b; }
+
+        /* ==================== API Table ==================== */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.45rem; }
+
+        .api-table th, .api-table td {
+            padding: 0.15rem 0.2rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .api-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            font-size: 0.4rem;
+        }
+
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+
+        .api-status {
+            display: inline-flex;
+            padding: 0.04rem 0.15rem;
+            border-radius: 99px;
+            font-size: 0.35rem;
+            font-weight: 500;
+        }
+
+        .api-status.supported { background: var(--success-50); color: var(--success-600); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-600); }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 0.02rem 0.1rem;
+            border-radius: 2px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.4em;
+            color: var(--primary-600);
+        }
+
+        /* ==================== Toast ==================== */
+        .toast-container {
+            position: fixed;
+            bottom: 0.35rem;
+            right: 0.35rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.12rem;
+            max-width: calc(100vw - 0.7rem);
+        }
+
+        @media (min-width: 768px) { .toast-container { bottom: 0.4rem; right: 0.4rem; max-width: 200px; } }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.2rem;
+            padding: 0.25rem 0.3rem;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-warning { border-left: 2px solid var(--warning-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+
+        .toast-icon { width: 0.55rem; height: 0.55rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.5rem; }
+        .toast-message { font-size: 0.4rem; color: var(--text-secondary); }
+
+        /* ==================== Empty State ==================== */
+        .empty-state { text-align: center; padding: 0.5rem 0.3rem; color: var(--text-muted); }
+        .empty-state h3 { font-size: 0.5rem; font-weight: 600; color: var(--text-secondary); }
+
+        /* ==================== Info List ==================== */
+        .info-list { display: flex; flex-direction: column; gap: 0.1rem; }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.12rem 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.45rem;
+        }
+
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.4rem; }
+
+        /* ==================== Network Status ==================== */
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+            padding: 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            margin-bottom: 0.2rem;
+        }
+
+        .network-indicator {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: var(--success-500);
+        }
+
+        .network-indicator.offline { background: var(--error-500); }
+
+        .network-info { flex: 1; }
+        .network-type { font-size: 0.5rem; font-weight: 600; color: var(--text-primary); }
+        .network-detail { font-size: 0.4rem; color: var(--text-muted); }
+
+        /* ==================== Countdown ==================== */
+        .countdown {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.3rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            margin-bottom: 0.2rem;
+        }
+
+        .countdown-value { font-size: 0.9rem; font-weight: 700; color: var(--primary-600); font-family: monospace; }
+        .countdown-label { font-size: 0.45rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">🔄</div>
+                        <h1>Periodic Background Sync API</h1>
+                    </div>
+                    <p class="header-subtitle">后台定期同步 | 离线优先、智能更新</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                        </svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </button>
+                    <div class="header-status" id="headerStatus">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">检测中</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts Panel -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>R</kbd> 刷新</span>
+            <span><kbd>S</kbd> 同步</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="overview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                    <span>概览</span>
+                </button>
+                <button class="tab-btn" data-tab="config">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                    </svg>
+                    <span>配置</span>
+                </button>
+                <button class="tab-btn" data-tab="history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>历史</span>
+                </button>
+                <button class="tab-btn" data-tab="sw">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    <span>SW</span>
+                </button>
+                <button class="tab-btn" data-tab="api">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 18 22 12 16 6"/>
+                        <polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                    <span>API</span>
+                </button>
+            </nav>
+
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="tab-overview">
+                <div class="sync-display">
+                    <div class="sync-icon" id="syncIcon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            <path d="M9 12l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <div class="sync-info">
+                        <div class="sync-status" id="syncStatus">检测 API 支持</div>
+                        <div class="sync-desc" id="syncDesc">正在检查浏览器支持状态...</div>
+                    </div>
+                </div>
+
+                <!-- Network Status -->
+                <div class="network-status" id="networkStatus">
+                    <div class="network-indicator" id="networkIndicator"></div>
+                    <div class="network-info">
+                        <div class="network-type" id="networkType">在线</div>
+                        <div class="network-detail" id="networkDetail">检测网络状态...</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalSyncs">0</div>
+                        <div class="stat-label">总同步</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="successSyncs">0</div>
+                        <div class="stat-label">成功</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="failedSyncs">0</div>
+                        <div class="stat-label">失败</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="lastSync">--</div>
+                        <div class="stat-label">上次同步</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">使用前提条件</h3>
+                    </div>
+                    <div class="checklist" id="requirementsList"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">API 简介</h3>
+                    </div>
+                    <p style="font-size: 0.45rem; color: var(--text-secondary); margin-bottom: 0.15rem;">
+                        Periodic Background Sync API 允许 PWA 在后台定期同步数据，即使用户未打开页面。
+                    </p>
+                    <div class="code-block">
+<span class="comment">// 注册后台同步</span>
+<span class="keyword">const</span> reg = <span class="keyword">await</span> navigator.serviceWorker.ready;
+<span class="keyword">await</span> reg.periodicSync.<span class="function">register</span>(<span class="string">'sync'</span>, {
+  <span class="property">minInterval</span>: <span class="number">24 * 60 * 60 * 1000</span>
+});
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div class="tab-content" id="tab-config">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">同步间隔设置</h3>
+                    </div>
+                    <div class="interval-selector" id="intervalSelector">
+                        <div class="interval-option" data-interval="3600000">
+                            <div class="interval-value">1小时</div>
+                            <div class="interval-label">频繁</div>
+                        </div>
+                        <div class="interval-option selected" data-interval="21600000">
+                            <div class="interval-value">6小时</div>
+                            <div class="interval-label">推荐</div>
+                        </div>
+                        <div class="interval-option" data-interval="43200000">
+                            <div class="interval-value">12小时</div>
+                            <div class="interval-label">适中</div>
+                        </div>
+                        <div class="interval-option" data-interval="86400000">
+                            <div class="interval-value">24小时</div>
+                            <div class="interval-label">每日</div>
+                        </div>
+                        <div class="interval-option" data-interval="172800000">
+                            <div class="interval-value">2天</div>
+                            <div class="interval-label">较少</div>
+                        </div>
+                        <div class="interval-option" data-interval="604800000">
+                            <div class="interval-value">每周</div>
+                            <div class="interval-label">最少</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">同步标签配置</h3>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">标签名称</label>
+                        <input type="text" class="form-input" id="syncTag" value="content-sync">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">最小间隔 (ms)</label>
+                            <input type="number" class="form-input" id="minInterval" value="21600000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">网络状态</label>
+                            <select class="form-input" id="networkState">
+                                <option value="any">任何网络</option>
+                                <option value="unmetered">非计费网络</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.15rem; margin-top: 0.15rem;">
+                        <button class="btn btn-primary btn-lg" id="registerSync" style="flex: 1;">注册同步</button>
+                        <button class="btn btn-danger btn-lg" id="unregisterSync">注销</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">已注册的同步</h3>
+                        <button class="btn btn-secondary btn-sm" id="refreshTags">刷新</button>
+                    </div>
+                    <div class="info-list" id="registeredTags"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">模拟同步</h3>
+                    </div>
+                    <button class="btn btn-success btn-lg" id="triggerSync" style="width: 100%;">立即同步</button>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="tab-history">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">同步历史</h3>
+                        <button class="btn btn-secondary btn-sm" id="clearHistory">清空</button>
+                    </div>
+                    <div class="sync-log" id="syncLog">
+                        <div class="empty-state"><h3>暂无同步记录</h3></div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyTotal">0</div>
+                        <div class="stat-label">总次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historySuccess">0</div>
+                        <div class="stat-label">成功</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyFailed">0</div>
+                        <div class="stat-label">失败</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyAvg">--</div>
+                        <div class="stat-label">平均耗时</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Worker Tab -->
+            <div class="tab-content" id="tab-sw">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Service Worker 状态</h3>
+                        <span class="card-badge badge-info" id="swStatus">检测中</span>
+                    </div>
+                    <div class="info-list" id="swInfo"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">SW 代码示例</h3>
+                    </div>
+                    <div class="code-block">
+<span class="comment">// service-worker.js</span>
+self.<span class="function">addEventListener</span>(<span class="string">'periodicsync'</span>, e => {
+  <span class="keyword">if</span> (e.tag === <span class="string">'content-sync'</span>) {
+    e.<span class="function">waitUntil</span>(<span class="function">doSync</span>());
+  }
+});
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">manifest.json</h3>
+                    </div>
+                    <div class="code-block">
+{
+  <span class="property">"permissions"</span>: [<span class="string">"periodic-background-sync"</span>]
+}
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">API 支持检测</h3>
+                        <button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead>
+                            <tbody id="apiSupportTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">PeriodicSyncManager 方法</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>register(tag, options)</code></td><td>注册定期同步</td></tr>
+                                <tr><td><code>unregister(tag)</code></td><td>注销同步</td></tr>
+                                <tr><td><code>getTags()</code></td><td>获取所有标签</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">浏览器兼容性</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>浏览器</th><th>版本</th></tr></thead>
+                            <tbody>
+                                <tr><td>Chrome</td><td>80+</td></tr>
+                                <tr><td>Edge</td><td>80+</td></tr>
+                                <tr><td>Firefox</td><td>不支持</td></tr>
+                                <tr><td>Safari</td><td>不支持</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Application State ====================
+        const AppState = {
+            theme: 'light',
+            isSupported: false,
+            swRegistration: null,
+            syncHistory: [],
+            selectedInterval: 21600000
+        };
+
+        // ==================== Utility Functions ====================
+        const Utils = {
+            formatTime(date = new Date()) {
+                return date.toLocaleTimeString('zh-CN', { hour12: false });
+            },
+            formatDuration(ms) {
+                if (ms < 1000) return ms + 'ms';
+                if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+                return (ms / 60000).toFixed(1) + 'm';
+            }
+        };
+
+        // ==================== Theme Management ====================
+        const ThemeManager = {
+            init() {
+                const saved = localStorage.getItem('pbs-api-theme');
+                if (saved) AppState.theme = saved;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) AppState.theme = 'dark';
+                this.apply();
+            },
+            toggle() {
+                AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+                localStorage.setItem('pbs-api-theme', AppState.theme);
+                this.apply();
+            },
+            apply() {
+                document.documentElement.setAttribute('data-theme', AppState.theme);
+                document.getElementById('themeIconLight').style.display = AppState.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = AppState.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast Notifications ====================
+        function showToast(type, title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icons = {
+                success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
+                info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+            };
+
+            toast.innerHTML = `${icons[type]}<div class="toast-content"><div class="toast-title">${title}</div>${message ? `<div class="toast-message">${message}</div>` : ''}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }, 2000);
+        }
+
+        // ==================== Tab Navigation ====================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ==================== Network Status ====================
+        const NetworkManager = {
+            init() {
+                this.update();
+                window.addEventListener('online', () => this.update());
+                window.addEventListener('offline', () => this.update());
+                
+                // Network Information API
+                if ('connection' in navigator) {
+                    navigator.connection.addEventListener('change', () => this.update());
+                }
+            },
+            update() {
+                const indicator = document.getElementById('networkIndicator');
+                const type = document.getElementById('networkType');
+                const detail = document.getElementById('networkDetail');
+                
+                const online = navigator.onLine;
+                indicator.classList.toggle('offline', !online);
+                type.textContent = online ? '在线' : '离线';
+                
+                if (online && 'connection' in navigator) {
+                    const conn = navigator.connection;
+                    detail.textContent = `${conn.effectiveType || '未知'} ${conn.downlink ? conn.downlink + 'Mbps' : ''}`;
+                } else {
+                    detail.textContent = online ? '网络正常' : '请检查网络连接';
+                }
+            }
+        };
+
+        // ==================== Periodic Background Sync API ====================
+        const PBSApi = {
+            async checkSupport() {
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                const status = document.getElementById('syncStatus');
+                const desc = document.getElementById('syncDesc');
+
+                const hasSW = 'serviceWorker' in navigator;
+                const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+                
+                let hasPeriodicSync = false;
+                if (hasSW) {
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        hasPeriodicSync = 'periodicSync' in reg;
+                        AppState.swRegistration = reg;
+                    } catch (e) {}
+                }
+                
+                AppState.isSupported = hasSW && hasPeriodicSync;
+
+                if (AppState.isSupported) {
+                    dot.classList.remove('error', 'warning');
+                    text.textContent = 'API 支持';
+                    status.textContent = 'API 可用';
+                    desc.textContent = '浏览器支持 Periodic Background Sync';
+                } else {
+                    dot.classList.add('error');
+                    dot.classList.remove('warning');
+                    text.textContent = '不支持';
+                    status.textContent = 'API 不可用';
+                    desc.textContent = hasSW ? '需要 HTTPS 和 Service Worker' : '浏览器不支持';
+                }
+
+                this.updateRequirements();
+                await this.updateSWInfo();
+                await this.updateRegisteredTags();
+            },
+
+            updateRequirements() {
+                const list = document.getElementById('requirementsList');
+                const checks = [
+                    { name: 'Service Worker 支持', pass: 'serviceWorker' in navigator },
+                    { name: 'HTTPS 或 localhost', pass: location.protocol === 'https:' || location.hostname === 'localhost' },
+                    { name: 'Periodic Sync API', pass: AppState.isSupported },
+                    { name: 'PWA 安装条件', pass: false, note: '(需要 manifest)' }
+                ];
+
+                list.innerHTML = checks.map(c => `
+                    <div class="checklist-item">
+                        <div class="checklist-icon ${c.pass ? 'success' : 'error'}">${c.pass ? '✓' : '✗'}</div>
+                        <span class="checklist-text ${c.pass ? 'success' : ''}">${c.name} ${c.note || ''}</span>
+                    </div>
+                `).join('');
+            },
+
+            async updateSWInfo() {
+                const status = document.getElementById('swStatus');
+                const info = document.getElementById('swInfo');
+
+                if (!('serviceWorker' in navigator)) {
+                    status.textContent = '不支持';
+                    status.className = 'card-badge badge-error';
+                    info.innerHTML = '<div class="info-item"><span class="info-label">状态</span><span class="info-value">不支持</span></div>';
+                    return;
+                }
+
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    
+                    if (reg) {
+                        AppState.swRegistration = reg;
+                        status.textContent = '已注册';
+                        status.className = 'card-badge badge-success';
+                        info.innerHTML = `
+                            <div class="info-item"><span class="info-label">状态</span><span class="info-value">${reg.active ? '激活' : '等待中'}</span></div>
+                            <div class="info-item"><span class="info-label">Scope</span><span class="info-value">${reg.scope}</span></div>
+                            <div class="info-item"><span class="info-label">PeriodicSync</span><span class="info-value">${reg.periodicSync ? '支持' : '不支持'}</span></div>
+                        `;
+                    } else {
+                        status.textContent = '未注册';
+                        status.className = 'card-badge badge-warning';
+                        info.innerHTML = '<div class="info-item"><span class="info-label">状态</span><span class="info-value">未找到 SW</span></div>';
+                    }
+                } catch (e) {
+                    status.textContent = '错误';
+                    status.className = 'card-badge badge-error';
+                    info.innerHTML = `<div class="info-item"><span class="info-label">错误</span><span class="info-value">${e.message}</span></div>`;
+                }
+            },
+
+            async updateRegisteredTags() {
+                const container = document.getElementById('registeredTags');
+                
+                if (!AppState.swRegistration?.periodicSync) {
+                    container.innerHTML = '<div class="empty-state"><h3>API 不可用</h3></div>';
+                    return;
+                }
+
+                try {
+                    const tags = await AppState.swRegistration.periodicSync.getTags();
+
+                    if (tags.length === 0) {
+                        container.innerHTML = '<div class="empty-state"><h3>暂无注册</h3></div>';
+                        return;
+                    }
+
+                    container.innerHTML = tags.map(tag => `
+                        <div class="info-item">
+                            <span class="info-label">📍 ${tag}</span>
+                            <button class="btn btn-danger btn-sm" onclick="PBSApi.unregister('${tag}')">注销</button>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    container.innerHTML = `<div class="info-item"><span class="info-label">错误</span><span class="info-value">${e.message}</span></div>`;
+                }
+            },
+
+            async register() {
+                if (!AppState.swRegistration?.periodicSync) {
+                    showToast('error', 'API 不可用', '需要 SW + HTTPS');
+                    return;
+                }
+
+                const tag = document.getElementById('syncTag').value.trim();
+                const minInterval = parseInt(document.getElementById('minInterval').value);
+
+                if (!tag) { showToast('error', '请输入标签', ''); return; }
+
+                try {
+                    await AppState.swRegistration.periodicSync.register(tag, { minInterval });
+                    showToast('success', '注册成功', tag);
+                    this.updateRegisteredTags();
+                    this.addLog('success', `注册: ${tag}`);
+                } catch (e) {
+                    showToast('error', '注册失败', e.message);
+                    this.addLog('error', `失败: ${e.message}`);
+                }
+            },
+
+            async unregister(tag) {
+                if (!AppState.swRegistration?.periodicSync) return;
+
+                try {
+                    await AppState.swRegistration.periodicSync.unregister(tag);
+                    showToast('success', '注销成功', tag);
+                    this.updateRegisteredTags();
+                    this.addLog('success', `注销: ${tag}`);
+                } catch (e) {
+                    showToast('error', '注销失败', e.message);
+                }
+            },
+
+            triggerSync() {
+                const icon = document.getElementById('syncIcon');
+                icon.classList.add('active');
+                this.addLog('pending', '开始同步...');
+                
+                setTimeout(() => {
+                    icon.classList.remove('active');
+                    const success = Math.random() > 0.2;
+                    
+                    if (success) {
+                        this.addLog('success', '同步完成');
+                        showToast('success', '同步成功', '数据已更新');
+                    } else {
+                        this.addLog('error', '同步失败');
+                        showToast('error', '同步失败', '网络错误');
+                    }
+                    this.updateStats();
+                }, 1500);
+            },
+
+            addLog(status, detail) {
+                AppState.syncHistory.unshift({ time: Utils.formatTime(), status, detail });
+                if (AppState.syncHistory.length > 30) AppState.syncHistory.pop();
+                this.renderLog();
+            },
+
+            renderLog() {
+                const container = document.getElementById('syncLog');
+                if (AppState.syncHistory.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>暂无记录</h3></div>';
+                    return;
+                }
+
+                container.innerHTML = AppState.syncHistory.map(e => `
+                    <div class="log-item">
+                        <span class="log-time">${e.time}</span>
+                        <span class="log-status ${e.status}">${e.status === 'success' ? '成功' : e.status === 'error' ? '失败' : '进行中'}</span>
+                        <span class="log-detail">${e.detail}</span>
+                    </div>
+                `).join('');
+            },
+
+            updateStats() {
+                const total = AppState.syncHistory.length;
+                const success = AppState.syncHistory.filter(e => e.status === 'success').length;
+                const failed = AppState.syncHistory.filter(e => e.status === 'error').length;
+                
+                document.getElementById('totalSyncs').textContent = total;
+                document.getElementById('successSyncs').textContent = success;
+                document.getElementById('failedSyncs').textContent = failed;
+                document.getElementById('lastSync').textContent = total > 0 ? AppState.syncHistory[0].time : '--';
+                document.getElementById('historyTotal').textContent = total;
+                document.getElementById('historySuccess').textContent = success;
+                document.getElementById('historyFailed').textContent = failed;
+            },
+
+            clearHistory() {
+                AppState.syncHistory = [];
+                this.renderLog();
+                this.updateStats();
+                showToast('info', '已清空', '');
+            }
+        };
+
+        // ==================== API Reference ====================
+        const APIReference = {
+            render() {
+                const apis = [
+                    { name: 'Service Worker', type: 'API', desc: 'SW 支持', supported: 'serviceWorker' in navigator },
+                    { name: 'periodicSync', type: '属性', desc: 'PeriodicSyncManager', supported: AppState.isSupported },
+                    { name: 'register()', type: '方法', desc: '注册同步', supported: AppState.isSupported },
+                    { name: 'unregister()', type: '方法', desc: '注销同步', supported: AppState.isSupported },
+                    { name: 'getTags()', type: '方法', desc: '获取标签', supported: AppState.isSupported },
+                ];
+
+                document.getElementById('apiSupportTable').innerHTML = apis.map(api => `
+                    <tr>
+                        <td><code>${api.name}</code></td>
+                        <td><span class="card-badge badge-info">${api.type}</span></td>
+                        <td>${api.desc}</td>
+                        <td><span class="api-status ${api.supported ? 'supported' : 'unsupported'}">${api.supported ? '✓' : '✗'}</span></td>
+                    </tr>
+                `).join('');
+            }
+        };
+
+        // ==================== Interval Selector ====================
+        document.querySelectorAll('.interval-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.interval-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                AppState.selectedInterval = parseInt(option.dataset.interval);
+                document.getElementById('minInterval').value = AppState.selectedInterval;
+            });
+        });
+
+        // ==================== Keyboard Shortcuts ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            switch (e.key.toLowerCase()) {
+                case 't': if (!e.ctrlKey) { e.preventDefault(); ThemeManager.toggle(); } break;
+                case 'r': if (!e.ctrlKey) { e.preventDefault(); PBSApi.checkSupport(); showToast('success', '已刷新', ''); } break;
+                case 's': if (!e.ctrlKey) { e.preventDefault(); PBSApi.triggerSync(); } break;
+            }
+        });
+
+        // ==================== UI Event Handlers ====================
+        document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+        document.getElementById('refreshTags').addEventListener('click', () => PBSApi.updateRegisteredTags());
+        document.getElementById('refreshApiCheck').addEventListener('click', () => { APIReference.render(); showToast('success', '已刷新', ''); });
+        document.getElementById('clearHistory').addEventListener('click', () => PBSApi.clearHistory());
+        document.getElementById('registerSync').addEventListener('click', () => PBSApi.register());
+        document.getElementById('unregisterSync').addEventListener('click', () => {
+            const tag = document.getElementById('syncTag').value.trim();
+            if (tag) PBSApi.unregister(tag);
+        });
+        document.getElementById('triggerSync').addEventListener('click', () => PBSApi.triggerSync());
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+            NetworkManager.init();
+            PBSApi.checkSupport();
+            APIReference.render();
+            PBSApi.renderLog();
+        });
+    </script>
+</body>
+</html>

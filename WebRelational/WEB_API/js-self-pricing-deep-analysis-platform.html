@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>JS Self-Profiling 深度分析台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.error {
+            background: var(--accent-red);
+        }
+
+        .status-dot.working {
+            background: var(--accent-orange);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--bg-hover);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        button.danger {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: transparent;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .toggle-label {
+            font-size: 12px;
+        }
+
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: var(--bg-deep);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+
+        .toggle-input {
+            display: none;
+        }
+
+        .toggle-input:checked + .toggle-switch {
+            background: var(--accent-green);
+        }
+
+        .toggle-input:checked + .toggle-switch::after {
+            transform: translateX(16px);
+        }
+
+        /* 右侧结果区 */
+        .results-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* 时间线视图 */
+        .timeline-canvas {
+            width: 100%;
+            height: 60px;
+            background: var(--bg-deep);
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* 分析列表 */
+        .profile-list-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 40px;
+            padding: 0 16px 8px;
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .profile-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 40px;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .profile-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .profile-item:last-child {
+            border-bottom: none;
+        }
+
+        .func-name {
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: var(--accent-orange);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stat-val {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .stat-val.self {
+            color: var(--accent-blue);
+        }
+
+        .stat-val.total {
+            color: var(--accent-green);
+        }
+
+        .bar-bg {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-deep);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease-out;
+        }
+
+        .bar-fill.self {
+            background: var(--accent-blue);
+            opacity: 0.7;
+        }
+
+        .bar-fill.total {
+            background: var(--accent-green);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* 警告 */
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--accent-orange);
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">JS</div>
+        <span>JS Self-Profiling 深度分析台</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">初始化...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制 -->
+    <aside class="control-panel">
+        <div>
+            <div class="section-title">剖析模式</div>
+
+            <!-- 模拟模式开关 -->
+            <label class="toggle-container">
+                <span class="toggle-label">启用模拟模式</span>
+                <input type="checkbox" id="sim-toggle" class="toggle-input" checked>
+                <div class="toggle-switch"></div>
+            </label>
+            <p style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+                若浏览器不支持 API，将自动生成模拟数据以便演示。
+            </p>
+        </div>
+
+        <div>
+            <div class="section-title">控制</div>
+            <div class="btn-group">
+                <button id="start-btn" class="primary">
+                    <span>开始采样</span>
+                    <span>▶</span>
+                </button>
+                <button id="stop-btn" disabled class="danger">
+                    <span>停止并分析</span>
+                    <span>■</span>
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">压力注入</div>
+            <div class="btn-group" style="grid-template-columns: 1fr 1fr; display: grid;">
+                <button id="stress-cpu">CPU 密集</button>
+                <button id="stress-dom">DOM 洪水</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧结果 -->
+    <section class="results-area">
+
+        <div class="warning-banner" id="api-warning" style="display: none;">
+            <span>⚠️</span>
+            <span>当前环境不支持 <code>Profiler</code>。已自动切换到模拟模式，数据为随机生成。</span>
+        </div>
+
+        <!-- 时间线 -->
+        <div class="card">
+            <div class="card-header" style="padding: 8px 16px;">
+                <span class="card-title">采样时间线</span>
+                <span class="card-meta" id="timeline-meta">-</span>
+            </div>
+            <canvas id="timeline-canvas" class="timeline-canvas"></canvas>
+        </div>
+
+        <!-- 热点分析 -->
+        <div class="card" style="flex: 1;">
+            <div class="card-header">
+                <span class="card-title">函数热点 (按总耗时排序)</span>
+                <span class="card-meta" id="results-meta">等待数据...</span>
+            </div>
+
+            <div class="profile-list-header">
+                <span>函数名</span>
+                <span>总耗时</span>
+                <span>自耗时</span>
+                <span></span>
+            </div>
+
+            <div id="profile-list" style="height: 400px; overflow-y: auto;">
+                <div class="empty-state">
+                    点击“开始采样”启动分析器。<br>
+                    <span style="font-size: 11px; opacity: 0.7;">建议在采样期间点击“压力注入”按钮产生测试数据。</span>
+                </div>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // JS Self-Profiling 深度分析台
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'Profiler' in window,
+        simMode: true,
+        profiler: null,
+        isProfiling: false,
+        startTime: 0
+    };
+
+    // 初始化
+    function init() {
+        // 强制默认开启模拟模式以获得最佳体验，除非用户手动关闭且支持 API
+        $('sim-toggle').addEventListener('change', (e) => {
+            state.simMode = e.target.checked;
+            updateStatus('idle');
+        });
+
+        // 初始状态判断
+        if (state.supported) {
+            $('sim-toggle').checked = false;
+            state.simMode = false;
+        } else {
+            $('sim-toggle').checked = true;
+            state.simMode = true;
+            $('api-warning').style.display = 'flex';
+        }
+
+        updateStatus('idle');
+
+        // 绑定事件
+        $('start-btn').addEventListener('click', startSession);
+        $('stop-btn').addEventListener('click', stopSession);
+        $('stress-cpu').addEventListener('click', () => injectStress('cpu'));
+        $('stress-dom').addEventListener('click', () => injectStress('dom'));
+    }
+
+    function updateStatus(s) {
+        const dot = $('status-dot');
+        const text = $('status-text');
+        dot.className = 'status-dot';
+
+        if (state.simMode) {
+            text.textContent = s === 'working' ? '模拟采样中...' : '模拟模式';
+            dot.classList.add(s === 'working' ? 'working' : 'active');
+        } else {
+            text.textContent = s === 'working' ? '真实采样中...' : 'API 模式';
+            dot.classList.add(s === 'working' ? 'working' : 'active');
+        }
+    }
+
+    // ========================================
+    // 会话管理
+    // ========================================
+
+    async function startSession() {
+        state.isProfiling = true;
+        state.startTime = performance.now();
+        updateStatus('working');
+
+        $('start-btn').disabled = true;
+        $('stop-btn').disabled = false;
+        $('profile-list').innerHTML = '<div class="empty-state">采样中...</div>';
+
+        if (!state.simMode && state.supported) {
+            try {
+                state.profiler = new Profiler({sampleInterval: 10, maxBufferSize: 10000});
+                state.profiler.start();
+            } catch (e) {
+                alert('启动失败: ' + e.message);
+                resetUI();
+            }
+        } else {
+            // 模拟模式不需要初始化真实对象
+            console.log('Simulated profiling started.');
+        }
+    }
+
+    async function stopSession() {
+        if (!state.isProfiling) return;
+
+        const duration = performance.now() - state.startTime;
+        state.isProfiling = false;
+        $('stop-btn').disabled = true;
+        $('results-meta').textContent = '分析中...';
+
+        let traceData;
+
+        if (!state.simMode && state.profiler) {
+            try {
+                traceData = await state.profiler.stop();
+                state.profiler = null;
+            } catch (e) {
+                console.error(e);
+                alert('停止失败');
+                resetUI();
+                return;
+            }
+        } else {
+            // 生成模拟数据
+            traceData = generateMockTrace(duration);
+        }
+
+        analyzeAndRender(traceData, duration);
+        resetUI();
+    }
+
+    function resetUI() {
+        $('start-btn').disabled = false;
+        $('stop-btn').disabled = true;
+        updateStatus('idle');
+    }
+
+    // ========================================
+    // 数据分析与渲染
+    // ========================================
+
+    function analyzeAndRender(trace, duration) {
+        if (!trace.samples || trace.samples.length === 0) {
+            $('profile-list').innerHTML = '<div class="empty-state">未捕获到样本。</div>';
+            return;
+        }
+
+        const frames = trace.frames;
+        const stacks = trace.stacks;
+        const samples = trace.samples;
+        const resources = trace.resources;
+
+        // 1. 计算自耗时和总耗时
+        const selfTime = {};
+        const totalTime = {};
+
+        samples.forEach(sample => {
+            const stackId = sample.stackId;
+            if (stackId === null || stackId === undefined) return;
+
+            // 记录栈顶
+            const stack = stacks[stackId];
+            if (!stack) return;
+
+            const topFrameId = stack.frameId;
+            if (topFrameId !== undefined) {
+                const frame = frames[topFrameId];
+                if (frame) selfTime[frame.name] = (selfTime[frame.name] || 0) + 1;
+            }
+
+            // 记录总耗时 - 遍历整个调用栈
+            // 注意：API 结构中 stacks 通常包含 parentId
+            let currentStack = stack;
+            const visited = new Set(); // 防止循环引用
+
+            while (currentStack && !visited.has(currentStack)) {
+                visited.add(currentStack);
+                const fid = currentStack.frameId;
+                if (fid !== undefined) {
+                    const frame = frames[fid];
+                    if (frame) totalTime[frame.name] = (totalTime[frame.name] || 0) + 1;
+                }
+                // 模拟向上遍历，真实 API 中需要根据具体结构获取 parent
+                // 假设 stack 对象有 parentId 属性
+                if (currentStack.parentId !== undefined && currentStack.parentId !== null) {
+                    currentStack = stacks[currentStack.parentId];
+                } else {
+                    break;
+                }
+            }
+        });
+
+        // 2. 合并数据并排序
+        const results = Object.keys(totalTime).map(name => ({
+            name: name,
+            total: totalTime[name] || 0,
+            self: selfTime[name] || 0
+        }));
+
+        results.sort((a, b) => b.total - a.total);
+        const totalSamples = samples.length;
+        const maxTotal = results[0] ? results[0].total : 1;
+
+        $('results-meta').textContent = `样本数: ${totalSamples} | 耗时: ${duration.toFixed(0)}ms`;
+
+        // 3. 渲染列表
+        const listContainer = $('profile-list');
+        listContainer.innerHTML = results.slice(0, 50).map(item => {
+            const totP = ((item.total / totalSamples) * 100).toFixed(1);
+            const selfP = ((item.self / totalSamples) * 100).toFixed(1);
+
+            return `
+          <div class="profile-item">
+            <div>
+              <div class="func-name">${item.name}</div>
+              <div class="bar-bg">
+                <div class="bar-fill total" style="width: ${(item.total / maxTotal) * 100}%"></div>
+              </div>
+            </div>
+            <div class="stat-val total">${totP}%</div>
+            <div class="stat-val self">${selfP}%</div>
+            <div></div>
+          </div>
+        `;
+        }).join('');
+
+        // 4. 渲染时间线
+        renderTimeline(samples, duration);
+    }
+
+    function renderTimeline(samples, duration) {
+        const canvas = $('timeline-canvas');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width = canvas.offsetWidth;
+        const h = canvas.height = canvas.offsetHeight;
+
+        ctx.clearRect(0, 0, w, h);
+
+        if (samples.length === 0) return;
+
+        const startTime = samples[0].timestamp;
+        const endTime = samples[samples.length - 1].timestamp;
+        const timeSpan = endTime - startTime;
+
+        if (timeSpan === 0) return;
+
+        ctx.fillStyle = '#3b82f6';
+
+        samples.forEach(s => {
+            const x = ((s.timestamp - startTime) / timeSpan) * w;
+            // 绘制一个小竖线代表一次采样
+            ctx.fillRect(x, 0, 1, h);
+        });
+
+        $('timeline-meta').textContent = `时间跨度: ${timeSpan.toFixed(0)}ms`;
+    }
+
+    // ========================================
+    // 模拟数据生成器
+    // ========================================
+
+    function generateMockTrace(duration) {
+        const frames = [
+            {name: '(root)', resourceId: 0},
+            {name: 'main', resourceId: 1},
+            {name: 'calculateHeavyStuff', resourceId: 1},
+            {name: 'processData', resourceId: 1},
+            {name: 'renderUI', resourceId: 1},
+            {name: 'updateDOM', resourceId: 1},
+            {name: 'garbageCollect', resourceId: 0},
+            {name: 'Array.sort', resourceId: 0},
+            {name: 'JSON.parse', resourceId: 0}
+        ];
+
+        const resources = [
+            {url: 'internal'},
+            {url: 'app.js'}
+        ];
+
+        // 模拟栈结构：stacks[i] 返回 { frameId, parentId }
+        // 为了简单，我们直接创建一些预设的栈
+        const stacks = [];
+        // Stack 0: Root -> Main
+        stacks.push({frameId: 0, parentId: null});
+        stacks.push({frameId: 1, parentId: 0});
+
+        // Stack 2: Root -> Main -> Heavy
+        stacks.push({frameId: 2, parentId: 1}); // 这里的 parentId 指向 stack index 并不完全准确，但在模拟中只要逻辑闭环即可
+        // 为了让逻辑简单，我们假设 parentId 指向父 stack node 的 index
+
+        // 修正：在真实 API 中，stacks 数组的索引就是 stackId。
+        // 我们手动构建树
+        const s0 = {frameId: 0, parentId: null};
+        stacks.push(s0); // id 0 (dummy)
+        const s1 = {frameId: 1, parentId: 0};
+        stacks.push(s1);   // id 1: root -> main
+        const s2 = {frameId: 2, parentId: 1};
+        stacks.push(s2);   // id 2: main -> heavy
+        const s3 = {frameId: 3, parentId: 1};
+        stacks.push(s3);   // id 3: main -> process
+        const s4 = {frameId: 4, parentId: 3};
+        stacks.push(s4);   // id 4: process -> render
+        const s5 = {frameId: 5, parentId: 4};
+        stacks.push(s5);   // id 5: render -> dom
+        const s6 = {frameId: 6, parentId: 1};
+        stacks.push(s6);   // id 6: GC
+        const s7 = {frameId: 7, parentId: 1};
+        stacks.push(s7);   // id 7: Array.sort
+
+        // 去掉第一个 dummy，因为我们是 push 进去的
+        stacks.shift();
+
+        // 生成采样点
+        const samples = [];
+        const count = Math.floor(duration / 10); // 10ms interval
+        const now = performance.now();
+
+        // 常见路径
+        const paths = [2, 2, 2, 3, 4, 5, 6, 7]; // Heavy, Heavy, Process, Render, DOM, GC, Sort
+
+        for (let i = 0; i < count; i++) {
+            // 随机选择一个栈深度
+            const stackIdx = paths[Math.floor(Math.random() * paths.length)];
+            samples.push({
+                timestamp: now - duration + (i * 10),
+                stackId: stackIdx
+            });
+        }
+
+        return {frames, stacks, samples, resources};
+    }
+
+    // ========================================
+    // 压力测试
+    // ========================================
+
+    function injectStress(type) {
+        if (!state.isProfiling) {
+            console.warn('请先开始采样');
+            return;
+        }
+        console.log('Injecting stress:', type);
+
+        // 使用 requestAnimationFrame 避免阻塞过久导致 UI 无法更新
+        requestAnimationFrame(() => {
+            if (type === 'cpu') {
+                let n = 0;
+                for (let i = 0; i < 5000000; i++) {
+                    n += Math.sqrt(i) * Math.sin(i);
+                }
+                console.log('CPU Stress done', n);
+            } else if (type === 'dom') {
+                const target = document.body;
+                for (let i = 0; i < 200; i++) {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'position:absolute;width:1px;height:1px;background:red;';
+                    target.appendChild(div);
+                }
+                // 清理
+                setTimeout(() => {
+                    document.querySelectorAll('body > div:not([class])').forEach(d => d.remove());
+                }, 1000);
+            }
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>

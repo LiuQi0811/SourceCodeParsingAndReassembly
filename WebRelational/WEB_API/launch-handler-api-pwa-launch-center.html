@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Launch Handler API - PWA 启动中心</title>
+    <meta name="theme-color" content="#0c1017"/>
+    <!-- 实际部署时需要引用 manifest.json -->
+    <!-- <link rel="manifest" href="/manifest.json" /> -->
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.sim {
+            background: var(--accent-orange);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧配置面板 */
+        .config-panel {
+            width: 360px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        pre {
+            background: var(--bg-deep);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        button:hover {
+            background: #2a3142;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        /* 右侧应用视图 */
+        .app-viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+            position: relative;
+        }
+
+        .view-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .page-view {
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .page-view.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .icon-large {
+            width: 80px;
+            height: 80px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .launch-info {
+            margin-top: 20px;
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            min-width: 300px;
+            text-align: left;
+        }
+
+        .launch-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .launch-label {
+            color: var(--text-muted);
+        }
+
+        .launch-val {
+            color: var(--accent-green);
+            font-family: monospace;
+        }
+
+        /* 日志 */
+        .log-footer {
+            height: 120px;
+            background: var(--bg-main);
+            border-top: 1px solid var(--border);
+            padding: 10px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-time {
+            color: var(--accent-blue);
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">LH</div>
+        <span>Launch Handler API 演示</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测环境...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧配置 -->
+    <aside class="config-panel">
+        <div class="card">
+            <div class="section-title">API 支持情况</div>
+            <p id="api-status-text" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                正在检测...
+            </p>
+            <p style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                此 API 需要在 PWA 环境下运行（已安装 + manifest.json 配置）。当前环境若不支持，可使用模拟功能测试逻辑。
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Manifest 配置示例</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">请在 manifest.json
+                中声明协议处理：</p>
+            <pre>
+{
+  "name": "Launch Demo",
+  "protocol_handlers": [
+    {
+      "protocol": "web+launchdemo",
+      "url": "/?from_protocol=%s"
+    }
+  ]
+}</pre>
+        </div>
+
+        <div class="card">
+            <div class="section-title">模拟启动测试</div>
+            <button id="sim-home" class="primary">模拟常规启动</button>
+            <button id="sim-deep">模拟深度链接启动</button>
+            <button id="sim-file">模拟文件打开启动</button>
+        </div>
+    </aside>
+
+    <!-- 右侧视图 -->
+    <section class="app-viewport">
+        <div class="view-container">
+            <!-- 主页视图 -->
+            <div id="view-home" class="page-view active">
+                <div class="icon-large">🏠</div>
+                <h2 style="margin-bottom: 8px;">欢迎回来</h2>
+                <p style="color: var(--text-secondary);">等待启动指令...</p>
+            </div>
+
+            <!-- 深度链接视图 -->
+            <div id="view-deep" class="page-view">
+                <div class="icon-large">🔗</div>
+                <h2 style="margin-bottom: 8px;">深度链接导航</h2>
+                <p style="color: var(--text-secondary);">应用通过外部链接启动</p>
+                <div class="launch-info" id="deep-info">
+                    <div class="launch-row">
+                        <span class="launch-label">来源 URL</span>
+                        <span class="launch-val" id="val-url">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件视图 -->
+            <div id="view-file" class="page-view">
+                <div class="icon-large">📄</div>
+                <h2 style="margin-bottom: 8px;">文件处理</h2>
+                <p style="color: var(--text-secondary);">应用接收到了文件请求</p>
+                <div class="launch-info" id="file-info">
+                    <div class="launch-row">
+                        <span class="launch-label">文件名</span>
+                        <span class="launch-val" id="val-filename">-</span>
+                    </div>
+                    <div class="launch-row">
+                        <span class="launch-label">类型</span>
+                        <span class="launch-val" id="val-filetype">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-footer" id="log-panel">
+            <!-- 日志区域 -->
+        </div>
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Launch Handler API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'launchQueue' in window,
+        isSimMode: false
+    };
+
+    // 日志工具
+    function log(msg) {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const panel = $('log-panel');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="log-time">${time}</span> ${msg}`;
+        panel.appendChild(entry);
+        panel.scrollTop = panel.scrollHeight;
+        console.log(`[LaunchHandler] ${msg}`);
+    }
+
+    // 路由控制
+    function navigateTo(viewId, data = {}) {
+        log(`导航至视图: ${viewId}`);
+
+        // 隐藏所有视图
+        document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+
+        // 显示目标视图
+        const target = $(`view-${viewId}`);
+        if (target) {
+            target.classList.add('active');
+        }
+
+        // 更新视图数据
+        if (viewId === 'deep') {
+            $('val-url').textContent = data.url || '未知';
+        }
+        if (viewId === 'file') {
+            $('val-filename').textContent = data.name || '未知';
+            $('val-filetype').textContent = data.type || '未知';
+        }
+    }
+
+    // ========================================
+    // 核心：启动处理逻辑
+    // ========================================
+
+    function handleLaunch(launchParams) {
+        log(`接收到启动事件`);
+        console.log('Launch Params:', launchParams);
+
+        // 1. 检查是否是文件启动
+        if (launchParams.files && launchParams.files.length > 0) {
+            const file = launchParams.files[0];
+            log(`检测到文件启动: ${file.name}`);
+            navigateTo('file', {name: file.name, type: file.type});
+            return;
+        }
+
+        // 2. 检查是否是深度链接启动
+        // launchParams.targetURL 包含完整的启动 URL
+        if (launchParams.targetURL) {
+            const url = new URL(launchParams.targetURL);
+
+            // 判断是否包含特定参数或协议
+            // 例如：模拟自定义协议 web+launchdemo://view/profile
+            if (url.searchParams.has('from_protocol') || url.searchParams.has('page')) {
+                log(`检测到深度链接: ${url.href}`);
+                navigateTo('deep', {url: url.href});
+                return;
+            }
+        }
+
+        // 3. 默认启动
+        log(`常规启动，跳转主页`);
+        navigateTo('home');
+    }
+
+    // 初始化
+    function init() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+        const statusText = $('api-status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+            statusText.innerHTML = '<b style="color:var(--accent-green)">√</b> 浏览器支持 Launch Queue。<br>若应用已安装，将自动捕获启动事件。';
+
+            // 设置消费者
+            // 当 PWA 启动时，系统会调用这个回调
+            window.launchQueue.setConsumer(handleLaunch);
+            log('Launch Consumer 已注册。');
+
+            // 检查当前页面是否是通过启动参数打开的（冷启动）
+            // 注意：在某些实现中，冷启动时参数可能通过 window.launchQueue 捕获，
+            // 但有时也会直接在 URL 中。这里假设 launchQueue 会处理。
+
+        } else {
+            dot.classList.add('sim');
+            text.textContent = '模拟模式';
+            statusText.innerHTML = '<b style="color:var(--accent-orange)">!</b> API 不支持。<br>请使用左侧“模拟测试”按钮体验逻辑。';
+            state.isSimMode = true;
+        }
+
+        setupSimulators();
+    }
+
+    // ========================================
+    // 模拟器逻辑 (用于演示和测试)
+    // ========================================
+
+    function setupSimulators() {
+        $('sim-home').addEventListener('click', () => {
+            handleLaunch({targetURL: window.location.href});
+        });
+
+        $('sim-deep').addEventListener('click', () => {
+            // 模拟一个带有自定义参数的 URL
+            const fakeURL = new URL(window.location.href);
+            fakeURL.searchParams.set('page', 'dashboard');
+            fakeURL.searchParams.set('source', 'protocol');
+
+            handleLaunch({targetURL: fakeURL.href});
+        });
+
+        $('sim-file').addEventListener('click', () => {
+            // 模拟文件对象
+            const fakeFile = {
+                name: 'project_notes.txt',
+                type: 'text/plain',
+                size: 1024
+            };
+            handleLaunch({files: [fakeFile]});
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>

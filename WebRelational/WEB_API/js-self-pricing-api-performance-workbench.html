@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>JS Self-Profiling API 性能工作台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.error {
+            background: var(--accent-red);
+        }
+
+        .status-dot.working {
+            background: var(--accent-orange);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--bg-hover);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        button.danger {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: transparent;
+        }
+
+        button.danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 压力测试选项 */
+        .stress-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stress-btn {
+            padding: 12px;
+            text-align: center;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .stress-btn.active {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+        }
+
+        .stress-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        /* 右侧结果区 */
+        .results-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* 火焰图样式列表 */
+        .profile-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .profile-item {
+            background: var(--bg-main);
+            border-radius: 6px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .profile-item:hover {
+            border-color: var(--accent-blue);
+            transform: translateX(4px);
+        }
+
+        .func-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .func-name {
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-weight: 500;
+            color: var(--accent-orange);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%;
+        }
+
+        .func-stats {
+            color: var(--text-secondary);
+        }
+
+        .bar-container {
+            height: 6px;
+            background: var(--bg-deep);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+            border-radius: 3px;
+            transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* 警告横幅 */
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--accent-orange);
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">PF</div>
+        <span>JS Self-Profiling 工作台</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制 -->
+    <aside class="control-panel">
+        <div class="panel-section">
+            <div class="section-title">剖析控制</div>
+            <div class="btn-group">
+                <button id="start-btn" class="primary">
+                    <span>开始剖析</span>
+                    <span>▶</span>
+                </button>
+                <button id="stop-btn" disabled class="danger">
+                    <span>停止并分析</span>
+                    <span>■</span>
+                </button>
+            </div>
+            <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+                注意：API 需要用户手势激活。
+            </p>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">模拟压力测试</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                在剖析运行期间点击下方按钮生成 CPU 负载。
+            </p>
+            <div class="stress-options">
+                <button class="stress-btn" data-stress="fib">
+                    <div class="stress-icon">🧮</div>
+                    <div>斐波那契</div>
+                </button>
+                <button class="stress-btn" data-stress="dom">
+                    <div class="stress-icon"> DOM</div>
+                    <div>DOM 操作</div>
+                </button>
+                <button class="stress-btn" data-stress="loop">
+                    <div class="stress-icon">🔄</div>
+                    <div>死循环</div>
+                </button>
+                <button class="stress-btn" data-stress="random">
+                    <div class="stress-icon">🎲</div>
+                    <div>随机计算</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">API 说明</div>
+            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+                此 API 允许 Web 应用在运行时采集自身的执行配置文件。
+                <br/><br/>
+                <b>关键用途：</b>
+                <ul style="padding-left: 16px; margin-top: 4px;">
+                    <li>生产环境性能监控</li>
+                    <li>捕捉长任务堆栈</li>
+                    <li>现场性能诊断</li>
+                </ul>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧结果 -->
+    <section class="results-area">
+
+        <!-- 警告信息 -->
+        <div class="warning-banner" id="api-warning" style="display: none;">
+            <span>⚠️</span>
+            <span>当前环境不支持 <code>Profiler</code> API。请在 Chrome 中启用实验性功能或检查 Document-Policy。</span>
+        </div>
+
+        <!-- 分析结果卡片 -->
+        <div class="card" id="results-card">
+            <div class="card-header">
+                <span class="card-title">热点函数分析</span>
+                <span class="card-meta" id="results-meta">等待剖析...</span>
+            </div>
+
+            <div id="profile-results">
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <div>点击"开始剖析"捕获性能数据</div>
+                    <div style="font-size: 11px; margin-top: 8px;">剖析期间请点击压力测试按钮生成负载</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 原始数据预览 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">原始数据片段</span>
+                <span class="card-meta" id="raw-meta">-</span>
+            </div>
+            <pre id="raw-json"
+                 style="background: var(--bg-deep); padding: 12px; border-radius: 6px; font-size: 10px; max-height: 200px; overflow: auto; color: var(--text-muted);">
+等待数据...
+        </pre>
+        </div>
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // JS Self-Profiling API 工作台
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    // 状态
+    const state = {
+        supported: 'Profiler' in window,
+        profiler: null,
+        isProfiling: false,
+        startTime: 0
+    };
+
+    // 初始化
+    function init() {
+        updateStatus('idle');
+
+        if (!state.supported) {
+            $('api-warning').style.display = 'flex';
+            $('start-btn').disabled = true;
+            updateStatus('error');
+            return;
+        }
+
+        // 绑定事件
+        $('start-btn').addEventListener('click', startProfiling);
+        $('stop-btn').addEventListener('click', stopProfiling);
+
+        // 绑定压力测试按钮
+        document.querySelectorAll('.stress-btn').forEach(btn => {
+            btn.addEventListener('click', () => runStressTest(btn.dataset.stress));
+        });
+    }
+
+    // 更新顶部状态
+    function updateStatus(status) {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        dot.className = 'status-dot';
+
+        switch (status) {
+            case 'idle':
+                text.textContent = 'API 支持';
+                dot.classList.add('active');
+                break;
+            case 'working':
+                text.textContent = '剖析中...';
+                dot.classList.add('working');
+                break;
+            case 'processing':
+                text.textContent = '分析数据中...';
+                dot.classList.add('active');
+                break;
+            case 'error':
+                text.textContent = 'API 不支持';
+                dot.classList.add('error');
+                break;
+        }
+    }
+
+    // ========================================
+    // 核心 Profiling 逻辑
+    // ========================================
+
+    async function startProfiling() {
+        try {
+            // 1. 创建 Profiler 实例
+            // sampleInterval: 采样间隔，例如 10ms
+            state.profiler = new Profiler({sampleInterval: 10, maxBufferSize: 10000});
+
+            // 2. 启动
+            state.profiler.start();
+            state.isProfiling = true;
+            state.startTime = performance.now();
+
+            // 更新 UI
+            updateStatus('working');
+            $('start-btn').disabled = true;
+            $('stop-btn').disabled = false;
+            $('results-meta').textContent = '正在采集样本...';
+
+            console.log('Profiler started.');
+
+        } catch (error) {
+            console.error(error);
+            alert(`启动失败: ${error.message} \n\n(可能需要用户手势或在 HTTPS 环境下)`);
+            updateStatus('idle');
+            $('start-btn').disabled = false;
+        }
+    }
+
+    async function stopProfiling() {
+        if (!state.profiler) return;
+
+        try {
+            updateStatus('processing');
+            $('stop-btn').disabled = true;
+
+            // 1. 停止并获取 Trace
+            const trace = await state.profiler.stop();
+            const duration = performance.now() - state.startTime;
+
+            console.log('Profiler trace:', trace);
+
+            state.isProfiling = false;
+            state.profiler = null;
+
+            // 2. 分析数据
+            analyzeTrace(trace, duration);
+
+            // 恢复 UI
+            updateStatus('idle');
+            $('start-btn').disabled = false;
+
+        } catch (error) {
+            console.error(error);
+            alert(`停止失败: ${error.message}`);
+            updateStatus('idle');
+            $('start-btn').disabled = false;
+            $('stop-btn').disabled = true;
+        }
+    }
+
+    // ========================================
+    // 数据分析引擎
+    // ========================================
+
+    function analyzeTrace(trace, duration) {
+        // ProfilerTrace 结构包含：
+        // frames: 数组，包含函数信息 { name, resourceId, line, column }
+        // stacks: 数组，包含调用链 { frameId, parentId }
+        // samples: 数组，采样点 { stackId, timestamp }
+        // resources: 数组，脚本来源 { name, url }
+
+        const frames = trace.frames;
+        const stacks = trace.stacks;
+        const samples = trace.samples;
+        const resources = trace.resources;
+
+        if (samples.length === 0) {
+            $('profile-results').innerHTML = '<div class="empty-state">未捕获到样本。请延长剖析时间或增加 CPU 负载。</div>';
+            $('results-meta').textContent = '无数据';
+            return;
+        }
+
+        // 统计每个函数出现在栈顶的次数
+        const selfTimeCounts = {};
+
+        samples.forEach(sample => {
+            const stackId = sample.stackId;
+            if (stackId === null || stackId === undefined) return;
+
+            // 获取栈顶帧
+            let currentStackId = stackId;
+            const stackNode = stacks[currentStackId];
+
+            if (stackNode) {
+                const frameId = stackNode.frameId;
+                const frame = frames[frameId];
+                if (frame) {
+                    const name = frame.name;
+                    selfTimeCounts[name] = (selfTimeCounts[name] || 0) + 1;
+                }
+            }
+        });
+
+        // 排序并生成报告
+        const sorted = Object.entries(selfTimeCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10); // 只取前 10 个
+
+        const totalSamples = samples.length;
+        const sampleInterval = 10; // 假设 10ms
+        const totalTimeMs = totalSamples * sampleInterval;
+
+        $('results-meta').textContent = `样本数: ${totalSamples} | 耗时: ${duration.toFixed(0)}ms`;
+        $('raw-meta').textContent = `样本数: ${totalSamples}`;
+
+        // 渲染结果
+        const container = $('profile-results');
+        container.innerHTML = sorted.map(([name, count]) => {
+            const percent = (count / totalSamples * 100).toFixed(1);
+            const width = (count / totalSamples * 100);
+            return `
+                <div class="profile-item">
+                    <div class="func-header">
+                        <span class="func-name">${name}</span>
+                        <span class="func-stats">${(count * sampleInterval).toFixed(0)}ms (${percent}%)</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: ${width}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 显示原始 JSON 片段
+        $('raw-json').textContent = JSON.stringify({
+            samplesCount: samples.length,
+            framesCount: frames.length,
+            stacksCount: stacks.length,
+            firstSample: samples[0],
+            resources: resources.slice(0, 2)
+        }, null, 2);
+    }
+
+    // ========================================
+    // 压力测试函数
+    // ========================================
+
+    function runStressTest(type) {
+        if (!state.isProfiling) {
+            console.warn('请先启动剖析器再运行压力测试');
+            return;
+        }
+
+        console.log(`Running stress test: ${type}`);
+
+        // 简单的异步调度，避免阻塞 UI 导致 Profiler 无法停止
+        setTimeout(() => {
+            switch (type) {
+                case 'fib':
+
+                    // 递归计算，占用 CPU
+                function fib(n) {
+                    return n < 2 ? n : fib(n - 1) + fib(n - 2);
+                }
+
+                    console.log('Fib(35):', fib(35));
+                    break;
+
+                case 'dom':
+                    // DOM 操作
+                    const target = document.body;
+                    for (let i = 0; i < 500; i++) {
+                        const div = document.createElement('div');
+                        div.style.width = '1px';
+                        div.style.height = '1px';
+                        div.style.float = 'left';
+                        div.style.background = 'red';
+                        target.appendChild(div);
+                    }
+                    // 清理
+                    setTimeout(() => {
+                        const divs = document.querySelectorAll('body > div');
+                        divs.forEach(d => d.remove());
+                    }, 500);
+                    break;
+
+                case 'loop':
+                    // 密集循环
+                    let sum = 0;
+                    for (let i = 0; i < 10000000; i++) {
+                        sum += Math.sqrt(i) * Math.sin(i);
+                    }
+                    console.log('Loop sum:', sum);
+                    break;
+
+                case 'random':
+                    // 随机数计算
+                    let arr = [];
+                    for (let i = 0; i < 100000; i++) {
+                        arr.push(Math.random() * Math.random());
+                    }
+                    arr.sort();
+                    console.log('Random array sorted');
+                    break;
+            }
+        }, 50);
+    }
+
+    init();
+</script>
+</body>
+</html>

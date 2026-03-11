@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popover API Pro - 企业级弹出层平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #eff6ff;
+            --primary-200: #bfdbfe;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(59, 130, 246, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.18rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.25rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.22rem 0.28rem; border-radius: var(--radius-lg); margin-bottom: 0.15rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.08rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.1rem; }
+        .header-title h1 { font-size: 0.5rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.65rem; } }
+        .header-icon { width: 0.85rem; height: 0.85rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.4rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.28rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.08rem; }
+        .header-status { display: flex; align-items: center; gap: 0.04rem; background: rgba(255, 255, 255, 0.1); padding: 0.04rem 0.1rem; border-radius: 99px; font-size: 0.26rem; }
+        .status-dot { width: 0.1rem; height: 0.1rem; border-radius: 50%; background: var(--success-500); }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.04rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.4rem; height: 0.4rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.15rem; left: 0.15rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.04rem 0.08rem; font-size: 0.2rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.1rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.02rem; font-family: monospace; font-size: 0.18rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 22px; padding: 0.08rem 0.04rem; background: transparent; border: none; cursor: pointer; font-size: 0.22rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.02rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 28px; font-size: 0.28rem; padding: 0.1rem 0.18rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.32rem; height: 0.32rem; }
+        .tab-content { display: none; padding: 0.1rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.18rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.12rem; margin-bottom: 0.1rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; padding-bottom: 0.05rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.03rem; }
+        .card-title { font-size: 0.32rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.04rem; }
+        .card-badge { font-size: 0.2rem; padding: 0.02rem 0.05rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.05rem; margin-bottom: 0.1rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.06rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.08rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(59, 130, 246, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.4rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.2rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.01rem; }
+
+        /* Popover Display */
+        .popover-display { display: flex; align-items: center; justify-content: center; gap: 0.18rem; padding: 0.2rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.1rem; border: 1px solid var(--border-color); }
+        .popover-icon { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 4px rgba(59, 130, 246, 0.3); }
+        .popover-icon svg { width: 0.55rem; height: 0.55rem; color: white; }
+        .popover-info { text-align: left; }
+        .popover-status { font-size: 0.35rem; font-weight: 700; color: var(--text-primary); }
+        .popover-desc { font-size: 0.25rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.02rem; padding: 0.05rem 0.1rem; border-radius: var(--radius); font-size: 0.22rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.22rem; height: 0.22rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 0.03rem 0.06rem; font-size: 0.2rem; }
+        .btn-lg { padding: 0.08rem 0.16rem; font-size: 0.26rem; }
+
+        /* Demo Buttons */
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.08rem; margin-bottom: 0.12rem; }
+
+        /* Popover Styles */
+        [popover] { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 0.12rem; font-size: 0.25rem; color: var(--text-primary); max-width: 180px; }
+        [popover]:popover-open { animation: popoverIn 0.15s ease; }
+        @keyframes popoverIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+
+        /* Menu Popover */
+        .menu-popover { padding: 0.06rem; min-width: 100px; }
+        .menu-item { display: flex; align-items: center; gap: 0.06rem; padding: 0.06rem 0.08rem; border-radius: 2px; cursor: pointer; transition: background var(--transition); font-size: 0.22rem; }
+        .menu-item:hover { background: var(--bg-tertiary); }
+        .menu-item svg { width: 0.26rem; height: 0.26rem; color: var(--text-muted); }
+        .menu-divider { height: 1px; background: var(--border-color); margin: 0.04rem 0; }
+
+        /* Tooltip Popover */
+        .tooltip-popover { background: var(--gray-800); color: white; font-size: 0.2rem; padding: 0.06rem 0.1rem; }
+        [data-theme="dark"] .tooltip-popover { background: var(--gray-700); }
+
+        /* Notification Popover */
+        .notification-popover { min-width: 150px; }
+        .notification-item { display: flex; gap: 0.08rem; padding: 0.08rem; border-bottom: 1px solid var(--border-color); }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-icon { width: 0.4rem; height: 0.4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.2rem; flex-shrink: 0; }
+        .notification-icon.success { background: var(--success-50); color: var(--success-500); }
+        .notification-icon.warning { background: var(--warning-50); color: var(--warning-500); }
+        .notification-icon.error { background: var(--error-50); color: var(--error-500); }
+        .notification-content { flex: 1; }
+        .notification-title { font-weight: 600; font-size: 0.22rem; }
+        .notification-desc { font-size: 0.18rem; color: var(--text-muted); }
+
+        /* Form Popover */
+        .form-popover { min-width: 140px; }
+        .form-group { margin-bottom: 0.08rem; }
+        .form-label { display: block; font-size: 0.18rem; color: var(--text-muted); margin-bottom: 0.03rem; }
+        .form-input { width: 100%; padding: 0.05rem 0.08rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.22rem; background: var(--bg-secondary); color: var(--text-primary); }
+        .form-input:focus { outline: none; border-color: var(--primary-500); }
+
+        /* Event Log */
+        .event-log { max-height: 80px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.18rem; }
+        .log-item { padding: 0.03rem 0.06rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.04rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-event { font-weight: 600; color: var(--primary-600); }
+        .log-detail { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.1rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2rem; overflow-x: auto; margin: 0.05rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+        .code-block .attr { color: #ffcb6b; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.22rem; }
+        .api-table th, .api-table td { padding: 0.05rem 0.06rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.2rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.01rem 0.05rem; border-radius: 99px; font-size: 0.18rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.03rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.15rem; right: 0.15rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.04rem; max-width: calc(100vw - 0.3rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.18rem; right: 0.18rem; max-width: 100px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.06rem; padding: 0.08rem 0.1rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: slideIn 0.2s ease; border: 1px solid var(--border-color); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.3rem; height: 0.3rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.26rem; }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.03rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.04rem 0.06rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.22rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.2rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">💬</div>
+                        <h1>Popover API</h1>
+                    </div>
+                    <p class="header-subtitle">弹出层 | 原生弹出框、菜单、工具提示</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot"></span><span>API 支持</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>Esc</kbd> 关闭</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="types"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>类型</span></button>
+                <button class="tab-btn" data-tab="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>事件</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="popover-display">
+                    <div class="popover-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div>
+                    <div class="popover-info"><div class="popover-status">Popover API</div><div class="popover-desc">原生弹出层，无需 JavaScript 管理</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="openCount">0</div><div class="stat-label">打开次数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="closeCount">0</div><div class="stat-label">关闭次数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="activePopovers">0</div><div class="stat-label">活动弹出</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">基本演示</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" popovertarget="popover1">简单弹出</button>
+                        <button class="btn btn-secondary btn-lg" popovertarget="popover2">菜单</button>
+                        <button class="btn btn-secondary btn-lg" popovertarget="popover3">通知</button>
+                        <button class="btn btn-secondary btn-lg" popovertarget="popover4">表单</button>
+                    </div>
+                </div>
+
+                <!-- Basic Popover -->
+                <div popover id="popover1">
+                    <strong>基本弹出层</strong>
+                    <p style="margin-top: 0.04rem; color: var(--text-muted); font-size: 0.2rem;">点击外部或按 Esc 关闭</p>
+                </div>
+
+                <!-- Menu Popover -->
+                <div popover id="popover2" class="menu-popover">
+                    <div class="menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>编辑</div>
+                    <div class="menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>复制</div>
+                    <div class="menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</div>
+                    <div class="menu-divider"></div>
+                    <div class="menu-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</div>
+                </div>
+
+                <!-- Notification Popover -->
+                <div popover id="popover3" class="notification-popover">
+                    <div class="notification-item"><div class="notification-icon success">✓</div><div class="notification-content"><div class="notification-title">操作成功</div><div class="notification-desc">数据已保存</div></div></div>
+                    <div class="notification-item"><div class="notification-icon warning">!</div><div class="notification-content"><div class="notification-title">注意</div><div class="notification-desc">存储空间不足</div></div></div>
+                    <div class="notification-item"><div class="notification-icon error">✗</div><div class="notification-content"><div class="notification-title">错误</div><div class="notification-desc">网络连接失败</div></div></div>
+                </div>
+
+                <!-- Form Popover -->
+                <div popover id="popover4" class="form-popover">
+                    <div class="form-group"><label class="form-label">用户名</label><input type="text" class="form-input" placeholder="输入用户名"></div>
+                    <div class="form-group"><label class="form-label">邮箱</label><input type="email" class="form-input" placeholder="输入邮箱"></div>
+                    <div style="display: flex; gap: 0.06rem; justify-content: flex-end; margin-top: 0.08rem;">
+                        <button class="btn btn-secondary btn-sm" popovertarget="popover4">取消</button>
+                        <button class="btn btn-primary btn-sm">提交</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">工具提示</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-secondary" popovertarget="tooltip1">悬停提示</button>
+                        <button class="btn btn-secondary" popovertarget="tooltip2">帮助信息</button>
+                    </div>
+                </div>
+
+                <div popover id="tooltip1" class="tooltip-popover" style="inset: auto;">这是一个工具提示</div>
+                <div popover id="tooltip2" class="tooltip-popover" style="inset: auto;">点击查看更多信息</div>
+            </div>
+
+            <!-- Types Tab -->
+            <div class="tab-content" id="tab-types">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">auto 模式（默认）</h3></div>
+                    <p style="font-size: 0.22rem; color: var(--text-muted); margin-bottom: 0.08rem;">点击外部关闭、按 Esc 关闭、自动管理焦点</p>
+                    <button class="btn btn-primary" popovertarget="autoPopover">打开 auto 弹出层</button>
+                    <div popover id="autoPopover"><strong>auto 模式</strong><p style="color: var(--text-muted); font-size: 0.2rem;">点击外部或按 Esc 关闭</p></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">manual 模式</h3></div>
+                    <p style="font-size: 0.22rem; color: var(--text-muted); margin-bottom: 0.08rem;">只能通过 JavaScript 关闭，不会自动关闭</p>
+                    <button class="btn btn-primary" popovertarget="manualPopover">打开 manual 弹出层</button>
+                    <div popover="manual" id="manualPopover"><strong>manual 模式</strong><p style="color: var(--text-muted); font-size: 0.2rem;">只能通过按钮关闭</p><button class="btn btn-secondary btn-sm" style="margin-top: 0.08rem;" onclick="document.getElementById('manualPopover').hidePopover()">关闭</button></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">嵌套弹出层</h3></div>
+                    <button class="btn btn-primary" popovertarget="nestedPopover1">打开嵌套弹出层</button>
+                    <div popover id="nestedPopover1"><strong>第一层</strong><p style="color: var(--text-muted); font-size: 0.2rem; margin: 0.04rem 0;">这是第一层弹出层</p><button class="btn btn-secondary btn-sm" popovertarget="nestedPopover2">打开第二层</button></div>
+                    <div popover id="nestedPopover2"><strong>第二层</strong><p style="color: var(--text-muted); font-size: 0.2rem; margin: 0.04rem 0;">这是第二层弹出层</p><button class="btn btn-secondary btn-sm" popovertarget="nestedPopover3">打开第三层</button></div>
+                    <div popover id="nestedPopover3"><strong>第三层</strong><p style="color: var(--text-muted); font-size: 0.2rem;">这是第三层弹出层</p></div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-content" id="tab-events">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件监听</h3><button class="btn btn-secondary btn-sm" id="clearLog">清除</button></div>
+                    <div class="event-log" id="eventLog"><div style="padding: 0.12rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">等待事件...</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">测试按钮</h3></div>
+                    <div class="demo-buttons"><button class="btn btn-primary" popovertarget="eventPopover">触发事件</button></div>
+                    <div popover id="eventPopover"><strong>事件测试</strong><p style="color: var(--text-muted); font-size: 0.2rem;">观察上方事件日志</p></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件说明</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>事件</th><th>说明</th></tr></thead><tbody><tr><td><code>beforetoggle</code></td><td>弹出层打开/关闭前触发</td></tr><tr><td><code>toggle</code></td><td>弹出层打开/关闭后触发</td></tr></tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiSupportTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody><tr><td><code>showPopover()</code></td><td>显示弹出层</td></tr><tr><td><code>hidePopover()</code></td><td>隐藏弹出层</td></tr><tr><td><code>togglePopover()</code></td><td>切换显示状态</td></tr></tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">HTML 属性</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>属性</th><th>说明</th></tr></thead><tbody><tr><td><code>popover</code></td><td>声明弹出层（auto/manual）</td></tr><tr><td><code>popovertarget</code></td><td>指定要控制的弹出层 ID</td></tr><tr><td><code>popoveraction</code></td><td>操作类型（show/hide/toggle）</td></tr></tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="comment">&lt;!-- HTML 声明式 --&gt;</span>
+&lt;button <span class="attr">popovertarget</span>=<span class="string">"menu"</span>&gt;打开&lt;/button&gt;
+&lt;div <span class="attr">popover</span> <span class="attr">id</span>=<span class="string">"menu"</span>&gt;内容&lt;/div&gt;
+
+<span class="comment">// JavaScript 控制</span>
+popover.<span class="function">showPopover</span>();
+popover.<span class="function">hidePopover</span>();
+popover.<span class="function">togglePopover</span>();
+
+<span class="comment">// 监听事件</span>
+popover.<span class="function">addEventListener</span>(<span class="string">'toggle'</span>, (e) => {
+  console.<span class="function">log</span>(e.newState); <span class="comment">// open/closed</span>
+});
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody><tr><td>Chrome</td><td>114+</td></tr><tr><td>Firefox</td><td>125+</td></tr><tr><td>Safari</td><td>17+</td></tr><tr><td>Edge</td><td>114+</td></tr></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = { theme: 'light', open: 0, close: 0, active: new Set() };
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('popover-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('popover-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toastContainer'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-content"><div class="toast-title">${title}</div></div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'slideIn 0.2s ease reverse'; setTimeout(() => t.remove(), 200); }, 800);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Popover Events ====================
+        const E = {
+            init() {
+                document.querySelectorAll('[popover]').forEach(p => {
+                    p.addEventListener('toggle', (e) => this.onToggle(e));
+                });
+            },
+            onToggle(e) {
+                const id = e.target.id || 'unnamed';
+                if (e.newState === 'open') {
+                    S.open++; S.active.add(e.target);
+                    this.log('toggle', `${id} opened`);
+                    toast('success', '弹出层已打开');
+                } else {
+                    S.close++; S.active.delete(e.target);
+                    this.log('toggle', `${id} closed`);
+                }
+                this.update();
+            },
+            log(event, detail) {
+                const log = document.getElementById('eventLog');
+                const p = log.querySelector('div[style]');
+                if (p) p.remove();
+                const t = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-time">${t}</span><span class="log-event">${event}</span><span class="log-detail">${detail}</span></div>`);
+                while (log.children.length > 15) log.lastChild.remove();
+            },
+            update() {
+                document.getElementById('openCount').textContent = S.open;
+                document.getElementById('closeCount').textContent = S.close;
+                document.getElementById('activePopovers').textContent = S.active.size;
+            },
+            clear() { document.getElementById('eventLog').innerHTML = '<div style="padding: 0.12rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">等待事件...</div>'; }
+        };
+
+        // ==================== API ====================
+        const A = {
+            check() {
+                const ok = 'popover' in HTMLElement.prototype;
+                const el = document.getElementById('apiSupport');
+                el.textContent = ok ? '支持' : '不支持';
+                el.style.color = ok ? 'var(--success-500)' : 'var(--error-500)';
+            },
+            render() {
+                const apis = [
+                    { name: 'popover 属性', type: '属性', desc: '声明弹出层', ok: 'popover' in HTMLElement.prototype },
+                    { name: 'showPopover()', type: '方法', desc: '显示弹出层', ok: !!Element.prototype.showPopover },
+                    { name: 'hidePopover()', type: '方法', desc: '隐藏弹出层', ok: !!Element.prototype.hidePopover },
+                    { name: 'togglePopover()', type: '方法', desc: '切换状态', ok: !!Element.prototype.togglePopover },
+                    { name: 'popovertarget', type: '属性', desc: '目标元素', ok: 'popoverTarget' in HTMLButtonElement.prototype },
+                ];
+                document.getElementById('apiSupportTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', (e) => { if (e.target.tagName !== 'INPUT' && e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); } });
+        document.getElementById('themeToggle').addEventListener('click', () => T.toggle());
+        document.getElementById('clearLog').addEventListener('click', () => { E.clear(); toast('info', '已清除'); });
+        document.getElementById('refreshApiCheck').addEventListener('click', () => { A.render(); toast('success', '已刷新'); });
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); A.check(); A.render(); E.init(); });
+    </script>
+</body>
+</html>

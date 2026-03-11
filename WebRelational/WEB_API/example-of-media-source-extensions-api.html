@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Media Source Extensions API 示例</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --radius: 8px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        .desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        video {
+            width: 100%;
+            background: #000;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .log-area {
+            background: var(--bg-main);
+            border-radius: 6px;
+            padding: 10px;
+            height: 120px;
+            overflow: auto;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            border-left: 2px solid var(--border);
+            padding-left: 6px;
+        }
+
+        .log-entry.event {
+            border-left-color: var(--accent-green);
+        }
+
+        .log-entry.action {
+            border-left-color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Media Source Extensions API 示例</h1>
+    <div class="desc">
+        使用 MSE（MediaSource + SourceBuffer）自己组装媒体流并播放。
+        本示例用一个公开 MP4 演示核心流程。
+    </div>
+
+    <!-- 播放器 -->
+    <video id="video" controls></video>
+
+    <!-- 日志 -->
+    <div class="log-area" id="log-area">
+        <div class="log-entry event">[init] 页面加载完成...</div>
+    </div>
+</div>
+
+<script>
+    // ========================================
+    // Media Source Extensions API 示例
+    // ========================================
+
+    const video = document.getElementById('video');
+    const logArea = document.getElementById('log-area');
+
+    const LOG_TYPES = {EVENT: 'event', ACTION: 'action'};
+
+    function log(type, msg) {
+        const div = document.createElement('div');
+        div.className = `log-entry ${type}`;
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        div.textContent = `[${time}] ${msg}`;
+        logArea.appendChild(div);
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    // 主逻辑
+    async function main() {
+        // 1. 检查 MSE 支持
+        if (!window.MediaSource) {
+            log(LOG_TYPES.EVENT, '当前浏览器不支持 MediaSource（MSE）');
+            return;
+        }
+        log(LOG_TYPES.EVENT, 'MediaSource API 支持');
+
+        // 2. 准备 MIME 类型（需要与 MP4 编码匹配）
+        // 这里使用公开测试视频，实际项目需要根据你的 MP4 编码填写
+        const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+        if (!MediaSource.isTypeSupported(mimeCodec)) {
+            log(LOG_TYPES.EVENT, `MIME 类型不支持: ${mimeCodec}`);
+            return;
+        }
+        log(LOG_TYPES.EVENT, `MIME 类型支持: ${mimeCodec}`);
+
+        // 3. 创建 MediaSource 并绑定到 video
+        const mediaSource = new MediaSource();
+        log(LOG_TYPES.ACTION, 'MediaSource 实例已创建');
+
+        video.src = URL.createObjectURL(mediaSource);
+        log(LOG_TYPES.ACTION, '已将 MediaSource 绑定到 video.src');
+
+        // 4. 监听 sourceopen 事件
+        mediaSource.addEventListener('sourceopen', async () => {
+            log(LOG_TYPES.EVENT, 'MediaSource sourceopen 触发');
+
+            // 4.1 创建 SourceBuffer
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+            log(LOG_TYPES.ACTION, 'SourceBuffer 已创建');
+
+            // 4.2 拉取 MP4 数据（ArrayBuffer）
+            // 这里使用一个公开的测试 MP4；实际项目中可以是自己的分片 MP4 或 DASH/HLS 分片
+            const assetURL = 'https://www.w3schools.com/html/mov_bbb.mp4';
+            log(LOG_TYPES.ACTION, `开始请求 MP4: ${assetURL}`);
+
+            try {
+                const resp = await fetch(assetURL);
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+                }
+                const buffer = await resp.arrayBuffer();
+                log(LOG_TYPES.EVENT, `MP4 拉取完成，大小: ${buffer.byteLength} 字节`);
+
+                // 4.3 追加到 SourceBuffer
+                sourceBuffer.addEventListener('updateend', () => {
+                    log(LOG_TYPES.EVENT, 'SourceBuffer updateend');
+                    if (mediaSource.readyState === 'open') {
+                        mediaSource.endOfStream();
+                        log(LOG_TYPES.ACTION, 'endOfStream() 已调用');
+                    }
+                });
+
+                sourceBuffer.appendBuffer(buffer);
+                log(LOG_TYPES.ACTION, 'appendBuffer() 已调用');
+
+                // 4.4 播放
+                // 真实场景中通常在数据足够后再 play()
+                video.play().catch(e => {
+                    log(LOG_TYPES.EVENT, `play() 被阻止或失败: ${e}`);
+                });
+                log(LOG_TYPES.ACTION, 'video.play() 已调用');
+
+            } catch (err) {
+                log(LOG_TYPES.EVENT, `请求或追加失败: ${err}`);
+            }
+        });
+
+        // 监听 sourceclose / sourceended（可选）
+        mediaSource.addEventListener('sourceended', () => {
+            log(LOG_TYPES.EVENT, 'MediaSource sourceended');
+        });
+
+        mediaSource.addEventListener('sourceclose', () => {
+            log(LOG_TYPES.EVENT, 'MediaSource sourceclose');
+        });
+    }
+
+    main();
+</script>
+</body>
+</html>

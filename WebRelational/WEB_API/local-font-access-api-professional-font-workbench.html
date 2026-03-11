@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Local Font Access API - 专业字体工作台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部工具栏 */
+        header {
+            height: 60px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+        }
+
+        .search-container {
+            position: relative;
+            width: 360px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px 8px 32px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            background: var(--bg-deep);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 8px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.error {
+            background: var(--accent-orange);
+        }
+
+        /* 主体布局 */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 左侧控制栏 */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            transition: width 0.3s;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 12px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+            accent-color: var(--accent-blue);
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #2a3142;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        /* 字体网格区域 */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+        }
+
+        .font-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .font-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .font-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .font-card.selected {
+            border-color: var(--accent-purple);
+        }
+
+        .font-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+
+        .font-family-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .font-style-badge {
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--bg-deep);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .font-preview {
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            background: var(--bg-deep);
+            border-radius: 4px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            line-height: 1.4;
+            word-break: break-all;
+            color: var(--text-secondary);
+            overflow: hidden;
+        }
+
+        /* 右侧详情面板 */
+        .detail-panel {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 340px;
+            background: var(--bg-main);
+            border-left: 1px solid var(--border);
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .detail-panel.open {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+            width: auto;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .detail-label {
+            color: var(--text-muted);
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            text-align: right;
+            max-width: 180px;
+            word-break: break-all;
+        }
+
+        .code-block {
+            background: var(--bg-deep);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-green);
+            position: relative;
+            margin-top: 8px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* 加载动画 */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">F</div>
+        <span>Font Access Workbench</span>
+    </div>
+
+    <div class="search-container">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" class="search-input" placeholder="搜索字体名称..." disabled>
+    </div>
+
+    <div class="status-bar">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">等待启动</span>
+    </div>
+</header>
+
+<div class="main-wrapper">
+    <!-- 左侧配置 -->
+    <aside class="sidebar">
+        <div class="control-group">
+            <button id="start-btn" class="primary">🚀 枚举本地字体</button>
+            <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px; text-align: center;">
+                需要用户授权访问系统字体
+            </p>
+        </div>
+
+        <div class="control-group">
+            <div class="section-title">预览设置</div>
+            <label>预览文本</label>
+            <input type="text" id="preview-text-input" value="Design is not just what it looks like.">
+
+            <label style="margin-top: 12px;">字体大小</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="range" id="font-size-slider" min="12" max="48" value="24">
+                <span id="font-size-val" style="font-size: 12px; width: 30px;">24px</span>
+            </div>
+
+            <label style="margin-top: 12px;">文字颜色</label>
+            <input type="color" id="font-color-input" value="#e2e8f0"
+                   style="padding: 0; height: 36px; cursor: pointer;">
+        </div>
+
+        <div class="control-group">
+            <div class="section-title">统计信息</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">
+                已加载字体: <span id="font-count" style="color: var(--accent-green);">0</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 中间网格 -->
+    <main class="content-area" id="content-area">
+        <div class="empty-state" id="empty-state">
+            <div class="empty-icon">🅰️</div>
+            <div>点击左侧按钮开始扫描字体</div>
+        </div>
+        <div class="font-grid" id="font-grid" style="display: none;"></div>
+    </main>
+
+    <!-- 右侧详情面板 -->
+    <aside class="detail-panel" id="detail-panel">
+        <div class="panel-header">
+            <span class="panel-title">字体详情</span>
+            <button class="close-btn" id="close-panel-btn">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="detail-section">
+                <div class="section-title">基本信息</div>
+                <div class="detail-row">
+                    <span class="detail-label">Family</span>
+                    <span class="detail-value" id="info-family">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">PostScript</span>
+                    <span class="detail-value" id="info-ps">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Style</span>
+                    <span class="detail-value" id="info-style">-</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="section-title">文件数据</div>
+                <div class="detail-row">
+                    <span class="detail-label">大小</span>
+                    <span class="detail-value" id="info-size">计算中...</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="section-title">CSS 代码</div>
+                <div class="code-block" id="css-code">
+                    font-family: "Unknown";
+                </div>
+                <button id="copy-css-btn" style="margin-top: 8px;">📋 复制 CSS</button>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    // ========================================
+    // Local Font Access API - 优化版演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+    const state = {
+        supported: 'queryLocalFonts' in window,
+        fonts: [],
+        filteredFonts: [],
+        selectedFont: null,
+        settings: {
+            text: 'Design is not just what it looks like.',
+            size: 24,
+            color: '#e2e8f0'
+        }
+    };
+
+    // 初始化
+    function init() {
+        setupListeners();
+        checkSupport();
+    }
+
+    function checkSupport() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+        } else {
+            dot.classList.add('error');
+            text.textContent = 'API 不支持';
+            $('start-btn').disabled = true;
+            $('start-btn').textContent = '浏览器不支持';
+        }
+    }
+
+    function setupListeners() {
+        // 启动按钮
+        $('start-btn').addEventListener('click', loadFonts);
+
+        // 搜索
+        $('search-input').addEventListener('input', handleSearch);
+
+        // 设置变更
+        $('preview-text-input').addEventListener('input', (e) => updateSettings('text', e.target.value));
+        $('font-size-slider').addEventListener('input', (e) => {
+            $('font-size-val').textContent = e.target.value + 'px';
+            updateSettings('size', e.target.value);
+        });
+        $('font-color-input').addEventListener('input', (e) => updateSettings('color', e.target.value));
+
+        // 面板关闭
+        $('close-panel-btn').addEventListener('click', () => $('detail-panel').classList.remove('open'));
+
+        // 复制按钮
+        $('copy-css-btn').addEventListener('click', copyCss);
+    }
+
+    // ========================================
+    // 核心逻辑：字体加载与渲染
+    // ========================================
+
+    async function loadFonts() {
+        const btn = $('start-btn');
+        const dot = $('status-dot');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner">⚙️</span> 扫描中...';
+        dot.classList.add('active');
+
+        try {
+            // 1. 枚举字体
+            state.fonts = await window.queryLocalFonts();
+
+            // 2. 更新 UI
+            $('font-count').textContent = state.fonts.length;
+            $('status-text').textContent = `已加载 ${state.fonts.length} 个字体`;
+            $('search-input').disabled = false;
+
+            // 3. 渲染
+            renderGrid(state.fonts);
+
+            btn.textContent = '✅ 刷新列表';
+            btn.disabled = false;
+
+        } catch (err) {
+            console.error(err);
+            $('status-text').textContent = '权限被拒绝或出错';
+            dot.classList.remove('active');
+            dot.classList.add('error');
+            btn.textContent = '重试';
+            btn.disabled = false;
+        }
+    }
+
+    function renderGrid(fonts) {
+        const grid = $('font-grid');
+        const empty = $('empty-state');
+
+        empty.style.display = 'none';
+        grid.style.display = 'grid';
+        grid.innerHTML = ''; // 清空
+
+        const fragment = document.createDocumentFragment();
+
+        fonts.forEach((font, index) => {
+            const card = document.createElement('div');
+            card.className = 'font-card';
+            card.dataset.index = index; // 存储原始索引
+
+            const style = font.style || 'Regular';
+
+            card.innerHTML = `
+          <div class="font-header">
+            <span class="font-family-name">${font.family}</span>
+            <span class="font-style-badge">${style}</span>
+          </div>
+          <div class="font-preview" style="font-family: '${font.family}'; font-size: ${state.settings.size}px; color: ${state.settings.color};">
+            ${state.settings.text}
+          </div>
+        `;
+
+            card.addEventListener('click', () => showDetails(font));
+
+            fragment.appendChild(card);
+        });
+
+        grid.appendChild(fragment);
+    }
+
+    // ========================================
+    // 交互功能：搜索、更新、详情
+    // ========================================
+
+    function handleSearch(e) {
+        const query = e.target.value.toLowerCase();
+        const filtered = state.fonts.filter(f =>
+            f.family.toLowerCase().includes(query) ||
+            (f.postscriptName && f.postscriptName.toLowerCase().includes(query))
+        );
+        renderGrid(filtered);
+    }
+
+    function updateSettings(type, value) {
+        state.settings[type] = value;
+
+        // 优化：直接更新 DOM 而非重新渲染整个列表
+        document.querySelectorAll('.font-preview').forEach(el => {
+            if (type === 'text') el.textContent = value;
+            if (type === 'size') el.style.fontSize = value + 'px';
+            if (type === 'color') el.style.color = value;
+        });
+    }
+
+    async function showDetails(font) {
+        state.selectedFont = font;
+
+        $('info-family').textContent = font.family;
+        $('info-ps').textContent = font.postscriptName;
+        $('info-style').textContent = font.style || 'Regular';
+
+        // 生成 CSS
+        const cssCode = `font-family: "${font.family}";`;
+        $('css-code').textContent = cssCode;
+
+        // 计算文件大小 (Blob Access)
+        $('info-size').textContent = '计算中...';
+
+        if (font.blob) {
+            try {
+                const blob = await font.blob();
+                const size = blob.size;
+                const sizeStr = size > 1024 * 1024
+                    ? (size / (1024 * 1024)).toFixed(2) + ' MB'
+                    : (size / 1024).toFixed(2) + ' KB';
+
+                $('info-size').textContent = sizeStr;
+            } catch (e) {
+                $('info-size').textContent = '无法读取';
+            }
+        } else {
+            $('info-size').textContent = '浏览器不支持';
+        }
+
+        $('detail-panel').classList.add('open');
+    }
+
+    function copyCss() {
+        if (!state.selectedFont) return;
+        navigator.clipboard.writeText($('css-code').textContent)
+            .then(() => alert('已复制到剪贴板!'))
+            .catch(err => console.error('复制失败', err));
+    }
+
+    init();
+</script>
+</body>
+</html>

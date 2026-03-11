@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediaStream 专业控制台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active { background: var(--accent-green); box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 12px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        button:hover:not(:disabled) { background: #2a3142; }
+        button.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+        button.danger { border-color: var(--accent-red); color: var(--accent-red); background: transparent; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 11px;
+            margin-bottom: 8px;
+            outline: none;
+        }
+
+        /* 右侧内容区 */
+        .content-area {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr auto;
+            gap: 16px;
+        }
+
+        /* 视频容器 */
+        .video-box {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .video-header {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+        }
+        .video-title { font-size: 12px; font-weight: 600; }
+        .video-info { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+        .video-wrapper {
+            position: relative;
+            flex: 1;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 摄像头用 cover */
+            background: #000;
+        }
+        .screen-video { object-fit: contain; } /* 屏幕共享用 contain */
+
+        /* 音频可视化层 */
+        .visualizer-canvas {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            pointer-events: none;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        }
+
+        /* 控制栏 */
+        .video-toolbar {
+            padding: 10px;
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        /* 状态面板 */
+        .status-panel {
+            grid-column: 1 / -1;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-item {
+            background: var(--bg-deep);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        .stat-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .stat-val { font-size: 12px; color: var(--accent-green); font-family: var(--font-mono); }
+
+        /* 提示框 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-blue);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; }
+
+        /* 动画 */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .recording { animation: pulse 1.5s infinite; color: var(--accent-red); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">MS</div>
+        <span>MediaStream Pro Console</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测环境...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制 -->
+    <aside class="control-panel">
+        <div class="card">
+            <div class="section-title">设备选择</div>
+            <label style="font-size:10px; color:var(--text-muted); margin-bottom:2px; display:block;">摄像头</label>
+            <select id="select-video"></select>
+
+            <label style="font-size:10px; color:var(--text-muted); margin-bottom:2px; display:block;">麦克风</label>
+            <select id="select-audio"></select>
+        </div>
+
+        <div class="card">
+            <div class="section-title">分辨率预设</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px;">
+                <button onclick="applyResolution(1280, 720)">720p</button>
+                <button onclick="applyResolution(1920, 1080)">1080p</button>
+                <button onclick="applyResolution(3840, 2160)">4K</button>
+                <button onclick="applyResolution(640, 480)">VGA</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">主控制</div>
+            <button id="btn-start" class="primary">▶ 启动摄像头</button>
+            <button id="btn-screen" style="margin-top:6px;">🖥 屏幕共享</button>
+            <button id="btn-stop" class="danger" style="margin-top:6px;">⏹ 停止所有流</button>
+        </div>
+    </aside>
+
+    <!-- 右侧展示 -->
+    <section class="content-area">
+
+        <!-- 摄像头视图 -->
+        <div class="video-box">
+            <div class="video-header">
+                <span class="video-title">本地摄像头</span>
+                <span class="video-info" id="camera-meta">未连接</span>
+            </div>
+            <div class="video-wrapper">
+                <video id="video-local" autoplay playsinline muted></video>
+                <canvas id="audio-viz" class="visualizer-canvas"></canvas>
+            </div>
+            <div class="video-toolbar">
+                <button id="btn-mic" disabled>🎤 静音</button>
+                <button id="btn-pip" disabled>⏹ 画中画</button>
+                <button id="btn-photo" disabled>📷 截图</button>
+                <button id="btn-mirror" disabled>🪞 镜像</button>
+            </div>
+        </div>
+
+        <!-- 屏幕共享视图 -->
+        <div class="video-box">
+            <div class="video-header">
+                <span class="video-title">屏幕共享</span>
+                <span class="video-info" id="screen-meta">未连接</span>
+            </div>
+            <div class="video-wrapper">
+                <video id="video-screen" autoplay playsinline muted class="screen-video"></video>
+            </div>
+            <div class="video-toolbar">
+                <button id="btn-stop-screen" disabled>⏹ 停止共享</button>
+                <div></div>
+            </div>
+        </div>
+
+        <!-- 底部状态面板 -->
+        <div class="status-panel">
+            <div class="stat-item">
+                <div class="stat-label">流 ID</div>
+                <div class="stat-val" id="info-id">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">分辨率</div>
+                <div class="stat-val" id="info-res">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">帧率</div>
+                <div class="stat-val" id="info-fps">-</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">音频轨道</div>
+                <div class="stat-val" id="info-audio">-</div>
+            </div>
+        </div>
+
+    </section>
+</main>
+
+<div class="toast" id="toast">操作成功</div>
+
+<script>
+    // ========================================
+    // MediaStream 专业控制台 (优化版)
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'mediaDevices' in navigator,
+        stream: null,
+        screenStream: null,
+        audioContext: null,
+        analyser: null,
+        dataArray: null,
+        isMirrored: false
+    };
+
+    // 初始化
+    async function init() {
+        if (!state.supported) {
+            $('status-text').textContent = 'API 不支持';
+            $('btn-start').disabled = true;
+            return;
+        }
+
+        $('status-dot').classList.add('active');
+        $('status-text').textContent = 'API 支持';
+
+        await loadDevices();
+        setupListeners();
+
+        // 监听设备插拔
+        navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    }
+
+    // 加载设备列表
+    async function loadDevices() {
+        try {
+            // 请求一次权限以确保 label 可用
+            if (!state.stream) {
+                // 尝试快速枚举，如果没有权限 label 会是空
+                const tempDevices = await navigator.mediaDevices.enumerateDevices();
+                if (tempDevices[0] && tempDevices[0].label === "") {
+                    console.log("需要权限才能显示设备名称");
+                }
+            }
+
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoSelect = $('select-video');
+            const audioSelect = $('select-audio');
+
+            const prevVideo = videoSelect.value;
+            const prevAudio = audioSelect.value;
+
+            videoSelect.innerHTML = '';
+            audioSelect.innerHTML = '';
+
+            devices.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.text = d.label || `${d.kind} (${d.deviceId.slice(0,5)}...)`;
+
+                if (d.kind === 'videoinput') videoSelect.appendChild(opt);
+                if (d.kind === 'audioinput') audioSelect.appendChild(opt);
+            });
+
+            // 恢复之前的选择
+            if (prevVideo) videoSelect.value = prevVideo;
+            if (prevAudio) audioSelect.value = prevAudio;
+
+        } catch (e) {
+            console.error("设备枚举失败", e);
+        }
+    }
+
+    function setupListeners() {
+        $('btn-start').addEventListener('click', startCamera);
+        $('btn-screen').addEventListener('click', startScreen);
+        $('btn-stop').addEventListener('click', stopAll);
+
+        $('btn-mic').addEventListener('click', toggleMic);
+        $('btn-pip').addEventListener('click', togglePiP);
+        $('btn-photo').addEventListener('click', takePhoto);
+        $('btn-mirror').addEventListener('click', toggleMirror);
+        $('btn-stop-screen').addEventListener('click', stopScreen);
+
+        // 设备切换
+        $('select-video').addEventListener('change', startCamera);
+        $('select-audio').addEventListener('change', startCamera);
+    }
+
+    // ========================================
+    // 核心逻辑：摄像头
+    // ========================================
+
+    async function startCamera() {
+        const vId = $('select-video').value;
+        const aId = $('select-audio').value;
+
+        const constraints = {
+            video: {
+                deviceId: vId ? { exact: vId } : undefined,
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: {
+                deviceId: aId ? { exact: aId } : undefined,
+                echoCancellation: true,
+                noiseSuppression: true
+            }
+        };
+
+        try {
+            if (state.stream) stopStream(state.stream);
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            state.stream = stream;
+
+            $('video-local').srcObject = stream;
+            $('btn-start').textContent = "🔄 重启摄像头";
+
+            // 启用控制按钮
+            $('btn-mic').disabled = false;
+            $('btn-pip').disabled = false;
+            $('btn-photo').disabled = false;
+            $('btn-mirror').disabled = false;
+
+            // 刷新设备列表以获取标签
+            await loadDevices();
+
+            // 启动音频可视化
+            setupAudioAnalyser(stream);
+
+            // 更新状态显示
+            updateStats();
+
+            showToast("摄像头已连接");
+
+        } catch (err) {
+            console.error(err);
+            showToast("错误: " + err.message);
+        }
+    }
+
+    // ========================================
+    // 核心逻辑：屏幕共享
+    // ========================================
+
+    async function startScreen() {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: "always" },
+                audio: true
+            });
+
+            state.screenStream = stream;
+            $('video-screen').srcObject = stream;
+            $('btn-stop-screen').disabled = false;
+
+            // 监听用户点击浏览器自带的“停止共享”按钮
+            stream.getVideoTracks()[0].onended = () => {
+                stopScreen();
+            };
+
+            showToast("屏幕共享已开始");
+        } catch (e) {
+            console.error(e);
+            if(e.name !== 'AbortError') showToast("共享失败: " + e.message);
+        }
+    }
+
+    function stopScreen() {
+        if (state.screenStream) {
+            state.screenStream.getTracks().forEach(t => t.stop());
+            state.screenStream = null;
+        }
+        $('video-screen').srcObject = null;
+        $('btn-stop-screen').disabled = true;
+        $('screen-meta').textContent = "未连接";
+    }
+
+    // ========================================
+    // 增强功能
+    // ========================================
+
+    // 1. 音频可视化
+    function setupAudioAnalyser(stream) {
+        if (!state.audioContext) {
+            state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // 连接音频源
+        const source = state.audioContext.createMediaStreamSource(stream);
+        const analyser = state.audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        state.analyser = analyser;
+        state.dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        drawVisualizer();
+    }
+
+    function drawVisualizer() {
+        if (!state.analyser) return;
+
+        requestAnimationFrame(drawVisualizer);
+
+        state.analyser.getByteFrequencyData(state.dataArray);
+
+        const canvas = $('audio-viz');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width = canvas.offsetWidth;
+        const height = canvas.height = canvas.offsetHeight;
+
+        ctx.clearRect(0, 0, width, height);
+
+        const barWidth = (width / state.dataArray.length) * 2.5;
+        let x = 0;
+
+        state.dataArray.forEach(val => {
+            const barHeight = (val / 255) * height;
+
+            // 渐变色
+            const g = ctx.createLinearGradient(0, height, 0, height - barHeight);
+            g.addColorStop(0, '#10b981');
+            g.addColorStop(1, '#3b82f6');
+
+            ctx.fillStyle = g;
+            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+
+            x += barWidth + 1;
+        });
+    }
+
+    // 2. 截图
+    function takePhoto() {
+        const video = $('video-local');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx = canvas.getContext('2d');
+
+        // 处理镜像
+        if (state.isMirrored) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        ctx.drawImage(video, 0, 0);
+
+        const link = document.createElement('a');
+        link.download = `capture_${Date.now()}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+
+        showToast("已保存截图");
+    }
+
+    // 3. 画中画
+    async function togglePiP() {
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                await $('video-local').requestPictureInPicture();
+            }
+        } catch(e) {
+            showToast("PiP 错误: " + e.message);
+        }
+    }
+
+    // 4. 镜像
+    function toggleMirror() {
+        state.isMirrored = !state.isMirrored;
+        $('video-local').style.transform = state.isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+    }
+
+    // 5. 静音
+    function toggleMic() {
+        if (!state.stream) return;
+        const track = state.stream.getAudioTracks()[0];
+        if (track) {
+            track.enabled = !track.enabled;
+            $('btn-mic').textContent = track.enabled ? '🎤 静音' : '🔇 取消静音';
+            $('btn-mic').classList.toggle('danger', !track.enabled);
+        }
+    }
+
+    // 6. 分辨率切换
+    async function applyResolution(w, h) {
+        if (!state.stream) return;
+        const track = state.stream.getVideoTracks()[0];
+
+        try {
+            await track.applyConstraints({
+                width: { exact: w },
+                height: { exact: h }
+            });
+            updateStats();
+            showToast(`已切换至 ${w}x${h}`);
+        } catch (e) {
+            showToast("此设备不支持该分辨率");
+        }
+    }
+
+    // ========================================
+    // 工具函数
+    // ========================================
+
+    function updateStats() {
+        if (!state.stream) return;
+        const track = state.stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+
+        $('info-id').textContent = state.stream.id.slice(0, 8) + "...";
+        $('info-res').textContent = `${settings.width} x ${settings.height}`;
+        $('info-fps').textContent = settings.frameRate + " FPS";
+        $('camera-meta').textContent = `${settings.width}x${settings.height} @ ${track.label.slice(0,20)}`;
+
+        const audioTracks = state.stream.getAudioTracks();
+        $('info-audio').textContent = audioTracks.length > 0 ? audioTracks[0].label.slice(0,15) : "无";
+    }
+
+    function stopStream(s) {
+        if (!s) return;
+        s.getTracks().forEach(t => t.stop());
+    }
+
+    function stopAll() {
+        stopStream(state.stream);
+        stopStream(state.screenStream);
+        state.stream = null;
+        state.screenStream = null;
+
+        $('video-local').srcObject = null;
+        $('video-screen').srcObject = null;
+
+        $('btn-mic').disabled = true;
+        $('btn-pip').disabled = true;
+        $('btn-photo').disabled = true;
+        $('btn-mirror').disabled = true;
+        $('btn-stop-screen').disabled = true;
+
+        $('camera-meta').textContent = "未连接";
+        $('screen-meta').textContent = "未连接";
+        $('info-id').textContent = "-";
+        $('info-res').textContent = "-";
+        $('info-fps').textContent = "-";
+
+        showToast("已停止所有流");
+    }
+
+    function showToast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    init();
+</script>
+</body>
+</html>

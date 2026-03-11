@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MSE Smart Player - Full Working Version</title>
+    <style>
+        :root {
+            --bg-dash: #0b0f15;
+            --bg-panel: #131920;
+            --bg-card: #1a222d;
+            --border: #2a3544;
+            --text-main: #e4e8ef;
+            --text-dim: #6b7a8f;
+            --accent-primary: #2962ff;
+            --accent-success: #00c853;
+            --accent-warning: #ffb300;
+            --accent-danger: #ff3d00;
+            --font-data: 'IBM Plex Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-dash);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            height: 50px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo span {
+            color: var(--accent-primary);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-family: var(--font-data);
+            padding: 4px 12px;
+            background: var(--bg-card);
+            border-radius: 12px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .dot.active {
+            background: var(--accent-success);
+            box-shadow: 0 0 8px var(--accent-success);
+        }
+
+        .dot.warning {
+            background: var(--accent-warning);
+        }
+
+        .dot.error {
+            background: var(--accent-danger);
+        }
+
+        .main-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: 1fr 200px;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .video-col {
+            background: var(--bg-dash);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-container {
+            flex: 1;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .progress-section {
+            background: var(--bg-panel);
+            padding: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .timeline-track {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-card);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .buffer-segment {
+            position: absolute;
+            height: 100%;
+            background: var(--accent-primary);
+            opacity: 0.4;
+            border-radius: 2px;
+            top: 0;
+        }
+
+        .play-head {
+            position: absolute;
+            height: 100%;
+            background: white;
+            width: 2px;
+            left: 0;
+            top: 0;
+            z-index: 3;
+        }
+
+        .time-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 4px;
+            font-family: var(--font-data);
+        }
+
+        .control-panel {
+            background: var(--bg-panel);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .metric-label {
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-family: var(--font-data);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        button {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            width: 100%;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--border);
+        }
+
+        button.primary-action {
+            background: var(--accent-primary);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+
+        button.fallback {
+            background: var(--accent-warning);
+            color: #000;
+            border: none;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .log-terminal {
+            grid-column: 1 / -1;
+            background: #080b0f;
+            padding: 10px 20px;
+            font-family: var(--font-data);
+            font-size: 10px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .log-line {
+            margin-bottom: 4px;
+        }
+
+        .log-err {
+            color: var(--accent-danger);
+        }
+
+        .log-warn {
+            color: var(--accent-warning);
+        }
+
+        .log-sys {
+            color: var(--text-dim);
+        }
+
+        .log-mse {
+            color: var(--accent-success);
+        }
+
+        .log-net {
+            color: #4fc3f7;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo"><span>Smart</span> MSE Player</div>
+    <div class="status-indicator">
+        <span class="dot" id="sys-dot"></span>
+        <span id="sys-status">IDLE</span>
+    </div>
+</header>
+
+<div class="main-grid">
+    <div class="video-col">
+        <div class="video-container">
+            <video id="player" controls></video>
+        </div>
+        <div class="progress-section">
+            <div class="timeline-track" id="timeline">
+                <div id="buf-viz"></div>
+                <div class="play-head" id="playhead"></div>
+            </div>
+            <div class="time-stats">
+                <span id="time-cur">00:00</span>
+                <span id="time-dur">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="section-title">Playback Mode</div>
+        <button id="btn-mse" class="primary-action">Try MSE Streaming</button>
+        <button id="btn-direct" class="fallback">Use Direct Playback</button>
+        <button id="btn-reset">Reset</button>
+
+        <div class="section-title">Metrics</div>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">DOWNLOADED</div>
+                <div class="metric-value" id="met-load">0 MB</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">BUFFER HEALTH</div>
+                <div class="metric-value" id="met-buf">Idle</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="log-terminal" id="logs">
+        <div class="log-line log-sys">Ready. Supports auto-fallback for non-streamable videos.</div>
+    </div>
+</div>
+
+<script>
+    // ======================
+    // 配置区：你可以修改这里测试不同视频
+    // ======================
+    const VIDEO_URL = 'http://vjs.zencdn.net/v/oceans.mp4'; // 普通 MP4（非 fMP4）
+
+    let State = null;
+    const $ = id => document.getElementById(id);
+    const Player = $('player');
+    const Logs = $('logs');
+
+    function resetState() {
+        if (State) {
+            if (State.abortController) State.abortController.abort();
+            if (State.mediaSource) {
+                State.mediaSource.removeEventListener('sourceopen', onSourceOpen);
+                State.mediaSource.removeEventListener('sourceclose', onMediaSourceClose);
+            }
+            if (State.sourceBuffer) {
+                State.sourceBuffer.removeEventListener('updateend', processQueue);
+                // 不再监听 error，因为我们提前判断了格式
+            }
+            if (Player.src && Player.src.startsWith('blob:')) {
+                URL.revokeObjectURL(Player.src);
+            }
+        }
+        State = {
+            mediaSource: null,
+            sourceBuffer: null,
+            totalSize: 0,
+            bytesLoaded: 0,
+            isFetching: false,
+            abortController: null,
+            fetchQueue: [],
+            mime: null
+        };
+        $('met-load').textContent = '0 MB';
+        $('met-buf').textContent = 'Idle';
+    }
+
+    resetState();
+
+    function isMSEAlive() {
+        return State.mediaSource &&
+            State.mediaSource.readyState === 'open' &&
+            State.sourceBuffer;
+    }
+
+    // ======================
+    // Step 1: Sniff file header to guess format
+    // ======================
+    async function sniffVideoFormat(url) {
+        try {
+            const resp = await fetch(url, {
+                headers: {Range: 'bytes=0-1023'}
+            });
+            const buffer = await resp.arrayBuffer();
+            const view = new Uint8Array(buffer);
+
+            // Check for WebM: 'w','e','b','m'
+            if (view[0] === 0x1A && view[1] === 0x45 && view[2] === 0xDF && view[3] === 0xA3) {
+                return {type: 'webm', mime: 'video/webm; codecs="vp8, vorbis"'};
+            }
+
+            // Check for MP4: 'f','t','y','p'
+            if (view[4] === 0x66 && view[5] === 0x74 && view[6] === 0x79 && view[7] === 0x70) {
+                // Further check if it's likely fMP4 (has 'dash' or 'iso6')
+                const brand = String.fromCharCode(...view.slice(8, 12));
+                if (['dash', 'iso6', 'mp42'].includes(brand)) {
+                    return {type: 'fmp4', mime: 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"'};
+                } else {
+                    return {type: 'mp4', mime: null}; // regular MP4
+                }
+            }
+
+            return {type: 'unknown', mime: null};
+        } catch (e) {
+            log('err', 'Sniff failed: ' + e.message);
+            return {type: 'unknown', mime: null};
+        }
+    }
+
+    // ======================
+    // Step 2: Try MSE only if suitable (NO fallback from error!)
+    // ======================
+    async function tryMSEPlayback() {
+        log('sys', '🔍 Sniffing video format...');
+        const format = await sniffVideoFormat(VIDEO_URL);
+
+        if (format.type === 'unknown') {
+            log('warn', 'Unknown format. Using direct playback.');
+            useDirectPlayback();
+            return;
+        }
+
+        // 🔥 关键改进：普通 MP4 直接走 direct，不尝试 MSE
+        if (format.type === 'mp4') {
+            log('sys', 'Regular MP4 detected. Skipping MSE, using direct playback for compatibility.');
+            useDirectPlayback();
+            return;
+        }
+
+        if (!format.mime || !MediaSource.isTypeSupported(format.mime)) {
+            log('err', `MIME not supported: ${format.mime || 'unknown'}`);
+            useDirectPlayback();
+            return;
+        }
+
+        // Only proceed with MSE for WebM or confirmed fMP4
+        await startMSEEngine(format.mime);
+    }
+
+    async function startMSEEngine(mime) {
+        resetState();
+        State.mime = mime;
+
+        Player.removeAttribute('src');
+        Player.load();
+        updateUI('LOADING');
+        log('mse', `Starting MSE with MIME: ${mime}`);
+
+        try {
+            const head = await fetch(VIDEO_URL, {method: 'HEAD'});
+            State.totalSize = parseInt(head.headers.get('Content-Length') || '0');
+            log('net', `File size: ${(State.totalSize / 1024 / 1024).toFixed(2)} MB`);
+
+            State.mediaSource = new MediaSource();
+            Player.src = URL.createObjectURL(State.mediaSource);
+
+            State.mediaSource.addEventListener('sourceopen', () => onSourceOpen(mime));
+            State.mediaSource.addEventListener('sourceclose', onMediaSourceClose);
+
+        } catch (e) {
+            handleError(e);
+            useDirectPlayback();
+        }
+    }
+
+    function onSourceOpen(mime) {
+        if (State.mediaSource.sourceBuffers.length > 0) return;
+
+        try {
+            State.sourceBuffer = State.mediaSource.addSourceBuffer(mime);
+            log('mse', 'SourceBuffer created');
+
+            // 不再监听 error，因为已提前过滤
+            State.sourceBuffer.addEventListener('updateend', processQueue);
+
+            updateUI('STREAMING');
+            Player.addEventListener('timeupdate', onTimeUpdate);
+            Player.addEventListener('seeking', onSeek);
+
+            startFetch(0);
+
+        } catch (e) {
+            handleError(e);
+            useDirectPlayback();
+        }
+    }
+
+    function onMediaSourceClose() {
+        log('sys', 'MediaSource closed');
+    }
+
+    // ======================
+    // Network & Buffer Logic
+    // ======================
+    async function startFetch(startByte) {
+        if (!isMSEAlive()) return;
+        if (State.isFetching) return;
+        if (startByte >= State.totalSize) {
+            if (isMSEAlive()) State.mediaSource.endOfStream();
+            log('sys', 'End of stream');
+            return;
+        }
+
+        State.isFetching = true;
+        State.abortController = new AbortController();
+        const endByte = Math.min(startByte + 256 * 1024, State.totalSize - 1);
+        const range = `bytes=${startByte}-${endByte}`;
+
+        try {
+            const resp = await fetch(VIDEO_URL, {
+                headers: {Range: range},
+                signal: State.abortController.signal
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const buffer = await resp.arrayBuffer();
+            if (!isMSEAlive()) return;
+
+            State.fetchQueue.push(buffer);
+            State.bytesLoaded = endByte + 1;
+            $('met-load').textContent = (State.bytesLoaded / 1024 / 1024).toFixed(1) + ' MB';
+
+            processQueue();
+        } catch (e) {
+            if (e.name !== 'AbortError') log('err', e.message);
+        } finally {
+            State.isFetching = false;
+        }
+    }
+
+    function processQueue() {
+        if (!isMSEAlive() || State.sourceBuffer.updating || State.fetchQueue.length === 0) {
+            if (isMSEAlive() && !State.sourceBuffer.updating && State.fetchQueue.length === 0) {
+                scheduleNext();
+            }
+            return;
+        }
+        try {
+            const chunk = State.fetchQueue.shift();
+            State.sourceBuffer.appendBuffer(chunk);
+        } catch (e) {
+            log('err', 'Append failed: ' + e.message);
+            useDirectPlayback();
+        }
+    }
+
+    function scheduleNext() {
+        const health = getBufferHealth();
+        if (health < 15 && !State.isFetching && State.bytesLoaded < State.totalSize) {
+            startFetch(State.bytesLoaded);
+        }
+    }
+
+    // ======================
+    // Fallback: Direct Playback
+    // ======================
+    function useDirectPlayback() {
+        resetState();
+        Player.src = VIDEO_URL;
+        Player.load();
+        updateUI('DIRECT PLAYBACK');
+        log('sys', '✅ Switched to direct playback (supports all browser-compatible formats)');
+    }
+
+    // ======================
+    // UI & Utils
+    // ======================
+    function onSeek() {
+        if (isMSEAlive()) scheduleNext();
+    }
+
+    function onTimeUpdate() {
+        if (Player.duration > 0) {
+            $('playhead').style.left = `${(Player.currentTime / Player.duration) * 100}%`;
+            $('time-cur').textContent = formatTime(Player.currentTime);
+        }
+        $('met-buf').textContent = `${getBufferHealth().toFixed(1)}s`;
+        drawBufferViz();
+        if (isMSEAlive()) scheduleNext();
+    }
+
+    function drawBufferViz() {
+        const bufViz = $('buf-viz');
+        bufViz.innerHTML = '';
+        if (!Player.buffered || Player.buffered.length === 0 || Player.duration <= 0) return;
+        for (let i = 0; i < Player.buffered.length; i++) {
+            const s = Player.buffered.start(i);
+            const e = Player.buffered.end(i);
+            const el = document.createElement('div');
+            el.className = 'buffer-segment';
+            el.style.left = `${(s / Player.duration) * 100}%`;
+            el.style.width = `${((e - s) / Player.duration) * 100}%`;
+            bufViz.appendChild(el);
+        }
+    }
+
+    function getBufferHealth() {
+        if (!Player.buffered || Player.buffered.length === 0) return 0;
+        return Player.buffered.end(Player.buffered.length - 1) - Player.currentTime;
+    }
+
+    function handleError(e) {
+        log('err', e.message || 'Unknown error');
+        updateUI('ERROR');
+    }
+
+    function log(type, msg) {
+        const div = document.createElement('div');
+        div.className = `log-line log-${type}`;
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        Logs.insertBefore(div, Logs.firstChild);
+    }
+
+    function updateUI(s) {
+        $('sys-status').textContent = s;
+        $('sys-dot').className = 'dot';
+        if (s.includes('PLAYBACK') || s === 'STREAMING') $('sys-dot').classList.add('active');
+        else if (s === 'ERROR') $('sys-dot').classList.add('error');
+        else if (s === 'LOADING') $('sys-dot').classList.add('warning');
+    }
+
+    function formatTime(s) {
+        if (isNaN(s) || s < 0) return '00:00';
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    }
+
+    // ======================
+    // Event Handlers
+    // ======================
+    $('btn-mse').onclick = tryMSEPlayback;
+    $('btn-direct').onclick = useDirectPlayback;
+    $('btn-reset').onclick = () => {
+        resetState();
+        Player.removeAttribute('src');
+        Player.load();
+        updateUI('IDLE');
+        log('sys', 'Reset complete');
+    };
+
+    Player.addEventListener('loadedmetadata', () => {
+        $('time-dur').textContent = formatTime(Player.duration);
+    });
+
+    // 自动启动（可选）
+    window.addEventListener('load', () => {
+        log('sys', 'Auto-starting playback...');
+        tryMSEPlayback();
+    });
+</script>
+</body>
+</html>
+
+

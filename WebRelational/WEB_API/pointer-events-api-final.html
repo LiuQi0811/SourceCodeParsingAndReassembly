@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pointer Events API Pro - 企业级指针事件平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #fff1f2;
+            --primary-200: #fecdd3;
+            --primary-500: #f43f5e;
+            --primary-600: #e11d48;
+            --primary-800: #9f1239;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #3b82f6;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #e11d48 0%, #9f1239 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(244, 63, 94, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; touch-action: manipulation; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.2rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.3rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.3rem 0.35rem; border-radius: var(--radius-lg); margin-bottom: 0.2rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.12rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.15rem; }
+        .header-title h1 { font-size: 0.6rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.75rem; } }
+        .header-icon { width: 1rem; height: 1rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.5rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.35rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.12rem; }
+        .header-status { display: flex; align-items: center; gap: 0.06rem; background: rgba(255, 255, 255, 0.1); padding: 0.06rem 0.15rem; border-radius: 99px; font-size: 0.35rem; }
+        .status-dot { width: 0.15rem; height: 0.15rem; border-radius: 50%; background: var(--success-500); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.06rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.5rem; height: 0.5rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.2rem; left: 0.2rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.06rem 0.12rem; font-size: 0.25rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.15rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.03rem; font-family: monospace; font-size: 0.22rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 28px; padding: 0.12rem 0.06rem; background: transparent; border: none; cursor: pointer; font-size: 0.28rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.03rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 35px; font-size: 0.35rem; padding: 0.15rem 0.25rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.4rem; height: 0.4rem; }
+        .tab-content { display: none; padding: 0.15rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.25rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.2rem; margin-bottom: 0.15rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.12rem; padding-bottom: 0.08rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.05rem; }
+        .card-title { font-size: 0.4rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.06rem; }
+        .card-badge { font-size: 0.25rem; padding: 0.02rem 0.08rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.08rem; margin-bottom: 0.15rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.1rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.12rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(244, 63, 94, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.5rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.25rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.01rem; }
+
+        /* Pointer Display */
+        .pointer-display { display: flex; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.15rem; border: 1px solid var(--border-color); }
+        .pointer-icon { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 6px rgba(244, 63, 94, 0.3); }
+        .pointer-icon svg { width: 0.75rem; height: 0.75rem; color: white; }
+        .pointer-info { text-align: left; }
+        .pointer-status { font-size: 0.45rem; font-weight: 700; color: var(--text-primary); }
+        .pointer-desc { font-size: 0.3rem; color: var(--text-muted); }
+
+        /* Interactive Area */
+        .interactive-area { position: relative; height: 160px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border: 2px dashed var(--border-color); border-radius: var(--radius); overflow: hidden; touch-action: none; user-select: none; cursor: crosshair; }
+        .interactive-area.active { border-color: var(--primary-500); border-style: solid; }
+        .pointer-dot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--primary-500); transform: translate(-50%, -50%); pointer-events: none; opacity: 0.8; transition: width 0.1s, height 0.1s; }
+        .pointer-dot::after { content: attr(data-id); position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 0.22rem; color: var(--text-muted); white-space: nowrap; }
+        .pointer-trail { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--primary-300); transform: translate(-50%, -50%); pointer-events: none; opacity: 0.4; }
+        .area-info { position: absolute; bottom: 0.08rem; left: 0.08rem; font-size: 0.25rem; color: var(--text-muted); background: var(--card-bg); padding: 0.03rem 0.08rem; border-radius: 2px; }
+
+        /* Drawing Canvas */
+        .drawing-canvas { width: 100%; height: 150px; background: var(--bg-tertiary); border-radius: var(--radius); touch-action: none; cursor: crosshair; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.04rem; padding: 0.08rem 0.15rem; border-radius: var(--radius); font-size: 0.3rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.3rem; height: 0.3rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-800); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 0.05rem 0.1rem; font-size: 0.25rem; }
+
+        /* Event Log */
+        .event-log { max-height: 120px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.22rem; }
+        .log-item { padding: 0.04rem 0.08rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.06rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-event { font-weight: 600; min-width: 2.8rem; }
+        .log-event.pointerdown { color: var(--success-500); }
+        .log-event.pointerup { color: var(--error-500); }
+        .log-event.pointermove { color: var(--info-500); }
+        .log-detail { color: var(--text-secondary); flex: 1; }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.15rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.25rem; overflow-x: auto; margin: 0.08rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.3rem; }
+        .api-table th, .api-table td { padding: 0.08rem 0.1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.25rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.02rem 0.08rem; border-radius: 99px; font-size: 0.22rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.05rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.25em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.2rem; right: 0.2rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.06rem; max-width: calc(100vw - 0.4rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.25rem; right: 0.25rem; max-width: 140px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.1rem; padding: 0.12rem 0.15rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: slideIn 0.3s ease; border: 1px solid var(--border-color); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-warning { border-left: 2px solid var(--warning-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.4rem; height: 0.4rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.35rem; }
+        .toast-message { font-size: 0.25rem; color: var(--text-secondary); }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.05rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.06rem 0.1rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.3rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.25rem; }
+
+        /* Pressure Gauge */
+        .pressure-gauge { display: flex; align-items: center; gap: 0.1rem; padding: 0.1rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.12rem; }
+        .pressure-bar { flex: 1; height: 0.4rem; background: var(--border-color); border-radius: 99px; overflow: hidden; }
+        .pressure-fill { height: 100%; background: linear-gradient(90deg, var(--success-500), var(--warning-500), var(--error-500)); transition: width 0.1s; }
+        .pressure-value { font-size: 0.35rem; font-weight: 600; color: var(--text-primary); min-width: 1.8rem; text-align: right; }
+
+        /* Pointer Type Indicator */
+        .pointer-types { display: flex; gap: 0.08rem; flex-wrap: wrap; margin-bottom: 0.12rem; }
+        .pointer-type-btn { padding: 0.08rem 0.12rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 0.25rem; color: var(--text-muted); cursor: default; transition: all var(--transition); }
+        .pointer-type-btn.active { border-color: var(--primary-500); color: var(--primary-600); background: var(--primary-50); }
+
+        /* Gesture Display */
+        .gesture-display { display: flex; align-items: center; justify-content: center; gap: 0.15rem; padding: 0.15rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.12rem; }
+        .gesture-icon { font-size: 0.6rem; }
+        .gesture-text { font-size: 0.35rem; color: var(--text-secondary); }
+        .gesture-text strong { color: var(--text-primary); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">👆</div>
+                        <h1>Pointer Events API</h1>
+                    </div>
+                    <p class="header-subtitle">指针事件 | 统一处理鼠标、触摸、笔输入</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot"></span><span>API 支持</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>C</kbd> 清除</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="drawing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg><span>绘图</span></button>
+                <button class="tab-btn" data-tab="gesture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>手势</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="pointer-display">
+                    <div class="pointer-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div>
+                    <div class="pointer-info"><div class="pointer-status">Pointer Events API</div><div class="pointer-desc">统一处理鼠标、触摸、笔输入设备</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="pointerCount">0</div><div class="stat-label">活动指针</div></div>
+                    <div class="stat-card"><div class="stat-value" id="pointerType">--</div><div class="stat-label">指针类型</div></div>
+                    <div class="stat-card"><div class="stat-value" id="pressure">0</div><div class="stat-label">压力值</div></div>
+                    <div class="stat-card"><div class="stat-value" id="eventCount">0</div><div class="stat-label">事件数</div></div>
+                </div>
+
+                <div class="pointer-types">
+                    <span class="pointer-type-btn" id="typeMouse">🖱️ 鼠标</span>
+                    <span class="pointer-type-btn" id="typeTouch">👆 触摸</span>
+                    <span class="pointer-type-btn" id="typePen">🖊️ 触控笔</span>
+                </div>
+
+                <div class="pressure-gauge">
+                    <span style="font-size: 0.3rem; color: var(--text-muted);">压力</span>
+                    <div class="pressure-bar"><div class="pressure-fill" id="pressureFill" style="width: 0%;"></div></div>
+                    <span class="pressure-value" id="pressureValue">0%</span>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">交互区域</h3><button class="btn btn-secondary btn-sm" id="clearArea">清除</button></div>
+                    <div class="interactive-area" id="interactiveArea"><div class="area-info" id="areaInfo">在此区域移动指针</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">指针信息</h3></div>
+                    <div class="info-list" id="pointerInfo">
+                        <div class="info-item"><span class="info-label">pointerId</span><span class="info-value">--</span></div>
+                        <div class="info-item"><span class="info-label">pointerType</span><span class="info-value">--</span></div>
+                        <div class="info-item"><span class="info-label">isPrimary</span><span class="info-value">--</span></div>
+                        <div class="info-item"><span class="info-label">坐标</span><span class="info-value">--</span></div>
+                        <div class="info-item"><span class="info-label">pressure</span><span class="info-value">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drawing Tab -->
+            <div class="tab-content" id="tab-drawing">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">绘图画布</h3>
+                        <div style="display: flex; gap: 0.08rem;">
+                            <input type="color" id="drawColor" value="#f43f5e" style="width: 1rem; height: 0.6rem; border: none; border-radius: var(--radius); cursor: pointer;">
+                            <select id="drawSize" class="btn btn-secondary btn-sm"><option value="2">细</option><option value="4" selected>中</option><option value="8">粗</option></select>
+                            <button class="btn btn-secondary btn-sm" id="clearCanvas">清除</button>
+                        </div>
+                    </div>
+                    <canvas class="drawing-canvas" id="drawingCanvas"></canvas>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="strokeCount">0</div><div class="stat-label">笔画数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="pointCount">0</div><div class="stat-label">点数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="avgPressure">0</div><div class="stat-label">平均压力</div></div>
+                    <div class="stat-card"><div class="stat-value" id="drawType">--</div><div class="stat-label">输入类型</div></div>
+                </div>
+            </div>
+
+            <!-- Gesture Tab -->
+            <div class="tab-content" id="tab-gesture">
+                <div class="gesture-display">
+                    <span class="gesture-icon" id="gestureIcon">👆</span>
+                    <span class="gesture-text" id="gestureText">在下方区域执行手势</span>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">手势识别区域</h3></div>
+                    <div class="interactive-area" id="gestureArea"><div class="area-info" id="gestureInfo">支持：点击、双击、长按、滑动</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">手势统计</h3></div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-value" id="tapCount">0</div><div class="stat-label">点击</div></div>
+                        <div class="stat-card"><div class="stat-value" id="doubleTapCount">0</div><div class="stat-label">双击</div></div>
+                        <div class="stat-card"><div class="stat-value" id="longPressCount">0</div><div class="stat-label">长按</div></div>
+                        <div class="stat-card"><div class="stat-value" id="swipeCount">0</div><div class="stat-label">滑动</div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件日志</h3><button class="btn btn-secondary btn-sm" id="clearGestureLog">清除</button></div>
+                    <div class="event-log" id="gestureLog"><div style="padding: 0.2rem; text-align: center; color: var(--text-muted); font-size: 0.25rem;">等待手势...</div></div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiSupportTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">PointerEvent 属性</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>属性</th><th>类型</th><th>说明</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>pointerId</code></td><td>number</td><td>指针唯一标识</td></tr>
+                                <tr><td><code>pointerType</code></td><td>string</td><td>mouse/touch/pen</td></tr>
+                                <tr><td><code>isPrimary</code></td><td>boolean</td><td>是否为主指针</td></tr>
+                                <tr><td><code>pressure</code></td><td>number</td><td>压力值 (0-1)</td></tr>
+                                <tr><td><code>width/height</code></td><td>number</td><td>接触面积</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+element.<span class="function">addEventListener</span>(<span class="string">'pointerdown'</span>, (e) => {
+  console.<span class="function">log</span>(e.pointerId);   <span class="comment">// 指针ID</span>
+  console.<span class="function">log</span>(e.pointerType); <span class="comment">// mouse/touch/pen</span>
+  console.<span class="function">log</span>(e.pressure);   <span class="comment">// 压力值</span>
+});
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody><tr><td>Chrome</td><td>55+</td></tr><tr><td>Firefox</td><td>59+</td></tr><tr><td>Safari</td><td>13+</td></tr><tr><td>Edge</td><td>12+</td></tr></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Application State ====================
+        const AppState = {
+            theme: 'light',
+            pointers: new Map(),
+            eventCount: 0,
+            strokeCount: 0,
+            pointCount: 0,
+            totalPressure: 0,
+            pressureCount: 0,
+            trails: [],
+            isDrawing: false,
+            // Gesture
+            tapCount: 0,
+            doubleTapCount: 0,
+            longPressCount: 0,
+            swipeCount: 0,
+            lastTapTime: 0,
+            longPressTimer: null,
+            gestureStartPos: null,
+            gestureStartTime: 0
+        };
+
+        // ==================== Utility Functions ====================
+        const Utils = {
+            formatTime() { return new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); },
+            getDistance(x1, y1, x2, y2) { return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2); }
+        };
+
+        // ==================== Theme Management ====================
+        const ThemeManager = {
+            init() {
+                const saved = localStorage.getItem('pointer-api-theme');
+                if (saved) AppState.theme = saved;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) AppState.theme = 'dark';
+                this.apply();
+            },
+            toggle() {
+                AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+                localStorage.setItem('pointer-api-theme', AppState.theme);
+                this.apply();
+            },
+            apply() {
+                document.documentElement.setAttribute('data-theme', AppState.theme);
+                document.getElementById('themeIconLight').style.display = AppState.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = AppState.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast Notifications ====================
+        function showToast(type, title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            const icons = {
+                success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
+                info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>'
+            };
+            toast.innerHTML = `${icons[type]}<div class="toast-content"><div class="toast-title">${title}</div>${message ? `<div class="toast-message">${message}</div>` : ''}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }, 1200);
+        }
+
+        // ==================== Tab Navigation ====================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ==================== Pointer Events Demo ====================
+        const PointerDemo = {
+            area: null,
+
+            init() {
+                this.area = document.getElementById('interactiveArea');
+                this.setupPointerEvents();
+            },
+
+            setupPointerEvents() {
+                const area = this.area;
+                area.addEventListener('pointerdown', (e) => this.handlePointer(e, 'down'));
+                area.addEventListener('pointermove', (e) => this.handlePointer(e, 'move'));
+                area.addEventListener('pointerup', (e) => this.handlePointer(e, 'up'));
+                area.addEventListener('pointerleave', (e) => this.handlePointer(e, 'leave'));
+                area.addEventListener('pointercancel', (e) => this.handlePointer(e, 'cancel'));
+            },
+
+            handlePointer(e, action) {
+                e.preventDefault();
+                const rect = this.area.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                AppState.eventCount++;
+                document.getElementById('eventCount').textContent = AppState.eventCount;
+                document.getElementById('pointerType').textContent = e.pointerType;
+                
+                document.getElementById('typeMouse').classList.toggle('active', e.pointerType === 'mouse');
+                document.getElementById('typeTouch').classList.toggle('active', e.pointerType === 'touch');
+                document.getElementById('typePen').classList.toggle('active', e.pointerType === 'pen');
+
+                const pressure = e.pressure || 0;
+                document.getElementById('pressure').textContent = pressure.toFixed(2);
+                document.getElementById('pressureFill').style.width = (pressure * 100) + '%';
+                document.getElementById('pressureValue').textContent = Math.round(pressure * 100) + '%';
+
+                this.updatePointerInfo(e, x, y);
+
+                if (action === 'down') {
+                    this.area.setPointerCapture(e.pointerId);
+                    this.area.classList.add('active');
+                    AppState.pointers.set(e.pointerId, { x, y, type: e.pointerType });
+                    this.createPointerDot(e.pointerId, x, y, e.pointerType);
+                } else if (action === 'move') {
+                    if (AppState.pointers.has(e.pointerId)) {
+                        AppState.pointers.set(e.pointerId, { x, y, type: e.pointerType });
+                        this.updatePointerDot(e.pointerId, x, y, pressure);
+                        this.createTrail(x, y);
+                    }
+                } else if (action === 'up' || action === 'cancel') {
+                    this.area.releasePointerCapture(e.pointerId);
+                    AppState.pointers.delete(e.pointerId);
+                    this.removePointerDot(e.pointerId);
+                    if (AppState.pointers.size === 0) this.area.classList.remove('active');
+                } else if (action === 'leave') {
+                    if (AppState.pointers.has(e.pointerId)) {
+                        AppState.pointers.delete(e.pointerId);
+                        this.removePointerDot(e.pointerId);
+                    }
+                }
+
+                document.getElementById('pointerCount').textContent = AppState.pointers.size;
+                document.getElementById('areaInfo').textContent = `指针: ${AppState.pointers.size} | (${Math.round(x)}, ${Math.round(y)})`;
+            },
+
+            createPointerDot(id, x, y, type) {
+                const dot = document.createElement('div');
+                dot.className = 'pointer-dot';
+                dot.id = `dot-${id}`;
+                dot.style.left = x + 'px';
+                dot.style.top = y + 'px';
+                dot.setAttribute('data-id', `${type}#${id}`);
+                const colors = { mouse: '#3b82f6', touch: '#22c55e', pen: '#f43f5e' };
+                dot.style.background = colors[type] || 'var(--primary-500)';
+                this.area.appendChild(dot);
+            },
+
+            updatePointerDot(id, x, y, pressure) {
+                const dot = document.getElementById(`dot-${id}`);
+                if (dot) {
+                    dot.style.left = x + 'px';
+                    dot.style.top = y + 'px';
+                    const size = 16 + pressure * 24;
+                    dot.style.width = size + 'px';
+                    dot.style.height = size + 'px';
+                }
+            },
+
+            removePointerDot(id) { const dot = document.getElementById(`dot-${id}`); if (dot) dot.remove(); },
+
+            createTrail(x, y) {
+                const trail = document.createElement('div');
+                trail.className = 'pointer-trail';
+                trail.style.left = x + 'px';
+                trail.style.top = y + 'px';
+                this.area.appendChild(trail);
+                setTimeout(() => trail.remove(), 400);
+                AppState.trails.push(trail);
+                if (AppState.trails.length > 40) { const old = AppState.trails.shift(); if (old && old.parentNode) old.remove(); }
+            },
+
+            updatePointerInfo(e, x, y) {
+                document.getElementById('pointerInfo').innerHTML = `
+                    <div class="info-item"><span class="info-label">pointerId</span><span class="info-value">${e.pointerId}</span></div>
+                    <div class="info-item"><span class="info-label">pointerType</span><span class="info-value">${e.pointerType}</span></div>
+                    <div class="info-item"><span class="info-label">isPrimary</span><span class="info-value">${e.isPrimary}</span></div>
+                    <div class="info-item"><span class="info-label">坐标</span><span class="info-value">${Math.round(x)}, ${Math.round(y)}</span></div>
+                    <div class="info-item"><span class="info-label">pressure</span><span class="info-value">${(e.pressure || 0).toFixed(2)}</span></div>
+                `;
+            },
+
+            clear() {
+                AppState.pointers.clear();
+                AppState.trails.forEach(t => t.remove());
+                AppState.trails = [];
+                this.area.querySelectorAll('.pointer-dot').forEach(d => d.remove());
+                this.area.classList.remove('active');
+                document.getElementById('pointerCount').textContent = '0';
+                document.getElementById('areaInfo').textContent = '在此区域移动指针';
+            }
+        };
+
+        // ==================== Drawing Canvas ====================
+        const DrawingCanvas = {
+            canvas: null, ctx: null, lastX: 0, lastY: 0,
+
+            init() {
+                this.canvas = document.getElementById('drawingCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                this.setupEvents();
+                window.addEventListener('resize', () => this.resize());
+            },
+
+            resize() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+            },
+
+            setupEvents() {
+                this.canvas.addEventListener('pointerdown', (e) => this.startDraw(e));
+                this.canvas.addEventListener('pointermove', (e) => this.draw(e));
+                this.canvas.addEventListener('pointerup', () => this.endDraw());
+                this.canvas.addEventListener('pointerleave', () => this.endDraw());
+            },
+
+            startDraw(e) {
+                e.preventDefault();
+                this.canvas.setPointerCapture(e.pointerId);
+                AppState.isDrawing = true;
+                const rect = this.canvas.getBoundingClientRect();
+                this.lastX = e.clientX - rect.left;
+                this.lastY = e.clientY - rect.top;
+                AppState.strokeCount++;
+                document.getElementById('strokeCount').textContent = AppState.strokeCount;
+                document.getElementById('drawType').textContent = e.pointerType;
+            },
+
+            draw(e) {
+                if (!AppState.isDrawing) return;
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const color = document.getElementById('drawColor').value;
+                const size = parseInt(document.getElementById('drawSize').value);
+                const pressure = e.pressure || 0.5;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.lastX, this.lastY);
+                this.ctx.lineTo(x, y);
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = size * (0.5 + pressure);
+                this.ctx.lineCap = 'round';
+                this.ctx.stroke();
+                
+                this.lastX = x;
+                this.lastY = y;
+                AppState.pointCount++;
+                AppState.totalPressure += pressure;
+                AppState.pressureCount++;
+                document.getElementById('pointCount').textContent = AppState.pointCount;
+                document.getElementById('avgPressure').textContent = (AppState.totalPressure / AppState.pressureCount).toFixed(2);
+            },
+
+            endDraw() { AppState.isDrawing = false; },
+
+            clear() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                AppState.strokeCount = 0;
+                AppState.pointCount = 0;
+                AppState.totalPressure = 0;
+                AppState.pressureCount = 0;
+                document.getElementById('strokeCount').textContent = '0';
+                document.getElementById('pointCount').textContent = '0';
+                document.getElementById('avgPressure').textContent = '0';
+                document.getElementById('drawType').textContent = '--';
+            }
+        };
+
+        // ==================== Gesture Recognition ====================
+        const GestureRecognition = {
+            area: null,
+
+            init() {
+                this.area = document.getElementById('gestureArea');
+                this.setupEvents();
+            },
+
+            setupEvents() {
+                this.area.addEventListener('pointerdown', (e) => this.handleDown(e));
+                this.area.addEventListener('pointermove', (e) => this.handleMove(e));
+                this.area.addEventListener('pointerup', (e) => this.handleUp(e));
+                this.area.addEventListener('pointerleave', () => this.cancelGesture());
+            },
+
+            handleDown(e) {
+                e.preventDefault();
+                this.area.setPointerCapture(e.pointerId);
+                const rect = this.area.getBoundingClientRect();
+                AppState.gestureStartPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                AppState.gestureStartTime = Date.now();
+                
+                // Long press detection
+                AppState.longPressTimer = setTimeout(() => {
+                    AppState.longPressCount++;
+                    document.getElementById('longPressCount').textContent = AppState.longPressCount;
+                    this.showGesture('⏱️', '长按');
+                    this.addLog('长按', `${AppState.gestureStartPos.x}, ${AppState.gestureStartPos.y}`);
+                }, 500);
+            },
+
+            handleMove(e) {
+                e.preventDefault();
+                if (AppState.longPressTimer) {
+                    const rect = this.area.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const dist = Utils.getDistance(AppState.gestureStartPos.x, AppState.gestureStartPos.y, x, y);
+                    if (dist > 10) {
+                        clearTimeout(AppState.longPressTimer);
+                        AppState.longPressTimer = null;
+                    }
+                }
+            },
+
+            handleUp(e) {
+                e.preventDefault();
+                this.area.releasePointerCapture(e.pointerId);
+                
+                if (AppState.longPressTimer) {
+                    clearTimeout(AppState.longPressTimer);
+                    AppState.longPressTimer = null;
+                }
+                
+                const rect = this.area.getBoundingClientRect();
+                const endX = e.clientX - rect.left;
+                const endY = e.clientY - rect.top;
+                const duration = Date.now() - AppState.gestureStartTime;
+                const distance = Utils.getDistance(AppState.gestureStartPos.x, AppState.gestureStartPos.y, endX, endY);
+                
+                // Swipe detection
+                if (distance > 50 && duration < 300) {
+                    AppState.swipeCount++;
+                    document.getElementById('swipeCount').textContent = AppState.swipeCount;
+                    const direction = this.getSwipeDirection(AppState.gestureStartPos.x, AppState.gestureStartPos.y, endX, endY);
+                    this.showGesture('👆', `滑动 ${direction}`);
+                    this.addLog('滑动', direction);
+                    return;
+                }
+                
+                // Tap detection
+                if (distance < 20 && duration < 300) {
+                    const now = Date.now();
+                    if (now - AppState.lastTapTime < 300) {
+                        AppState.doubleTapCount++;
+                        document.getElementById('doubleTapCount').textContent = AppState.doubleTapCount;
+                        this.showGesture('👆👆', '双击');
+                        this.addLog('双击', `${Math.round(endX)}, ${Math.round(endY)}`);
+                        AppState.lastTapTime = 0;
+                    } else {
+                        AppState.tapCount++;
+                        document.getElementById('tapCount').textContent = AppState.tapCount;
+                        this.showGesture('👆', '点击');
+                        this.addLog('点击', `${Math.round(endX)}, ${Math.round(endY)}`);
+                        AppState.lastTapTime = now;
+                    }
+                }
+            },
+
+            cancelGesture() {
+                if (AppState.longPressTimer) {
+                    clearTimeout(AppState.longPressTimer);
+                    AppState.longPressTimer = null;
+                }
+            },
+
+            getSwipeDirection(x1, y1, x2, y2) {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? '→ 右' : '← 左';
+                return dy > 0 ? '↓ 下' : '↑ 上';
+            },
+
+            showGesture(icon, text) {
+                document.getElementById('gestureIcon').textContent = icon;
+                document.getElementById('gestureText').innerHTML = `<strong>${text}</strong> 已识别`;
+            },
+
+            addLog(event, detail) {
+                const log = document.getElementById('gestureLog');
+                const item = document.createElement('div');
+                item.className = 'log-item';
+                item.innerHTML = `<span class="log-time">${Utils.formatTime()}</span><span class="log-event">${event}</span><span class="log-detail">${detail}</span>`;
+                const placeholder = log.querySelector('div[style]');
+                if (placeholder) placeholder.remove();
+                log.insertBefore(item, log.firstChild);
+                while (log.children.length > 30) log.removeChild(log.lastChild);
+            },
+
+            clear() {
+                document.getElementById('gestureLog').innerHTML = '<div style="padding: 0.2rem; text-align: center; color: var(--text-muted); font-size: 0.25rem;">等待手势...</div>';
+            }
+        };
+
+        // ==================== API Reference ====================
+        const APIReference = {
+            render() {
+                const apis = [
+                    { name: 'PointerEvent', type: '对象', desc: '指针事件对象', supported: 'PointerEvent' in window },
+                    { name: 'pointerdown/up', type: '事件', desc: '按下/抬起', supported: true },
+                    { name: 'pointermove', type: '事件', desc: '移动', supported: true },
+                    { name: 'setPointerCapture()', type: '方法', desc: '设置捕获', supported: Element.prototype.setPointerCapture !== undefined },
+                ];
+                document.getElementById('apiSupportTable').innerHTML = apis.map(api => `
+                    <tr><td><code>${api.name}</code></td><td><span class="card-badge badge-info">${api.type}</span></td><td>${api.desc}</td><td><span class="api-status ${api.supported ? 'supported' : 'unsupported'}">${api.supported ? '✓' : '✗'}</span></td></tr>
+                `).join('');
+            }
+        };
+
+        // ==================== Keyboard Shortcuts ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            switch (e.key.toLowerCase()) {
+                case 't': if (!e.ctrlKey) { e.preventDefault(); ThemeManager.toggle(); } break;
+                case 'c': if (!e.ctrlKey) { e.preventDefault(); PointerDemo.clear(); DrawingCanvas.clear(); GestureRecognition.clear(); showToast('info', '已清除', ''); } break;
+            }
+        });
+
+        // ==================== UI Event Handlers ====================
+        document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+        document.getElementById('clearArea').addEventListener('click', () => { PointerDemo.clear(); showToast('info', '已清除', ''); });
+        document.getElementById('clearCanvas').addEventListener('click', () => { DrawingCanvas.clear(); showToast('info', '已清除', ''); });
+        document.getElementById('clearGestureLog').addEventListener('click', () => { GestureRecognition.clear(); showToast('info', '已清除', ''); });
+        document.getElementById('refreshApiCheck').addEventListener('click', () => { APIReference.render(); showToast('success', '已刷新', ''); });
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+            PointerDemo.init();
+            DrawingCanvas.init();
+            GestureRecognition.init();
+            APIReference.render();
+        });
+    </script>
+</body>
+</html>

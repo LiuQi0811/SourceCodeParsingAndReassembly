@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picture-in-Picture API Pro - 企业级画中画平台</title>
+    <style>
+        /* ==================== CSS Reset & Variables ==================== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #faf5ff;
+            --primary-100: #f3e8ff;
+            --primary-200: #e9d5ff;
+            --primary-500: #a855f7;
+            --primary-600: #9333ea;
+            --primary-700: #7c3aed;
+            --primary-800: #6b21a8;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            --success-500: #22c55e;
+            --success-600: #16a34a;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #7c3aed 0%, #581c87 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #6b21a8 0%, #581c87 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+            --primary-50: rgba(168, 85, 247, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.25rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.35rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.35rem 0.4rem; border-radius: var(--radius-lg); margin-bottom: 0.25rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.15rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.2rem; }
+        .header-title h1 { font-size: 0.65rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.8rem; } }
+        .header-icon { width: 1.1rem; height: 1.1rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.55rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.4rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.15rem; }
+        .header-status { display: flex; align-items: center; gap: 0.08rem; background: rgba(255, 255, 255, 0.1); padding: 0.08rem 0.2rem; border-radius: 99px; font-size: 0.4rem; }
+        .status-dot { width: 0.18rem; height: 0.18rem; border-radius: 50%; background: var(--success-500); animation: pulse 2s infinite; }
+        .status-dot.error { background: var(--error-500); animation: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.08rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.55rem; height: 0.55rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.25rem; left: 0.25rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.08rem 0.15rem; font-size: 0.3rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.2rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.04rem; font-family: monospace; font-size: 0.25rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 32px; padding: 0.15rem 0.08rem; background: transparent; border: none; cursor: pointer; font-size: 0.32rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.04rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 40px; font-size: 0.4rem; padding: 0.2rem 0.3rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.45rem; height: 0.45rem; }
+        .tab-content { display: none; padding: 0.2rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.3rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.25rem; margin-bottom: 0.2rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.15rem; padding-bottom: 0.1rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.06rem; }
+        .card-title { font-size: 0.45rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.08rem; }
+        .card-badge { font-size: 0.28rem; padding: 0.03rem 0.1rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-600); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-error { background: var(--error-50); color: var(--error-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.1rem; margin-bottom: 0.2rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.12rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-100); border-radius: var(--radius); padding: 0.15rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(168, 85, 247, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.55rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.28rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.02rem; }
+
+        /* PiP Display */
+        .pip-display { display: flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.35rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.2rem; border: 1px solid var(--border-color); }
+        .pip-icon { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 8px rgba(168, 85, 247, 0.3); }
+        .pip-icon.active { animation: pulse 1.5s infinite; }
+        .pip-icon svg { width: 0.9rem; height: 0.9rem; color: white; }
+        .pip-info { text-align: left; }
+        .pip-status { font-size: 0.5rem; font-weight: 700; color: var(--text-primary); }
+        .pip-desc { font-size: 0.35rem; color: var(--text-muted); }
+
+        /* Video Player */
+        .video-container { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; margin-bottom: 0.15rem; }
+        .video-player { width: 100%; display: block; background: #000; }
+        .video-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity var(--transition); pointer-events: none; }
+        .video-container:hover .video-overlay { opacity: 1; }
+        .play-btn { width: 2.2rem; height: 2.2rem; border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; pointer-events: auto; transition: transform var(--transition); }
+        .play-btn:hover { transform: scale(1.1); }
+        .play-btn svg { width: 0.9rem; height: 0.9rem; color: var(--primary-600); }
+
+        /* Video Controls */
+        .video-controls { display: flex; align-items: center; gap: 0.1rem; padding: 0.1rem; background: var(--bg-tertiary); border-radius: var(--radius); }
+        .control-btn { width: 1.3rem; height: 0.9rem; border-radius: var(--radius); background: var(--card-bg); border: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition); }
+        .control-btn:hover { border-color: var(--primary-500); }
+        .control-btn svg { width: 0.45rem; height: 0.45rem; color: var(--text-secondary); }
+        .control-btn.active { background: var(--primary-600); border-color: var(--primary-600); }
+        .control-btn.active svg { color: white; }
+        .progress-bar { flex: 1; height: 0.25rem; background: var(--border-color); border-radius: 99px; cursor: pointer; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary-500); border-radius: 99px; transition: width 0.1s; }
+        .time-display { font-size: 0.3rem; color: var(--text-muted); font-family: monospace; min-width: 2.2rem; text-align: center; }
+        .speed-select { width: 1.5rem; height: 0.9rem; border-radius: var(--radius); background: var(--card-bg); border: 1px solid var(--border-color); font-size: 0.3rem; color: var(--text-secondary); cursor: pointer; text-align: center; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.05rem; padding: 0.1rem 0.2rem; border-radius: var(--radius); font-size: 0.35rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.35rem; height: 0.35rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-success { background: var(--success-500); color: white; }
+        .btn-sm { padding: 0.06rem 0.12rem; font-size: 0.3rem; }
+        .btn-lg { padding: 0.15rem 0.3rem; font-size: 0.4rem; }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.2rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.3rem; overflow-x: auto; margin: 0.1rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.35rem; }
+        .api-table th, .api-table td { padding: 0.1rem 0.12rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.3rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.02rem 0.1rem; border-radius: 99px; font-size: 0.25rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-600); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.06rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.3em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.25rem; right: 0.25rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.08rem; max-width: calc(100vw - 0.5rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.3rem; right: 0.3rem; max-width: 160px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.12rem; padding: 0.15rem 0.2rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: slideIn 0.3s ease; border: 1px solid var(--border-color); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-warning { border-left: 2px solid var(--warning-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.45rem; height: 0.45rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.4rem; }
+        .toast-message { font-size: 0.3rem; color: var(--text-secondary); }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.06rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.08rem 0.12rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.35rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.3rem; }
+
+        /* Video List */
+        .video-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.1rem; }
+        @media (min-width: 640px) { .video-list { grid-template-columns: repeat(3, 1fr); } }
+        .video-item { padding: 0.12rem; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); cursor: pointer; transition: all var(--transition); text-align: center; }
+        .video-item:hover { border-color: var(--primary-500); }
+        .video-item.active { border-color: var(--primary-600); background: var(--primary-50); }
+        [data-theme="dark"] .video-item.active { background: rgba(168, 85, 247, 0.15); }
+        .video-item-icon { font-size: 0.7rem; margin-bottom: 0.03rem; }
+        .video-item-name { font-size: 0.3rem; font-weight: 500; color: var(--text-primary); }
+        .video-item-desc { font-size: 0.25rem; color: var(--text-muted); }
+
+        /* PiP Info Card */
+        .pip-info-card { display: flex; align-items: center; gap: 0.15rem; padding: 0.15rem; background: var(--primary-50); border-radius: var(--radius); border: 1px solid var(--primary-200); margin-bottom: 0.15rem; }
+        [data-theme="dark"] .pip-info-card { background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.3); }
+        .pip-info-card.hidden { display: none; }
+        .pip-info-icon { font-size: 0.5rem; }
+        .pip-info-text { flex: 1; font-size: 0.35rem; color: var(--text-secondary); }
+        .pip-info-text strong { color: var(--text-primary); }
+
+        /* Loading */
+        .loading-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.7); }
+        .loading-spinner { width: 1.5rem; height: 1.5rem; border: 2px solid var(--border-color); border-top-color: var(--primary-500); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">📺</div>
+                        <h1>Picture-in-Picture API</h1>
+                    </div>
+                    <p class="header-subtitle">画中画 | 视频悬浮窗口播放</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                        </svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </button>
+                    <div class="header-status">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">检测中</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>P</kbd> 画中画</span>
+            <span><kbd>Space</kbd> 播放</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    <span>演示</span>
+                </button>
+                <button class="tab-btn" data-tab="features">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                    <span>功能</span>
+                </button>
+                <button class="tab-btn" data-tab="api">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    <span>API</span>
+                </button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="pip-display">
+                    <div class="pip-icon" id="pipIcon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    </div>
+                    <div class="pip-info">
+                        <div class="pip-status" id="pipStatus">Picture-in-Picture API</div>
+                        <div class="pip-desc" id="pipDesc">正在检测浏览器支持...</div>
+                    </div>
+                </div>
+
+                <div class="pip-info-card hidden" id="pipActiveCard">
+                    <span class="pip-info-icon">🎬</span>
+                    <span class="pip-info-text"><strong>画中画模式已激活</strong> - 视频正在悬浮窗口播放</span>
+                    <button class="btn btn-secondary btn-sm" id="exitPipBtn">退出</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="pipSupported">--</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="pipActive">否</div><div class="stat-label">画中画</div></div>
+                    <div class="stat-card"><div class="stat-value" id="pipWindow">--</div><div class="stat-label">窗口尺寸</div></div>
+                    <div class="stat-card"><div class="stat-value" id="videoDuration">0:00</div><div class="stat-label">视频时长</div></div>
+                </div>
+
+                <!-- Video Player -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">视频播放器</h3>
+                        <span class="card-badge badge-info" id="videoStatus">就绪</span>
+                    </div>
+                    
+                    <div class="video-container">
+                        <video id="videoPlayer" class="video-player" crossorigin="anonymous" playsinline preload="metadata">
+                            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                        </video>
+                        <div class="video-overlay" id="videoOverlay">
+                            <button class="play-btn" id="playOverlay">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            </button>
+                        </div>
+                        <div class="loading-overlay hidden" id="loadingOverlay">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+
+                    <div class="video-controls">
+                        <button class="control-btn" id="playBtn" title="播放/暂停">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                        <button class="control-btn" id="muteBtn" title="静音">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        </button>
+                        <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill" style="width: 0%;"></div></div>
+                        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+                        <select class="speed-select" id="speedSelect" title="播放速度">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x</option>
+                        </select>
+                        <button class="control-btn" id="pipBtn" title="画中画">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>
+                        </button>
+                        <button class="control-btn" id="fullscreenBtn" title="全屏">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sample Videos -->
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">示例视频</h3></div>
+                    <div class="video-list" id="videoList">
+                        <div class="video-item active" data-src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                            <div class="video-item-icon">🐰</div>
+                            <div class="video-item-name">Big Buck Bunny</div>
+                            <div class="video-item-desc">动画短片</div>
+                        </div>
+                        <div class="video-item" data-src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4">
+                            <div class="video-item-icon">🐘</div>
+                            <div class="video-item-name">Elephants Dream</div>
+                            <div class="video-item-desc">科幻动画</div>
+                        </div>
+                        <div class="video-item" data-src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4">
+                            <div class="video-item-icon">🐉</div>
+                            <div class="video-item-name">Sintel</div>
+                            <div class="video-item-desc">奇幻冒险</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">快捷操作</h3></div>
+                    <div style="display: flex; gap: 0.1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary btn-lg" id="togglePip">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>
+                            进入画中画
+                        </button>
+                        <button class="btn btn-secondary btn-lg" id="exitPip">退出画中画</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Tab -->
+            <div class="tab-content" id="tab-features">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">画中画特性</h3></div>
+                    <div class="info-list">
+                        <div class="info-item"><span class="info-label">悬浮窗口</span><span class="info-value">始终置顶显示</span></div>
+                        <div class="info-item"><span class="info-label">可拖动</span><span class="info-value">自由移动位置</span></div>
+                        <div class="info-item"><span class="info-label">可调整大小</span><span class="info-value">拖拽边角缩放</span></div>
+                        <div class="info-item"><span class="info-label">跨标签页</span><span class="info-value">切换标签继续播放</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="comment">// 进入画中画</span>
+<span class="keyword">await</span> video.<span class="function">requestPictureInPicture</span>();
+
+<span class="comment">// 退出画中画</span>
+<span class="keyword">await</span> document.<span class="function">exitPictureInPicture</span>();
+
+<span class="comment">// 监听事件</span>
+video.<span class="function">addEventListener</span>(<span class="string">'enterpictureinpicture'</span>, () => {});
+video.<span class="function">addEventListener</span>(<span class="string">'leavepictureinpicture'</span>, () => {});
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">API 支持</h3>
+                        <button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead>
+                            <tbody id="apiSupportTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>浏览器</th><th>版本</th></tr></thead>
+                            <tbody>
+                                <tr><td>Chrome</td><td>70+</td></tr>
+                                <tr><td>Edge</td><td>79+</td></tr>
+                                <tr><td>Safari</td><td>13+</td></tr>
+                                <tr><td>Firefox</td><td>不支持</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Application State ====================
+        const AppState = {
+            theme: 'light',
+            isSupported: false,
+            isPiPActive: false,
+            pipWindow: null
+        };
+
+        // ==================== Utility Functions ====================
+        const Utils = {
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+        };
+
+        // ==================== Theme Management ====================
+        const ThemeManager = {
+            init() {
+                const saved = localStorage.getItem('pip-api-theme');
+                if (saved) AppState.theme = saved;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) AppState.theme = 'dark';
+                this.apply();
+            },
+            toggle() {
+                AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+                localStorage.setItem('pip-api-theme', AppState.theme);
+                this.apply();
+            },
+            apply() {
+                document.documentElement.setAttribute('data-theme', AppState.theme);
+                document.getElementById('themeIconLight').style.display = AppState.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = AppState.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast Notifications ====================
+        function showToast(type, title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icons = {
+                success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
+                info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>'
+            };
+
+            toast.innerHTML = `${icons[type]}<div class="toast-content"><div class="toast-title">${title}</div>${message ? `<div class="toast-message">${message}</div>` : ''}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }, 1500);
+        }
+
+        // ==================== Tab Navigation ====================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ==================== Picture-in-Picture API ====================
+        const PiPAPI = {
+            video: null,
+
+            init() {
+                this.video = document.getElementById('videoPlayer');
+                this.checkSupport();
+                this.setupVideoEvents();
+                this.setupControls();
+                this.setupSampleVideos();
+            },
+
+            checkSupport() {
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                const status = document.getElementById('pipStatus');
+                const desc = document.getElementById('pipDesc');
+
+                AppState.isSupported = 'pictureInPictureEnabled' in document && document.pictureInPictureEnabled;
+
+                if (AppState.isSupported) {
+                    dot.classList.remove('error');
+                    text.textContent = 'API 支持';
+                    status.textContent = 'Picture-in-Picture API';
+                    desc.textContent = '浏览器支持画中画功能';
+                    document.getElementById('pipSupported').textContent = '是';
+                } else {
+                    dot.classList.add('error');
+                    text.textContent = '不支持';
+                    status.textContent = 'API 不可用';
+                    desc.textContent = '浏览器不支持画中画';
+                    document.getElementById('pipSupported').textContent = '否';
+                    document.getElementById('pipBtn').disabled = true;
+                    document.getElementById('togglePip').disabled = true;
+                }
+            },
+
+            setupVideoEvents() {
+                const video = this.video;
+                const loading = document.getElementById('loadingOverlay');
+
+                video.addEventListener('loadstart', () => loading.classList.remove('hidden'));
+                video.addEventListener('canplay', () => loading.classList.add('hidden'));
+                video.addEventListener('loadedmetadata', () => {
+                    document.getElementById('videoDuration').textContent = Utils.formatTime(video.duration);
+                    this.updateTimeDisplay();
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    this.updateProgress();
+                    this.updateTimeDisplay();
+                });
+
+                video.addEventListener('play', () => {
+                    document.getElementById('videoStatus').textContent = '播放中';
+                    document.getElementById('videoStatus').className = 'card-badge badge-success';
+                    this.updatePlayButton(true);
+                });
+
+                video.addEventListener('pause', () => {
+                    document.getElementById('videoStatus').textContent = '已暂停';
+                    document.getElementById('videoStatus').className = 'card-badge badge-warning';
+                    this.updatePlayButton(false);
+                });
+
+                video.addEventListener('ended', () => {
+                    document.getElementById('videoStatus').textContent = '已结束';
+                    document.getElementById('videoStatus').className = 'card-badge badge-info';
+                });
+
+                video.addEventListener('enterpictureinpicture', (e) => {
+                    AppState.isPiPActive = true;
+                    AppState.pipWindow = e.pictureInPictureWindow;
+                    
+                    document.getElementById('pipActive').textContent = '是';
+                    document.getElementById('pipIcon').classList.add('active');
+                    document.getElementById('pipActiveCard').classList.remove('hidden');
+                    document.getElementById('pipWindow').textContent = `${Math.round(e.pictureInPictureWindow.width)}x${Math.round(e.pictureInPictureWindow.height)}`;
+                    document.getElementById('togglePip').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="12" y1="9" x2="12" y2="15"/></svg>退出画中画';
+                    
+                    showToast('success', '画中画已激活', '');
+                    
+                    e.pictureInPictureWindow.addEventListener('resize', () => {
+                        document.getElementById('pipWindow').textContent = 
+                            `${Math.round(e.pictureInPictureWindow.width)}x${Math.round(e.pictureInPictureWindow.height)}`;
+                    });
+                });
+
+                video.addEventListener('leavepictureinpicture', () => {
+                    AppState.isPiPActive = false;
+                    AppState.pipWindow = null;
+                    
+                    document.getElementById('pipActive').textContent = '否';
+                    document.getElementById('pipIcon').classList.remove('active');
+                    document.getElementById('pipActiveCard').classList.add('hidden');
+                    document.getElementById('pipWindow').textContent = '--';
+                    document.getElementById('togglePip').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>进入画中画';
+                    
+                    showToast('info', '已退出画中画', '');
+                });
+
+                video.addEventListener('error', () => {
+                    loading.classList.add('hidden');
+                    showToast('error', '视频加载失败', '');
+                });
+            },
+
+            setupControls() {
+                const video = this.video;
+
+                // Play/Pause
+                const togglePlay = () => video.paused ? video.play() : video.pause();
+                document.getElementById('playBtn').addEventListener('click', togglePlay);
+                document.getElementById('playOverlay').addEventListener('click', togglePlay);
+
+                // Mute
+                document.getElementById('muteBtn').addEventListener('click', (e) => {
+                    video.muted = !video.muted;
+                    e.currentTarget.classList.toggle('active', video.muted);
+                });
+
+                // Progress
+                document.getElementById('progressBar').addEventListener('click', (e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    video.currentTime = ((e.clientX - rect.left) / rect.width) * video.duration;
+                });
+
+                // Speed
+                document.getElementById('speedSelect').addEventListener('change', (e) => {
+                    video.playbackRate = parseFloat(e.target.value);
+                    showToast('info', `播放速度: ${e.target.value}x`, '');
+                });
+
+                // PiP
+                document.getElementById('pipBtn').addEventListener('click', () => this.togglePiP());
+
+                // Fullscreen
+                document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                    if (document.fullscreenElement) document.exitFullscreen();
+                    else video.parentElement.requestFullscreen();
+                });
+
+                // Quick actions
+                document.getElementById('togglePip').addEventListener('click', () => this.togglePiP());
+                document.getElementById('exitPip').addEventListener('click', () => this.exitPiP());
+                document.getElementById('exitPipBtn').addEventListener('click', () => this.exitPiP());
+            },
+
+            setupSampleVideos() {
+                document.querySelectorAll('.video-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        document.querySelectorAll('.video-item').forEach(v => v.classList.remove('active'));
+                        item.classList.add('active');
+                        
+                        this.video.src = item.dataset.src;
+                        this.video.load();
+                        
+                        showToast('info', '视频已切换', item.querySelector('.video-item-name').textContent);
+                    });
+                });
+            },
+
+            updateProgress() {
+                document.getElementById('progressFill').style.width = ((this.video.currentTime / this.video.duration) * 100) + '%';
+            },
+
+            updateTimeDisplay() {
+                document.getElementById('timeDisplay').textContent = 
+                    `${Utils.formatTime(this.video.currentTime)} / ${Utils.formatTime(this.video.duration)}`;
+            },
+
+            updatePlayButton(isPlaying) {
+                const icon = isPlaying 
+                    ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+                
+                document.getElementById('playBtn').innerHTML = icon;
+                document.getElementById('playOverlay').innerHTML = icon;
+            },
+
+            async togglePiP() {
+                if (document.pictureInPictureElement) await this.exitPiP();
+                else await this.requestPiP();
+            },
+
+            async requestPiP() {
+                if (!AppState.isSupported) {
+                    showToast('error', '不支持画中画', '');
+                    return;
+                }
+
+                try {
+                    if (this.video.paused) await this.video.play();
+                    await this.video.requestPictureInPicture();
+                } catch (e) {
+                    showToast('error', '请求失败', e.message);
+                }
+            },
+
+            async exitPiP() {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                }
+            }
+        };
+
+        // ==================== API Reference ====================
+        const APIReference = {
+            render() {
+                const apis = [
+                    { name: 'pictureInPictureEnabled', type: '属性', desc: '是否支持', supported: AppState.isSupported },
+                    { name: 'pictureInPictureElement', type: '属性', desc: '当前元素', supported: AppState.isSupported },
+                    { name: 'requestPictureInPicture()', type: '方法', desc: '请求画中画', supported: AppState.isSupported },
+                    { name: 'exitPictureInPicture()', type: '方法', desc: '退出画中画', supported: AppState.isSupported },
+                    { name: 'enterpictureinpicture', type: '事件', desc: '进入事件', supported: AppState.isSupported },
+                    { name: 'leavepictureinpicture', type: '事件', desc: '退出事件', supported: AppState.isSupported },
+                ];
+
+                document.getElementById('apiSupportTable').innerHTML = apis.map(api => `
+                    <tr>
+                        <td><code>${api.name}</code></td>
+                        <td><span class="card-badge badge-info">${api.type}</span></td>
+                        <td>${api.desc}</td>
+                        <td><span class="api-status ${api.supported ? 'supported' : 'unsupported'}">${api.supported ? '✓' : '✗'}</span></td>
+                    </tr>
+                `).join('');
+            }
+        };
+
+        // ==================== Keyboard Shortcuts ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            switch (e.key.toLowerCase()) {
+                case 't': if (!e.ctrlKey) { e.preventDefault(); ThemeManager.toggle(); } break;
+                case 'p': if (!e.ctrlKey) { e.preventDefault(); PiPAPI.togglePiP(); } break;
+                case ' ':
+                    if (!e.ctrlKey && e.target.tagName !== 'BUTTON') {
+                        e.preventDefault();
+                        PiPAPI.video.paused ? PiPAPI.video.play() : PiPAPI.video.pause();
+                    }
+                    break;
+            }
+        });
+
+        // ==================== UI Event Handlers ====================
+        document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+        document.getElementById('refreshApiCheck').addEventListener('click', () => { APIReference.render(); showToast('success', '已刷新', ''); });
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+            PiPAPI.init();
+            APIReference.render();
+        });
+    </script>
+</body>
+</html>

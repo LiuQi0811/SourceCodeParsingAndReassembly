@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Capabilities API 探测台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active { background: var(--accent-green); box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 340px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover { background: #2a3142; }
+        button.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        select, input {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 12px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        select:focus, input:focus { border-color: var(--accent-blue); }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* 右侧内容区 */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 结果卡片 */
+        .result-overview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--text-muted);
+        }
+        .metric-card.success::before { background: var(--accent-green); }
+        .metric-card.warning::before { background: var(--accent-orange); }
+        .metric-card.error::before { background: var(--accent-red); }
+
+        .metric-icon { font-size: 24px; margin-bottom: 8px; opacity: 0.5; }
+        .metric-value { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+        .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+
+        /* 矩阵网格 */
+        .matrix-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .matrix-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .matrix-title { font-size: 16px; font-weight: 600; }
+
+        .capability-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        /* 网格布局：表头 + 数据 */
+        .grid-table {
+            display: contents;
+        }
+
+        .grid-cell {
+            background: var(--bg-main);
+            padding: 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: background 0.2s;
+        }
+
+        .grid-cell.header {
+            background: var(--bg-deep);
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .grid-cell.codec { justify-content: flex-start; font-family: var(--font-mono); color: var(--text-secondary); }
+
+        .grid-cell.result-ok { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .grid-cell.result-maybe { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+        .grid-cell.result-no { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* JSON 输出 */
+        .json-output {
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">MC</div>
+        <span>Media Capabilities API</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制 -->
+    <aside class="control-panel">
+        <div class="card">
+            <div class="section-title">快速扫描</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                自动检测常用分辨率与编码格式的兼容性矩阵。
+            </p>
+            <button id="scan-btn" class="primary">
+                <span>🚀 扫描设备能力</span>
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="section-title">自定义探测</div>
+
+            <div class="form-group">
+                <label>媒体类型</label>
+                <select id="media-type">
+                    <option value="video">Video</option>
+                    <option value="audio">Audio</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>编码格式</label>
+                <select id="codec-select">
+                    <option value='video/mp4; codecs="avc1.42E01E"'>H.264 (Baseline)</option>
+                    <option value='video/mp4; codecs="avc1.4d401f"'>H.264 (Main)</option>
+                    <option value='video/mp4; codecs="hev1.1.6.L93.90"'>HEVC (H.265)</option>
+                    <option value='video/webm; codecs="vp09.00.50.08"'>VP9 (Profile 0)</option>
+                    <option value='video/mp4; codecs="av01.0.04M.08"'>AV1 (Main)</option>
+                    <option value='audio/mp4; codecs="mp4a.40.2"'>AAC</option>
+                    <option value='audio/webm; codecs="opus"'>Opus</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>宽度</label>
+                    <input type="number" id="width" value="1920" placeholder="Width">
+                </div>
+                <div class="form-group">
+                    <label>高度</label>
+                    <input type="number" id="height" value="1080" placeholder="Height">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>帧率</label>
+                    <input type="number" id="framerate" value="30" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>码率</label>
+                    <input type="number" id="bitrate" value="5000000" placeholder="bps">
+                </div>
+            </div>
+
+            <button id="test-custom-btn">测试此配置</button>
+        </div>
+    </aside>
+
+    <!-- 右侧内容 -->
+    <section class="content-area">
+
+        <!-- 概览卡片 -->
+        <div class="result-overview" id="result-overview">
+            <div class="metric-card" id="card-supported">
+                <div class="metric-icon">❓</div>
+                <div class="metric-value">-</div>
+                <div class="metric-label">支持状态</div>
+            </div>
+            <div class="metric-card" id="card-smooth">
+                <div class="metric-icon">📉</div>
+                <div class="metric-value">-</div>
+                <div class="metric-label">播放流畅</div>
+            </div>
+            <div class="metric-card" id="card-efficient">
+                <div class="metric-icon">🔋</div>
+                <div class="metric-value">-</div>
+                <div class="metric-label">节能模式</div>
+            </div>
+        </div>
+
+        <!-- 矩阵视图 -->
+        <div class="matrix-container">
+            <div class="matrix-header">
+                <span class="matrix-title">硬件解码能力矩阵</span>
+                <span style="font-size: 11px; color: var(--text-muted);">分辨率 vs 编码格式</span>
+            </div>
+
+            <div class="capability-grid" id="matrix-grid" style="grid-template-columns: 100px repeat(4, 1fr);">
+                <!-- 动态生成表头和内容 -->
+                <div class="grid-table">
+                    <div class="grid-cell header">编码 / 分辨率</div>
+                    <div class="grid-cell header">1080p (FHD)</div>
+                    <div class="grid-cell header">1440p (2K)</div>
+                    <div class="grid-cell header">2160p (4K)</div>
+                    <div class="grid-cell header">4320p (8K)</div>
+                </div>
+                <!-- 数据行将由 JS 生成 -->
+            </div>
+        </div>
+
+        <!-- 详细日志 -->
+        <div class="matrix-container">
+            <div class="matrix-header">
+                <span class="matrix-title">详细输出</span>
+            </div>
+            <div class="json-output" id="json-log">点击左侧按钮开始测试...</div>
+        </div>
+
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Media Capabilities API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'mediaCapabilities' in navigator,
+        isScanning: false
+    };
+
+    // 配置预设
+    const PRESETS = {
+        codecs: [
+            { name: 'H.264', mime: 'video/mp4; codecs="avc1.4d401f"' },
+            { name: 'H.265 (HEVC)', mime: 'video/mp4; codecs="hev1.1.6.L93.90"' },
+            { name: 'VP9', mime: 'video/webm; codecs="vp09.00.50.08"' },
+            { name: 'AV1', mime: 'video/mp4; codecs="av01.0.04M.08"' }
+        ],
+        resolutions: [
+            { w: 1920, h: 1080, label: '1080p' },
+            { w: 2560, h: 1440, label: '1440p' },
+            { w: 3840, h: 2160, label: '2160p' },
+            { w: 7680, h: 4320, label: '4320p' }
+        ]
+    };
+
+    // 初始化
+    function init() {
+        updateStatus();
+        setupListeners();
+    }
+
+    function updateStatus() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+        } else {
+            text.textContent = 'API 不支持';
+            $('scan-btn').disabled = true;
+            $('test-custom-btn').disabled = true;
+        }
+    }
+
+    function setupListeners() {
+        $('scan-btn').addEventListener('click', runFullScan);
+        $('test-custom-btn').addEventListener('click', testCustomConfig);
+    }
+
+    // ========================================
+    // 核心逻辑：探测
+    // ========================================
+
+    async function checkVideoCapability(mime, width, height, framerate, bitrate) {
+        if (!state.supported) return null;
+
+        try {
+            const config = {
+                type: 'media-source', // 或 'file'
+                video: {
+                    contentType: mime,
+                    width: width,
+                    height: height,
+                    bitrate: bitrate,
+                    framerate: framerate
+                }
+            };
+
+            const result = await navigator.mediaCapabilities.decodingInfo(config);
+            return result;
+
+        } catch (e) {
+            console.warn("Check failed:", mime, e);
+            // 如果报错，通常意味着配置无效或完全不支持
+            return {
+                supported: false,
+                smooth: false,
+                powerEfficient: false,
+                error: e.message
+            };
+        }
+    }
+
+    // ========================================
+    // 交互 1：自定义测试
+    // ========================================
+
+    async function testCustomConfig() {
+        const mime = $('codec-select').value;
+        const type = $('media-type').value;
+        const w = parseInt($('width').value) || 1920;
+        const h = parseInt($('height').value) || 1080;
+        const fps = parseFloat($('framerate').value) || 30;
+        const bitrate = parseInt($('bitrate').value) || 5000000;
+
+        const btn = $('test-custom-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner">⚙️</span> 测试中...';
+
+        // 根据类型构造不同的配置
+        let config = {};
+        if (type === 'video') {
+            config = {
+                type: 'media-source',
+                video: { contentType: mime, width: w, height: h, bitrate: bitrate, framerate: fps }
+            };
+        } else {
+            config = {
+                type: 'media-source',
+                audio: { contentType: mime, bitrate: bitrate, samplerate: 48000 } // 示例采样率
+            };
+        }
+
+        try {
+            const result = await navigator.mediaCapabilities.decodingInfo(config);
+            updateOverview(result);
+            $('json-log').textContent = JSON.stringify({ config, result }, null, 2);
+        } catch(e) {
+            $('json-log').textContent = "Error: " + e.message;
+            updateOverview({ supported: false, smooth: false, powerEfficient: false });
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '测试此配置';
+    }
+
+    // ========================================
+    // 交互 2：全量扫描矩阵
+    // ========================================
+
+    async function runFullScan() {
+        if (state.isScanning) return;
+        state.isScanning = true;
+
+        const btn = $('scan-btn');
+        btn.innerHTML = '<span class="spinner">⚙️</span> 扫描硬件中...';
+
+        // 初始化 Grid (保留表头)
+        const grid = $('matrix-grid');
+        const headerCells = 5; // 1 label + 4 resolutions
+        grid.innerHTML = `
+        <div class="grid-table">
+          <div class="grid-cell header">编码 / 分辨率</div>
+          ${PRESETS.resolutions.map(r => `<div class="grid-cell header">${r.label}</div>`).join('')}
+        </div>
+      `;
+
+        // 遍历所有组合
+        for (const codec of PRESETS.codecs) {
+            // 创建行容器
+            const rowFrag = document.createDocumentFragment();
+
+            // 第一列：编码名称
+            const labelCell = document.createElement('div');
+            labelCell.className = 'grid-cell codec';
+            labelCell.textContent = codec.name;
+            rowFrag.appendChild(labelCell);
+
+            // 后续列：各分辨率结果
+            for (const res of PRESETS.resolutions) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.textContent = '...';
+                rowFrag.appendChild(cell);
+
+                // 异步检查
+                // 针对高分辨率适当降低帧率要求，更符合实际场景
+                const fps = res.h > 2160 ? 30 : 60;
+                const bitrate = res.w * res.h * fps * 0.1; // 简单估算码率
+
+                const result = await checkVideoCapability(codec.mime, res.w, res.h, fps, bitrate);
+
+                // 更新 UI
+                if (!result || !result.supported) {
+                    cell.classList.add('result-no');
+                    cell.textContent = '不支持';
+                } else if (!result.smooth) {
+                    cell.classList.add('result-maybe');
+                    cell.textContent = '卡顿';
+                } else {
+                    cell.classList.add('result-ok');
+                    cell.textContent = '流畅';
+                    if(result.powerEfficient) cell.textContent += ' ⚡';
+                }
+
+                // 更新 Overview (以最后一次为准)
+                if (result) updateOverview(result);
+            }
+
+            // 将整行添加到网格
+            // 注意：由于 grid-template-columns 是固定的，我们直接追加子元素即可
+            // 但为了保持 grid 结构，我们需要把这些 cell 正确插入
+            // 这里我们用一个 hack：将 rowFrag 里的内容 append 到 grid，因为 display: contents 的存在
+
+            // 实际上因为 grid 布局的特性，我们直接 appendChild 即可，它们会自动流入下一行
+            // 只要我们保证了总数量正确
+            grid.appendChild(rowFrag);
+        }
+
+        state.isScanning = false;
+        btn.innerHTML = '🚀 重新扫描';
+    }
+
+    // 更新顶部状态卡片
+    function updateOverview(info) {
+        const supportedCard = $('card-supported');
+        const smoothCard = $('card-smooth');
+        const efficientCard = $('card-efficient');
+
+        // Supported
+        supportedCard.className = 'metric-card ' + (info.supported ? 'success' : 'error');
+        supportedCard.querySelector('.metric-value').textContent = info.supported ? 'Yes' : 'No';
+        supportedCard.querySelector('.metric-icon').textContent = info.supported ? '✅' : '❌';
+
+        // Smooth
+        smoothCard.className = 'metric-card ' + (info.smooth ? 'success' : (info.supported ? 'warning' : 'error'));
+        smoothCard.querySelector('.metric-value').textContent = info.smooth ? 'Yes' : 'No';
+        smoothCard.querySelector('.metric-icon').textContent = info.smooth ? '🚀' : '🐢';
+
+        // Power Efficient
+        efficientCard.className = 'metric-card ' + (info.powerEfficient ? 'success' : 'warning');
+        efficientCard.querySelector('.metric-value').textContent = info.powerEfficient ? 'Yes' : 'No';
+        efficientCard.querySelector('.metric-icon').textContent = info.powerEfficient ? '🔋' : '⚡';
+    }
+
+    init();
+</script>
+</body>
+</html>

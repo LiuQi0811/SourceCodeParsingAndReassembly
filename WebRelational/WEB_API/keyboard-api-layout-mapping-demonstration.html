@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Keyboard API 布局映射演示</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 6px;
+            --radius-lg: 12px;
+            --key-size: 48px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.error {
+            background: var(--accent-orange);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧面板 */
+        .info-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        .game-hint {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hint-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .key-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 30px;
+            padding: 0 8px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-bottom-width: 3px;
+            border-radius: var(--radius);
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            transition: all 0.1s;
+        }
+
+        .key-badge.active {
+            background: var(--accent-blue);
+            color: white;
+            transform: translateY(2px);
+            border-bottom-width: 1px;
+        }
+
+        /* 右侧内容区 */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        /* 虚拟键盘样式 */
+        .keyboard-container {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .keyboard-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
+            justify-content: center;
+        }
+
+        .key {
+            width: var(--key-size);
+            height: var(--key-size);
+            background: linear-gradient(180deg, #2a3142 0%, #1e2433 100%);
+            border: 1px solid #3a4150;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.1s;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .key:hover {
+            background: #3a4150;
+            color: var(--text-primary);
+        }
+
+        /* 特殊按键宽度 */
+        .key.tab, .key.caps {
+            width: 70px;
+        }
+
+        .key.shift-left {
+            width: 90px;
+        }
+
+        .key.shift-right {
+            width: 110px;
+        }
+
+        .key.space {
+            width: 300px;
+        }
+
+        /* 按下状态 */
+        .key.pressed {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+            transform: translateY(2px);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .key .label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .key .main-char {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .key .sub-char {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* 日志 */
+        .log-panel {
+            width: 100%;
+            max-width: 800px;
+            height: 120px;
+            background: var(--bg-main);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 10px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-code {
+            color: var(--accent-purple);
+        }
+
+        .log-key {
+            color: var(--accent-green);
+        }
+
+        /* 响应式 */
+        @media (max-width: 1000px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .info-panel {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .card {
+                flex: 1;
+                min-width: 200px;
+                margin-bottom: 0;
+            }
+
+            .keyboard-container {
+                transform: scale(0.9);
+                transform-origin: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">KB</div>
+        <span>Keyboard API 交互演示</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧信息 -->
+    <aside class="info-panel">
+        <div class="card">
+            <div class="section-title">API 状态</div>
+            <div style="font-size: 12px; line-height: 1.6; color: var(--text-secondary);">
+                <p id="api-info">正在检测浏览器支持情况...</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">游戏按键提示模拟</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                传统 Web 开发无法区分物理位置，Keyboard API 可以根据用户的物理键盘布局自动更新提示。
+            </p>
+
+            <div class="game-hint">
+                <span class="hint-label">向前移动</span>
+                <span class="key-badge" id="hint-forward">W</span>
+            </div>
+            <div class="game-hint">
+                <span class="hint-label">向左移动</span>
+                <span class="key-badge" id="hint-left">A</span>
+            </div>
+            <div class="game-hint">
+                <span class="hint-label">向右移动</span>
+                <span class="key-badge" id="hint-right">D</span>
+            </div>
+            <div class="game-hint" style="border-bottom: none; margin-bottom: 0;">
+                <span class="hint-label">向后移动</span>
+                <span class="key-badge" id="hint-backward">S</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">测试区</div>
+            <p style="font-size: 11px; color: var(--text-muted);">
+                点击下方按钮获取键盘布局映射（需要用户手势触发）。
+            </p>
+            <button id="get-layout-btn"
+                    style="width: 100%; margin-top: 10px; padding: 8px; border-radius: var(--radius); background: var(--accent-blue); border: none; color: white; cursor: pointer;">
+                获取键盘布局
+            </button>
+        </div>
+    </aside>
+
+    <!-- 右侧演示 -->
+    <div class="content-area">
+        <div class="keyboard-container" id="keyboard">
+            <!-- 第一行 -->
+            <div class="keyboard-row">
+                <div class="key" data-code="Backquote"><span class="label"><span class="main-char">`</span><span
+                        class="sub-char">~</span></span></div>
+                <div class="key" data-code="Digit1"><span class="label"><span class="main-char">1</span><span
+                        class="sub-char">!</span></span></div>
+                <div class="key" data-code="Digit2"><span class="label"><span class="main-char">2</span><span
+                        class="sub-char">@</span></span></div>
+                <div class="key" data-code="Digit3"><span class="label"><span class="main-char">3</span><span
+                        class="sub-char">#</span></span></div>
+                <div class="key" data-code="Digit4"><span class="label"><span class="main-char">4</span><span
+                        class="sub-char">$</span></span></div>
+                <div class="key" data-code="Digit5"><span class="label"><span class="main-char">5</span><span
+                        class="sub-char">%</span></span></div>
+                <div class="key" data-code="Digit6"><span class="label"><span class="main-char">6</span><span
+                        class="sub-char">^</span></span></div>
+                <div class="key" data-code="Digit7"><span class="label"><span class="main-char">7</span><span
+                        class="sub-char">&</span></span></div>
+                <div class="key" data-code="Digit8"><span class="label"><span class="main-char">8</span><span
+                        class="sub-char">*</span></span></div>
+                <div class="key" data-code="Digit9"><span class="label"><span class="main-char">9</span><span
+                        class="sub-char">(</span></span></div>
+                <div class="key" data-code="Digit0"><span class="label"><span class="main-char">0</span><span
+                        class="sub-char">)</span></span></div>
+            </div>
+            <!-- 第二行 -->
+            <div class="keyboard-row">
+                <div class="key tab" data-code="Tab">Tab</div>
+                <div class="key" data-code="KeyQ"><span class="main-char">Q</span></div>
+                <div class="key" data-code="KeyW"><span class="main-char">W</span></div>
+                <div class="key" data-code="KeyE"><span class="main-char">E</span></div>
+                <div class="key" data-code="KeyR"><span class="main-char">R</span></div>
+                <div class="key" data-code="KeyT"><span class="main-char">T</span></div>
+                <div class="key" data-code="KeyY"><span class="main-char">Y</span></div>
+                <div class="key" data-code="KeyU"><span class="main-char">U</span></div>
+                <div class="key" data-code="KeyI"><span class="main-char">I</span></div>
+                <div class="key" data-code="KeyO"><span class="main-char">O</span></div>
+                <div class="key" data-code="KeyP"><span class="main-char">P</span></div>
+            </div>
+            <!-- 第三行 -->
+            <div class="keyboard-row">
+                <div class="key caps" data-code="CapsLock">Caps</div>
+                <div class="key" data-code="KeyA"><span class="main-char">A</span></div>
+                <div class="key" data-code="KeyS"><span class="main-char">S</span></div>
+                <div class="key" data-code="KeyD"><span class="main-char">D</span></div>
+                <div class="key" data-code="KeyF"><span class="main-char">F</span></div>
+                <div class="key" data-code="KeyG"><span class="main-char">G</span></div>
+                <div class="key" data-code="KeyH"><span class="main-char">H</span></div>
+                <div class="key" data-code="KeyJ"><span class="main-char">J</span></div>
+                <div class="key" data-code="KeyK"><span class="main-char">K</span></div>
+                <div class="key" data-code="KeyL"><span class="main-char">L</span></div>
+            </div>
+            <!-- 第四行 -->
+            <div class="keyboard-row">
+                <div class="key shift-left" data-code="ShiftLeft">Shift</div>
+                <div class="key" data-code="KeyZ"><span class="main-char">Z</span></div>
+                <div class="key" data-code="KeyX"><span class="main-char">X</span></div>
+                <div class="key" data-code="KeyC"><span class="main-char">C</span></div>
+                <div class="key" data-code="KeyV"><span class="main-char">V</span></div>
+                <div class="key" data-code="KeyB"><span class="main-char">B</span></div>
+                <div class="key" data-code="KeyN"><span class="main-char">N</span></div>
+                <div class="key" data-code="KeyM"><span class="main-char">M</span></div>
+                <div class="key shift-right" data-code="ShiftRight">Shift</div>
+            </div>
+            <!-- 空格行 -->
+            <div class="keyboard-row">
+                <div class="key space" data-code="Space">Space</div>
+            </div>
+        </div>
+
+        <div class="log-panel" id="log-panel">
+            <div class="log-entry">等待键盘事件...</div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // ========================================
+    // Keyboard API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+    const logPanel = $('log-panel');
+
+    // 状态
+    const state = {
+        supported: 'keyboard' in navigator && 'getLayoutMap' in navigator.keyboard,
+        layoutMap: null
+    };
+
+    // 初始化
+    async function init() {
+        updateStatus();
+        setupKeyboardListeners();
+
+        if (state.supported) {
+            log('success', 'Keyboard API 支持');
+            // 尝试静默获取一次（可能因权限策略失败）
+            try {
+                await fetchLayoutMap();
+            } catch (e) {
+                log('warn', '静默获取失败，请点击按钮获取');
+            }
+        } else {
+            log('error', '当前浏览器不支持 Keyboard API');
+        }
+    }
+
+    function updateStatus() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+            $('api-info').textContent = '浏览器支持 Keyboard API。点击右侧按钮或按下任意键体验布局映射功能。';
+        } else {
+            dot.classList.add('error');
+            text.textContent = 'API 不支持';
+            $('api-info').textContent = '当前浏览器不支持 Keyboard API。您可以体验基础的按键监听功能。';
+        }
+    }
+
+    // ========================================
+    // 核心逻辑：获取布局映射
+    // ========================================
+
+    async function fetchLayoutMap() {
+        if (!state.supported) return;
+
+        try {
+            const keyboard = navigator.keyboard;
+            const layoutMap = await keyboard.getLayoutMap();
+
+            state.layoutMap = layoutMap;
+            log('success', '键盘布局映射获取成功！');
+
+            // 更新虚拟键盘显示
+            updateKeyboardVisuals();
+
+            // 更新游戏提示
+            updateGameHints();
+
+        } catch (error) {
+            console.error(error);
+            log('error', `获取失败: ${error.message}`);
+        }
+    }
+
+    // 更新虚拟键盘上的字符显示
+    function updateKeyboardVisuals() {
+        if (!state.layoutMap) return;
+
+        // 遍历所有按键
+        document.querySelectorAll('.key[data-code]').forEach(keyEl => {
+            const code = keyEl.dataset.code;
+
+            // 如果 Map 中有该物理位置对应的字符
+            if (state.layoutMap.has(code)) {
+                const char = state.layoutMap.get(code);
+
+                // 只更新字母键的显示，数字键等通常通用
+                if (code.startsWith('Key')) {
+                    const mainSpan = keyEl.querySelector('.main-char');
+                    if (mainSpan) {
+                        // 显示映射后的字符（例如 AZERTY 键盘上 KeyQ 位置显示 'a'）
+                        mainSpan.textContent = char.toUpperCase();
+
+                        // 添加一个小标记表示这是检测到的布局
+                        mainSpan.style.color = 'var(--accent-green)';
+                    }
+                }
+            }
+        });
+    }
+
+    // 更新左侧的游戏提示
+    function updateGameHints() {
+        if (!state.layoutMap) return;
+
+        // WASD 映射逻辑
+        // KeyW 在 QWERTY 上是 w，在 AZERTY 上是 z
+        const w = state.layoutMap.get('KeyW') || 'W';
+        const a = state.layoutMap.get('KeyA') || 'A';
+        const s = state.layoutMap.get('KeyS') || 'S';
+        const d = state.layoutMap.get('KeyD') || 'D';
+
+        $('hint-forward').textContent = w.toUpperCase();
+        $('hint-left').textContent = a.toUpperCase();
+        $('hint-backward').textContent = s.toUpperCase();
+        $('hint-right').textContent = d.toUpperCase();
+    }
+
+    // ========================================
+    // 交互逻辑
+    // ========================================
+
+    function setupKeyboardListeners() {
+        // 按钮点击事件
+        $('get-layout-btn').addEventListener('click', fetchLayoutMap);
+
+        // 全局键盘事件
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+    }
+
+    function handleKeyDown(e) {
+        // 阻止某些默认行为以演示捕获
+        // e.preventDefault();
+
+        const code = e.code;
+        const key = e.key;
+
+        // 高亮虚拟键盘
+        const keyEl = document.querySelector(`.key[data-code="${code}"]`);
+        if (keyEl) {
+            keyEl.classList.add('pressed');
+        }
+
+        // 高亮游戏提示
+        highlightGameHint(code, true);
+
+        log('info', `按下: <span class="log-code">${code}</span> => <span class="log-key">${key}</span>`);
+    }
+
+    function handleKeyUp(e) {
+        const code = e.code;
+
+        // 取消高亮
+        const keyEl = document.querySelector(`.key[data-code="${code}"]`);
+        if (keyEl) {
+            keyEl.classList.remove('pressed');
+        }
+
+        highlightGameHint(code, false);
+    }
+
+    function highlightGameHint(code, active) {
+        // 映射关系
+        const map = {
+            'KeyW': 'hint-forward',
+            'KeyA': 'hint-left',
+            'KeyS': 'hint-backward',
+            'KeyD': 'hint-right'
+        };
+
+        if (map[code]) {
+            $(map[code]).classList.toggle('active', active);
+        }
+    }
+
+    // 日志工具
+    function log(type, msg) {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        let color = 'var(--text-secondary)';
+        if (type === 'error') color = 'var(--accent-orange)';
+        if (type === 'success') color = 'var(--accent-green)';
+
+        entry.innerHTML = `<span style="color:${color}">[${time}]</span> ${msg}`;
+        logPanel.insertBefore(entry, logPanel.firstChild);
+
+        if (logPanel.children.length > 20) logPanel.lastChild.remove();
+    }
+
+    init();
+</script>
+</body>
+</html>

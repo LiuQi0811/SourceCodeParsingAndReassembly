@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Idle Detection API 完整演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <style>
+        :root {
+            --bg: #020617;
+            --card: #020617;
+            --border: #1f2937;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-soft: rgba(59, 130, 246, 0.15);
+            --secondary: #8b5cf6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0, #020617 60%, #000 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e5e7eb;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            gap: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+
+        .card {
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+
+        .badge {
+            border-radius: 999px;
+            padding: 4px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.success {
+            border-color: rgba(34, 197, 94, 0.5);
+            color: var(--success);
+        }
+
+        .badge.warning {
+            border-color: rgba(245, 158, 11, 0.6);
+            color: var(--warning);
+        }
+
+        .badge.danger {
+            border-color: rgba(239, 68, 68, 0.6);
+            color: var(--danger);
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* 状态显示 */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .status-item.active {
+            border-color: rgba(34, 197, 94, 0.5);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .status-item.idle {
+            border-color: rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .status-item.locked {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .status-icon.active {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .status-icon.idle {
+            background: var(--warning);
+            color: #fff;
+        }
+
+        .status-icon.locked {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .status-icon.unknown {
+            background: var(--muted);
+            color: #fff;
+        }
+
+        /* 倒计时 */
+        .countdown {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .countdown-value {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: rgba(15, 23, 42, 0.9);
+            color: #e5e7eb;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover:not(:disabled) {
+            background: rgba(30, 41, 59, 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        button.primary:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        button.secondary {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.6);
+            color: #c4b5fd;
+        }
+
+        button.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fca5a5;
+        }
+
+        button.success {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.6);
+            color: #86efac;
+        }
+
+        /* 设置区域 */
+        .settings {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .setting-label {
+            font-size: 13px;
+            color: var(--muted);
+            min-width: 120px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            min-width: 120px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(148, 163, 184, 0.3);
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .setting-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* 日志区域 */
+        .log-container {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+
+        .log-content {
+            padding: 12px 16px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: var(--muted);
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--primary);
+            margin-right: 8px;
+        }
+
+        .log-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+
+        .log-type.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        .log-type.warn {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .log-type.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .log-type.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        /* 提示信息 */
+        .alert {
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .alert.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+
+        .alert.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fcd34d;
+        }
+
+        .alert-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        /* 状态历史 */
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 6px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-time {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* 页脚 */
+        footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* 动画 */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Idle Detection API 完整演示</h1>
+    <p class="subtitle">实时检测用户空闲状态 - 支持 Chrome 94+</p>
+</header>
+
+<div class="container">
+    <!-- 主要状态面板 -->
+    <section class="card">
+        <div class="card-header">
+            <span class="card-title">当前状态</span>
+            <span class="badge" id="api-badge">检测中...</span>
+        </div>
+        <div class="card-body">
+            <!-- 提示信息 -->
+            <div class="alert info" id="alert-box">
+                <span class="alert-icon">ℹ️</span>
+                <div>
+                    <strong>使用说明：</strong>Idle Detection API 需要 HTTPS 或 localhost 环境。
+                    点击下方按钮请求权限并开始检测。
+                </div>
+            </div>
+
+            <!-- 状态显示 -->
+            <div class="status-grid">
+                <div class="status-item" id="user-state-box">
+                    <span class="status-label">用户状态</span>
+                    <div class="status-value">
+                        <span class="status-icon unknown" id="user-icon">?</span>
+                        <span id="user-state">未知</span>
+                    </div>
+                    <div class="countdown" id="user-countdown"></div>
+                </div>
+
+                <div class="status-item" id="screen-state-box">
+                    <span class="status-label">屏幕状态</span>
+                    <div class="status-value">
+                        <span class="status-icon unknown" id="screen-icon">?</span>
+                        <span id="screen-state">未知</span>
+                    </div>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-label">权限状态</span>
+                    <div class="status-value" id="permission-state">未请求</div>
+                </div>
+
+                <div class="status-item">
+                    <span class="status-label">检测状态</span>
+                    <div class="status-value" id="detection-status">未启动</div>
+                </div>
+            </div>
+
+            <!-- 设置 -->
+            <div class="settings">
+                <div class="setting-row">
+                    <span class="setting-label">空闲阈值：</span>
+                    <input type="range" id="threshold-slider" min="5" max="120" value="60"/>
+                    <span class="setting-value" id="threshold-value">60秒</span>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="control-panel">
+                <button type="button" id="request-btn" class="primary">
+                    请求权限
+                </button>
+                <button type="button" id="start-btn" class="success" disabled>
+                    开始检测
+                </button>
+                <button type="button" id="stop-btn" class="danger" disabled>
+                    停止检测
+                </button>
+                <button type="button" id="simulate-btn" class="secondary" disabled>
+                    模拟空闲
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid-2">
+        <!-- 日志面板 -->
+        <section class="card">
+            <div class="card-header">
+                <span class="card-title">事件日志</span>
+                <button type="button" id="clear-log-btn" style="padding: 6px 12px; font-size: 11px;">
+                    清空日志
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="log-container">
+                    <div class="log-content" id="log-content">
+                        <div class="log-entry">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-type info">INFO</span>
+                            <span>等待初始化...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 状态历史 -->
+        <section class="card">
+            <div class="card-header">
+                <span class="card-title">状态历史</span>
+                <span class="badge" id="history-count">0 条记录</span>
+            </div>
+            <div class="card-body">
+                <div class="history-list" id="history-list">
+                    <div style="color: var(--muted); font-size: 12px; text-align: center; padding: 20px;">
+                        暂无状态变化记录
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<footer>
+    <p>Idle Detection API 演示 | 仅用于学习测试 | 支持 Chrome 94+, Edge 94+</p>
+</footer>
+
+<script>
+    // ================================
+    // Idle Detection API 完整演示
+    // ================================
+
+    /**
+     * @typedef {'active'|'idle'|'locked'|'unknown'} StateType
+     * @typedef {'granted'|'denied'|'prompt'} PermissionState
+     */
+
+        // 状态管理
+    const state = {
+            isSupported: false,
+            permissionState: 'prompt',
+            isDetecting: false,
+            threshold: 60000, // 默认 60 秒
+            lastActivity: Date.now(),
+            idleDetector: null,
+            abortController: null,
+            history: [],
+            simulationMode: false,
+            simulationTimeout: null
+        };
+
+    // DOM 元素缓存
+    const elements = {
+        apiBadge: document.getElementById('api-badge'),
+        alertBox: document.getElementById('alert-box'),
+        userStateBox: document.getElementById('user-state-box'),
+        userIcon: document.getElementById('user-icon'),
+        userState: document.getElementById('user-state'),
+        userCountdown: document.getElementById('user-countdown'),
+        screenStateBox: document.getElementById('screen-state-box'),
+        screenIcon: document.getElementById('screen-icon'),
+        screenState: document.getElementById('screen-state'),
+        permissionState: document.getElementById('permission-state'),
+        detectionStatus: document.getElementById('detection-status'),
+        thresholdSlider: document.getElementById('threshold-slider'),
+        thresholdValue: document.getElementById('threshold-value'),
+        requestBtn: document.getElementById('request-btn'),
+        startBtn: document.getElementById('start-btn'),
+        stopBtn: document.getElementById('stop-btn'),
+        simulateBtn: document.getElementById('simulate-btn'),
+        logContent: document.getElementById('log-content'),
+        clearLogBtn: document.getElementById('clear-log-btn'),
+        historyList: document.getElementById('history-list'),
+        historyCount: document.getElementById('history-count')
+    };
+
+    // ==================== 工具函数 ====================
+
+    /**
+     * 格式化时间
+     * @param {Date} date
+     * @returns {string}
+     */
+    function formatTime(date = new Date()) {
+        return date.toTimeString().slice(0, 8);
+    }
+
+    /**
+     * 格式化持续时间
+     * @param {number} ms
+     * @returns {string}
+     */
+    function formatDuration(ms) {
+        const seconds = Math.floor(ms / 1000);
+        if (seconds < 60) return `${seconds}秒`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}分${remainingSeconds}秒`;
+    }
+
+    // ==================== 日志系统 ====================
+
+    /**
+     * 添加日志
+     * @param {string} message
+     * @param {'info'|'warn'|'error'|'success'} type
+     */
+    function log(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry fade-in';
+        entry.innerHTML = `
+        <span class="log-time">${formatTime()}</span>
+        <span class="log-type ${type}">${type.toUpperCase()}</span>
+        <span>${message}</span>
+      `;
+
+        elements.logContent.appendChild(entry);
+        elements.logContent.scrollTop = elements.logContent.scrollHeight;
+
+        // 保持日志不超过 50 条
+        while (elements.logContent.children.length > 50) {
+            elements.logContent.removeChild(elements.logContent.firstChild);
+        }
+    }
+
+    /**
+     * 清空日志
+     */
+    function clearLog() {
+        elements.logContent.innerHTML = `
+        <div class="log-entry">
+          <span class="log-time">${formatTime()}</span>
+          <span class="log-type info">INFO</span>
+          <span>日志已清空</span>
+        </div>
+      `;
+    }
+
+    // ==================== UI 更新函数 ====================
+
+    /**
+     * 更新状态 UI
+     * @param {StateType} userState
+     * @param {StateType} screenState
+     */
+    function updateStateUI(userState, screenState) {
+        // 更新用户状态
+        elements.userState.textContent = getStateLabel(userState);
+        elements.userIcon.className = `status-icon ${userState}`;
+        elements.userIcon.textContent = getStateIcon(userState);
+        elements.userStateBox.className = `status-item ${userState}`;
+
+        // 更新屏幕状态
+        elements.screenState.textContent = getStateLabel(screenState);
+        elements.screenIcon.className = `status-icon ${screenState}`;
+        elements.screenIcon.textContent = getStateIcon(screenState);
+        elements.screenStateBox.className = `status-item ${screenState}`;
+
+        // 添加到历史记录
+        if (userState !== 'unknown' || screenState !== 'unknown') {
+            addHistory(userState, screenState);
+        }
+    }
+
+    /**
+     * 获取状态标签
+     * @param {StateType} state
+     * @returns {string}
+     */
+    function getStateLabel(state) {
+        const labels = {
+            active: '活跃',
+            idle: '空闲',
+            locked: '锁定',
+            unknown: '未知'
+        };
+        return labels[state] || state;
+    }
+
+    /**
+     * 获取状态图标
+     * @param {StateType} state
+     * @returns {string}
+     */
+    function getStateIcon(state) {
+        const icons = {
+            active: '✓',
+            idle: '⏸',
+            locked: '🔒',
+            unknown: '?'
+        };
+        return icons[state] || '?';
+    }
+
+    /**
+     * 更新权限状态 UI
+     * @param {PermissionState} permission
+     */
+    function updatePermissionUI(permission) {
+        state.permissionState = permission;
+        elements.permissionState.textContent = {
+            granted: '已授权',
+            denied: '已拒绝',
+            prompt: '未请求'
+        }[permission] || permission;
+
+        elements.permissionState.style.color = {
+            granted: 'var(--success)',
+            denied: 'var(--danger)',
+            prompt: 'var(--warning)'
+        }[permission];
+
+        // 更新按钮状态
+        elements.startBtn.disabled = permission !== 'granted' || state.isDetecting;
+        elements.requestBtn.disabled = permission === 'granted';
+    }
+
+    /**
+     * 更新检测状态 UI
+     * @param {string} status
+     * @param {boolean} isRunning
+     */
+    function updateDetectionUI(status, isRunning) {
+        state.isDetecting = isRunning;
+        elements.detectionStatus.textContent = status;
+        elements.detectionStatus.style.color = isRunning ? 'var(--success)' : 'var(--muted)';
+
+        elements.startBtn.disabled = !state.isSupported || state.permissionState !== 'granted' || isRunning;
+        elements.stopBtn.disabled = !isRunning;
+        elements.simulateBtn.disabled = !isRunning;
+
+        if (isRunning) {
+            elements.detectionStatus.classList.add('pulse');
+        } else {
+            elements.detectionStatus.classList.remove('pulse');
+        }
+    }
+
+    /**
+     * 更新倒计时显示
+     */
+    function updateCountdown() {
+        if (!state.isDetecting) {
+            elements.userCountdown.textContent = '';
+            return;
+        }
+
+        const elapsed = Date.now() - state.lastActivity;
+        const remaining = Math.max(0, state.threshold - elapsed);
+
+        if (remaining > 0) {
+            elements.userCountdown.innerHTML = `距离空闲: <span class="countdown-value">${formatDuration(remaining)}</span>`;
+        } else {
+            elements.userCountdown.innerHTML = `<span class="countdown-value">已达到空闲阈值</span>`;
+        }
+    }
+
+    // ==================== 历史记录 ====================
+
+    /**
+     * 添加历史记录
+     * @param {StateType} userState
+     * @param {StateType} screenState
+     */
+    function addHistory(userState, screenState) {
+        const record = {
+            time: new Date(),
+            userState,
+            screenState
+        };
+
+        state.history.unshift(record);
+
+        // 限制历史记录数量
+        if (state.history.length > 20) {
+            state.history.pop();
+        }
+
+        renderHistory();
+    }
+
+    /**
+     * 渲染历史记录
+     */
+    function renderHistory() {
+        if (state.history.length === 0) {
+            elements.historyList.innerHTML = `
+          <div style="color: var(--muted); font-size: 12px; text-align: center; padding: 20px;">
+            暂无状态变化记录
+          </div>
+        `;
+            elements.historyCount.textContent = '0 条记录';
+            return;
+        }
+
+        elements.historyCount.textContent = `${state.history.length} 条记录`;
+
+        elements.historyList.innerHTML = state.history.map(record => `
+        <div class="history-item fade-in">
+          <div>
+            <span style="color: ${record.userState === 'active' ? 'var(--success)' : record.userState === 'idle' ? 'var(--warning)' : 'var(--danger)'};">
+              ${getStateLabel(record.userState)}
+            </span>
+            /
+            <span style="color: ${record.screenState === 'locked' ? 'var(--danger)' : 'var(--success)'};">
+              ${getStateLabel(record.screenState)}
+            </span>
+          </div>
+          <span class="history-time">${formatTime(record.time)}</span>
+        </div>
+      `).join('');
+    }
+
+    // ==================== 核心功能 ====================
+
+    /**
+     * 检查 API 支持
+     * @returns {boolean}
+     */
+    function checkAPISupport() {
+        state.isSupported = 'IdleDetector' in window;
+
+        if (state.isSupported) {
+            elements.apiBadge.textContent = 'API 支持';
+            elements.apiBadge.classList.add('success');
+            log('Idle Detection API 受支持', 'success');
+        } else {
+            elements.apiBadge.textContent = 'API 不支持';
+            elements.apiBadge.classList.add('danger');
+            log('当前浏览器不支持 Idle Detection API，请使用 Chrome 94+', 'error');
+
+            elements.alertBox.className = 'alert warning';
+            elements.alertBox.innerHTML = `
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>浏览器不支持：</strong>请使用 Chrome 94+ 或 Edge 94+，
+            并确保在 HTTPS 或 localhost 环境下运行。
+          </div>
+        `;
+        }
+
+        return state.isSupported;
+    }
+
+    /**
+     * 请求权限
+     */
+    async function requestPermission() {
+        if (!state.isSupported) {
+            log('API 不支持，无法请求权限', 'error');
+            return;
+        }
+
+        try {
+            log('正在请求空闲检测权限...', 'info');
+
+            const permission = await IdleDetector.requestPermission();
+            updatePermissionUI(permission);
+
+            if (permission === 'granted') {
+                log('权限已授予，可以开始检测', 'success');
+                elements.alertBox.className = 'alert info';
+                elements.alertBox.innerHTML = `
+            <span class="alert-icon">✓</span>
+            <div>
+              <strong>权限已授予</strong>，点击"开始检测"按钮启动空闲检测。
+            </div>
+          `;
+            } else if (permission === 'denied') {
+                log('用户拒绝了权限请求', 'warn');
+                elements.alertBox.className = 'alert warning';
+                elements.alertBox.innerHTML = `
+            <span class="alert-icon">⚠️</span>
+            <div>
+              <strong>权限被拒绝</strong>，请在浏览器设置中允许空闲检测权限。
+            </div>
+          `;
+            }
+        } catch (error) {
+            log(`请求权限失败: ${error.message}`, 'error');
+            console.error('Permission request error:', error);
+        }
+    }
+
+    /**
+     * 开始检测
+     */
+    async function startDetection() {
+        if (!state.isSupported || state.permissionState !== 'granted') {
+            log('不满足启动条件', 'error');
+            return;
+        }
+
+        if (state.isDetecting) {
+            log('检测已在运行中', 'warn');
+            return;
+        }
+
+        try {
+            state.idleDetector = new IdleDetector();
+            state.abortController = new AbortController();
+            state.lastActivity = Date.now();
+
+            // 监听状态变化
+            state.idleDetector.addEventListener('change', handleStateChange);
+
+            // 启动检测
+            await state.idleDetector.start({
+                threshold: state.threshold,
+                signal: state.abortController.signal
+            });
+
+            updateDetectionUI('运行中', true);
+            log(`空闲检测已启动，阈值: ${state.threshold / 1000} 秒`, 'success');
+
+            // 获取初始状态
+            const userState = state.idleDetector.userState;
+            const screenState = state.idleDetector.screenState;
+            updateStateUI(userState || 'active', screenState || 'unlocked');
+
+            // 开始倒计时更新
+            startCountdownTimer();
+
+        } catch (error) {
+            log(`启动检测失败: ${error.message}`, 'error');
+            console.error('Start detection error:', error);
+            updateDetectionUI('启动失败', false);
+        }
+    }
+
+    /**
+     * 停止检测
+     */
+    function stopDetection() {
+        if (state.abortController) {
+            state.abortController.abort();
+            state.abortController = null;
+        }
+
+        if (state.idleDetector) {
+            state.idleDetector = null;
+        }
+
+        stopSimulation();
+        stopCountdownTimer();
+
+        updateDetectionUI('已停止', false);
+        updateStateUI('unknown', 'unknown');
+        log('空闲检测已停止', 'info');
+    }
+
+    /**
+     * 处理状态变化
+     */
+    function handleStateChange() {
+        if (!state.idleDetector) return;
+
+        const userState = state.idleDetector.userState;
+        const screenState = state.idleDetector.screenState;
+
+        log(`状态变化: 用户=${userState}, 屏幕=${screenState}`, 'info');
+
+        updateStateUI(userState, screenState);
+
+        // 如果用户变为活跃，更新最后活动时间
+        if (userState === 'active') {
+            state.lastActivity = Date.now();
+        }
+    }
+
+    // ==================== 倒计时功能 ====================
+
+    let countdownInterval = null;
+
+    function startCountdownTimer() {
+        stopCountdownTimer();
+        countdownInterval = setInterval(() => {
+            updateCountdown();
+
+            // 监听用户活动（仅用于倒计时显示，不影响实际检测）
+            document.addEventListener('mousemove', resetActivityTimer, {passive: true});
+            document.addEventListener('keydown', resetActivityTimer, {passive: true});
+            document.addEventListener('click', resetActivityTimer, {passive: true});
+            document.addEventListener('scroll', resetActivityTimer, {passive: true});
+        }, 1000);
+    }
+
+    function stopCountdownTimer() {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+
+        document.removeEventListener('mousemove', resetActivityTimer);
+        document.removeEventListener('keydown', resetActivityTimer);
+        document.removeEventListener('click', resetActivityTimer);
+        document.removeEventListener('scroll', resetActivityTimer);
+    }
+
+    function resetActivityTimer() {
+        state.lastActivity = Date.now();
+    }
+
+    // ==================== 模拟功能 ====================
+
+    /**
+     * 切换模拟模式
+     */
+    function toggleSimulation() {
+        if (state.simulationMode) {
+            stopSimulation();
+        } else {
+            startSimulation();
+        }
+    }
+
+    /**
+     * 开始模拟
+     */
+    function startSimulation() {
+        state.simulationMode = true;
+        elements.simulateBtn.textContent = '停止模拟';
+        elements.simulateBtn.classList.remove('secondary');
+        elements.simulateBtn.classList.add('danger');
+
+        log('模拟模式已启动，将在 5 秒后切换到空闲状态', 'info');
+
+        state.simulationTimeout = setTimeout(() => {
+            if (state.isDetecting) {
+                updateStateUI('idle', 'unlocked');
+                log('模拟: 用户进入空闲状态', 'warn');
+
+                // 10 秒后模拟锁屏
+                state.simulationTimeout = setTimeout(() => {
+                    if (state.isDetecting) {
+                        updateStateUI('idle', 'locked');
+                        log('模拟: 屏幕已锁定', 'warn');
+                    }
+                }, 10000);
+            }
+        }, 5000);
+    }
+
+    /**
+     * 停止模拟
+     */
+    function stopSimulation() {
+        state.simulationMode = false;
+
+        if (state.simulationTimeout) {
+            clearTimeout(state.simulationTimeout);
+            state.simulationTimeout = null;
+        }
+
+        elements.simulateBtn.textContent = '模拟空闲';
+        elements.simulateBtn.classList.remove('danger');
+        elements.simulateBtn.classList.add('secondary');
+
+        if (state.isDetecting) {
+            updateStateUI('active', 'unlocked');
+            state.lastActivity = Date.now();
+            log('模拟模式已停止，恢复活跃状态', 'info');
+        }
+    }
+
+    // ==================== 事件绑定 ====================
+
+    // 阈值滑块
+    elements.thresholdSlider.addEventListener('input', (e) => {
+        const seconds = parseInt(e.target.value);
+        state.threshold = seconds * 1000;
+        elements.thresholdValue.textContent = `${seconds}秒`;
+    });
+
+    // 按钮事件
+    elements.requestBtn.addEventListener('click', requestPermission);
+    elements.startBtn.addEventListener('click', startDetection);
+    elements.stopBtn.addEventListener('click', stopDetection);
+    elements.simulateBtn.addEventListener('click', toggleSimulation);
+    elements.clearLogBtn.addEventListener('click', clearLog);
+
+    // ==================== 初始化 ====================
+
+    function init() {
+        log('页面初始化...', 'info');
+
+        const supported = checkAPISupport();
+
+        updateStateUI('unknown', 'unknown');
+        updatePermissionUI('prompt');
+        updateDetectionUI('未启动', false);
+
+        if (supported) {
+            // 检查已有权限
+            navigator.permissions.query({name: 'idle-detection'})
+                .then(result => {
+                    updatePermissionUI(result.state);
+                    log(`当前权限状态: ${result.state}`, 'info');
+                })
+                .catch(() => {
+                    // 某些浏览器可能不支持 permissions API
+                    log('无法查询权限状态，请点击请求权限按钮', 'warn');
+                });
+        }
+    }
+
+    // 启动
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
