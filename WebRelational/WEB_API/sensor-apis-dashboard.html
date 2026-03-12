@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级传感器API监控平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.25rem 2rem;
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .logo-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .logo-text p {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background: var(--danger-color);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--card-bg);
+            padding: 0.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .tab-btn .icon {
+            font-size: 1rem;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid Layout */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.25rem;
+        }
+
+        /* Sensor Card */
+        .sensor-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .card-icon.accelerometer { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-icon.gyroscope { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .card-icon.magnetometer { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .card-icon.orientation { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .card-icon.light { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .card-icon.proximity { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .card-icon.gravity { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); }
+        .card-icon.linear { background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); }
+
+        .card-title h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-title p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .card-status {
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .card-status.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .card-status.inactive {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .card-status.pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Data Display */
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .data-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
+        /* Visual Display */
+        .visual-display {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .axis-visual {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .axis-bar {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-color);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .axis-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.1s ease;
+        }
+
+        .axis-fill.x { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .axis-fill.y { background: linear-gradient(90deg, #10b981, #34d399); }
+        .axis-fill.z { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+        .axis-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* 3D Cube */
+        .cube-container {
+            perspective: 300px;
+            width: 120px;
+            height: 120px;
+            margin: 1rem auto;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease;
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            left: 20px;
+            top: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.875rem;
+            color: white;
+        }
+
+        .cube-face.front { background: rgba(239, 68, 68, 0.8); transform: translateZ(40px); }
+        .cube-face.back { background: rgba(59, 130, 246, 0.8); transform: rotateY(180deg) translateZ(40px); }
+        .cube-face.right { background: rgba(16, 185, 129, 0.8); transform: rotateY(90deg) translateZ(40px); }
+        .cube-face.left { background: rgba(245, 158, 11, 0.8); transform: rotateY(-90deg) translateZ(40px); }
+        .cube-face.top { background: rgba(139, 92, 246, 0.8); transform: rotateX(90deg) translateZ(40px); }
+        .cube-face.bottom { background: rgba(236, 72, 153, 0.8); transform: rotateX(-90deg) translateZ(40px); }
+
+        /* Compass */
+        .compass {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            margin: 1rem auto;
+            position: relative;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .compass::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .compass-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 60px;
+            transform-origin: center bottom;
+            transform: translate(-50%, -100%);
+            transition: transform 0.1s ease;
+        }
+
+        .compass-needle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 30px solid #ef4444;
+            transform: translateX(-6px);
+        }
+
+        .compass-needle::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 30px solid white;
+            transform: translateX(-6px);
+        }
+
+        .compass-directions {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .compass-directions span {
+            position: absolute;
+        }
+
+        .compass-directions .n { top: 10px; left: 50%; transform: translateX(-50%); color: #ef4444; }
+        .compass-directions .s { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .compass-directions .e { right: 10px; top: 50%; transform: translateY(-50%); }
+        .compass-directions .w { left: 10px; top: 50%; transform: translateY(-50%); }
+
+        /* Light Meter */
+        .light-meter {
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(90deg, #1e293b 0%, #fef3c7 50%, #fef08a 100%);
+            border-radius: 15px;
+            position: relative;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .light-indicator {
+            position: absolute;
+            top: 50%;
+            width: 4px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 2px;
+            transform: translate(-50%, -50%);
+            transition: left 0.1s ease;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+        }
+
+        .light-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* Proximity Display */
+        .proximity-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            padding: 1.5rem;
+        }
+
+        .proximity-object {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .proximity-sensor {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .proximity-sensor::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background: var(--danger-color);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        .proximity-sensor.near::after {
+            background: var(--success-color);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Control Buttons */
+        .control-btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-btn.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .control-btn.primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .control-btn.secondary {
+            background: var(--bg-color);
+            color: var(--text-primary);
+        }
+
+        .control-btn.secondary:hover {
+            background: var(--border-color);
+        }
+
+        .control-btn.danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .control-btn.danger:hover {
+            background: #dc2626;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Overview Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 1.25rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Log Panel */
+        .log-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .log-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .log-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.8;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            margin-right: 0.75rem;
+        }
+
+        .log-type {
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .log-type.info { background: rgba(59, 130, 246, 0.1); color: var(--primary-color); }
+        .log-type.success { background: rgba(16, 185, 129, 0.1); color: var(--success-color); }
+        .log-type.warning { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+        .log-type.error { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
+
+        /* Error Message */
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            color: var(--danger-color);
+            font-size: 0.875rem;
+        }
+
+        .error-message h4 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Permission Request */
+        .permission-request {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .permission-request p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .header-status {
+                justify-content: center;
+            }
+
+            .main-container {
+                padding: 1rem;
+            }
+
+            .tab-nav {
+                padding: 0.375rem;
+            }
+
+            .tab-btn {
+                padding: 0.625rem 1rem;
+                font-size: 0.8125rem;
+            }
+
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo-text h1 {
+                font-size: 1.25rem;
+            }
+
+            .status-item {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.75rem;
+            }
+
+            .tab-btn .icon {
+                display: none;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">📡</div>
+                <div class="logo-text">
+                    <h1>Sensor APIs 监控平台</h1>
+                    <p>Enterprise Sensor Dashboard v2.0</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-item">
+                    <span class="status-dot" id="connectionStatus"></span>
+                    <span id="connectionText">检测中...</span>
+                </div>
+                <div class="status-item">
+                    <span>活跃传感器:</span>
+                    <strong id="activeSensors">0</strong>
+                </div>
+                <div class="status-item">
+                    <span>采样率:</span>
+                    <strong id="sampleRate">60Hz</strong>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="overview">
+                <span class="icon">📊</span>
+                <span>总览</span>
+            </button>
+            <button class="tab-btn" data-tab="motion">
+                <span class="icon">🎯</span>
+                <span>运动传感器</span>
+            </button>
+            <button class="tab-btn" data-tab="orientation">
+                <span class="icon">🧭</span>
+                <span>方向传感器</span>
+            </button>
+            <button class="tab-btn" data-tab="environment">
+                <span class="icon">🌡️</span>
+                <span>环境传感器</span>
+            </button>
+            <button class="tab-btn" data-tab="logs">
+                <span class="icon">📋</span>
+                <span>日志</span>
+            </button>
+        </nav>
+
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overview">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSensors">10</div>
+                    <div class="stat-label">可用传感器</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="enabledSensors">0</div>
+                    <div class="stat-label">已启用传感器</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="dataPoints">0</div>
+                    <div class="stat-label">数据点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="uptime">00:00:00</div>
+                    <div class="stat-label">运行时间</div>
+                </div>
+            </div>
+
+            <div class="sensor-grid">
+                <!-- Accelerometer Card -->
+                <div class="sensor-card" id="accelerometerCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon accelerometer">⚡</div>
+                            <div>
+                                <h3>加速度计</h3>
+                                <p>Accelerometer</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="accelerometerStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">X轴加速度</span>
+                            <span class="data-value" id="accelX">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Y轴加速度</span>
+                            <span class="data-value" id="accelY">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Z轴加速度</span>
+                            <span class="data-value" id="accelZ">0.00 m/s²</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="axis-visual">
+                                <div class="axis-bar"><div class="axis-fill x" id="accelBarX"></div></div>
+                                <div class="axis-bar"><div class="axis-fill y" id="accelBarY"></div></div>
+                                <div class="axis-bar"><div class="axis-fill z" id="accelBarZ"></div></div>
+                            </div>
+                            <div class="axis-labels">
+                                <span>X (红)</span>
+                                <span>Y (绿)</span>
+                                <span>Z (蓝)</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="accelerometerBtn" onclick="toggleSensor('accelerometer')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gyroscope Card -->
+                <div class="sensor-card" id="gyroscopeCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon gyroscope">🌀</div>
+                            <div>
+                                <h3>陀螺仪</h3>
+                                <p>Gyroscope</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="gyroscopeStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">X轴角速度</span>
+                            <span class="data-value" id="gyroX">0.00 rad/s</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Y轴角速度</span>
+                            <span class="data-value" id="gyroY">0.00 rad/s</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Z轴角速度</span>
+                            <span class="data-value" id="gyroZ">0.00 rad/s</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="axis-visual">
+                                <div class="axis-bar"><div class="axis-fill x" id="gyroBarX"></div></div>
+                                <div class="axis-bar"><div class="axis-fill y" id="gyroBarY"></div></div>
+                                <div class="axis-bar"><div class="axis-fill z" id="gyroBarZ"></div></div>
+                            </div>
+                            <div class="axis-labels">
+                                <span>Roll</span>
+                                <span>Pitch</span>
+                                <span>Yaw</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="gyroscopeBtn" onclick="toggleSensor('gyroscope')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Magnetometer Card -->
+                <div class="sensor-card" id="magnetometerCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon magnetometer">🧲</div>
+                            <div>
+                                <h3>磁力计</h3>
+                                <p>Magnetometer</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="magnetometerStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">X轴磁场</span>
+                            <span class="data-value" id="magX">0.00 μT</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Y轴磁场</span>
+                            <span class="data-value" id="magY">0.00 μT</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Z轴磁场</span>
+                            <span class="data-value" id="magZ">0.00 μT</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="compass">
+                                <div class="compass-directions">
+                                    <span class="n">N</span>
+                                    <span class="s">S</span>
+                                    <span class="e">E</span>
+                                    <span class="w">W</span>
+                                </div>
+                                <div class="compass-needle" id="compassNeedle"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="magnetometerBtn" onclick="toggleSensor('magnetometer')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orientation Card -->
+                <div class="sensor-card" id="orientationCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon orientation">🎮</div>
+                            <div>
+                                <h3>绝对方向</h3>
+                                <p>AbsoluteOrientationSensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="orientationStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">四元数 X</span>
+                            <span class="data-value" id="orientX">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Y</span>
+                            <span class="data-value" id="orientY">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Z</span>
+                            <span class="data-value" id="orientZ">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 W</span>
+                            <span class="data-value" id="orientW">1.0000</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="cube-container">
+                                <div class="cube" id="orientationCube">
+                                    <div class="cube-face front">前</div>
+                                    <div class="cube-face back">后</div>
+                                    <div class="cube-face right">右</div>
+                                    <div class="cube-face left">左</div>
+                                    <div class="cube-face top">上</div>
+                                    <div class="cube-face bottom">下</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="orientationBtn" onclick="toggleSensor('orientation')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motion Sensors Tab -->
+        <div class="tab-content" id="motion">
+            <div class="sensor-grid">
+                <!-- Gravity Sensor -->
+                <div class="sensor-card" id="gravityCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon gravity">🌍</div>
+                            <div>
+                                <h3>重力传感器</h3>
+                                <p>GravitySensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="gravityStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">X轴重力</span>
+                            <span class="data-value" id="gravX">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Y轴重力</span>
+                            <span class="data-value" id="gravY">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Z轴重力</span>
+                            <span class="data-value" id="gravZ">0.00 m/s²</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="axis-visual">
+                                <div class="axis-bar"><div class="axis-fill x" id="gravBarX"></div></div>
+                                <div class="axis-bar"><div class="axis-fill y" id="gravBarY"></div></div>
+                                <div class="axis-bar"><div class="axis-fill z" id="gravBarZ"></div></div>
+                            </div>
+                            <div class="axis-labels">
+                                <span>X</span>
+                                <span>Y</span>
+                                <span>Z</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="gravityBtn" onclick="toggleSensor('gravity')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linear Acceleration Sensor -->
+                <div class="sensor-card" id="linearCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon linear">🚀</div>
+                            <div>
+                                <h3>线性加速度</h3>
+                                <p>LinearAccelerationSensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="linearStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">X轴线性加速度</span>
+                            <span class="data-value" id="linX">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Y轴线性加速度</span>
+                            <span class="data-value" id="linY">0.00 m/s²</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Z轴线性加速度</span>
+                            <span class="data-value" id="linZ">0.00 m/s²</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="axis-visual">
+                                <div class="axis-bar"><div class="axis-fill x" id="linBarX"></div></div>
+                                <div class="axis-bar"><div class="axis-fill y" id="linBarY"></div></div>
+                                <div class="axis-bar"><div class="axis-fill z" id="linBarZ"></div></div>
+                            </div>
+                            <div class="axis-labels">
+                                <span>X</span>
+                                <span>Y</span>
+                                <span>Z</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="linearBtn" onclick="toggleSensor('linear')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relative Orientation -->
+                <div class="sensor-card" id="relativeCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon orientation">🔄</div>
+                            <div>
+                                <h3>相对方向</h3>
+                                <p>RelativeOrientationSensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="relativeStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">四元数 X</span>
+                            <span class="data-value" id="relX">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Y</span>
+                            <span class="data-value" id="relY">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Z</span>
+                            <span class="data-value" id="relZ">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 W</span>
+                            <span class="data-value" id="relW">1.0000</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="cube-container">
+                                <div class="cube" id="relativeCube">
+                                    <div class="cube-face front">前</div>
+                                    <div class="cube-face back">后</div>
+                                    <div class="cube-face right">右</div>
+                                    <div class="cube-face left">左</div>
+                                    <div class="cube-face top">上</div>
+                                    <div class="cube-face bottom">下</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="relativeBtn" onclick="toggleSensor('relative')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orientation Sensors Tab -->
+        <div class="tab-content" id="orientation">
+            <div class="sensor-grid">
+                <!-- Detailed Orientation Card -->
+                <div class="sensor-card" style="grid-column: span 2;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon orientation">📐</div>
+                            <div>
+                                <h3>方向数据详情</h3>
+                                <p>Orientation Details</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                                <span class="data-label">欧拉角 - Alpha (Z轴)</span>
+                                <span class="data-value" id="eulerAlpha">0.00°</span>
+                            </div>
+                            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                                <span class="data-label">欧拉角 - Beta (X轴)</span>
+                                <span class="data-value" id="eulerBeta">0.00°</span>
+                            </div>
+                            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                                <span class="data-label">欧拉角 - Gamma (Y轴)</span>
+                                <span class="data-value" id="eulerGamma">0.00°</span>
+                            </div>
+                            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                                <span class="data-label">旋转矩阵</span>
+                                <span class="data-value" id="rotationMatrix" style="font-size: 0.75rem;">[1,0,0,0,1,0,0,0,1]</span>
+                            </div>
+                        </div>
+                        <div class="visual-display" style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                            <div>
+                                <h4 style="text-align: center; margin-bottom: 0.5rem; color: var(--text-secondary);">绝对方向</h4>
+                                <div class="cube-container">
+                                    <div class="cube" id="absOrientCube">
+                                        <div class="cube-face front">前</div>
+                                        <div class="cube-face back">后</div>
+                                        <div class="cube-face right">右</div>
+                                        <div class="cube-face left">左</div>
+                                        <div class="cube-face top">上</div>
+                                        <div class="cube-face bottom">下</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="text-align: center; margin-bottom: 0.5rem; color: var(--text-secondary);">相对方向</h4>
+                                <div class="cube-container">
+                                    <div class="cube" id="relOrientCube">
+                                        <div class="cube-face front">前</div>
+                                        <div class="cube-face back">后</div>
+                                        <div class="cube-face right">右</div>
+                                        <div class="cube-face left">左</div>
+                                        <div class="cube-face top">上</div>
+                                        <div class="cube-face bottom">下</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Geomagnetic Orientation Sensor Card -->
+                <div class="sensor-card" id="geomagneticCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon magnetometer">🧭</div>
+                            <div>
+                                <h3>地磁方向传感器</h3>
+                                <p>GeomagneticOrientationSensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="geomagneticStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">四元数 X</span>
+                            <span class="data-value" id="geoX">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Y</span>
+                            <span class="data-value" id="geoY">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 Z</span>
+                            <span class="data-value" id="geoZ">0.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">四元数 W</span>
+                            <span class="data-value" id="geoW">1.0000</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">磁航向角</span>
+                            <span class="data-value" id="geoHeading">0.0°</span>
+                        </div>
+                        <div class="visual-display" style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; align-items: center;">
+                            <div class="cube-container">
+                                <div class="cube" id="geomagneticCube">
+                                    <div class="cube-face front">前</div>
+                                    <div class="cube-face back">后</div>
+                                    <div class="cube-face right">右</div>
+                                    <div class="cube-face left">左</div>
+                                    <div class="cube-face top">上</div>
+                                    <div class="cube-face bottom">下</div>
+                                </div>
+                            </div>
+                            <div class="compass">
+                                <div class="compass-directions">
+                                    <span class="n">N</span>
+                                    <span class="s">S</span>
+                                    <span class="e">E</span>
+                                    <span class="w">W</span>
+                                </div>
+                                <div class="compass-needle" id="geoCompassNeedle"></div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="geomagneticBtn" onclick="toggleSensor('geomagnetic')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Environment Sensors Tab -->
+        <div class="tab-content" id="environment">
+            <div class="sensor-grid">
+                <!-- Ambient Light Sensor -->
+                <div class="sensor-card" id="lightCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon light">💡</div>
+                            <div>
+                                <h3>环境光传感器</h3>
+                                <p>AmbientLightSensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="lightStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">光照强度</span>
+                            <span class="data-value" id="lightValue">0 Lux</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">光照等级</span>
+                            <span class="data-value" id="lightLevel">黑暗</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="light-meter">
+                                <div class="light-indicator" id="lightIndicator" style="left: 0%;"></div>
+                            </div>
+                            <div class="light-labels">
+                                <span>黑暗</span>
+                                <span>昏暗</span>
+                                <span>正常</span>
+                                <span>明亮</span>
+                                <span>强光</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="lightBtn" onclick="toggleSensor('light')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Proximity Sensor -->
+                <div class="sensor-card" id="proximityCard">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon proximity">📱</div>
+                            <div>
+                                <h3>接近传感器</h3>
+                                <p>ProximitySensor</p>
+                            </div>
+                        </div>
+                        <span class="card-status pending" id="proximityStatus">待激活</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-row">
+                            <span class="data-label">距离</span>
+                            <span class="data-value" id="proximityValue">-- cm</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">最大距离</span>
+                            <span class="data-value" id="proximityMax">-- cm</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">检测状态</span>
+                            <span class="data-value" id="proximityNear">远</span>
+                        </div>
+                        <div class="visual-display">
+                            <div class="proximity-display">
+                                <div class="proximity-object" id="proximityObject"></div>
+                                <div class="proximity-sensor" id="proximitySensor">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; text-align: center;">
+                            <button class="control-btn primary" id="proximityBtn" onclick="toggleSensor('proximity')">启动传感器</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div class="tab-content" id="logs">
+            <div class="log-panel">
+                <div class="log-header">
+                    <h3>系统日志</h3>
+                    <div>
+                        <button class="control-btn secondary" onclick="clearLogs()">清除日志</button>
+                        <button class="control-btn secondary" onclick="exportLogs()">导出日志</button>
+                    </div>
+                </div>
+                <div class="log-content" id="logContent">
+                    <!-- Logs will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Sensor instances
+        const sensors = {
+            accelerometer: null,
+            gyroscope: null,
+            magnetometer: null,
+            orientation: null,
+            relative: null,
+            gravity: null,
+            linear: null,
+            light: null,
+            proximity: null,
+            geomagnetic: null
+        };
+
+        // Sensor states
+        const sensorStates = {
+            accelerometer: false,
+            gyroscope: false,
+            magnetometer: false,
+            orientation: false,
+            relative: false,
+            gravity: false,
+            linear: false,
+            light: false,
+            proximity: false,
+            geomagnetic: false
+        };
+
+        // Statistics
+        let dataPoints = 0;
+        let startTime = Date.now();
+        let logs = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            checkSensorSupport();
+            updateUptime();
+            setInterval(updateUptime, 1000);
+            addLog('info', '系统初始化完成');
+        });
+
+        // Tab Navigation
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    const tabId = tab.dataset.tab;
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        // Check Sensor Support
+        function checkSensorSupport() {
+            const sensorSupport = {
+                'Accelerometer': 'Accelerometer' in window,
+                'Gyroscope': 'Gyroscope' in window,
+                'Magnetometer': 'Magnetometer' in window,
+                'AbsoluteOrientationSensor': 'AbsoluteOrientationSensor' in window,
+                'RelativeOrientationSensor': 'RelativeOrientationSensor' in window,
+                'GravitySensor': 'GravitySensor' in window,
+                'LinearAccelerationSensor': 'LinearAccelerationSensor' in window,
+                'AmbientLightSensor': 'AmbientLightSensor' in window,
+                'ProximitySensor': 'ProximitySensor' in window,
+                'GeomagneticOrientationSensor': 'GeomagneticOrientationSensor' in window
+            };
+
+            let supportedCount = 0;
+            for (const [name, supported] of Object.entries(sensorSupport)) {
+                if (supported) supportedCount++;
+                addLog(supported ? 'success' : 'warning', `${name} ${supported ? '支持' : '不支持'}`);
+            }
+
+            document.getElementById('totalSensors').textContent = supportedCount;
+            
+            if (supportedCount === 0) {
+                document.getElementById('connectionStatus').classList.add('inactive');
+                document.getElementById('connectionText').textContent = '传感器不可用';
+                addLog('error', '当前设备不支持任何传感器API');
+            } else {
+                document.getElementById('connectionText').textContent = '传感器就绪';
+            }
+        }
+
+        // Toggle Sensor
+        async function toggleSensor(sensorType) {
+            if (sensorStates[sensorType]) {
+                stopSensor(sensorType);
+            } else {
+                await startSensor(sensorType);
+            }
+        }
+
+        // Start Sensor
+        async function startSensor(sensorType) {
+            try {
+                // Request permission for sensors
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        addLog('error', `${sensorType} 权限被拒绝`);
+                        return;
+                    }
+                }
+
+                const sensorClasses = {
+                    accelerometer: 'Accelerometer',
+                    gyroscope: 'Gyroscope',
+                    magnetometer: 'Magnetometer',
+                    orientation: 'AbsoluteOrientationSensor',
+                    relative: 'RelativeOrientationSensor',
+                    gravity: 'GravitySensor',
+                    linear: 'LinearAccelerationSensor',
+                    light: 'AmbientLightSensor',
+                    proximity: 'ProximitySensor',
+                    geomagnetic: 'GeomagneticOrientationSensor'
+                };
+
+                const className = sensorClasses[sensorType];
+                
+                if (!(className in window)) {
+                    addLog('error', `${className} 在此设备上不可用`);
+                    showError(sensorType, '此传感器在当前设备上不可用');
+                    return;
+                }
+
+                const SensorClass = window[className];
+                const sensor = new SensorClass({ frequency: 60 });
+
+                sensor.addEventListener('reading', () => {
+                    handleSensorData(sensorType, sensor);
+                });
+
+                sensor.addEventListener('error', (event) => {
+                    addLog('error', `${sensorType} 错误: ${event.error.message}`);
+                    showError(sensorType, event.error.message);
+                });
+
+                sensor.start();
+                sensors[sensorType] = sensor;
+                sensorStates[sensorType] = true;
+                
+                updateSensorUI(sensorType, true);
+                addLog('success', `${sensorType} 传感器已启动`);
+                updateActiveSensors();
+
+            } catch (error) {
+                addLog('error', `启动 ${sensorType} 失败: ${error.message}`);
+                showError(sensorType, error.message);
+            }
+        }
+
+        // Stop Sensor
+        function stopSensor(sensorType) {
+            if (sensors[sensorType]) {
+                sensors[sensorType].stop();
+                sensors[sensorType] = null;
+                sensorStates[sensorType] = false;
+                
+                updateSensorUI(sensorType, false);
+                addLog('info', `${sensorType} 传感器已停止`);
+                updateActiveSensors();
+            }
+        }
+
+        // Handle Sensor Data
+        function handleSensorData(sensorType, sensor) {
+            dataPoints++;
+            document.getElementById('dataPoints').textContent = dataPoints.toLocaleString();
+
+            switch (sensorType) {
+                case 'accelerometer':
+                    updateAccelerometer(sensor);
+                    break;
+                case 'gyroscope':
+                    updateGyroscope(sensor);
+                    break;
+                case 'magnetometer':
+                    updateMagnetometer(sensor);
+                    break;
+                case 'orientation':
+                    updateOrientation(sensor, 'abs');
+                    break;
+                case 'relative':
+                    updateOrientation(sensor, 'rel');
+                    break;
+                case 'gravity':
+                    updateGravity(sensor);
+                    break;
+                case 'linear':
+                    updateLinearAcceleration(sensor);
+                    break;
+                case 'light':
+                    updateAmbientLight(sensor);
+                    break;
+                case 'proximity':
+                    updateProximity(sensor);
+                    break;
+                case 'geomagnetic':
+                    updateGeomagneticOrientation(sensor);
+                    break;
+            }
+        }
+
+        // Update Accelerometer
+        function updateAccelerometer(sensor) {
+            const x = sensor.x || 0;
+            const y = sensor.y || 0;
+            const z = sensor.z || 0;
+
+            document.getElementById('accelX').textContent = x.toFixed(2) + ' m/s²';
+            document.getElementById('accelY').textContent = y.toFixed(2) + ' m/s²';
+            document.getElementById('accelZ').textContent = z.toFixed(2) + ' m/s²';
+
+            updateAxisBars('accel', x, y, z, 20);
+        }
+
+        // Update Gyroscope
+        function updateGyroscope(sensor) {
+            const x = sensor.x || 0;
+            const y = sensor.y || 0;
+            const z = sensor.z || 0;
+
+            document.getElementById('gyroX').textContent = x.toFixed(2) + ' rad/s';
+            document.getElementById('gyroY').textContent = y.toFixed(2) + ' rad/s';
+            document.getElementById('gyroZ').textContent = z.toFixed(2) + ' rad/s';
+
+            updateAxisBars('gyro', x, y, z, 10);
+        }
+
+        // Update Magnetometer
+        function updateMagnetometer(sensor) {
+            const x = sensor.x || 0;
+            const y = sensor.y || 0;
+            const z = sensor.z || 0;
+
+            document.getElementById('magX').textContent = x.toFixed(2) + ' μT';
+            document.getElementById('magY').textContent = y.toFixed(2) + ' μT';
+            document.getElementById('magZ').textContent = z.toFixed(2) + ' μT';
+
+            // Calculate heading
+            const heading = Math.atan2(y, x) * (180 / Math.PI);
+            document.getElementById('compassNeedle').style.transform = `translate(-50%, -100%) rotate(${-heading}deg)`;
+        }
+
+        // Update Orientation
+        function updateOrientation(sensor, type) {
+            const q = sensor.quaternion;
+            const x = q[0] || 0;
+            const y = q[1] || 0;
+            const z = q[2] || 0;
+            const w = q[3] || 1;
+
+            if (type === 'abs') {
+                document.getElementById('orientX').textContent = x.toFixed(4);
+                document.getElementById('orientY').textContent = y.toFixed(4);
+                document.getElementById('orientZ').textContent = z.toFixed(4);
+                document.getElementById('orientW').textContent = w.toFixed(4);
+                
+                updateCube('orientationCube', x, y, z, w);
+                updateCube('absOrientCube', x, y, z, w);
+            } else {
+                document.getElementById('relX').textContent = x.toFixed(4);
+                document.getElementById('relY').textContent = y.toFixed(4);
+                document.getElementById('relZ').textContent = z.toFixed(4);
+                document.getElementById('relW').textContent = w.toFixed(4);
+                
+                updateCube('relativeCube', x, y, z, w);
+                updateCube('relOrientCube', x, y, z, w);
+            }
+
+            // Calculate Euler angles
+            const euler = quaternionToEuler(x, y, z, w);
+            document.getElementById('eulerAlpha').textContent = euler.alpha.toFixed(2) + '°';
+            document.getElementById('eulerBeta').textContent = euler.beta.toFixed(2) + '°';
+            document.getElementById('eulerGamma').textContent = euler.gamma.toFixed(2) + '°';
+        }
+
+        // Update Gravity
+        function updateGravity(sensor) {
+            const x = sensor.x || 0;
+            const y = sensor.y || 0;
+            const z = sensor.z || 0;
+
+            document.getElementById('gravX').textContent = x.toFixed(2) + ' m/s²';
+            document.getElementById('gravY').textContent = y.toFixed(2) + ' m/s²';
+            document.getElementById('gravZ').textContent = z.toFixed(2) + ' m/s²';
+
+            updateAxisBars('grav', x, y, z, 10);
+        }
+
+        // Update Linear Acceleration
+        function updateLinearAcceleration(sensor) {
+            const x = sensor.x || 0;
+            const y = sensor.y || 0;
+            const z = sensor.z || 0;
+
+            document.getElementById('linX').textContent = x.toFixed(2) + ' m/s²';
+            document.getElementById('linY').textContent = y.toFixed(2) + ' m/s²';
+            document.getElementById('linZ').textContent = z.toFixed(2) + ' m/s²';
+
+            updateAxisBars('lin', x, y, z, 10);
+        }
+
+        // Update Ambient Light
+        function updateAmbientLight(sensor) {
+            const illuminance = sensor.illuminance || 0;
+            document.getElementById('lightValue').textContent = illuminance.toFixed(0) + ' Lux';
+
+            // Determine light level
+            let level, percentage;
+            if (illuminance < 50) {
+                level = '黑暗';
+                percentage = 0;
+            } else if (illuminance < 200) {
+                level = '昏暗';
+                percentage = 25;
+            } else if (illuminance < 500) {
+                level = '正常';
+                percentage = 50;
+            } else if (illuminance < 1000) {
+                level = '明亮';
+                percentage = 75;
+            } else {
+                level = '强光';
+                percentage = 100;
+            }
+
+            document.getElementById('lightLevel').textContent = level;
+            document.getElementById('lightIndicator').style.left = percentage + '%';
+        }
+
+        // Update Proximity
+        function updateProximity(sensor) {
+            const distance = sensor.distance || 0;
+            const max = sensor.max || 5;
+
+            document.getElementById('proximityValue').textContent = distance.toFixed(1) + ' cm';
+            document.getElementById('proximityMax').textContent = max.toFixed(1) + ' cm';
+
+            const isNear = distance < max;
+            document.getElementById('proximityNear').textContent = isNear ? '近' : '远';
+            
+            const sensorEl = document.getElementById('proximitySensor');
+            sensorEl.classList.toggle('near', isNear);
+
+            // Animate object
+            const scale = 1 - (distance / max) * 0.5;
+            document.getElementById('proximityObject').style.transform = `scale(${scale})`;
+        }
+
+        // Update Geomagnetic Orientation
+        function updateGeomagneticOrientation(sensor) {
+            const q = sensor.quaternion;
+            const x = q[0] || 0;
+            const y = q[1] || 0;
+            const z = q[2] || 0;
+            const w = q[3] || 1;
+
+            document.getElementById('geoX').textContent = x.toFixed(4);
+            document.getElementById('geoY').textContent = y.toFixed(4);
+            document.getElementById('geoZ').textContent = z.toFixed(4);
+            document.getElementById('geoW').textContent = w.toFixed(4);
+
+            // Update cube visualization
+            updateCube('geomagneticCube', x, y, z, w);
+
+            // Calculate heading from quaternion
+            const heading = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+            const headingDeg = heading * (180 / Math.PI);
+            document.getElementById('geoHeading').textContent = headingDeg.toFixed(1) + '°';
+
+            // Update compass needle
+            document.getElementById('geoCompassNeedle').style.transform = `translate(-50%, -100%) rotate(${-headingDeg}deg)`;
+        }
+
+        // Helper: Update Axis Bars
+        function updateAxisBars(prefix, x, y, z, maxVal) {
+            const normalize = (val, max) => Math.min(100, Math.max(0, (Math.abs(val) / max) * 100));
+            
+            document.getElementById(prefix + 'BarX').style.width = normalize(x, maxVal) + '%';
+            document.getElementById(prefix + 'BarY').style.width = normalize(y, maxVal) + '%';
+            document.getElementById(prefix + 'BarZ').style.width = normalize(z, maxVal) + '%';
+        }
+
+        // Helper: Update 3D Cube
+        function updateCube(cubeId, x, y, z, w) {
+            const cube = document.getElementById(cubeId);
+            if (cube) {
+                cube.style.transform = `rotate3d(${x}, ${y}, ${z}, ${Math.acos(w) * 2 * (180 / Math.PI)}deg)`;
+            }
+        }
+
+        // Helper: Quaternion to Euler
+        function quaternionToEuler(x, y, z, w) {
+            const sinr_cosp = 2 * (w * x + y * z);
+            const cosr_cosp = 1 - 2 * (x * x + y * y);
+            const roll = Math.atan2(sinr_cosp, cosr_cosp);
+
+            const sinp = 2 * (w * y - z * x);
+            let pitch;
+            if (Math.abs(sinp) >= 1) {
+                pitch = Math.sign(sinp) * Math.PI / 2;
+            } else {
+                pitch = Math.asin(sinp);
+            }
+
+            const siny_cosp = 2 * (w * z + x * y);
+            const cosy_cosp = 1 - 2 * (y * y + z * z);
+            const yaw = Math.atan2(siny_cosp, cosy_cosp);
+
+            return {
+                alpha: yaw * (180 / Math.PI),
+                beta: pitch * (180 / Math.PI),
+                gamma: roll * (180 / Math.PI)
+            };
+        }
+
+        // Update Sensor UI
+        function updateSensorUI(sensorType, isActive) {
+            const statusEl = document.getElementById(sensorType + 'Status');
+            const btnEl = document.getElementById(sensorType + 'Btn');
+
+            if (isActive) {
+                statusEl.textContent = '运行中';
+                statusEl.className = 'card-status active';
+                btnEl.textContent = '停止传感器';
+                btnEl.className = 'control-btn danger';
+            } else {
+                statusEl.textContent = '待激活';
+                statusEl.className = 'card-status pending';
+                btnEl.textContent = '启动传感器';
+                btnEl.className = 'control-btn primary';
+            }
+        }
+
+        // Show Error
+        function showError(sensorType, message) {
+            const statusEl = document.getElementById(sensorType + 'Status');
+            statusEl.textContent = '错误';
+            statusEl.className = 'card-status inactive';
+        }
+
+        // Update Active Sensors Count
+        function updateActiveSensors() {
+            const count = Object.values(sensorStates).filter(s => s).length;
+            document.getElementById('activeSensors').textContent = count;
+            document.getElementById('enabledSensors').textContent = count;
+        }
+
+        // Update Uptime
+        function updateUptime() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            document.getElementById('uptime').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Add Log
+        function addLog(type, message) {
+            const time = new Date().toLocaleTimeString();
+            const log = { type, message, time };
+            logs.push(log);
+
+            const logContent = document.getElementById('logContent');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-type ${type}">${type.toUpperCase()}</span>
+                <span>${message}</span>
+            `;
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+
+            // Keep only last 100 logs in UI
+            while (logContent.children.length > 100) {
+                logContent.removeChild(logContent.firstChild);
+            }
+        }
+
+        // Clear Logs
+        function clearLogs() {
+            logs = [];
+            document.getElementById('logContent').innerHTML = '';
+            addLog('info', '日志已清除');
+        }
+
+        // Export Logs
+        function exportLogs() {
+            const logText = logs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.message}`).join('\n');
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sensor-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('success', '日志已导出');
+        }
+    </script>
+</body>
+</html>

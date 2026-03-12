@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE 企业级应用 - Server-Sent Events 完整演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --code-bg: #1e293b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --code-bg: #0f172a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .logo-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .logo-text span {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--primary-color);
+        }
+
+        /* Main Container */
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .status-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .status-icon.connected { background: rgba(34, 197, 94, 0.15); color: var(--success-color); }
+        .status-icon.connecting { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); }
+        .status-icon.disconnected { background: rgba(239, 68, 68, 0.15); color: var(--danger-color); }
+        .status-icon.messages { background: rgba(59, 130, 246, 0.15); color: var(--primary-color); }
+
+        .status-info h3 {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .status-info .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* Tabs */
+        .tabs-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            background: var(--bg-color);
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-color);
+            background: var(--card-bg);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: var(--card-bg);
+        }
+
+        .tab-btn .badge {
+            background: var(--primary-color);
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 1.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Connection Panel */
+        .connection-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .connection-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel-section {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .panel-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary-color);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        /* Connection List */
+        .connection-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .connection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .connection-item:hover {
+            border-color: var(--primary-color);
+        }
+
+        .connection-item .name {
+            font-weight: 500;
+        }
+
+        .connection-item .url {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .connection-item .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.connected { background: var(--success-color); }
+        .status-dot.connecting { background: var(--warning-color); animation: pulse 1s infinite; }
+        .status-dot.disconnected { background: var(--danger-color); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Messages Panel */
+        .messages-panel {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .messages-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-color);
+        }
+
+        .filter-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .messages-container {
+            flex: 1;
+            background: var(--code-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .messages-header span {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .messages-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .message-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .message-item.event-open { border-left-color: var(--success-color); }
+        .message-item.event-message { border-left-color: var(--primary-color); }
+        .message-item.event-error { border-left-color: var(--danger-color); }
+        .message-item.event-custom { border-left-color: #8b5cf6; }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .message-type {
+            font-size: 0.75rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--primary-color);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .message-content {
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* API Reference */
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .api-card {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .api-card h4 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .api-card h4 .tag {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .api-card h4 .tag.readonly { background: var(--success-color); }
+        .api-card h4 .tag.method { background: #8b5cf6; }
+        .api-card h4 .tag.event { background: var(--warning-color); }
+
+        .api-card p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+            overflow-x: auto;
+        }
+
+        .code-block .keyword { color: #c084fc; }
+        .code-block .string { color: #86efac; }
+        .code-block .comment { color: #64748b; }
+        .code-block .function { color: #60a5fa; }
+
+        /* Monitor Panel */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .monitor-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            height: 350px;
+        }
+
+        .chart-container h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .chart-placeholder {
+            height: calc(100% - 2rem);
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            padding: 1rem 0;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--primary-color), #8b5cf6);
+            border-radius: 4px 4px 0 0;
+            min-height: 10px;
+            transition: height 0.3s;
+        }
+
+        .stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .stat-item {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-item .label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-item .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        /* Settings Panel */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .settings-section {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .settings-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-item .label {
+            font-size: 0.9rem;
+        }
+
+        .setting-item .description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--border-color);
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--primary-color);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .toast.success { background: var(--success-color); }
+        .toast.error { background: var(--danger-color); }
+        .toast.warning { background: var(--warning-color); }
+        .toast.info { background: var(--primary-color); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .main-container {
+                padding: 1rem;
+            }
+
+            .tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .tab-content {
+                padding: 1rem;
+            }
+
+            .status-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .api-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .status-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                width: 100%;
+            }
+
+            .btn-group .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">SSE</div>
+                <div class="logo-text">
+                    <h1>Server-Sent Events</h1>
+                    <span>企业级实时通信应用</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeText">深色模式</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-card">
+                <div class="status-icon disconnected" id="connectionStatusIcon">
+                    ⚡
+                </div>
+                <div class="status-info">
+                    <h3>连接状态</h3>
+                    <div class="value" id="connectionStatus">未连接</div>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-icon messages">
+                    📨
+                </div>
+                <div class="status-info">
+                    <h3>接收消息</h3>
+                    <div class="value" id="messageCount">0</div>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-icon connected">
+                    🔗
+                </div>
+                <div class="status-info">
+                    <h3>活跃连接</h3>
+                    <div class="value" id="activeConnections">0</div>
+                </div>
+            </div>
+            <div class="status-card">
+                <div class="status-icon connecting">
+                    ⏱️
+                </div>
+                <div class="status-info">
+                    <h3>运行时间</h3>
+                    <div class="value" id="uptime">00:00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="connection">
+                    🔌 连接管理
+                </button>
+                <button class="tab-btn" data-tab="messages">
+                    📬 消息日志 <span class="badge" id="messageBadge">0</span>
+                </button>
+                <button class="tab-btn" data-tab="api">
+                    📖 API 参考
+                </button>
+                <button class="tab-btn" data-tab="monitor">
+                    📊 实时监控
+                </button>
+                <button class="tab-btn" data-tab="settings">
+                    ⚙️ 设置
+                </button>
+            </div>
+
+            <!-- Connection Tab -->
+            <div class="tab-content active" id="connection-tab">
+                <div class="connection-panel">
+                    <div class="panel-section">
+                        <h3>🔗 新建连接</h3>
+                        <div class="form-group">
+                            <label>连接名称</label>
+                            <input type="text" class="form-input" id="connectionName" placeholder="例如：实时数据流">
+                        </div>
+                        <div class="form-group">
+                            <label>SSE 服务端 URL</label>
+                            <input type="url" class="form-input" id="sseUrl" placeholder="https://api.example.com/events">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>重连间隔 (ms)</label>
+                                <input type="number" class="form-input" id="reconnectInterval" value="3000">
+                            </div>
+                            <div class="form-group">
+                                <label>最大重连次数</label>
+                                <input type="number" class="form-input" id="maxReconnect" value="5">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="withCredentials">
+                                <label for="withCredentials">启用 withCredentials (跨域携带 Cookie)</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="autoReconnect" checked>
+                                <label for="autoReconnect">自动重连</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="enableHeartbeat" checked>
+                                <label for="enableHeartbeat">启用心跳检测</label>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="createConnection()">
+                                🔗 建立连接
+                            </button>
+                            <button class="btn btn-secondary" onclick="testConnection()">
+                                🧪 测试连接
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3>📋 连接列表</h3>
+                        <div class="connection-list" id="connectionList">
+                            <div class="empty-state">
+                                <div class="icon">📭</div>
+                                <p>暂无连接</p>
+                                <p style="font-size: 0.8rem; margin-top: 0.5rem;">创建新连接开始接收实时数据</p>
+                            </div>
+                        </div>
+                        <div class="btn-group" style="margin-top: 1rem;">
+                            <button class="btn btn-success" onclick="connectAll()">
+                                ✅ 全部连接
+                            </button>
+                            <button class="btn btn-danger" onclick="disconnectAll()">
+                                ❌ 全部断开
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearConnections()">
+                                🗑️ 清空列表
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Tab -->
+            <div class="tab-content" id="messages-tab">
+                <div class="messages-panel">
+                    <div class="messages-toolbar">
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-filter="all">全部</button>
+                            <button class="filter-btn" data-filter="open">连接事件</button>
+                            <button class="filter-btn" data-filter="message">消息</button>
+                            <button class="filter-btn" data-filter="error">错误</button>
+                            <button class="filter-btn" data-filter="custom">自定义事件</button>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" onclick="exportMessages()">
+                                📥 导出日志
+                            </button>
+                            <button class="btn btn-danger" onclick="clearMessages()">
+                                🗑️ 清空日志
+                            </button>
+                        </div>
+                    </div>
+                    <div class="messages-container">
+                        <div class="messages-header">
+                            <span>消息日志</span>
+                            <span id="logCount">共 0 条记录</span>
+                        </div>
+                        <div class="messages-list" id="messagesList">
+                            <div class="empty-state">
+                                <div class="icon">📭</div>
+                                <p>暂无消息</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Reference Tab -->
+            <div class="tab-content" id="api-tab">
+                <h2 style="margin-bottom: 1.5rem;">EventSource API 完整参考</h2>
+                <div class="api-grid">
+                    <!-- Constructor -->
+                    <div class="api-card">
+                        <h4><span class="tag">构造函数</span> new EventSource()</h4>
+                        <p>创建一个新的 EventSource 实例，用于接收服务器发送的事件。支持配置跨域凭证等选项。</p>
+                        <div class="code-block">
+                            <span class="comment">// 基础用法</span><br>
+                            <span class="keyword">const</span> source = <span class="keyword">new</span> <span class="function">EventSource</span>(<span class="string">'/api/events'</span>);<br><br>
+                            <span class="comment">// 带配置选项</span><br>
+                            <span class="keyword">const</span> source = <span class="keyword">new</span> <span class="function">EventSource</span>(<span class="string">'/api/events'</span>, {<br>
+                            &nbsp;&nbsp;<span class="keyword">withCredentials</span>: <span class="keyword">true</span><br>
+                            });
+                        </div>
+                    </div>
+
+                    <!-- URL Property -->
+                    <div class="api-card">
+                        <h4><span class="tag readonly">只读属性</span> source.url</h4>
+                        <p>返回创建 EventSource 时使用的 URL 字符串，包含完整的请求地址。</p>
+                        <div class="code-block">
+                            <span class="keyword">const</span> source = <span class="keyword">new</span> <span class="function">EventSource</span>(<span class="string">'https://api.example.com/sse'</span>);<br><br>
+                            console.<span class="function">log</span>(source.<span class="keyword">url</span>);<br>
+                            <span class="comment">// 输出: "https://api.example.com/sse"</span>
+                        </div>
+                    </div>
+
+                    <!-- readyState Property -->
+                    <div class="api-card">
+                        <h4><span class="tag readonly">只读属性</span> source.readyState</h4>
+                        <p>返回连接的当前状态。0=CONNECTING, 1=OPEN, 2=CLOSED。可用于监控连接生命周期。</p>
+                        <div class="code-block">
+                            <span class="keyword">const</span> STATE = {<br>
+                            &nbsp;&nbsp;CONNECTING: <span class="string">0</span>, <span class="comment">// 正在连接</span><br>
+                            &nbsp;&nbsp;OPEN: <span class="string">1</span>, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 已连接</span><br>
+                            &nbsp;&nbsp;CLOSED: <span class="string">2</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 已关闭</span><br>
+                            };<br><br>
+                            <span class="keyword">if</span> (source.<span class="keyword">readyState</span> === STATE.OPEN) {<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'连接已建立'</span>);<br>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- withCredentials Property -->
+                    <div class="api-card">
+                        <h4><span class="tag readonly">只读属性</span> source.withCredentials</h4>
+                        <p>返回布尔值，指示是否在跨域请求中包含 Cookie 和认证信息。需要在构造时设置。</p>
+                        <div class="code-block">
+                            <span class="keyword">const</span> source = <span class="keyword">new</span> <span class="function">EventSource</span>(<span class="string">'https://api.example.com/sse'</span>, {<br>
+                            &nbsp;&nbsp;<span class="keyword">withCredentials</span>: <span class="keyword">true</span><br>
+                            });<br><br>
+                            console.<span class="function">log</span>(source.<span class="keyword">withCredentials</span>); <span class="comment">// true</span>
+                        </div>
+                    </div>
+
+                    <!-- onopen Event -->
+                    <div class="api-card">
+                        <h4><span class="tag event">事件</span> source.onopen</h4>
+                        <p>当连接成功建立时触发。可用于初始化UI状态、记录日志或执行连接后的操作。</p>
+                        <div class="code-block">
+                            source.<span class="keyword">onopen</span> = (<span class="keyword">event</span>) => {<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'SSE 连接已建立'</span>);<br>
+                            &nbsp;&nbsp;updateConnectionStatus(<span class="string">'connected'</span>);<br>
+                            };<br><br>
+                            <span class="comment">// 或使用 addEventListener</span><br>
+                            source.<span class="function">addEventListener</span>(<span class="string">'open'</span>, handler);
+                        </div>
+                    </div>
+
+                    <!-- onmessage Event -->
+                    <div class="api-card">
+                        <h4><span class="tag event">事件</span> source.onmessage</h4>
+                        <p>当收到默认消息事件时触发。event.data 包含消息内容，event.origin 包含来源。</p>
+                        <div class="code-block">
+                            source.<span class="keyword">onmessage</span> = (<span class="keyword">event</span>) => {<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'收到消息:'</span>, event.<span class="keyword">data</span>);<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'来源:'</span>, event.<span class="keyword">origin</span>);<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'最后事件ID:'</span>, event.<span class="keyword">lastEventId</span>);<br>
+                            };
+                        </div>
+                    </div>
+
+                    <!-- onerror Event -->
+                    <div class="api-card">
+                        <h4><span class="tag event">事件</span> source.onerror</h4>
+                        <p>当发生错误时触发。常见原因包括网络中断、服务器错误、CORS问题等。浏览器会自动尝试重连。</p>
+                        <div class="code-block">
+                            source.<span class="keyword">onerror</span> = (<span class="keyword">event</span>) => {<br>
+                            &nbsp;&nbsp;console.<span class="function">error</span>(<span class="string">'SSE 错误:'</span>, event);<br>
+                            &nbsp;&nbsp;<span class="keyword">if</span> (source.<span class="keyword">readyState</span> === EventSource.CLOSED) {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'连接已关闭'</span>);<br>
+                            &nbsp;&nbsp;} <span class="keyword">else</span> {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'正在重连...'</span>);<br>
+                            &nbsp;&nbsp;}<br>
+                            };
+                        </div>
+                    </div>
+
+                    <!-- addEventListener -->
+                    <div class="api-card">
+                        <h4><span class="tag event">事件</span> source.addEventListener()</h4>
+                        <p>监听自定义事件类型。服务器可以发送带有 event 字段的自定义事件，客户端通过此方法监听。</p>
+                        <div class="code-block">
+                            <span class="comment">// 服务器发送格式:</span><br>
+                            <span class="comment">// event: notification</span><br>
+                            <span class="comment">// data: {"message": "Hello"}</span><br><br>
+                            source.<span class="function">addEventListener</span>(<span class="string">'notification'</span>, (e) => {<br>
+                            &nbsp;&nbsp;<span class="keyword">const</span> data = JSON.<span class="function">parse</span>(e.<span class="keyword">data</span>);<br>
+                            &nbsp;&nbsp;console.<span class="function">log</span>(<span class="string">'通知:'</span>, data.message);<br>
+                            });
+                        </div>
+                    </div>
+
+                    <!-- close Method -->
+                    <div class="api-card">
+                        <h4><span class="tag method">方法</span> source.close()</h4>
+                        <p>关闭 SSE 连接，停止接收事件。调用后 readyState 变为 CLOSED，浏览器不再尝试重连。</p>
+                        <div class="code-block">
+                            <span class="comment">// 主动关闭连接</span><br>
+                            source.<span class="function">close</span>();<br><br>
+                            console.<span class="function">log</span>(source.<span class="keyword">readyState</span>); <span class="comment">// 2 (CLOSED)</span><br><br>
+                            <span class="comment">// 清理引用</span><br>
+                            source = <span class="keyword">null</span>;
+                        </div>
+                    </div>
+
+                    <!-- MessageEvent -->
+                    <div class="api-card">
+                        <h4><span class="tag">对象</span> MessageEvent 属性</h4>
+                        <p>消息事件对象包含多个有用的属性，用于获取消息详情和来源信息。</p>
+                        <div class="code-block">
+                            source.<span class="keyword">onmessage</span> = (<span class="keyword">event</span>) => {<br>
+                            &nbsp;&nbsp;event.<span class="keyword">data</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 消息数据内容</span><br>
+                            &nbsp;&nbsp;event.<span class="keyword">origin</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 消息来源域名</span><br>
+                            &nbsp;&nbsp;event.<span class="keyword">lastEventId</span> <span class="comment">// 最后事件ID</span><br>
+                            &nbsp;&nbsp;event.<span class="keyword">source</span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 发送者引用</span><br>
+                            &nbsp;&nbsp;event.<span class="keyword">ports</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 消息端口数组</span><br>
+                            };
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitor Tab -->
+            <div class="tab-content" id="monitor-tab">
+                <div class="monitor-grid">
+                    <div class="chart-container">
+                        <h3>📈 消息频率 (最近60秒)</h3>
+                        <div class="chart-placeholder" id="messageChart">
+                            <!-- Chart bars will be generated dynamically -->
+                        </div>
+                    </div>
+                    <div class="stats-list">
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">总消息数</div>
+                            </div>
+                            <div class="value" id="totalMessages">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">消息/秒</div>
+                            </div>
+                            <div class="value" id="messagesPerSecond">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">重连次数</div>
+                            </div>
+                            <div class="value" id="reconnectCount">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">错误次数</div>
+                            </div>
+                            <div class="value" id="errorCount">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">平均延迟</div>
+                            </div>
+                            <div class="value" id="avgLatency">0ms</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>
+                                <div class="label">数据接收量</div>
+                            </div>
+                            <div class="value" id="dataReceived">0 KB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settings-tab">
+                <div class="settings-grid">
+                    <div class="settings-section">
+                        <h3>🔔 通知设置</h3>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">消息通知</div>
+                                <div class="description">收到新消息时显示桌面通知</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notifyMessages">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">错误通知</div>
+                                <div class="description">发生错误时显示桌面通知</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notifyErrors" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">连接状态通知</div>
+                                <div class="description">连接状态变化时显示通知</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notifyConnection" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>📊 显示设置</h3>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">显示时间戳</div>
+                                <div class="description">在消息中显示接收时间</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showTimestamp" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">自动滚动</div>
+                                <div class="description">新消息时自动滚动到底部</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoScroll" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">消息格式化</div>
+                                <div class="description">自动格式化 JSON 消息</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="formatJson" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🔄 重连设置</h3>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">自动重连</div>
+                                <div class="description">连接断开后自动尝试重连</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="settingAutoReconnect" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">指数退避</div>
+                                <div class="description">重连间隔逐渐增加</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exponentialBackoff" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">心跳检测</div>
+                                <div class="description">定期检查连接状态</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="settingHeartbeat" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>💾 数据设置</h3>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">保存连接历史</div>
+                                <div class="description">记住之前创建的连接</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="saveHistory" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="label">最大消息数</div>
+                                <div class="description">内存中保留的最大消息数</div>
+                            </div>
+                            <select class="form-input" style="width: auto;" id="maxMessages">
+                                <option value="100">100 条</option>
+                                <option value="500" selected>500 条</option>
+                                <option value="1000">1000 条</option>
+                                <option value="5000">5000 条</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== 全局状态管理 ====================
+        const AppState = {
+            connections: new Map(),
+            messages: [],
+            stats: {
+                totalMessages: 0,
+                reconnectCount: 0,
+                errorCount: 0,
+                dataReceived: 0,
+                messageHistory: new Array(60).fill(0),
+                startTime: null
+            },
+            settings: {
+                notifyMessages: false,
+                notifyErrors: true,
+                notifyConnection: true,
+                showTimestamp: true,
+                autoScroll: true,
+                formatJson: true,
+                autoReconnect: true,
+                exponentialBackoff: true,
+                heartbeat: true,
+                saveHistory: true,
+                maxMessages: 500
+            },
+            currentFilter: 'all',
+            isDarkMode: false
+        };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            initFilters();
+            initChart();
+            loadSettings();
+            startUptimeCounter();
+            startStatsUpdater();
+            
+            // 检查通知权限
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        });
+
+        // ==================== 标签页切换 ====================
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+                    
+                    // 更新按钮状态
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 更新内容显示
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+        }
+
+        // ==================== 消息过滤 ====================
+        function initFilters() {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    AppState.currentFilter = btn.dataset.filter;
+                    renderMessages();
+                });
+            });
+        }
+
+        // ==================== 图表初始化 ====================
+        function initChart() {
+            const chartContainer = document.getElementById('messageChart');
+            chartContainer.innerHTML = '';
+            for (let i = 0; i < 60; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.height = '10px';
+                chartContainer.appendChild(bar);
+            }
+        }
+
+        function updateChart() {
+            const bars = document.querySelectorAll('#messageChart .chart-bar');
+            const maxVal = Math.max(...AppState.stats.messageHistory, 1);
+            
+            AppState.stats.messageHistory.forEach((val, i) => {
+                const height = Math.max(10, (val / maxVal) * 280);
+                bars[i].style.height = `${height}px`;
+            });
+        }
+
+        // ==================== 主题切换 ====================
+        function toggleTheme() {
+            AppState.isDarkMode = !AppState.isDarkMode;
+            document.documentElement.setAttribute('data-theme', AppState.isDarkMode ? 'dark' : 'light');
+            document.getElementById('themeIcon').textContent = AppState.isDarkMode ? '☀️' : '🌙';
+            document.getElementById('themeText').textContent = AppState.isDarkMode ? '浅色模式' : '深色模式';
+            localStorage.setItem('sse-theme', AppState.isDarkMode ? 'dark' : 'light');
+        }
+
+        // 加载保存的主题
+        function loadSettings() {
+            const savedTheme = localStorage.getItem('sse-theme');
+            if (savedTheme === 'dark') {
+                AppState.isDarkMode = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('themeIcon').textContent = '☀️';
+                document.getElementById('themeText').textContent = '浅色模式';
+            }
+        }
+
+        // ==================== SSE 连接管理 ====================
+        function createConnection() {
+            const name = document.getElementById('connectionName').value.trim() || `连接 ${AppState.connections.size + 1}`;
+            const url = document.getElementById('sseUrl').value.trim();
+            const withCredentials = document.getElementById('withCredentials').checked;
+            const reconnectInterval = parseInt(document.getElementById('reconnectInterval').value) || 3000;
+            const maxReconnect = parseInt(document.getElementById('maxReconnect').value) || 5;
+            const autoReconnect = document.getElementById('autoReconnect').checked;
+            const enableHeartbeat = document.getElementById('enableHeartbeat').checked;
+
+            if (!url) {
+                showToast('请输入 SSE 服务端 URL', 'error');
+                return;
+            }
+
+            const connectionId = Date.now().toString();
+            const connection = {
+                id: connectionId,
+                name,
+                url,
+                withCredentials,
+                reconnectInterval,
+                maxReconnect,
+                autoReconnect,
+                enableHeartbeat,
+                reconnectAttempts: 0,
+                source: null,
+                status: 'disconnected',
+                lastHeartbeat: null,
+                heartbeatTimer: null
+            };
+
+            AppState.connections.set(connectionId, connection);
+            renderConnectionList();
+            connect(connectionId);
+            
+            showToast(`连接 "${name}" 已创建`, 'success');
+        }
+
+        function connect(connectionId) {
+            const connection = AppState.connections.get(connectionId);
+            if (!connection) return;
+
+            try {
+                connection.status = 'connecting';
+                updateConnectionStatus();
+                renderConnectionList();
+
+                const options = connection.withCredentials ? { withCredentials: true } : undefined;
+                const source = new EventSource(connection.url, options);
+                connection.source = source;
+
+                // onopen 事件
+                source.onopen = (event) => {
+                    connection.status = 'connected';
+                    connection.reconnectAttempts = 0;
+                    connection.lastHeartbeat = Date.now();
+                    
+                    addMessage({
+                        type: 'open',
+                        connectionId,
+                        connectionName: connection.name,
+                        content: `连接已建立 - ${connection.url}`,
+                        timestamp: Date.now()
+                    });
+
+                    updateConnectionStatus();
+                    renderConnectionList();
+                    
+                    if (connection.enableHeartbeat) {
+                        startHeartbeat(connectionId);
+                    }
+
+                    showNotification('connection', `连接 "${connection.name}" 已建立`);
+                };
+
+                // onmessage 事件
+                source.onmessage = (event) => {
+                    connection.lastHeartbeat = Date.now();
+                    AppState.stats.dataReceived += new Blob([event.data]).size;
+                    
+                    let content = event.data;
+                    if (AppState.settings.formatJson) {
+                        try {
+                            const parsed = JSON.parse(event.data);
+                            content = JSON.stringify(parsed, null, 2);
+                        } catch (e) {
+                            // 不是 JSON，保持原样
+                        }
+                    }
+
+                    addMessage({
+                        type: 'message',
+                        connectionId,
+                        connectionName: connection.name,
+                        content,
+                        eventId: event.lastEventId,
+                        origin: event.origin,
+                        timestamp: Date.now()
+                    });
+
+                    AppState.stats.totalMessages++;
+                    AppState.stats.messageHistory[59]++;
+                    updateStats();
+                };
+
+                // onerror 事件
+                source.onerror = (event) => {
+                    AppState.stats.errorCount++;
+                    
+                    addMessage({
+                        type: 'error',
+                        connectionId,
+                        connectionName: connection.name,
+                        content: `连接错误 - readyState: ${source.readyState}`,
+                        timestamp: Date.now()
+                    });
+
+                    if (source.readyState === EventSource.CLOSED) {
+                        connection.status = 'disconnected';
+                        stopHeartbeat(connectionId);
+                        
+                        if (connection.autoReconnect && connection.reconnectAttempts < connection.maxReconnect) {
+                            connection.reconnectAttempts++;
+                            const delay = AppState.settings.exponentialBackoff 
+                                ? connection.reconnectInterval * Math.pow(2, connection.reconnectAttempts - 1)
+                                : connection.reconnectInterval;
+                            
+                            addMessage({
+                                type: 'error',
+                                connectionId,
+                                connectionName: connection.name,
+                                content: `将在 ${delay}ms 后重连 (第 ${connection.reconnectAttempts} 次)`,
+                                timestamp: Date.now()
+                            });
+
+                            setTimeout(() => connect(connectionId), delay);
+                            AppState.stats.reconnectCount++;
+                        }
+                    } else {
+                        connection.status = 'connecting';
+                    }
+
+                    updateConnectionStatus();
+                    renderConnectionList();
+                    updateStats();
+                    showNotification('error', `连接 "${connection.name}" 发生错误`);
+                };
+
+                // 监听自定义事件示例
+                const customEvents = ['notification', 'update', 'ping', 'heartbeat', 'alert'];
+                customEvents.forEach(eventType => {
+                    source.addEventListener(eventType, (event) => {
+                        addMessage({
+                            type: 'custom',
+                            eventType,
+                            connectionId,
+                            connectionName: connection.name,
+                            content: event.data,
+                            timestamp: Date.now()
+                        });
+                        AppState.stats.totalMessages++;
+                        AppState.stats.messageHistory[59]++;
+                        updateStats();
+                    });
+                });
+
+            } catch (error) {
+                connection.status = 'disconnected';
+                addMessage({
+                    type: 'error',
+                    connectionId,
+                    connectionName: connection.name,
+                    content: `创建连接失败: ${error.message}`,
+                    timestamp: Date.now()
+                });
+                showToast(`连接失败: ${error.message}`, 'error');
+            }
+
+            updateConnectionStatus();
+            renderConnectionList();
+        }
+
+        function disconnect(connectionId) {
+            const connection = AppState.connections.get(connectionId);
+            if (!connection || !connection.source) return;
+
+            connection.source.close();
+            connection.source = null;
+            connection.status = 'disconnected';
+            stopHeartbeat(connectionId);
+
+            addMessage({
+                type: 'error',
+                connectionId,
+                connectionName: connection.name,
+                content: '连接已断开',
+                timestamp: Date.now()
+            });
+
+            updateConnectionStatus();
+            renderConnectionList();
+            showToast(`连接 "${connection.name}" 已断开`, 'info');
+        }
+
+        function removeConnection(connectionId) {
+            disconnect(connectionId);
+            AppState.connections.delete(connectionId);
+            renderConnectionList();
+            updateConnectionStatus();
+        }
+
+        function connectAll() {
+            AppState.connections.forEach((_, id) => connect(id));
+            showToast('已连接所有服务', 'success');
+        }
+
+        function disconnectAll() {
+            AppState.connections.forEach((_, id) => disconnect(id));
+            showToast('已断开所有连接', 'info');
+        }
+
+        function clearConnections() {
+            disconnectAll();
+            AppState.connections.clear();
+            renderConnectionList();
+            updateConnectionStatus();
+            showToast('已清空所有连接', 'info');
+        }
+
+        // ==================== 心跳检测 ====================
+        function startHeartbeat(connectionId) {
+            const connection = AppState.connections.get(connectionId);
+            if (!connection) return;
+
+            connection.heartbeatTimer = setInterval(() => {
+                if (connection.lastHeartbeat && Date.now() - connection.lastHeartbeat > 30000) {
+                    addMessage({
+                        type: 'error',
+                        connectionId,
+                        connectionName: connection.name,
+                        content: '心跳超时，连接可能已断开',
+                        timestamp: Date.now()
+                    });
+                    disconnect(connectionId);
+                }
+            }, 10000);
+        }
+
+        function stopHeartbeat(connectionId) {
+            const connection = AppState.connections.get(connectionId);
+            if (connection && connection.heartbeatTimer) {
+                clearInterval(connection.heartbeatTimer);
+                connection.heartbeatTimer = null;
+            }
+        }
+
+        // ==================== 测试连接 ====================
+        function testConnection() {
+            const url = document.getElementById('sseUrl').value.trim();
+            if (!url) {
+                showToast('请输入 SSE 服务端 URL', 'error');
+                return;
+            }
+
+            showToast('正在测试连接...', 'info');
+
+            fetch(url, { method: 'HEAD', mode: 'no-cors' })
+                .then(() => {
+                    showToast('URL 可访问，请点击"建立连接"开始接收数据', 'success');
+                })
+                .catch((error) => {
+                    showToast(`连接测试失败: ${error.message}`, 'error');
+                });
+        }
+
+        // ==================== 消息管理 ====================
+        function addMessage(message) {
+            AppState.messages.push(message);
+            
+            // 限制消息数量
+            if (AppState.messages.length > AppState.settings.maxMessages) {
+                AppState.messages.shift();
+            }
+
+            renderMessages();
+            updateMessageCount();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messagesList');
+            let filteredMessages = AppState.messages;
+
+            if (AppState.currentFilter !== 'all') {
+                filteredMessages = AppState.messages.filter(msg => {
+                    if (AppState.currentFilter === 'open') return msg.type === 'open';
+                    if (AppState.currentFilter === 'message') return msg.type === 'message';
+                    if (AppState.currentFilter === 'error') return msg.type === 'error';
+                    if (AppState.currentFilter === 'custom') return msg.type === 'custom';
+                    return true;
+                });
+            }
+
+            if (filteredMessages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>暂无消息</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredMessages.map(msg => {
+                const typeClass = `event-${msg.type}`;
+                const typeLabel = msg.type === 'custom' ? msg.eventType : msg.type.toUpperCase();
+                const time = AppState.settings.showTimestamp 
+                    ? new Date(msg.timestamp).toLocaleTimeString() 
+                    : '';
+
+                return `
+                    <div class="message-item ${typeClass}">
+                        <div class="message-header">
+                            <span class="message-type">${typeLabel}</span>
+                            <span class="message-time">${time} | ${msg.connectionName}</span>
+                        </div>
+                        <div class="message-content">${escapeHtml(msg.content)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            if (AppState.settings.autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+
+            document.getElementById('logCount').textContent = `共 ${filteredMessages.length} 条记录`;
+        }
+
+        function clearMessages() {
+            AppState.messages = [];
+            renderMessages();
+            updateMessageCount();
+            showToast('消息日志已清空', 'info');
+        }
+
+        function exportMessages() {
+            if (AppState.messages.length === 0) {
+                showToast('没有消息可导出', 'warning');
+                return;
+            }
+
+            const data = JSON.stringify(AppState.messages, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sse-messages-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('消息日志已导出', 'success');
+        }
+
+        // ==================== UI 更新 ====================
+        function renderConnectionList() {
+            const container = document.getElementById('connectionList');
+            
+            if (AppState.connections.size === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>暂无连接</p>
+                        <p style="font-size: 0.8rem; margin-top: 0.5rem;">创建新连接开始接收实时数据</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Array.from(AppState.connections.values()).map(conn => `
+                <div class="connection-item">
+                    <div>
+                        <div class="name">${escapeHtml(conn.name)}</div>
+                        <div class="url">${escapeHtml(conn.url)}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="status-dot ${conn.status}"></div>
+                        ${conn.status === 'connected' 
+                            ? `<button class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="disconnect('${conn.id}')">断开</button>`
+                            : conn.status === 'connecting'
+                            ? `<button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" disabled>连接中...</button>`
+                            : `<button class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="connect('${conn.id}')">连接</button>`
+                        }
+                        <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="removeConnection('${conn.id}')">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateConnectionStatus() {
+            let connected = 0;
+            let connecting = 0;
+            
+            AppState.connections.forEach(conn => {
+                if (conn.status === 'connected') connected++;
+                if (conn.status === 'connecting') connecting++;
+            });
+
+            const statusIcon = document.getElementById('connectionStatusIcon');
+            const statusText = document.getElementById('connectionStatus');
+            const activeCount = document.getElementById('activeConnections');
+
+            if (connected > 0) {
+                statusIcon.className = 'status-icon connected';
+                statusText.textContent = '已连接';
+            } else if (connecting > 0) {
+                statusIcon.className = 'status-icon connecting';
+                statusText.textContent = '连接中...';
+            } else {
+                statusIcon.className = 'status-icon disconnected';
+                statusText.textContent = '未连接';
+            }
+
+            activeCount.textContent = connected;
+        }
+
+        function updateMessageCount() {
+            const count = AppState.messages.filter(m => m.type === 'message' || m.type === 'custom').length;
+            document.getElementById('messageCount').textContent = count;
+            document.getElementById('messageBadge').textContent = count;
+        }
+
+        function updateStats() {
+            document.getElementById('totalMessages').textContent = AppState.stats.totalMessages;
+            document.getElementById('reconnectCount').textContent = AppState.stats.reconnectCount;
+            document.getElementById('errorCount').textContent = AppState.stats.errorCount;
+            
+            const kb = (AppState.stats.dataReceived / 1024).toFixed(2);
+            document.getElementById('dataReceived').textContent = `${kb} KB`;
+        }
+
+        // ==================== 运行时间计数器 ====================
+        function startUptimeCounter() {
+            AppState.stats.startTime = Date.now();
+            
+            setInterval(() => {
+                const elapsed = Date.now() - AppState.stats.startTime;
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                
+                document.getElementById('uptime').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // ==================== 统计更新器 ====================
+        function startStatsUpdater() {
+            setInterval(() => {
+                // 计算每秒消息数
+                const recentMessages = AppState.stats.messageHistory.slice(-5).reduce((a, b) => a + b, 0);
+                const mps = (recentMessages / 5).toFixed(1);
+                document.getElementById('messagesPerSecond').textContent = mps;
+
+                // 更新图表
+                updateChart();
+
+                // 移动历史数据
+                AppState.stats.messageHistory.shift();
+                AppState.stats.messageHistory.push(0);
+            }, 1000);
+        }
+
+        // ==================== 通知 ====================
+        function showNotification(type, message) {
+            if (type === 'message' && !AppState.settings.notifyMessages) return;
+            if (type === 'error' && !AppState.settings.notifyErrors) return;
+            if (type === 'connection' && !AppState.settings.notifyConnection) return;
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('SSE 企业应用', { body: message });
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ==================== 设置监听 ====================
+        document.querySelectorAll('.settings-section input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const settingKey = e.target.id;
+                AppState.settings[settingKey] = e.target.checked;
+                localStorage.setItem('sse-settings', JSON.stringify(AppState.settings));
+            });
+        });
+
+        document.getElementById('maxMessages').addEventListener('change', (e) => {
+            AppState.settings.maxMessages = parseInt(e.target.value);
+            localStorage.setItem('sse-settings', JSON.stringify(AppState.settings));
+        });
+    </script>
+</body>
+</html>
