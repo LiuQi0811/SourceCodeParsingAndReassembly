@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>云存储管理系统 - 完整版</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+        body { background-color: var(--background); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.5rem; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; }
+        .nav-item { padding: 0.75rem 1rem; border-radius: 0.5rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .nav-item:hover { background-color: #eff6ff; color: var(--primary); }
+        .nav-item.active { background-color: #eff6ff; color: var(--primary); font-weight: 600; }
+        .storage-info { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 0.5rem; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); width: 45%; transition: width 0.3s; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Header */
+        .header { height: 64px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; }
+        .breadcrumb { font-size: 1.1rem; font-weight: 600; }
+        .user-actions { display: flex; align-items: center; gap: 1rem; }
+        .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .btn-outline:hover { background: #f1f5f9; }
+
+        /* Tabs */
+        .tabs { display: flex; padding: 1rem 2rem 0; gap: 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+        .tab-btn { padding: 0.75rem 1.5rem; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer; font-weight: 500; }
+        .tab-btn.active { border-bottom-color: var(--primary); color: var(--primary); }
+
+        /* Content Area */
+        .content-area { flex: 1; overflow-y: auto; padding: 2rem; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* File Grid */
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+        .file-card { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; transition: all 0.2s; cursor: pointer; position: relative; }
+        .file-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--primary); }
+        .file-icon { font-size: 3rem; text-align: center; margin-bottom: 1rem; display: block; }
+        .file-name { font-weight: 500; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-meta { font-size: 0.85rem; color: var(--text-secondary); display: flex; justify-content: space-between; }
+        .file-actions { position: absolute; top: 0.5rem; right: 0.5rem; opacity: 0; transition: opacity 0.2s; }
+        .file-card:hover .file-actions { opacity: 1; }
+        .action-btn { background: white; border: 1px solid var(--border); padding: 0.25rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.8rem; }
+        .action-btn:hover { background: #f1f5f9; }
+
+        /* Task List */
+        .task-list { display: flex; flex-direction: column; gap: 1rem; }
+        .task-item { background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; display: flex; align-items: center; gap: 1rem; }
+        .task-info { flex: 1; }
+        .task-name { font-weight: 500; margin-bottom: 0.25rem; }
+        .task-progress-bg { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .task-progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease-out; }
+        .task-status { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .status-completed { color: var(--success); }
+        .status-processing { color: var(--primary); }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
+        .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal { background: var(--surface); border-radius: 0.75rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 1.5rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+        .preview-img { max-width: 100%; max-height: 60vh; display: block; margin: 0 auto; border-radius: 0.5rem; }
+        .share-input-group { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .share-input { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.5rem; background: #f8fafc; }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 2000; }
+        .toast { background: #1e293b; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 0.5rem; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Icons helper */
+        .icon { font-style: normal; }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="logo">
+        <span class="icon">☁️</span> CloudStore
+    </div>
+    <div class="nav-item active" onclick="switchMainTab('files')">
+        <span class="icon">📁</span> 我的文件
+    </div>
+    <div class="nav-item" onclick="switchMainTab('tasks')">
+        <span class="icon">🚀</span> 传输任务
+        <span id="task-badge" style="margin-left:auto; background:var(--primary); color:white; font-size:0.7rem; padding:2px 6px; border-radius:10px; display:none;">0</span>
+    </div>
+    <div class="nav-item" onclick="switchMainTab('shared')">
+        <span class="icon">🔗</span> 共享链接
+    </div>
+
+    <div class="storage-info">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+            <span>已用空间</span>
+            <span>45 GB / 100 GB</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="header">
+        <div class="breadcrumb" id="breadcrumb-text">我的文件 / 全部</div>
+        <div class="user-actions">
+            <button class="btn btn-outline" onclick="alert('设置功能开发中')">⚙️ 设置</button>
+            <div style="width:32px; height:32px; background:#e2e8f0; border-radius:50%; display:flex; align-items:center; justify-content:center;">👤</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab-btn active" id="tab-btn-files" onclick="switchSubTab('files')">全部文件</div>
+        <div class="tab-btn" id="tab-btn-images" onclick="switchSubTab('images')">图片</div>
+        <div class="tab-btn" id="tab-btn-docs" onclick="switchSubTab('docs')">文档</div>
+    </div>
+
+    <div class="content-area">
+        <!-- Files Tab -->
+        <div id="content-files" class="tab-content active">
+            <div style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="font-size:1.25rem;">文件列表</h2>
+                <button class="btn btn-primary" onclick="triggerUpload()">
+                    <span class="icon">⬆️</span> 上传文件
+                </button>
+            </div>
+            <div id="file-grid" class="file-grid">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="content-tasks" class="tab-content">
+            <h2 style="font-size:1.25rem; margin-bottom:1.5rem;">传输任务列表</h2>
+            <div id="task-list" class="task-list">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+
+        <!-- Shared Tab (Placeholder) -->
+        <div id="content-shared" class="tab-content">
+            <div class="empty-state">
+                <div class="empty-icon">🔗</div>
+                <h3>共享管理</h3>
+                <p>在文件列表中点击“共享”生成的链接将显示在这里。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="preview-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">文件预览</h3>
+            <button class="modal-close" onclick="closeModal('preview-modal')">×</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+            <img id="preview-image" src="" class="preview-img" style="display:none;">
+            <div id="preview-text" style="display:none; padding: 2rem; font-size: 5rem; color: var(--text-secondary);"></div>
+            <div id="preview-unsupported" style="display:none;">
+                <p>该文件类型不支持在线预览</p>
+                <button class="btn btn-primary" style="margin-top:1rem;" onclick="alert('开始下载...')">立即下载</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="share-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">共享文件</h3>
+            <button class="modal-close" onclick="closeModal('share-modal')">×</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:1rem;">以下链接已生成，有效期为 7 天：</p>
+            <div class="share-input-group">
+                <input type="text" id="share-link-input" class="share-input" readonly>
+                <button class="btn btn-primary" onclick="copyShareLink()">复制</button>
+            </div>
+            <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">
+                <label><input type="checkbox" checked> 允许下载</label>
+                <label style="margin-left:1rem;"><input type="checkbox"> 需要密码</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Hidden File Input -->
+<input type="file" id="file-input" style="display: none;" multiple onchange="handleFileSelect(this)">
+
+<script>
+    // --- Mock Data ---
+    let files = [
+        { id: 1, name: '项目计划书.pdf', type: 'pdf', size: '2.4 MB', date: '2023-10-25', icon: '📄' },
+        { id: 2, name: '度假照片.jpg', type: 'image', size: '4.1 MB', date: '2023-10-24', icon: '🖼️' },
+        { id: 3, name: '财务报表.xlsx', type: 'excel', size: '1.2 MB', date: '2023-10-23', icon: '📊' },
+        { id: 4, name: '团队合影.png', type: 'image', size: '5.8 MB', date: '2023-10-22', icon: '🖼️' },
+        { id: 5, name: '会议记录.docx', type: 'word', size: '0.8 MB', date: '2023-10-21', icon: '📝' },
+        { id: 6, name: '产品原型.fig', type: 'other', size: '12 MB', date: '2023-10-20', icon: '🎨' },
+    ];
+
+    let tasks = [];
+    let currentFilter = 'all'; // all, image, docs
+
+    // --- Core Functions ---
+
+    function init() {
+        renderFiles();
+        renderTasks();
+    }
+
+    // Navigation
+    function switchMainTab(tabName) {
+        document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // Hide all contents
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tabs').forEach(el => el.style.display = 'none');
+
+        if (tabName === 'files') {
+            document.getElementById('content-files').classList.add('active');
+            document.querySelector('.tabs').style.display = 'flex';
+            document.getElementById('breadcrumb-text').innerText = '我的文件 / 全部';
+        } else if (tabName === 'tasks') {
+            document.getElementById('content-tasks').classList.add('active');
+            document.getElementById('breadcrumb-text').innerText = '传输任务';
+            renderTasks(); // Refresh tasks when opening tab
+        } else if (tabName === 'shared') {
+            document.getElementById('content-shared').classList.add('active');
+            document.getElementById('breadcrumb-text').innerText = '共享链接';
+        }
+    }
+
+    function switchSubTab(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-btn-${filter}`).classList.add('active');
+        renderFiles();
+    }
+
+    // Rendering
+    function renderFiles() {
+        const grid = document.getElementById('file-grid');
+        grid.innerHTML = '';
+
+        let filteredFiles = files;
+        if (currentFilter === 'images') {
+            filteredFiles = files.filter(f => f.type === 'image');
+        } else if (currentFilter === 'docs') {
+            filteredFiles = files.filter(f => ['pdf', 'word', 'excel'].includes(f.type));
+        }
+
+        if (filteredFiles.length === 0) {
+            grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <div class="empty-icon">📂</div>
+                        <h3>暂无文件</h3>
+                        <p>上传文件后这里将显示内容</p>
+                    </div>`;
+            return;
+        }
+
+        filteredFiles.forEach(file => {
+            const card = document.createElement('div');
+            card.className = 'file-card';
+            card.onclick = (e) => {
+                // Prevent triggering when clicking action buttons
+                if(!e.target.closest('.action-btn')) {
+                    handleFileClick(file);
+                }
+            };
+            card.innerHTML = `
+                    <div class="file-actions">
+                        <button class="action-btn" title="预览" onclick="event.stopPropagation(); previewFile(${file.id})">👁️</button>
+                        <button class="action-btn" title="下载" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>
+                        <button class="action-btn" title="共享" onclick="event.stopPropagation(); shareFile(${file.id})">🔗</button>
+                    </div>
+                    <div class="file-icon">${file.icon}</div>
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-meta">
+                        <span>${file.size}</span>
+                        <span>${file.date}</span>
+                    </div>
+                `;
+            grid.appendChild(card);
+        });
+    }
+
+    function renderTasks() {
+        const list = document.getElementById('task-list');
+        const badge = document.getElementById('task-badge');
+
+        list.innerHTML = '';
+
+        // Update Badge
+        const activeTasks = tasks.filter(t => t.status === 'processing').length;
+        if (activeTasks > 0) {
+            badge.style.display = 'inline-block';
+            badge.innerText = activeTasks;
+        } else {
+            badge.style.display = 'none';
+        }
+
+        if (tasks.length === 0) {
+            list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <h3>暂无传输任务</h3>
+                        <p>上传或下载文件后，任务将显示在这里</p>
+                    </div>`;
+            return;
+        }
+
+        // Sort: Processing first, then by time
+        const sortedTasks = [...tasks].sort((a, b) => {
+            if (a.status === b.status) return b.id - a.id;
+            return a.status === 'processing' ? -1 : 1;
+        });
+
+        sortedTasks.forEach(task => {
+            const statusClass = task.status === 'completed' ? 'status-completed' : 'status-processing';
+            const statusText = task.status === 'completed' ? '已完成' : (task.status === 'failed' ? '失败' : `${task.progress}% ${task.type === 'upload' ? '上传中' : '下载中'}`);
+
+            const item = document.createElement('div');
+            item.className = 'task-item';
+            item.innerHTML = `
+                    <div style="font-size:2rem;">${task.type === 'upload' ? '⬆️' : '⬇️'}</div>
+                    <div class="task-info">
+                        <div class="task-name">${task.name}</div>
+                        <div class="task-progress-bg">
+                            <div class="task-progress-fill" style="width: ${task.progress}%; background-color: ${task.status === 'completed' ? 'var(--success)' : 'var(--primary)'}"></div>
+                        </div>
+                        <div class="task-status ${statusClass}">${statusText}</div>
+                    </div>
+                    <div style="font-size:0.85rem; color:var(--text-secondary);">${task.size}</div>
+                `;
+            list.appendChild(item);
+        });
+    }
+
+    // Actions
+    function triggerUpload() {
+        document.getElementById('file-input').click();
+    }
+
+    function handleFileSelect(input) {
+        const selectedFiles = Array.from(input.files);
+        if (selectedFiles.length === 0) return;
+
+        selectedFiles.forEach(file => {
+            // Add to tasks
+            const taskId = Date.now() + Math.random();
+            tasks.unshift({
+                id: taskId,
+                name: file.name,
+                type: 'upload',
+                size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                progress: 0,
+                status: 'processing'
+            });
+
+            // Simulate Upload Progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.status = 'completed';
+                        task.progress = 100;
+
+                        // Add to file list after upload completes
+                        const ext = file.name.split('.').pop().toLowerCase();
+                        let type = 'other';
+                        let icon = '📄';
+                        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) { type = 'image'; icon = '🖼️'; }
+                        else if (['pdf'].includes(ext)) { type = 'pdf'; icon = '📄'; }
+                        else if (['doc', 'docx'].includes(ext)) { type = 'word'; icon = '📝'; }
+                        else if (['xls', 'xlsx'].includes(ext)) { type = 'excel'; icon = '📊'; }
+
+                        files.unshift({
+                            id: Date.now(),
+                            name: file.name,
+                            type: type,
+                            size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                            date: new Date().toISOString().split('T')[0],
+                            icon: icon
+                        });
+
+                        renderFiles();
+                        showToast(`✅ ${file.name} 上传成功`, 'success');
+                    }
+                } else {
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task) task.progress = Math.floor(progress);
+                }
+                renderTasks();
+            }, 300);
+        });
+
+        input.value = ''; // Reset
+        showToast(`开始上传 ${selectedFiles.length} 个文件...`);
+
+        // Auto switch to tasks tab to show progress
+        // Optional: switchMainTab('tasks');
+    }
+
+    function downloadFile(id) {
+        const file = files.find(f => f.id === id);
+        if (!file) return;
+
+        const taskId = Date.now();
+        tasks.unshift({
+            id: taskId,
+            name: file.name,
+            type: 'download',
+            size: file.size,
+            progress: 0,
+            status: 'processing'
+        });
+        renderTasks();
+        showToast(`开始下载 ${file.name}...`);
+
+        // Simulate Download
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 20;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.status = 'completed';
+                    task.progress = 100;
+                    renderTasks();
+                    showToast(`✅ ${file.name} 下载完成`, 'success');
+
+                    // Trigger real browser download simulation
+                    const element = document.createElement('a');
+                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(`这是 ${file.name} 的模拟内容`));
+                    element.setAttribute('download', file.name);
+                    element.style.display = 'none';
+                    document.body.appendChild(element);
+                    element.click();
+                    document.body.removeChild(element);
+                }
+            } else {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) task.progress = Math.floor(progress);
+                renderTasks();
+            }
+        }, 200);
+    }
+
+    function handleFileClick(file) {
+        if (file.type === 'image') {
+            previewFile(file.id);
+        } else {
+            showToast(`选中了文件：${file.name}`);
+        }
+    }
+
+    function previewFile(id) {
+        const file = files.find(f => f.id === id);
+        if (!file) return;
+
+        const modal = document.getElementById('preview-modal');
+        const imgEl = document.getElementById('preview-image');
+        const textEl = document.getElementById('preview-text');
+        const unsupEl = document.getElementById('preview-unsupported');
+
+        // Reset
+        imgEl.style.display = 'none';
+        textEl.style.display = 'none';
+        unsupEl.style.display = 'none';
+
+        if (file.type === 'image') {
+            // Using a placeholder service for demo purposes since we don't have real URLs
+            // In a real app, this would be file.url
+            const color = Math.floor(Math.random()*16777215).toString(16);
+            imgEl.src = `https://via.placeholder.com/600x400/${color}/ffffff?text=${encodeURIComponent(file.name)}`;
+            imgEl.style.display = 'inline-block';
+        } else if (['pdf', 'word', 'excel'].includes(file.type)) {
+            textEl.innerText = file.icon;
+            textEl.style.display = 'block';
+            unsupEl.style.display = 'block';
+            unsupEl.querySelector('p').innerText = `${file.name} 预览暂不支持，请下载后查看。`;
+        } else {
+            unsupEl.style.display = 'block';
+            unsupEl.querySelector('p').innerText = '该文件格式不支持预览。';
+        }
+
+        modal.classList.add('active');
+    }
+
+    function shareFile(id) {
+        const file = files.find(f => f.id === id);
+        if (!file) return;
+
+        const modal = document.getElementById('share-modal');
+        const input = document.getElementById('share-link-input');
+
+        // Generate mock signed URL
+        const mockUrl = `https://cloudstore.com/s/${btoa(file.id + '-' + Date.now()).substring(0, 10)}?token=xyz`;
+        input.value = mockUrl;
+
+        modal.classList.add('active');
+    }
+
+    function copyShareLink() {
+        const input = document.getElementById('share-link-input');
+        input.select();
+        document.execCommand('copy');
+        showToast('链接已复制到剪贴板', 'success');
+        closeModal('share-modal');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+
+    // Utilities
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `<span>${type === 'success' ? '✅' : 'ℹ️'}</span> ${message}`;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Initialize
+    init();
+
+</script>
+</body>
+</html>

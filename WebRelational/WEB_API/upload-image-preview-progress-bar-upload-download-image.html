@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实现 上传图片预览 进度条上传图片 下载图片</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+<h2>图片操作（带真实进度）</h2>
+<button onclick="selectImage()">选择图片</button>
+<!--  预览区域 -->
+<div id="preview"></div>
+
+<!--  上传区域 -->
+<div style="margin-top: 20px;">
+    <button id="uploadBtn" disabled onclick="uploadImage()">上传图片</button>
+    <div class="progress-bar">
+        <div id="uploadProgress" class="progress-fill"></div>
+    </div>
+    <div id="uploadStatus" class="status" style="display: none;"></div>
+</div>
+
+<!--  下载区域 -->
+<div style="margin-top: 20px;">
+    <button id="downloadBtn" disabled onclick="downloadImageWithProgress()">下载图片</button>
+    <div class="progress-bar">
+        <div id="downloadProgress" class="progress-fill"></div>
+    </div>
+    <div id="downloadStatus" class="status" style="display: none;"></div>
+</div>
+<script>
+    // 定义全局变量，用于存储当前选中的文件和文件的 URL
+    let currentFile = null;
+    let currentFileUrl = null;
+
+    /**
+     * selectImage 函数用于选择图片文件，并显示预览
+     * @author LiuQi
+     * */
+    async function selectImage() {
+        // 判断浏览器是否支持 showOpenFilePicker API
+        if (!window.showOpenFilePicker) {
+            alert('浏览器不支持 showOpenFilePicker！');
+            return;
+        }
+        // 选择图片文件，并获取文件句柄 文件限制为图片类型
+        const [fileHandle] = await window.showOpenFilePicker({ types: [{ description: '图片', accept: { 'image/*': [] } }] });
+        // 获取文件 blob 对象
+        const file = await fileHandle.getFile();
+        if (!file.type.startsWith("image/")) {
+            alert("请选择图片文件");
+            return;
+        }
+        // currentFile 存储当前选中的文件
+        currentFile = file;
+        // currentFileUrl 存储当前文件的 URL，用于显示预览
+        currentFileUrl = URL.createObjectURL(file);
+        // 显示图片预览
+        document.getElementById("preview").innerHTML = `<img src="${currentFileUrl}" alt="预览图片" style="max-width: 100%;margin-top:10px;"/>`;
+        // 启用上传和下载按钮
+        document.getElementById("uploadBtn").disabled = false;
+        document.getElementById("downloadBtn").disabled = false;
+    }
+
+
+
+    /**
+     * uploadImage 函数用于上传图片
+     * @author LiuQi
+     * */
+    async function uploadImage() {
+        // 如果没有选中文件，则不执行上传操作
+        if (!currentFile) return;
+        // 创建 XMLHttpRequest 对象，用于发送请求
+        const xhr = new XMLHttpRequest();
+        // 创建 FormData 对象，用于存储要上传的数据
+        const formData = new FormData();
+        // 将文件添加到 FormData 对象中
+        formData.append("file", currentFile);
+
+        const uploadStatusEl = document.getElementById("uploadStatus");
+        // 监听上传进度
+        xhr.upload.onprogress = (event) => {
+            // 检查是否可以计算进度
+            if (event.lengthComputable) {
+                // 计算上传进度百分比
+                const percent = (event.loaded / event.total) * 100;
+                // 更新进度条的宽度
+                document.getElementById("uploadProgress").style.width = percent + "%";
+                // 更新上传状态文本
+                uploadStatusEl.textContent = `上传中... ${percent.toFixed(1)}%`;
+                // 显示上传状态
+                uploadStatusEl.style.display = "block";
+            }
+        }
+
+        // 监听上传完成
+        xhr.onload = () => {
+            // 检查是否上传成功
+            if (xhr.status === 200) {
+                uploadStatusEl.textContent = "上传成功";
+                uploadStatusEl.style.backgroundColor = "#e8f5e8";
+            } else {
+                uploadStatusEl.textContent = "上传失败";
+                uploadStatusEl.style.backgroundColor = "#ffebee";
+            }
+        }
+
+        // 监听上传错误
+        xhr.onerror = () => {
+            uploadStatusEl.textContent = "网络错误，请重试";
+            uploadStatusEl.style.backgroundColor = "#ffebee";
+        }
+
+        // 打开连接，发送请求
+        xhr.open('POST', 'http://localhost:3000/api/upload');
+        xhr.send(formData);
+    }
+
+    /**
+     * downloadImageWithProgress 函数用于下载图片，并显示进度条
+     * @author LiuQi
+     * */
+    async function downloadImageWithProgress() {
+        // 如果没有选中文件，则不执行下载操作
+        if (!currentFileUrl) return;
+        const downloadStatusEl = document.getElementById("downloadStatus");
+        const downloadProgressEl = document.getElementById("downloadProgress");
+        try {
+            // 用 fetch 获取资源（必须同源或 CORS 允许）
+            const response = await fetch(currentFileUrl);
+            if (!response.ok) throw new Error("下载失败");
+            // 请求头中获取 Content-Length，用于计算下载进度
+            const contentLength = response.headers.get("Content-Length");
+            // Content-Length 可能不存在，例如跨域请求
+            if (!contentLength) {
+                downloadStatusEl.textContent = "无法获取文件大小，进度不可用";
+                downloadStatusEl.style.display = "block";
+                // 直接下载（无进度）
+                triggerDownload(await response.blob(), currentFile?.name ?? "download.jpg");
+                return;
+            }
+            // total 存储文件总大小
+            const total = parseInt(contentLength, 10);
+            // loaded 存储已下载的字节数
+            let loaded = 0;
+            // 读取流中的数据
+            const reader = response.body.getReader();
+            // chunks 存储下载的数据块，用于后续合并为 Blob
+            const chunks = [];
+            // 循环读取数据块，直到没有更多数据为止
+            while (true) {
+                // 读取下一个数据块
+                const { done, value } = await reader.read();
+                // 如果已经读取完所有数据，则退出循环
+                if (done) break;
+                // 已下载的字节数增加
+                chunks.push(value);
+                // 更新下载进度
+                loaded += value.length;
+                // 更新进度
+                const percent = (loaded / total) * 100;
+                // 更新进度条的宽度
+                downloadProgressEl.style.width = percent + "%";
+                // 更新下载状态文本
+                downloadStatusEl.textContent = `下载中... ${percent.toFixed(1)}%`;
+                // 显示下载状态
+                downloadStatusEl.style.display = "block";
+            }
+            // 合并 chunks 为 Blob
+            const blob = new Blob(chunks, { type: currentFile?.type || "image/jpeg" });
+            // 触发下载
+            triggerDownload(blob, currentFile?.name ?? "download.jpg");
+            downloadStatusEl.textContent = "下载完成，正在保存...";
+        } catch (error) {
+            console.error("下载出错: ", error);
+            downloadStatusEl.textContent = "下载失败: " + err.message;
+            downloadStatusEl.style.display = "block";
+            downloadStatusEl.style.backgroundColor = "#ffebee";
+        }
+    }
+
+
+    /**
+     * triggerDownload 函数用于触发下载操作
+     * @author LiuQi
+     * */
+    function triggerDownload(blob, filename) {
+        // url 创建一个指向 Blob 的 URL，用于触发下载
+        const url = URL.createObjectURL(blob);
+        // a 创建一个 <a> 元素，用于触发下载
+        const a = document.createElement("a");
+        // 设置 a 的 href 属性为 Blob 的 URL
+        a.href = url;
+        // 设置download 属性为文件名，以便下载时使用该文件名
+        a.download = filename;
+        // appendChild 将 <a> 元素添加到 body，以便触发下载
+        document.body.appendChild(a);
+        // click 触发 <a> 的点击事件，从而开始下载
+        a.click();
+        // removeChild 从 body 中移除 <a> 元素，以避免重复触发下载
+        document.body.removeChild(a);
+        // URL.revokeObjectURL(url) 释放 Blob URL，避免内存泄漏。必须在下载完成后调用此方法。
+        URL.revokeObjectURL(url);
+    }
+</script>
+</body>
+
+</html>
