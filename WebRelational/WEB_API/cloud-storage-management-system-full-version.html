@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云存储管理系统 - 完整版</title>
+    <title>云存储管理系统</title>
     <style>
         :root {
             --primary: #2563eb;
@@ -17,91 +17,164 @@
             --text-primary: #1e293b;
             --text-secondary: #64748b;
             --border: #e2e8f0;
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --radius: 0.5rem;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        [data-theme="dark"] {
+            --background: #0f172a;
+            --surface: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background-color 0.2s, color 0.2s; }
 
         body { background-color: var(--background); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
 
         /* Sidebar */
-        .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.5rem; }
+        .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.5rem; flex-shrink: 0; z-index: 10; }
         .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; }
-        .nav-item { padding: 0.75rem 1rem; border-radius: 0.5rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-        .nav-item:hover { background-color: #eff6ff; color: var(--primary); }
-        .nav-item.active { background-color: #eff6ff; color: var(--primary); font-weight: 600; }
+        .nav-item { padding: 0.75rem 1rem; border-radius: var(--radius); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .nav-item:hover { background-color: rgba(37, 99, 235, 0.1); color: var(--primary); }
+        .nav-item.active { background-color: rgba(37, 99, 235, 0.1); color: var(--primary); font-weight: 600; }
         .storage-info { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); }
-        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 0.5rem; overflow: hidden; }
-        .progress-fill { height: 100%; background: var(--primary); width: 45%; transition: width 0.3s; }
+        .progress-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 0.5rem; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.5s ease-out; }
+        .storage-text { font-size: 0.85rem; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
 
         /* Main Content */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
         /* Header */
-        .header { height: 64px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; }
+        .header { height: 64px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; flex-shrink: 0; }
         .breadcrumb { font-size: 1.1rem; font-weight: 600; }
         .user-actions { display: flex; align-items: center; gap: 1rem; }
-        .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; border: none; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+        .btn { padding: 0.5rem 1rem; border-radius: var(--radius); border: none; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; font-size: 0.9rem; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: var(--primary-hover); }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
-        .btn-outline:hover { background: #f1f5f9; }
+        .btn-outline:hover { background: var(--border); color: var(--text-primary); }
+        .btn-icon { padding: 0.4rem; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); }
+        .btn-icon.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-icon:hover:not(.active) { background: var(--background); }
 
         /* Tabs */
-        .tabs { display: flex; padding: 1rem 2rem 0; gap: 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+        .tabs { display: flex; padding: 1rem 2rem 0; gap: 1rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
         .tab-btn { padding: 0.75rem 1.5rem; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer; font-weight: 500; }
         .tab-btn.active { border-bottom-color: var(--primary); color: var(--primary); }
 
         /* Content Area */
         .content-area { flex: 1; overflow-y: auto; padding: 2rem; }
-        .tab-content { display: none; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* File Grid */
-        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+        /* File Grid (Default) */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* File List View (New) */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .file-list-header {
+            display: grid;
+            grid-template-columns: 50px 1fr 150px 150px 80px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .file-row {
+            display: grid;
+            grid-template-columns: 50px 1fr 150px 150px 80px;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .file-row:hover {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.05);
+            transform: translateX(2px);
+        }
+        .file-row .file-icon { font-size: 1.5rem; text-align: left; }
+        .file-row .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-row .file-meta { font-size: 0.85rem; color: var(--text-secondary); }
+        .file-row .file-actions { opacity: 0; display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .file-row:hover .file-actions { opacity: 1; }
+
+        /* Card Styles (Shared) */
         .file-card { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; transition: all 0.2s; cursor: pointer; position: relative; }
         .file-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--primary); }
         .file-icon { font-size: 3rem; text-align: center; margin-bottom: 1rem; display: block; }
         .file-name { font-weight: 500; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .file-meta { font-size: 0.85rem; color: var(--text-secondary); display: flex; justify-content: space-between; }
-        .file-actions { position: absolute; top: 0.5rem; right: 0.5rem; opacity: 0; transition: opacity 0.2s; }
+        .file-actions { position: absolute; top: 0.5rem; right: 0.5rem; opacity: 0; transition: opacity 0.2s; display: flex; gap: 4px; }
         .file-card:hover .file-actions { opacity: 1; }
-        .action-btn { background: white; border: 1px solid var(--border); padding: 0.25rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.8rem; }
-        .action-btn:hover { background: #f1f5f9; }
+        .action-btn { background: var(--surface); border: 1px solid var(--border); padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.8rem; color: var(--text-primary); }
+        .action-btn:hover { background: var(--background); }
+
+        /* Settings Styles */
+        .settings-container { max-width: 800px; margin: 0 auto; }
+        .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.5rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-secondary); }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--background); color: var(--text-primary); font-size: 0.95rem; }
+        .form-input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+        .avatar-upload { display: flex; align-items: center; gap: 1.5rem; }
+        .avatar-preview { width: 80px; height: 80px; border-radius: 50%; background: var(--border); object-fit: cover; border: 2px solid var(--primary); }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.95rem; }
+        .toggle-desc { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
 
         /* Task List */
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         .task-item { background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; display: flex; align-items: center; gap: 1rem; }
         .task-info { flex: 1; }
-        .task-name { font-weight: 500; margin-bottom: 0.25rem; }
-        .task-progress-bg { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .task-progress-bg { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 5px; }
         .task-progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease-out; }
-        .task-status { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
-        .status-completed { color: var(--success); }
-        .status-processing { color: var(--primary); }
 
-        /* Empty State */
-        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
-        .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
-
-        /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        /* Modal & Toast */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; backdrop-filter: blur(2px); }
         .modal-overlay.active { opacity: 1; pointer-events: all; }
-        .modal { background: var(--surface); border-radius: 0.75rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal { background: var(--surface); border-radius: 0.75rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); display: flex; flex-direction: column; }
         .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { padding: 1.5rem; }
+        .modal-body { padding: 1.5rem; display: flex; justify-content: center; align-items: center; min-height: 300px; background: var(--background); }
         .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
-        .preview-img { max-width: 100%; max-height: 60vh; display: block; margin: 0 auto; border-radius: 0.5rem; }
-        .share-input-group { display: flex; gap: 0.5rem; margin-top: 1rem; }
-        .share-input { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.5rem; background: #f8fafc; }
+        .preview-img { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 0.5rem; }
 
-        /* Toast */
         .toast-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 2000; }
-        .toast { background: #1e293b; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 0.5rem; }
+        .toast { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); padding: 0.75rem 1.5rem; border-radius: 0.5rem; box-shadow: var(--shadow); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* Icons helper */
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
+        .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
         .icon { font-style: normal; }
+        .spinner { border: 3px solid var(--border); border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -118,17 +191,17 @@
         <span class="icon">🚀</span> 传输任务
         <span id="task-badge" style="margin-left:auto; background:var(--primary); color:white; font-size:0.7rem; padding:2px 6px; border-radius:10px; display:none;">0</span>
     </div>
-    <div class="nav-item" onclick="switchMainTab('shared')">
-        <span class="icon">🔗</span> 共享链接
+    <div class="nav-item" onclick="switchMainTab('settings')">
+        <span class="icon">⚙️</span> 系统设置
     </div>
 
     <div class="storage-info">
-        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+        <div class="storage-text">
             <span>已用空间</span>
-            <span>45 GB / 100 GB</span>
+            <span id="storage-text-display">0 MB / 100 GB</span>
         </div>
         <div class="progress-bar">
-            <div class="progress-fill"></div>
+            <div class="progress-fill" id="storage-bar"></div>
         </div>
     </div>
 </div>
@@ -138,12 +211,12 @@
     <div class="header">
         <div class="breadcrumb" id="breadcrumb-text">我的文件 / 全部</div>
         <div class="user-actions">
-            <button class="btn btn-outline" onclick="alert('设置功能开发中')">⚙️ 设置</button>
-            <div style="width:32px; height:32px; background:#e2e8f0; border-radius:50%; display:flex; align-items:center; justify-content:center;">👤</div>
+            <button class="btn btn-outline" onclick="switchMainTab('settings')">⚙️ 设置</button>
+            <div style="width:32px; height:32px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;" id="header-avatar">U</div>
         </div>
     </div>
 
-    <div class="tabs">
+    <div class="tabs" id="main-tabs">
         <div class="tab-btn active" id="tab-btn-files" onclick="switchSubTab('files')">全部文件</div>
         <div class="tab-btn" id="tab-btn-images" onclick="switchSubTab('images')">图片</div>
         <div class="tab-btn" id="tab-btn-docs" onclick="switchSubTab('docs')">文档</div>
@@ -152,31 +225,99 @@
     <div class="content-area">
         <!-- Files Tab -->
         <div id="content-files" class="tab-content active">
-            <div style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; align-items:center;">
+            <div style="margin-bottom: 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 1rem;">
                 <h2 style="font-size:1.25rem;">文件列表</h2>
-                <button class="btn btn-primary" onclick="triggerUpload()">
-                    <span class="icon">⬆️</span> 上传文件
-                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <!-- View Toggle Buttons -->
+                    <button class="btn btn-icon" id="view-btn-grid" onclick="setViewMode('grid')" title="网格视图">
+                        <span class="icon">▦</span>
+                    </button>
+                    <button class="btn btn-icon" id="view-btn-list" onclick="setViewMode('list')" title="列表视图">
+                        <span class="icon">☰</span>
+                    </button>
+                    <div style="width: 1px; height: 20px; background: var(--border); margin: 0 0.5rem;"></div>
+                    <button class="btn btn-primary" onclick="triggerUpload()">
+                        <span class="icon">⬆️</span> 上传文件
+                    </button>
+                </div>
             </div>
-            <div id="file-grid" class="file-grid">
-                <!-- Dynamic Content -->
-            </div>
+
+            <!-- Grid Container -->
+            <div id="file-grid" class="file-grid"></div>
+            <!-- List Container (Hidden by default) -->
+            <div id="file-list" class="file-list" style="display: none;"></div>
         </div>
 
         <!-- Tasks Tab -->
         <div id="content-tasks" class="tab-content">
             <h2 style="font-size:1.25rem; margin-bottom:1.5rem;">传输任务列表</h2>
-            <div id="task-list" class="task-list">
-                <!-- Dynamic Content -->
-            </div>
+            <div id="task-list" class="task-list"></div>
         </div>
 
-        <!-- Shared Tab (Placeholder) -->
-        <div id="content-shared" class="tab-content">
-            <div class="empty-state">
-                <div class="empty-icon">🔗</div>
-                <h3>共享管理</h3>
-                <p>在文件列表中点击“共享”生成的链接将显示在这里。</p>
+        <!-- Settings Tab -->
+        <div id="content-settings" class="tab-content">
+            <div class="settings-container">
+                <div class="settings-section">
+                    <div class="section-title">👤 个人资料</div>
+                    <div class="avatar-upload">
+                        <img src="https://ui-avatars.com/api/?name=User&background=2563eb&color=fff" id="settings-avatar-img" class="avatar-preview" alt="Avatar">
+                        <div>
+                            <button class="btn btn-outline" onclick="document.getElementById('avatar-input').click()">更换头像</button>
+                            <input type="file" id="avatar-input" hidden accept="image/*" onchange="updateAvatar(this)">
+                        </div>
+                    </div>
+                    <div style="margin-top: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label class="form-label">昵称</label>
+                            <input type="text" class="form-input" id="setting-nickname" value="Admin User">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">邮箱</label>
+                            <input type="email" class="form-input" id="setting-email" value="admin@cloudstore.com">
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <button class="btn btn-primary" onclick="saveProfile()">💾 保存修改</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title">🎨 偏好设置</div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label">深色模式</div>
+                            <div class="toggle-desc">保护视力，降低屏幕亮度</div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-dark-mode" onchange="toggleDarkMode(this)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label">默认视图</div>
+                            <div class="toggle-desc">文件列表的默认展示方式</div>
+                        </div>
+                        <select class="form-input" style="width: 150px; padding: 0.4rem;" id="view-mode-select" onchange="setViewMode(this.value)">
+                            <option value="grid">网格视图</option>
+                            <option value="list">列表视图</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-title">💾 存储管理</div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <div class="storage-text" style="margin-bottom: 0.5rem; font-weight: 600;">
+                            <span>总用量</span>
+                            <span id="settings-storage-text">0 MB</span>
+                        </div>
+                        <div class="progress-bar" style="height: 10px;">
+                            <div class="progress-fill" id="settings-storage-bar"></div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline" onclick="clearCache()">🧹 清理系统缓存</button>
+                </div>
             </div>
         </div>
     </div>
@@ -186,88 +327,63 @@
 <div class="modal-overlay" id="preview-modal">
     <div class="modal">
         <div class="modal-header">
-            <h3 class="modal-title">文件预览</h3>
+            <h3 class="modal-title" id="preview-title">文件预览</h3>
             <button class="modal-close" onclick="closeModal('preview-modal')">×</button>
         </div>
-        <div class="modal-body" style="text-align: center;">
-            <img id="preview-image" src="" class="preview-img" style="display:none;">
-            <div id="preview-text" style="display:none; padding: 2rem; font-size: 5rem; color: var(--text-secondary);"></div>
-            <div id="preview-unsupported" style="display:none;">
-                <p>该文件类型不支持在线预览</p>
-                <button class="btn btn-primary" style="margin-top:1rem;" onclick="alert('开始下载...')">立即下载</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Share Modal -->
-<div class="modal-overlay" id="share-modal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title">共享文件</h3>
-            <button class="modal-close" onclick="closeModal('share-modal')">×</button>
-        </div>
-        <div class="modal-body">
-            <p style="margin-bottom:1rem;">以下链接已生成，有效期为 7 天：</p>
-            <div class="share-input-group">
-                <input type="text" id="share-link-input" class="share-input" readonly>
-                <button class="btn btn-primary" onclick="copyShareLink()">复制</button>
-            </div>
-            <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary);">
-                <label><input type="checkbox" checked> 允许下载</label>
-                <label style="margin-left:1rem;"><input type="checkbox"> 需要密码</label>
-            </div>
-        </div>
+        <div class="modal-body" id="preview-body"></div>
     </div>
 </div>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toast-container"></div>
-
-<!-- Hidden File Input -->
 <input type="file" id="file-input" style="display: none;" multiple onchange="handleFileSelect(this)">
 
 <script>
-    // --- Mock Data ---
-    let files = [
-        { id: 1, name: '项目计划书.pdf', type: 'pdf', size: '2.4 MB', date: '2023-10-25', icon: '📄' },
-        { id: 2, name: '度假照片.jpg', type: 'image', size: '4.1 MB', date: '2023-10-24', icon: '🖼️' },
-        { id: 3, name: '财务报表.xlsx', type: 'excel', size: '1.2 MB', date: '2023-10-23', icon: '📊' },
-        { id: 4, name: '团队合影.png', type: 'image', size: '5.8 MB', date: '2023-10-22', icon: '🖼️' },
-        { id: 5, name: '会议记录.docx', type: 'word', size: '0.8 MB', date: '2023-10-21', icon: '📝' },
-        { id: 6, name: '产品原型.fig', type: 'other', size: '12 MB', date: '2023-10-20', icon: '🎨' },
-    ];
-
+    // --- State Management ---
+    let files = [];
     let tasks = [];
-    let currentFilter = 'all'; // all, image, docs
+    let currentFilter = 'all';
 
-    // --- Core Functions ---
+    // View Mode State
+    let currentViewMode = 'grid'; // 'grid' or 'list'
+
+    let userSettings = {
+        nickname: "Admin User",
+        email: "admin@cloudstore.com",
+        avatar: "https://ui-avatars.com/api/?name=Admin+User&background=2563eb&color=fff",
+        darkMode: false
+    };
 
     function init() {
         renderFiles();
         renderTasks();
+        updateStorageStats();
+        loadSettingsToDOM();
     }
 
     // Navigation
     function switchMainTab(tabName) {
         document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
-        event.currentTarget.classList.add('active');
+        const navMap = {'files':0, 'tasks':1, 'settings':2};
+        document.querySelectorAll('.sidebar .nav-item')[navMap[tabName]].classList.add('active');
 
-        // Hide all contents
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tabs').forEach(el => el.style.display = 'none');
+        const tabsContainer = document.getElementById('main-tabs');
 
         if (tabName === 'files') {
             document.getElementById('content-files').classList.add('active');
-            document.querySelector('.tabs').style.display = 'flex';
+            tabsContainer.style.display = 'flex';
             document.getElementById('breadcrumb-text').innerText = '我的文件 / 全部';
         } else if (tabName === 'tasks') {
             document.getElementById('content-tasks').classList.add('active');
+            tabsContainer.style.display = 'none';
             document.getElementById('breadcrumb-text').innerText = '传输任务';
-            renderTasks(); // Refresh tasks when opening tab
-        } else if (tabName === 'shared') {
-            document.getElementById('content-shared').classList.add('active');
-            document.getElementById('breadcrumb-text').innerText = '共享链接';
+            renderTasks();
+        } else if (tabName === 'settings') {
+            document.getElementById('content-settings').classList.add('active');
+            tabsContainer.style.display = 'none';
+            document.getElementById('breadcrumb-text').innerText = '系统设置';
+            updateStorageStats();
         }
     }
 
@@ -278,308 +394,339 @@
         renderFiles();
     }
 
-    // Rendering
-    function renderFiles() {
-        const grid = document.getElementById('file-grid');
-        grid.innerHTML = '';
+    // --- VIEW MODE LOGIC (FIXED) ---
+    function setViewMode(mode) {
+        currentViewMode = mode;
 
-        let filteredFiles = files;
-        if (currentFilter === 'images') {
-            filteredFiles = files.filter(f => f.type === 'image');
-        } else if (currentFilter === 'docs') {
-            filteredFiles = files.filter(f => ['pdf', 'word', 'excel'].includes(f.type));
+        // Update UI Buttons
+        document.getElementById('view-btn-grid').classList.toggle('active', mode === 'grid');
+        document.getElementById('view-btn-list').classList.toggle('active', mode === 'list');
+
+        // Update Settings Dropdown
+        document.getElementById('view-mode-select').value = mode;
+
+        // Toggle Containers
+        const gridContainer = document.getElementById('file-grid');
+        const listContainer = document.getElementById('file-list');
+
+        if (mode === 'grid') {
+            gridContainer.style.display = 'grid';
+            listContainer.style.display = 'none';
+        } else {
+            gridContainer.style.display = 'none';
+            listContainer.style.display = 'flex';
         }
 
+        // Re-render to ensure correct structure
+        renderFiles();
+        showToast(`已切换到${mode === 'grid' ? '网格' : '列表'}视图`, 'success');
+    }
+
+    // Rendering
+    function renderFiles() {
+        const gridContainer = document.getElementById('file-grid');
+        const listContainer = document.getElementById('file-list');
+
+        gridContainer.innerHTML = '';
+        listContainer.innerHTML = '';
+
+        let filteredFiles = files;
+        if (currentFilter === 'images') filteredFiles = files.filter(f => f.type === 'image');
+        else if (currentFilter === 'docs') filteredFiles = files.filter(f => ['pdf', 'word', 'excel'].includes(f.type));
+
         if (filteredFiles.length === 0) {
-            grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
+            const emptyHTML = `
+                    <div class="empty-state" style="${currentViewMode === 'list' ? 'grid-column: 1/-1;' : 'grid-column: 1/-1;'}">
                         <div class="empty-icon">📂</div>
                         <h3>暂无文件</h3>
-                        <p>上传文件后这里将显示内容</p>
+                        <p>点击右上角“上传文件”添加内容</p>
                     </div>`;
+            gridContainer.innerHTML = emptyHTML;
+            listContainer.innerHTML = emptyHTML;
             return;
         }
 
-        filteredFiles.forEach(file => {
-            const card = document.createElement('div');
-            card.className = 'file-card';
-            card.onclick = (e) => {
-                // Prevent triggering when clicking action buttons
-                if(!e.target.closest('.action-btn')) {
-                    handleFileClick(file);
-                }
-            };
-            card.innerHTML = `
+        // Render for Grid
+        if (currentViewMode === 'grid') {
+            filteredFiles.forEach(file => {
+                gridContainer.appendChild(createFileCard(file, 'grid'));
+            });
+        }
+        // Render for List
+        else {
+            // Add Header for List View
+            listContainer.innerHTML = `
+                    <div class="file-list-header">
+                        <div></div>
+                        <div>名称</div>
+                        <div>大小</div>
+                        <div>日期</div>
+                        <div>操作</div>
+                    </div>
+                `;
+            filteredFiles.forEach(file => {
+                listContainer.appendChild(createFileCard(file, 'list'));
+            });
+        }
+    }
+
+    function createFileCard(file, mode) {
+        if (mode === 'grid') {
+            const div = document.createElement('div');
+            div.className = 'file-card';
+            div.onclick = (e) => { if(!e.target.closest('.action-btn')) handleFileClick(file); };
+            div.innerHTML = `
                     <div class="file-actions">
-                        <button class="action-btn" title="预览" onclick="event.stopPropagation(); previewFile(${file.id})">👁️</button>
-                        <button class="action-btn" title="下载" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>
-                        <button class="action-btn" title="共享" onclick="event.stopPropagation(); shareFile(${file.id})">🔗</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); previewFile(${file.id})">👁️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>
                     </div>
                     <div class="file-icon">${file.icon}</div>
-                    <div class="file-name">${file.name}</div>
+                    <div class="file-name" title="${file.name}">${file.name}</div>
                     <div class="file-meta">
                         <span>${file.size}</span>
                         <span>${file.date}</span>
                     </div>
                 `;
-            grid.appendChild(card);
-        });
+            return div;
+        } else {
+            const div = document.createElement('div');
+            div.className = 'file-row';
+            div.onclick = (e) => { if(!e.target.closest('.action-btn')) handleFileClick(file); };
+            div.innerHTML = `
+                    <div class="file-icon">${file.icon}</div>
+                    <div class="file-name" title="${file.name}">${file.name}</div>
+                    <div class="file-meta">${file.size}</div>
+                    <div class="file-meta">${file.date}</div>
+                    <div class="file-actions">
+                        <button class="action-btn" onclick="event.stopPropagation(); previewFile(${file.id})">👁️</button>
+                        <button class="action-btn" onclick="event.stopPropagation(); downloadFile(${file.id})">⬇️</button>
+                    </div>
+                `;
+            return div;
+        }
     }
 
     function renderTasks() {
         const list = document.getElementById('task-list');
         const badge = document.getElementById('task-badge');
-
         list.innerHTML = '';
 
-        // Update Badge
         const activeTasks = tasks.filter(t => t.status === 'processing').length;
-        if (activeTasks > 0) {
-            badge.style.display = 'inline-block';
-            badge.innerText = activeTasks;
-        } else {
-            badge.style.display = 'none';
-        }
+        badge.style.display = activeTasks > 0 ? 'inline-block' : 'none';
+        badge.innerText = activeTasks;
 
         if (tasks.length === 0) {
-            list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📋</div>
-                        <h3>暂无传输任务</h3>
-                        <p>上传或下载文件后，任务将显示在这里</p>
-                    </div>`;
+            list.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><h3>暂无任务</h3></div>`;
             return;
         }
 
-        // Sort: Processing first, then by time
-        const sortedTasks = [...tasks].sort((a, b) => {
-            if (a.status === b.status) return b.id - a.id;
-            return a.status === 'processing' ? -1 : 1;
-        });
-
-        sortedTasks.forEach(task => {
-            const statusClass = task.status === 'completed' ? 'status-completed' : 'status-processing';
-            const statusText = task.status === 'completed' ? '已完成' : (task.status === 'failed' ? '失败' : `${task.progress}% ${task.type === 'upload' ? '上传中' : '下载中'}`);
-
-            const item = document.createElement('div');
-            item.className = 'task-item';
-            item.innerHTML = `
-                    <div style="font-size:2rem;">${task.type === 'upload' ? '⬆️' : '⬇️'}</div>
-                    <div class="task-info">
-                        <div class="task-name">${task.name}</div>
-                        <div class="task-progress-bg">
-                            <div class="task-progress-fill" style="width: ${task.progress}%; background-color: ${task.status === 'completed' ? 'var(--success)' : 'var(--primary)'}"></div>
+        tasks.slice().reverse().forEach(task => {
+            const statusColor = task.status === 'completed' ? 'var(--success)' : 'var(--primary)';
+            const statusText = task.status === 'completed' ? '已完成' : `${task.progress}%`;
+            list.innerHTML += `
+                    <div class="task-item">
+                        <div style="font-size:1.5rem;">${task.type === 'upload' ? '⬆️' : '⬇️'}</div>
+                        <div class="task-info">
+                            <div class="task-name">${task.name}</div>
+                            <div class="task-progress-bg"><div class="task-progress-fill" style="width:${task.progress}%; background:${statusColor}"></div></div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary)">${statusText}</div>
                         </div>
-                        <div class="task-status ${statusClass}">${statusText}</div>
-                    </div>
-                    <div style="font-size:0.85rem; color:var(--text-secondary);">${task.size}</div>
-                `;
-            list.appendChild(item);
+                    </div>`;
         });
+    }
+
+    function updateStorageStats() {
+        let bytes = 0;
+        files.forEach(f => bytes += (f.sizeBytes || 0));
+        const usedGB = (bytes / (1024*1024*1024)).toFixed(2);
+        const percent = Math.min((bytes / (100 * 1024*1024*1024)) * 100, 100);
+
+        document.getElementById('storage-text-display').innerText = `${usedGB} GB / 100 GB`;
+        document.getElementById('storage-bar').style.width = `${percent}%`;
+        document.getElementById('settings-storage-text').innerText = `${usedGB} GB`;
+        document.getElementById('settings-storage-bar').style.width = `${percent}%`;
     }
 
     // Actions
-    function triggerUpload() {
-        document.getElementById('file-input').click();
-    }
+    function triggerUpload() { document.getElementById('file-input').click(); }
 
     function handleFileSelect(input) {
         const selectedFiles = Array.from(input.files);
-        if (selectedFiles.length === 0) return;
+        if (!selectedFiles.length) return;
 
         selectedFiles.forEach(file => {
-            // Add to tasks
             const taskId = Date.now() + Math.random();
-            tasks.unshift({
-                id: taskId,
-                name: file.name,
-                type: 'upload',
-                size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-                progress: 0,
-                status: 'processing'
-            });
+            const sizeBytes = file.size;
+            const sizeStr = (sizeBytes / 1024 / 1024).toFixed(2) + ' MB';
 
-            // Simulate Upload Progress
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                    const task = tasks.find(t => t.id === taskId);
-                    if (task) {
-                        task.status = 'completed';
-                        task.progress = 100;
+            tasks.unshift({ id: taskId, name: file.name, type: 'upload', size: sizeStr, progress: 0, status: 'processing' });
+            renderTasks();
 
-                        // Add to file list after upload completes
-                        const ext = file.name.split('.').pop().toLowerCase();
-                        let type = 'other';
-                        let icon = '📄';
-                        if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) { type = 'image'; icon = '🖼️'; }
-                        else if (['pdf'].includes(ext)) { type = 'pdf'; icon = '📄'; }
-                        else if (['doc', 'docx'].includes(ext)) { type = 'word'; icon = '📝'; }
-                        else if (['xls', 'xlsx'].includes(ext)) { type = 'excel'; icon = '📊'; }
+            const reader = new FileReader();
+            const isImage = ['jpg','jpeg','png','gif','webp'].includes(file.name.split('.').pop().toLowerCase());
 
-                        files.unshift({
-                            id: Date.now(),
-                            name: file.name,
-                            type: type,
-                            size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-                            date: new Date().toISOString().split('T')[0],
-                            icon: icon
-                        });
-
-                        renderFiles();
-                        showToast(`✅ ${file.name} 上传成功`, 'success');
-                    }
-                } else {
-                    const task = tasks.find(t => t.id === taskId);
-                    if (task) task.progress = Math.floor(progress);
-                }
-                renderTasks();
-            }, 300);
+            if (isImage) {
+                reader.onload = (e) => startUploadSim(taskId, file, sizeBytes, e.target.result, 'image', '🖼️');
+                reader.readAsDataURL(file);
+            } else {
+                startUploadSim(taskId, file, sizeBytes, null, getFileType(file.name), getIcon(file.name));
+            }
         });
+        input.value = '';
+        showToast(`开始上传 ${selectedFiles.length} 个文件`, 'success');
+    }
 
-        input.value = ''; // Reset
-        showToast(`开始上传 ${selectedFiles.length} 个文件...`);
+    function startUploadSim(taskId, file, sizeBytes, src, type, icon) {
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress >= 100) {
+                clearInterval(interval);
+                const taskIdx = tasks.findIndex(t => t.id === taskId);
+                if (taskIdx > -1) {
+                    tasks[taskIdx].status = 'completed';
+                    tasks[taskIdx].progress = 100;
+                    renderTasks();
 
-        // Auto switch to tasks tab to show progress
-        // Optional: switchMainTab('tasks');
+                    files.unshift({
+                        id: Date.now(),
+                        name: file.name,
+                        type: type,
+                        size: (sizeBytes / 1024 / 1024).toFixed(2) + ' MB',
+                        sizeBytes: sizeBytes,
+                        date: new Date().toISOString().split('T')[0],
+                        icon: icon,
+                        src: src
+                    });
+
+                    renderFiles(); // Re-render with new file in current view mode
+                    updateStorageStats();
+                    showToast(`✅ ${file.name} 上传成功`, 'success');
+                }
+            } else {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) { task.progress = Math.floor(progress); renderTasks(); }
+            }
+        }, 200);
+    }
+
+    function getFileType(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        if (['pdf'].includes(ext)) return 'pdf';
+        if (['doc','docx'].includes(ext)) return 'word';
+        if (['xls','xlsx'].includes(ext)) return 'excel';
+        return 'other';
+    }
+    function getIcon(name) {
+        const type = getFileType(name);
+        if (type === 'pdf') return '📄';
+        if (type === 'word') return '📝';
+        if (type === 'excel') return '📊';
+        return '📁';
     }
 
     function downloadFile(id) {
         const file = files.find(f => f.id === id);
         if (!file) return;
-
-        const taskId = Date.now();
-        tasks.unshift({
-            id: taskId,
-            name: file.name,
-            type: 'download',
-            size: file.size,
-            progress: 0,
-            status: 'processing'
-        });
-        renderTasks();
         showToast(`开始下载 ${file.name}...`);
-
-        // Simulate Download
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += Math.random() * 20;
-            if (progress >= 100) {
-                progress = 100;
-                clearInterval(interval);
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    task.status = 'completed';
-                    task.progress = 100;
-                    renderTasks();
-                    showToast(`✅ ${file.name} 下载完成`, 'success');
-
-                    // Trigger real browser download simulation
-                    const element = document.createElement('a');
-                    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(`这是 ${file.name} 的模拟内容`));
-                    element.setAttribute('download', file.name);
-                    element.style.display = 'none';
-                    document.body.appendChild(element);
-                    element.click();
-                    document.body.removeChild(element);
-                }
+        setTimeout(() => {
+            if (file.src) {
+                const a = document.createElement('a'); a.href = file.src; a.download = file.name; a.click();
             } else {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) task.progress = Math.floor(progress);
-                renderTasks();
+                alert("模拟下载：文件内容已生成");
             }
-        }, 200);
+            showToast(`✅ 下载完成`, 'success');
+        }, 1000);
     }
 
-    function handleFileClick(file) {
-        if (file.type === 'image') {
-            previewFile(file.id);
-        } else {
-            showToast(`选中了文件：${file.name}`);
-        }
-    }
+    function handleFileClick(file) { if (file.type === 'image') previewFile(file.id); else showToast(`选中：${file.name}`); }
 
     function previewFile(id) {
         const file = files.find(f => f.id === id);
         if (!file) return;
-
         const modal = document.getElementById('preview-modal');
-        const imgEl = document.getElementById('preview-image');
-        const textEl = document.getElementById('preview-text');
-        const unsupEl = document.getElementById('preview-unsupported');
-
-        // Reset
-        imgEl.style.display = 'none';
-        textEl.style.display = 'none';
-        unsupEl.style.display = 'none';
-
-        if (file.type === 'image') {
-            // Using a placeholder service for demo purposes since we don't have real URLs
-            // In a real app, this would be file.url
-            const color = Math.floor(Math.random()*16777215).toString(16);
-            imgEl.src = `https://via.placeholder.com/600x400/${color}/ffffff?text=${encodeURIComponent(file.name)}`;
-            imgEl.style.display = 'inline-block';
-        } else if (['pdf', 'word', 'excel'].includes(file.type)) {
-            textEl.innerText = file.icon;
-            textEl.style.display = 'block';
-            unsupEl.style.display = 'block';
-            unsupEl.querySelector('p').innerText = `${file.name} 预览暂不支持，请下载后查看。`;
-        } else {
-            unsupEl.style.display = 'block';
-            unsupEl.querySelector('p').innerText = '该文件格式不支持预览。';
-        }
-
+        const body = document.getElementById('preview-body');
+        document.getElementById('preview-title').innerText = file.name;
         modal.classList.add('active');
-    }
-
-    function shareFile(id) {
-        const file = files.find(f => f.id === id);
-        if (!file) return;
-
-        const modal = document.getElementById('share-modal');
-        const input = document.getElementById('share-link-input');
-
-        // Generate mock signed URL
-        const mockUrl = `https://cloudstore.com/s/${btoa(file.id + '-' + Date.now()).substring(0, 10)}?token=xyz`;
-        input.value = mockUrl;
-
-        modal.classList.add('active');
-    }
-
-    function copyShareLink() {
-        const input = document.getElementById('share-link-input');
-        input.select();
-        document.execCommand('copy');
-        showToast('链接已复制到剪贴板', 'success');
-        closeModal('share-modal');
-    }
-
-    function closeModal(modalId) {
-        document.getElementById(modalId).classList.remove('active');
-    }
-
-    // Utilities
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.innerHTML = `<span>${type === 'success' ? '✅' : 'ℹ️'}</span> ${message}`;
-
-        container.appendChild(toast);
+        body.innerHTML = '<div class="spinner"></div>';
 
         setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+            body.innerHTML = '';
+            if (file.type === 'image') {
+                const img = document.createElement('img');
+                img.src = file.src || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZTAlN2QwMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSI+5L2g5LiwPC90ZXh0Pjwvc3ZnPg==';
+                img.className = 'preview-img';
+                body.appendChild(img);
+            } else {
+                body.innerHTML = `<div style="text-align:center"><div style="font-size:4rem">${file.icon}</div><p>暂不支持在线预览此格式</p><button class="btn btn-primary" style="margin-top:1rem" onclick="downloadFile(${file.id}); closeModal('preview-modal')">立即下载</button></div>`;
+            }
+        }, 300);
     }
 
-    // Initialize
-    init();
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    window.onclick = (e) => { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active'); };
 
+    // Settings Logic
+    function loadSettingsToDOM() {
+        document.getElementById('setting-nickname').value = userSettings.nickname;
+        document.getElementById('setting-email').value = userSettings.email;
+        document.getElementById('settings-avatar-img').src = userSettings.avatar;
+        document.getElementById('header-avatar').innerText = userSettings.nickname.charAt(0).toUpperCase();
+
+        document.getElementById('toggle-dark-mode').checked = userSettings.darkMode;
+        if (userSettings.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+
+        // Initialize View Mode from settings (default grid)
+        setViewMode('grid');
+    }
+
+    function updateAvatar(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            userSettings.avatar = e.target.result;
+            document.getElementById('settings-avatar-img').src = userSettings.avatar;
+            document.getElementById('header-avatar').style.backgroundImage = `url(${userSettings.avatar})`;
+            document.getElementById('header-avatar').style.backgroundSize = 'cover';
+            document.getElementById('header-avatar').innerText = '';
+            showToast('头像已更新', 'success');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function saveProfile() {
+        userSettings.nickname = document.getElementById('setting-nickname').value;
+        userSettings.email = document.getElementById('setting-email').value;
+        document.getElementById('header-avatar').innerText = userSettings.nickname.charAt(0).toUpperCase();
+        if (!userSettings.avatar.startsWith('data:')) {
+            document.getElementById('header-avatar').style.backgroundImage = 'none';
+            document.getElementById('header-avatar').style.background = 'var(--primary)';
+        }
+        showToast('✅ 资料保存成功', 'success');
+    }
+
+    function toggleDarkMode(checkbox) {
+        userSettings.darkMode = checkbox.checked;
+        if (userSettings.darkMode) document.documentElement.setAttribute('data-theme', 'dark');
+        else document.documentElement.removeAttribute('data-theme');
+    }
+
+    function clearCache() {
+        if (!confirm("确定清理缓存？")) return;
+        showToast('✅ 缓存已清理', 'success');
+    }
+
+    function showToast(msg, type='info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = msg;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity='0'; setTimeout(()=>toast.remove(), 300); }, 3000);
+    }
+
+    init();
 </script>
 </body>
 </html>

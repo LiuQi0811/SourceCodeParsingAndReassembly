@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器 Media Session API 示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f5f5f5;
+            margin: 0;
+        }
+
+        .player {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+        }
+
+        #cover {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .controls button {
+            margin: 6px;
+            padding: 8px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            background: #409eff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            width: 100%;
+            margin: 16px 0;
+        }
+
+        #progress {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        #progress::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #409eff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* 音量滑块样式 */
+        #volume {
+            position: relative;
+            z-index: 2;
+        }
+
+        #volume::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 12px;
+            cursor: pointer;
+        }
+
+        #volume:focus {
+            outline: none;
+        }
+
+        #volume::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #409eff;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+<div class="player">
+    <img id="cover" />
+    <h2 id="title">未知歌曲</h2>
+    <p id="artist">未知艺术家</p>
+    <!-- 进度条 -->
+    <div class="progress-container">
+        <input id="progress" type="range" min="0" max="100" value="0" step="0.1" />
+        <div class="time-info">
+            <span id="current-time">0:00</span>
+            <span id="duration">0:00</span>
+        </div>
+    </div>
+    <!-- 在进度条下方添加音量控制器 -->
+    <div class="volume-container" style="width: 50%; margin: 12px auto; position: relative;">
+        <div id="volume-fill" style="position: absolute; top: 0; left: 0; height: 100%; width: 100%;
+                   border: 1px solid #ccc; border-radius: 3px;"></div>
+        <input id="volume" type="range" min="0" max="1" value="1" step="0.01" style="width: 100%; height: 12px; -webkit-appearance: none;
+                   background: transparent; outline: none; position: relative; z-index: 2;" />
+    </div>
+    <!-- 控制面板 -->
+    <div class="controls">
+        <button id="prev">⏮ 上一首</button>
+        <button id="play">▶ 播放</button>
+        <button id="pause">⏸ 暂停</button>
+        <button id="next">⏭ 下一首</button>
+    </div>
+    <audio id="audio" src=""></audio>
+</div>
+<script>
+    // 获取 DOM 元素
+    const audio = document.getElementById("audio");
+    const playBtn = document.getElementById("play");
+    const pauseBtn = document.getElementById("pause");
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+    const titleEl = document.getElementById("title");
+    const artistEl = document.getElementById("artist");
+    const coverEl = document.getElementById("cover");
+
+    const progress = document.getElementById("progress");
+    const currentTimeEl = document.getElementById("current-time");
+    const durationEl = document.getElementById("duration");
+
+    const volumeControl = document.getElementById("volume");
+    const volumeFill = document.getElementById("volume-fill");
+    // 歌曲专辑列表
+    const partlist = [{
+        title: "不谓侠",
+        cover: "https://static.aipiaxi.com/image_gif/2024/10/FpUGbnCK-05gA2kf3rEWNv18fQIJ.jpeg",
+        artist: "萧忆情",
+        src: "https://wsaudio2bssdlbig.kugou.com/202602250943/82dbf2498795c97b24a0122e83528b8b/bss/extname/wsaudio/fcec4d9cf240dd4198a9f317404596e3.mp3"
+    }, {
+        title: "梦醒时分",
+        cover: "https://image.uisdc.com/wp-content/uploads/uiii/2022/02/itz-font20220225-2-1.jpg",
+        artist: "落颜浅浅",
+        src: "https://wsaudio2bssdlbig.kugou.com/202602250950/bbd0d33c0f908f2ba41319a5da84bb74/bss/extname/wsaudio/4c32dce9f2573f03189c8b330af27a5a.mp3"
+    }, {
+        title: "不谓侠 - CRITTY",
+        cover: "https://imgessl.kugou.com/stdmusic/20200416/20200416193205772124.jpg",
+        artist: "CRITTY",
+        src: "https://wsaudio2bssdlbig.kugou.com/202602250952/191d77da2453573398e9897be3071c08/bss/extname/wsaudio/6828d27745974a94c0447efb15a2259d.mp3"
+    }, {
+        title: "欢乐中国年",
+        cover: "https://imgpub.chuangkit.com/designTemplate/2017/12/11/47994151_thumb?v=1589337721000&x-oss-process=image/resize,w_600/sharpen,100/format,webp",
+        artist: "大树、悠冷冷",
+        src: "https://wsaudio2bssdlbig.kugou.com/202602250956/c505c9e8cea1151e8dd0dc58166741fa/bss/extname/wsaudio/1dbb88be10007af588ef0ae345c56ab7.mp3"
+    }];
+
+    // 当前播放的歌曲索引
+    let currentIndex = 0;
+    // 设置初始音量
+    audio.volume = volumeControl.value = 0.3;
+
+    /**
+     * updateVolumeFill 更新音量填充条
+     * @author LiuQi
+     */
+    function updateVolumeFill() {
+        const percent = (volumeControl.value / volumeControl.max) * 100;
+        volumeFill.style.background = `linear-gradient(to right, #409eff ${percent}%, #e0e0e0 ${percent}%)`;
+    }
+    // 监听音量变化并更新音频音量及背景宽度
+    volumeControl.addEventListener("input", () => {
+        audio.volume = volumeControl.value;
+        updateVolumeFill();
+    });
+
+    // 初始化音量填充背景宽度
+    updateVolumeFill();
+
+
+    /**
+     * formatTime 格式化时间
+     * @author LiuQi
+     */
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${Math.floor(remainingSeconds)}`;
+    }
+
+    /**
+     * updateProgress 更新进度条和时间显示
+     * @author LiuQi
+     */
+    function updateProgress() {
+        if (audio.duration) {
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progress.value = percent;
+            currentTimeEl.textContent = formatTime(audio.currentTime);
+        }
+    }
+
+    /**
+     * setDuration 设置总时长
+     * @author LiuQi
+     */
+    function setDuration() {
+        if (audio.duration && !isNaN(audio.duration)) {
+            durationEl.textContent = formatTime(audio.duration);
+        }
+    }
+
+    /**
+     * seekBackward 快退函数（用于 Media Session）
+     * @author LiuQi
+     */
+    function seekBackward() {
+        audio.currentTime = Math.max(audio.currentTime - 10, 0);
+    }
+
+    /**
+     * seekForward 快进函数（用于 Media Session）
+     * @author LiuQi
+     */
+    function seekForward() {
+        audio.currentTime = Math.min(audio.currentTime + 10, audio.duration || Infinity);
+    }
+
+    /**
+     * updateTrack 更新歌曲信息
+     * @author LiuQi
+     */
+    function updateTrack() {
+        const track = partlist[currentIndex];
+        audio.src = track.src;
+        titleEl.textContent = track.title;
+        artistEl.textContent = track.artist;
+        coverEl.src = track.cover;
+        // 设置 Media Session 元数据
+        if ("mediaSession" in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.title,
+                artist: track.artist,
+                album: "经典专辑",
+                artwork: [{
+                    src: track.cover,
+                    sizes: "96x96",
+                    type: "image/jpeg"
+                }]
+            });
+        }
+    }
+    // 执行更新歌曲信息
+    updateTrack();
+
+    /**
+     * play 播放歌曲
+     * @author LiuQi
+     */
+    function play() {
+        audio.play();
+        playBtn.disabled = true;
+        pauseBtn.disabled = false;
+    }
+
+    /**
+     * pause 暂停歌曲
+     * @author LiuQi
+     */
+    function pause() {
+        audio.pause();
+        playBtn.disabled = false;
+        pauseBtn.disabled = true;
+    }
+
+    /**
+     * previousTrack 上一首
+     * @author LiuQi
+     */
+    function previousTrack() {
+        currentIndex = (currentIndex - 1 + partlist.length) % partlist.length;
+        updateTrack();
+        play(); // 自动播放上一首
+    }
+
+    /**
+     * nextTrack 下一首
+     * @author LiuQi
+     */
+    function nextTrack() {
+        currentIndex = (currentIndex + 1) % partlist.length;
+        updateTrack();
+        play(); // 自动播放下一首
+    }
+
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler("play", play);
+        navigator.mediaSession.setActionHandler("pause", pause);
+        navigator.mediaSession.setActionHandler("previoustrack", previousTrack);
+        navigator.mediaSession.setActionHandler("nexttrack", nextTrack);
+        navigator.mediaSession.setActionHandler("seekbackward", seekBackward);
+        navigator.mediaSession.setActionHandler("seekforward", seekForward);
+    }
+
+    // 监听事件相关
+    // 播放按钮点击事件
+    playBtn.addEventListener("click", play);
+    // 暂停按钮点击事件
+    pauseBtn.addEventListener("click", pause);
+    // 上一首按钮点击事件
+    prevBtn.addEventListener("click", previousTrack);
+    // 下一首按钮点击事件
+    nextBtn.addEventListener("click", nextTrack);
+
+    // 拖动进度条跳转
+    let isScrubbing = false;
+    progress.addEventListener("input", () => {
+        isScrubbing = true;
+        const newTime = (progress.value / 100) * audio.duration;
+        audio.currentTime = newTime;
+        currentTimeEl.textContent = formatTime(newTime);
+    });
+
+    progress.addEventListener("change", () => {
+        isScrubbing = false;
+    });
+
+    // 音频事件监听
+    audio.addEventListener("loadedmetadata", setDuration);
+    audio.addEventListener("timeupdate", () => {
+        if (!isScrubbing) {
+            updateProgress();
+        }
+    });
+    audio.addEventListener("ended", () => {
+        nextTrack(); // 播放完自动下一首
+    });
+    // 首次加载后暂停（避免自动播放）
+    audio.load();
+    pauseBtn.disabled = true;
+
+</script>
+</body>
+
+</html>
