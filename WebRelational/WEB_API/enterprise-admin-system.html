@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Admin System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-card: #151c25;
+            --bg-elevated: #1a222d;
+            --border: #2a3441;
+            --border-light: #3d4a5c;
+            --text-primary: #e8eef5;
+            --text-secondary: #8899a8;
+            --text-muted: #5c6b7a;
+            --accent: #00d4aa;
+            --accent-dim: rgba(0, 212, 170, 0.15);
+            --accent-glow: rgba(0, 212, 170, 0.4);
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+
+        /* 背景纹理 */
+        .bg-pattern {
+            background-image:
+                    radial-gradient(circle at 20% 80%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.03) 0%, transparent 50%),
+                    linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 260px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar.collapsed {
+            width: 72px;
+        }
+        .sidebar.collapsed .nav-text,
+        .sidebar.collapsed .logo-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* 导航项 */
+        .nav-item {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 0;
+            background: var(--accent);
+            border-radius: 0 3px 3px 0;
+            transition: height 0.2s ease;
+        }
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .nav-item.active {
+            background: var(--accent-dim);
+        }
+        .nav-item.active::before {
+            height: 60%;
+        }
+        .nav-item.active .nav-icon {
+            color: var(--accent);
+        }
+
+        /* 选项卡 */
+        .tab-item {
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .tab-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transition: transform 0.2s ease;
+        }
+        .tab-item.active::after {
+            transform: scaleX(1);
+        }
+        .tab-item.active {
+            background: var(--bg-card);
+            color: var(--accent);
+        }
+        .tab-item:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .tab-close {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .tab-item:hover .tab-close {
+            opacity: 1;
+        }
+
+        /* 页面过渡 */
+        .page-enter {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .page-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+        .card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 统计卡片 */
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+            opacity: 0.1;
+        }
+        .stat-card.accent::before { background: var(--accent); }
+        .stat-card.warning::before { background: var(--warning); }
+        .stat-card.success::before { background: var(--success); }
+        .stat-card.error::before { background: var(--error); }
+
+        /* 按钮 */
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+        .btn-ghost:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* 表格 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+        }
+        .status-badge.pending {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+        }
+
+        /* 输入框 */
+        .input-field {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+        .input-field::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            position: relative;
+            height: 200px;
+        }
+
+        /* 动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-fadeInUp {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* 延迟动画 */
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+
+        /* 移动端响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                z-index: 50;
+                height: 100vh;
+            }
+            .sidebar.mobile-open {
+                left: 0;
+            }
+            .sidebar.collapsed {
+                left: -72px;
+            }
+            .main-content {
+                margin-left: 0 !important;
+            }
+        }
+
+        /* prefers-reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* 通知 */
+        .notification-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: var(--error);
+            border-radius: 50%;
+        }
+
+        /* 折叠按钮 */
+        .collapse-btn {
+            transition: transform 0.3s ease;
+        }
+        .sidebar.collapsed .collapse-btn {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-pattern">
+<div id="app" class="flex h-screen">
+    <!-- 侧边栏 -->
+    <aside id="sidebar" class="sidebar h-full bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col z-40">
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-5 border-b border-[var(--border)]">
+            <div class="w-9 h-9 rounded-lg bg-[var(--accent)] flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-[var(--bg-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <span class="logo-text ml-3 font-semibold text-lg whitespace-nowrap transition-all duration-300">EnterpriseOS</span>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="flex-1 py-4 overflow-y-auto">
+            <div class="px-3 mb-2">
+                <span class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">主菜单</span>
+            </div>
+            <ul id="nav-menu" class="space-y-1 px-2">
+                <!-- 导航项由JS渲染 -->
+            </ul>
+
+            <div class="px-3 mt-6 mb-2">
+                <span class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">系统</span>
+            </div>
+            <ul id="system-menu" class="space-y-1 px-2">
+                <!-- 系统菜单由JS渲染 -->
+            </ul>
+        </nav>
+
+        <!-- 折叠按钮 -->
+        <div class="p-4 border-t border-[var(--border)]">
+            <button id="collapse-btn" class="w-full flex items-center justify-center py-2 rounded-lg btn-ghost">
+                <svg class="collapse-btn w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content flex-1 flex flex-col min-w-0 transition-all duration-300" style="margin-left: 0;">
+        <!-- 顶部栏 -->
+        <header class="h-16 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center justify-between px-4 md:px-6 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <!-- 移动端菜单按钮 -->
+                <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg hover:bg-[var(--bg-elevated)]">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                <!-- 面包屑 -->
+                <div id="breadcrumb" class="flex items-center text-sm">
+                    <span class="text-[var(--text-muted)]">首页</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- 搜索 -->
+                <div class="hidden md:flex items-center relative">
+                    <input type="text" placeholder="搜索..." class="input-field w-64 pl-10 text-sm">
+                    <svg class="w-4 h-4 absolute left-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+
+                <!-- 通知 -->
+                <button class="relative p-2 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors">
+                    <svg class="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notification-dot"></span>
+                </button>
+
+                <!-- 用户头像 -->
+                <div class="flex items-center gap-3 pl-3 border-l border-[var(--border)]">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--warning)] flex items-center justify-center text-sm font-semibold text-[var(--bg-primary)]">
+                        AD
+                    </div>
+                    <div class="hidden md:block">
+                        <div class="text-sm font-medium">Admin</div>
+                        <div class="text-xs text-[var(--text-muted)]">超级管理员</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 选项卡栏 -->
+        <div class="h-10 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center overflow-x-auto flex-shrink-0">
+            <div id="tabs-container" class="flex h-full">
+                <!-- 选项卡由JS渲染 -->
+            </div>
+            <div class="flex-1"></div>
+            <div id="tabs-actions" class="flex items-center gap-1 px-2">
+                <!-- 下拉菜单 -->
+                <div class="relative">
+                    <button id="tabs-dropdown-btn" class="p-1.5 rounded hover:bg-[var(--bg-elevated)] transition-colors">
+                        <svg class="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="tabs-dropdown" class="hidden absolute right-0 top-full mt-1 w-40 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg shadow-xl py-1 z-50">
+                        <button class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-card)] transition-colors" onclick="TabManager.closeOtherTabs()">关闭其他</button>
+                        <button class="w-full text-left px-4 py-2 text-sm hover:bg-[var(--bg-card)] transition-colors" onclick="TabManager.closeAllTabs()">关闭所有</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页面内容区 -->
+        <div id="page-container" class="flex-1 overflow-auto p-4 md:p-6">
+            <!-- 页面内容由JS渲染 -->
+        </div>
+    </main>
+</div>
+
+<!-- 移动端遮罩 -->
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden" onclick="toggleMobileSidebar()"></div>
+
+<script>
+    // ============================================
+    // 路由系统 (类似 vue-router)
+    // ============================================
+    const Router = {
+        routes: new Map(),
+        currentRoute: null,
+        beforeHooks: [],
+        afterHooks: [],
+
+        // 注册路由
+        register(path, config) {
+            this.routes.set(path, {
+                path,
+                name: config.name,
+                component: config.component,
+                meta: config.meta || {},
+                icon: config.icon,
+                children: config.children || []
+            });
+            return this;
+        },
+
+        // 批量注册
+        registerRoutes(routes) {
+            Object.entries(routes).forEach(([path, config]) => {
+                this.register(path, config);
+            });
+            return this;
+        },
+
+        // 前置守卫
+        beforeEach(hook) {
+            this.beforeHooks.push(hook);
+        },
+
+        // 后置守卫
+        afterEach(hook) {
+            this.afterHooks.push(hook);
+        },
+
+        // 导航
+        push(path, params = {}) {
+            if (!this.routes.has(path)) {
+                console.warn(`Route not found: ${path}`);
+                path = '/dashboard';
+            }
+
+            const route = this.routes.get(path);
+            const from = this.currentRoute;
+            const to = { ...route, params };
+
+            // 执行前置守卫
+            for (const hook of this.beforeHooks) {
+                const result = hook(to, from);
+                if (result === false) return;
+            }
+
+            // 更新URL
+            window.location.hash = path;
+            this.currentRoute = to;
+
+            // 添加到选项卡
+            if (!route.meta.hideTab) {
+                TabManager.addTab(to);
+            }
+
+            // 渲染组件
+            this.renderComponent(to);
+
+            // 执行后置守卫
+            this.afterHooks.forEach(hook => hook(to, from));
+        },
+
+        // 渲染组件
+        renderComponent(route) {
+            const container = document.getElementById('page-container');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            if (typeof route.component === 'function') {
+                const content = route.component(route.params);
+                container.innerHTML = content;
+            } else if (typeof route.component === 'string') {
+                container.innerHTML = route.component;
+            }
+
+            // 添加动画类
+            container.classList.add('page-enter');
+            requestAnimationFrame(() => {
+                container.classList.add('page-enter-active');
+            });
+
+            // 更新面包屑
+            this.updateBreadcrumb(route);
+
+            // 更新导航高亮
+            this.updateNavActive(route.path);
+        },
+
+        // 更新面包屑
+        updateBreadcrumb(route) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (!breadcrumb) return;
+
+            const parts = [
+                { name: '首页', path: '/dashboard' }
+            ];
+
+            if (route.meta.parent) {
+                const parent = this.routes.get(route.meta.parent);
+                if (parent) {
+                    parts.push({ name: parent.name, path: parent.path });
+                }
+            }
+            parts.push({ name: route.name, path: route.path });
+
+            breadcrumb.innerHTML = parts.map((part, i) => {
+                const isLast = i === parts.length - 1;
+                if (isLast) {
+                    return `<span class="text-[var(--text-primary)] font-medium">${part.name}</span>`;
+                }
+                return `<a href="#${part.path}" class="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">${part.name}</a><span class="mx-2 text-[var(--text-muted)]">/</span>`;
+            }).join('');
+        },
+
+        // 更新导航高亮
+        updateNavActive(path) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                const href = item.getAttribute('data-path');
+                if (href === path || (path.startsWith(href) && href !== '/')) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        },
+
+        // 初始化
+        init() {
+            // 监听 hash 变化
+            window.addEventListener('hashchange', () => {
+                const path = window.location.hash.slice(1) || '/dashboard';
+                this.push(path);
+            });
+
+            // 初始导航
+            const initialPath = window.location.hash.slice(1) || '/dashboard';
+            this.push(initialPath);
+        }
+    };
+
+    // ============================================
+    // 选项卡管理器
+    // ============================================
+    const TabManager = {
+        tabs: [],
+        activeTab: null,
+        maxTabs: 15,
+
+        init() {
+            const dropdownBtn = document.getElementById('tabs-dropdown-btn');
+            const dropdown = document.getElementById('tabs-dropdown');
+
+            if (dropdownBtn && dropdown) {
+                dropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('hidden');
+                });
+
+                document.addEventListener('click', () => {
+                    dropdown.classList.add('hidden');
+                });
+            }
+        },
+
+        addTab(route) {
+            // 检查是否已存在
+            const existing = this.tabs.find(t => t.path === route.path);
+            if (existing) {
+                this.activateTab(route.path);
+                return;
+            }
+
+            // 限制最大数量
+            if (this.tabs.length >= this.maxTabs) {
+                this.tabs.shift();
+            }
+
+            this.tabs.push({
+                path: route.path,
+                name: route.name,
+                icon: route.icon,
+                closable: route.meta.closable !== false
+            });
+
+            this.activateTab(route.path);
+            this.render();
+        },
+
+        activateTab(path) {
+            this.activeTab = path;
+            this.render();
+        },
+
+        closeTab(path, event) {
+            if (event) event.stopPropagation();
+
+            const index = this.tabs.findIndex(t => t.path === path);
+            if (index === -1) return;
+
+            // 不允许关闭最后一个
+            if (this.tabs.length === 1) return;
+
+            this.tabs.splice(index, 1);
+
+            // 如果关闭的是当前激活的，切换到相邻的
+            if (this.activeTab === path) {
+                const newIndex = Math.min(index, this.tabs.length - 1);
+                Router.push(this.tabs[newIndex].path);
+            }
+
+            this.render();
+        },
+
+        closeOtherTabs() {
+            this.tabs = this.tabs.filter(t => t.path === this.activeTab);
+            this.render();
+        },
+
+        closeAllTabs() {
+            const homeTab = this.tabs.find(t => t.path === '/dashboard');
+            this.tabs = homeTab ? [homeTab] : [this.tabs[0]];
+            Router.push(this.tabs[0].path);
+            this.render();
+        },
+
+        render() {
+            const container = document.getElementById('tabs-container');
+            if (!container) return;
+
+            container.innerHTML = this.tabs.map(tab => {
+                const isActive = tab.path === this.activeTab;
+                return `
+            <div class="tab-item flex items-center gap-2 px-4 h-full border-r border-[var(--border)] ${isActive ? 'active' : ''}"
+                 onclick="Router.push('${tab.path}')">
+              ${tab.icon ? `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${tab.icon}</svg>` : ''}
+              <span class="text-xs whitespace-nowrap">${tab.name}</span>
+              ${tab.closable && this.tabs.length > 1 ? `
+                <button class="tab-close p-0.5 rounded hover:bg-[var(--bg-elevated)]" onclick="TabManager.closeTab('${tab.path}', event)">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              ` : ''}
+            </div>
+          `;
+            }).join('');
+        }
+    };
+
+    // ============================================
+    // 导航菜单配置
+    // ============================================
+    const navMenuItems = [
+        { path: '/dashboard', name: '仪表盘', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
+        { path: '/users', name: '用户管理', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>' },
+        { path: '/orders', name: '订单管理', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>' },
+        { path: '/products', name: '产品管理', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>' },
+        { path: '/analytics', name: '数据分析', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>' },
+        { path: '/reports', name: '报表中心', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>' },
+    ];
+
+    const systemMenuItems = [
+        { path: '/settings', name: '系统设置', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>' },
+        { path: '/logs', name: '操作日志', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
+    ];
+
+    // ============================================
+    // 渲染导航菜单
+    // ============================================
+    function renderNavMenu() {
+        const navMenu = document.getElementById('nav-menu');
+        const systemMenu = document.getElementById('system-menu');
+
+        if (navMenu) {
+            navMenu.innerHTML = navMenuItems.map(item => `
+          <li>
+            <a href="#${item.path}" data-path="${item.path}"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <svg class="nav-icon w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${item.icon}
+              </svg>
+              <span class="nav-text text-sm whitespace-nowrap transition-all duration-300">${item.name}</span>
+            </a>
+          </li>
+        `).join('');
+        }
+
+        if (systemMenu) {
+            systemMenu.innerHTML = systemMenuItems.map(item => `
+          <li>
+            <a href="#${item.path}" data-path="${item.path}"
+               class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <svg class="nav-icon w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${item.icon}
+              </svg>
+              <span class="nav-text text-sm whitespace-nowrap transition-all duration-300">${item.name}</span>
+            </a>
+          </li>
+        `).join('');
+        }
+    }
+
+    // ============================================
+    // 页面组件定义
+    // ============================================
+    const DashboardPage = () => {
+        const stats = [
+            { label: '总收入', value: '¥284,520', change: '+12.5%', positive: true, color: 'accent' },
+            { label: '订单数', value: '1,842', change: '+8.2%', positive: true, color: 'success' },
+            { label: '新用户', value: '567', change: '+23.1%', positive: true, color: 'warning' },
+            { label: '退款率', value: '2.3%', change: '-0.8%', positive: true, color: 'error' },
+        ];
+
+        const recentOrders = [
+            { id: 'ORD-2024-001', customer: '张伟', amount: '¥2,580', status: 'success', statusText: '已完成' },
+            { id: 'ORD-2024-002', customer: '李娜', amount: '¥1,290', status: 'pending', statusText: '处理中' },
+            { id: 'ORD-2024-003', customer: '王强', amount: '¥4,120', status: 'warning', statusText: '待发货' },
+            { id: 'ORD-2024-004', customer: '赵敏', amount: '¥890', status: 'success', statusText: '已完成' },
+            { id: 'ORD-2024-005', customer: '刘洋', amount: '¥3,450', status: 'error', statusText: '已取消' },
+        ];
+
+        return `
+        <div class="space-y-6">
+          <!-- 统计卡片 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            ${stats.map((stat, i) => `
+              <div class="card stat-card ${stat.color} p-5 animate-fadeInUp" style="animation-delay: ${i * 0.1}s; opacity: 0;">
+                <div class="flex items-center justify-between">
+                  <p class="text-[var(--text-muted)] text-sm">${stat.label}</p>
+                  <span class="text-xs ${stat.positive ? 'text-[var(--success)]' : 'text-[var(--error)]'}">${stat.change}</span>
+                </div>
+                <p class="text-2xl font-semibold mt-2 font-mono">${stat.value}</p>
+                <div class="mt-3 h-1 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                  <div class="h-full bg-[var(--${stat.color})] rounded-full" style="width: ${60 + i * 10}%"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 图表和订单 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 图表 -->
+            <div class="card p-5 lg:col-span-2 animate-fadeInUp" style="animation-delay: 0.4s; opacity: 0;">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold">收入趋势</h3>
+                <select class="input-field w-auto text-sm py-1.5">
+                  <option>最近7天</option>
+                  <option>最近30天</option>
+                  <option>最近90天</option>
+                </select>
+              </div>
+              <div class="chart-container" id="revenue-chart"></div>
+            </div>
+
+            <!-- 快捷操作 -->
+            <div class="card p-5 animate-fadeInUp" style="animation-delay: 0.5s; opacity: 0;">
+              <h3 class="font-semibold mb-4">快捷操作</h3>
+              <div class="space-y-3">
+                <button class="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors text-left">
+                  <div class="w-10 h-10 rounded-lg bg-[var(--accent-dim)] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium">新建订单</p>
+                    <p class="text-xs text-[var(--text-muted)]">创建新的销售订单</p>
+                  </div>
+                </button>
+                <button class="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors text-left">
+                  <div class="w-10 h-10 rounded-lg bg-[rgba(245,158,11,0.15)] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium">添加用户</p>
+                    <p class="text-xs text-[var(--text-muted)]">邀请新用户加入</p>
+                  </div>
+                </button>
+                <button class="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-elevated)] transition-colors text-left">
+                  <div class="w-10 h-10 rounded-lg bg-[rgba(16,185,129,0.15)] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium">导出报表</p>
+                    <p class="text-xs text-[var(--text-muted)]">下载月度报告</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最近订单 -->
+          <div class="card animate-fadeInUp" style="animation-delay: 0.6s; opacity: 0;">
+            <div class="p-5 border-b border-[var(--border)] flex items-center justify-between">
+              <h3 class="font-semibold">最近订单</h3>
+              <a href="#/orders" class="text-sm text-[var(--accent)] hover:underline">查看全部</a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>订单号</th>
+                    <th>客户</th>
+                    <th>金额</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentOrders.map(order => `
+                    <tr>
+                      <td class="font-mono text-sm">${order.id}</td>
+                      <td>${order.customer}</td>
+                      <td class="font-mono">${order.amount}</td>
+                      <td><span class="status-badge ${order.status}">${order.statusText}</span></td>
+                      <td>
+                        <button class="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const UsersPage = () => {
+        const users = [
+            { id: 1, name: '张伟', email: 'zhangwei@example.com', role: '管理员', status: 'success', statusText: '正常', lastLogin: '2024-01-15 14:30' },
+            { id: 2, name: '李娜', email: 'lina@example.com', role: '编辑', status: 'success', statusText: '正常', lastLogin: '2024-01-15 12:15' },
+            { id: 3, name: '王强', email: 'wangqiang@example.com', role: '用户', status: 'warning', statusText: '待验证', lastLogin: '2024-01-14 09:45' },
+            { id: 4, name: '赵敏', email: 'zhaomin@example.com', role: '用户', status: 'error', statusText: '已禁用', lastLogin: '2024-01-10 16:20' },
+            { id: 5, name: '刘洋', email: 'liuyang@example.com', role: '编辑', status: 'success', statusText: '正常', lastLogin: '2024-01-15 10:00' },
+        ];
+
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <!-- 工具栏 -->
+          <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <input type="text" placeholder="搜索用户..." class="input-field w-64 pl-10">
+                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </div>
+              <select class="input-field w-auto">
+                <option>全部角色</option>
+                <option>管理员</option>
+                <option>编辑</option>
+                <option>用户</option>
+              </select>
+            </div>
+            <button class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              添加用户
+            </button>
+          </div>
+
+          <!-- 用户表格 -->
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <input type="checkbox" class="w-4 h-4 rounded border-[var(--border)]">
+                    </th>
+                    <th>用户</th>
+                    <th>邮箱</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>最后登录</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${users.map(user => `
+                    <tr>
+                      <td>
+                        <input type="checkbox" class="w-4 h-4 rounded border-[var(--border)]">
+                      </td>
+                      <td>
+                        <div class="flex items-center gap-3">
+                          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--warning)] flex items-center justify-center text-xs font-semibold text-[var(--bg-primary)]">
+                            ${user.name.slice(0, 1)}
+                          </div>
+                          <span class="font-medium">${user.name}</span>
+                        </div>
+                      </td>
+                      <td class="text-[var(--text-secondary)]">${user.email}</td>
+                      <td>
+                        <span class="px-2 py-1 text-xs rounded bg-[var(--bg-secondary)]">${user.role}</span>
+                      </td>
+                      <td><span class="status-badge ${user.status}">${user.statusText}</span></td>
+                      <td class="text-[var(--text-muted)] text-sm">${user.lastLogin}</td>
+                      <td>
+                        <div class="flex items-center gap-2">
+                          <button class="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                            </svg>
+                          </button>
+                          <button class="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--error)] transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            <!-- 分页 -->
+            <div class="p-4 border-t border-[var(--border)] flex items-center justify-between">
+              <span class="text-sm text-[var(--text-muted)]">显示 1-5 条，共 128 条</span>
+              <div class="flex items-center gap-1">
+                <button class="px-3 py-1.5 rounded text-sm hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50" disabled>上一页</button>
+                <button class="px-3 py-1.5 rounded text-sm bg-[var(--accent)] text-[var(--bg-primary)]">1</button>
+                <button class="px-3 py-1.5 rounded text-sm hover:bg-[var(--bg-elevated)] transition-colors">2</button>
+                <button class="px-3 py-1.5 rounded text-sm hover:bg-[var(--bg-elevated)] transition-colors">3</button>
+                <span class="px-2 text-[var(--text-muted)]">...</span>
+                <button class="px-3 py-1.5 rounded text-sm hover:bg-[var(--bg-elevated)] transition-colors">26</button>
+                <button class="px-3 py-1.5 rounded text-sm hover:bg-[var(--bg-elevated)] transition-colors">下一页</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const OrdersPage = () => {
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <div class="card p-5">
+            <h3 class="font-semibold mb-4">订单管理</h3>
+            <p class="text-[var(--text-secondary)]">订单列表和详情管理功能。这里可以查看、编辑、导出订单数据。</p>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button class="btn-primary px-4 py-2 rounded-lg">新建订单</button>
+              <button class="btn-ghost px-4 py-2 rounded-lg">导出Excel</button>
+              <button class="btn-ghost px-4 py-2 rounded-lg">批量处理</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card p-5">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-[var(--accent-dim)] flex items-center justify-center">
+                  <svg class="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold font-mono">¥125,430</p>
+                  <p class="text-xs text-[var(--text-muted)]">今日销售额</p>
+                </div>
+              </div>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-[rgba(245,158,11,0.15)] flex items-center justify-center">
+                  <svg class="w-5 h-5 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold font-mono">89</p>
+                  <p class="text-xs text-[var(--text-muted)]">待处理订单</p>
+                </div>
+              </div>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-[rgba(16,185,129,0.15)] flex items-center justify-center">
+                  <svg class="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold font-mono">1,247</p>
+                  <p class="text-xs text-[var(--text-muted)]">本月完成</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const ProductsPage = () => {
+        const products = [
+            { id: 1, name: '企业版订阅', category: '订阅服务', price: '¥999/月', stock: '无限', status: 'active' },
+            { id: 2, name: '专业版订阅', category: '订阅服务', price: '¥499/月', stock: '无限', status: 'active' },
+            { id: 3, name: 'API调用包', category: '增值服务', price: '¥0.01/次', stock: '充足', status: 'active' },
+            { id: 4, name: '数据存储扩展', category: '存储服务', price: '¥199/100GB', stock: '充足', status: 'active' },
+            { id: 5, name: '定制开发服务', category: '服务', price: '询价', stock: '-', status: 'pending' },
+        ];
+
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <h2 class="text-xl font-semibold">产品管理</h2>
+            <button class="btn-primary px-4 py-2 rounded-lg flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              添加产品
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${products.map(product => `
+              <div class="card p-5 hover:border-[var(--accent)]">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h4 class="font-medium">${product.name}</h4>
+                    <p class="text-sm text-[var(--text-muted)] mt-1">${product.category}</p>
+                  </div>
+                  <span class="status-badge ${product.status === 'active' ? 'success' : 'pending'}">
+                    ${product.status === 'active' ? '上架中' : '待审核'}
+                  </span>
+                </div>
+                <div class="mt-4 flex items-end justify-between">
+                  <div>
+                    <p class="text-lg font-semibold font-mono text-[var(--accent)]">${product.price}</p>
+                    <p class="text-xs text-[var(--text-muted)]">库存: ${product.stock}</p>
+                  </div>
+                  <button class="btn-ghost px-3 py-1.5 rounded text-sm">编辑</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    const AnalyticsPage = () => {
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <div class="card p-5">
+            <h3 class="font-semibold mb-4">数据分析中心</h3>
+            <div class="chart-container" id="analytics-chart" style="height: 300px;"></div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card p-5">
+              <h4 class="font-medium mb-4">流量来源</h4>
+              <div class="space-y-3">
+                ${[
+            { name: '直接访问', value: 35, color: 'var(--accent)' },
+            { name: '搜索引擎', value: 28, color: 'var(--warning)' },
+            { name: '社交媒体', value: 22, color: 'var(--success)' },
+            { name: '推荐链接', value: 15, color: 'var(--error)' },
+        ].map(item => `
+                  <div>
+                    <div class="flex justify-between text-sm mb-1">
+                      <span>${item.name}</span>
+                      <span class="font-mono">${item.value}%</span>
+                    </div>
+                    <div class="h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                      <div class="h-full rounded-full transition-all duration-1000" style="width: ${item.value}%; background: ${item.color};"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="card p-5">
+              <h4 class="font-medium mb-4">地区分布</h4>
+              <div class="space-y-2">
+                ${[
+            { region: '北京', users: 12580, percent: 25 },
+            { region: '上海', users: 10890, percent: 22 },
+            { region: '广州', users: 8760, percent: 18 },
+            { region: '深圳', users: 7650, percent: 15 },
+            { region: '杭州', users: 5120, percent: 10 },
+        ].map(item => `
+                  <div class="flex items-center justify-between p-2 rounded hover:bg-[var(--bg-secondary)] transition-colors">
+                    <span class="text-sm">${item.region}</span>
+                    <div class="flex items-center gap-4">
+                      <span class="text-xs text-[var(--text-muted)]">${item.users.toLocaleString()} 用户</span>
+                      <span class="text-sm font-mono">${item.percent}%</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const ReportsPage = () => {
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${[
+            { name: '销售月报', date: '2024-01', type: 'PDF', size: '2.4MB' },
+            { name: '用户分析报告', date: '2024-01', type: 'Excel', size: '1.8MB' },
+            { name: '运营周报', date: '2024-W2', type: 'PDF', size: '856KB' },
+            { name: '财务报表', date: '2023-Q4', type: 'Excel', size: '3.2MB' },
+            { name: '产品使用报告', date: '2024-01', type: 'PDF', size: '1.1MB' },
+            { name: '系统运行报告', date: '2024-01', type: 'PDF', size: '542KB' },
+        ].map(report => `
+              <div class="card p-5">
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-lg bg-[var(--accent-dim)] flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-medium truncate">${report.name}</h4>
+                    <p class="text-xs text-[var(--text-muted)] mt-1">${report.date} · ${report.type} · ${report.size}</p>
+                  </div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                  <button class="flex-1 btn-ghost px-3 py-1.5 rounded text-sm">预览</button>
+                  <button class="flex-1 btn-primary px-3 py-1.5 rounded text-sm">下载</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    const SettingsPage = () => {
+        return `
+        <div class="space-y-6 animate-fadeInUp max-w-3xl">
+          <div class="card p-5">
+            <h3 class="font-semibold mb-4">基本设置</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm text-[var(--text-muted)] mb-2">系统名称</label>
+                <input type="text" class="input-field" value="EnterpriseOS">
+              </div>
+              <div>
+                <label class="block text-sm text-[var(--text-muted)] mb-2">系统Logo URL</label>
+                <input type="text" class="input-field" placeholder="https://example.com/logo.png">
+              </div>
+              <div>
+                <label class="block text-sm text-[var(--text-muted)] mb-2">时区设置</label>
+                <select class="input-field">
+                  <option>Asia/Shanghai (UTC+8)</option>
+                  <option>America/New_York (UTC-5)</option>
+                  <option>Europe/London (UTC+0)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-semibold mb-4">通知设置</h3>
+            <div class="space-y-3">
+              ${[
+            { name: '邮件通知', desc: '接收系统邮件提醒' },
+            { name: '浏览器推送', desc: '浏览器桌面推送通知' },
+            { name: '短信通知', desc: '重要事件短信提醒' },
+        ].map(item => `
+                <div class="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]">
+                  <div>
+                    <p class="font-medium text-sm">${item.name}</p>
+                    <p class="text-xs text-[var(--text-muted)]">${item.desc}</p>
+                  </div>
+                  <button class="w-12 h-6 rounded-full bg-[var(--accent)] relative" onclick="this.classList.toggle('bg-[var(--accent)]');this.classList.toggle('bg-[var(--border)]');">
+                    <span class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform" style="transform: translateX(24px);"></span>
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <button class="btn-primary px-6 py-2 rounded-lg">保存设置</button>
+            <button class="btn-ghost px-6 py-2 rounded-lg">重置</button>
+          </div>
+        </div>
+      `;
+    };
+
+    const LogsPage = () => {
+        const logs = [
+            { time: '2024-01-15 14:32:15', user: 'Admin', action: '用户管理', detail: '创建新用户: test@example.com', type: 'info' },
+            { time: '2024-01-15 14:28:03', user: 'Admin', action: '系统设置', detail: '修改邮件通知配置', type: 'warning' },
+            { time: '2024-01-15 14:15:42', user: '张伟', action: '订单管理', detail: '导出订单数据 Excel', type: 'info' },
+            { time: '2024-01-15 13:58:21', user: '李娜', action: '登录', detail: 'IP: 192.168.1.100', type: 'success' },
+            { time: '2024-01-15 13:45:10', user: 'System', action: '定时任务', detail: '数据库备份完成', type: 'info' },
+            { time: '2024-01-15 13:30:00', user: '赵敏', action: '登录失败', detail: '密码错误 (第3次)', type: 'error' },
+        ];
+
+        return `
+        <div class="space-y-6 animate-fadeInUp">
+          <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div class="flex items-center gap-3">
+              <input type="date" class="input-field w-auto">
+              <select class="input-field w-auto">
+                <option>全部类型</option>
+                <option value="info">信息</option>
+                <option value="warning">警告</option>
+                <option value="error">错误</option>
+              </select>
+            </div>
+            <button class="btn-ghost px-4 py-2 rounded-lg">导出日志</button>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>用户</th>
+                    <th>操作</th>
+                    <th>详情</th>
+                    <th>类型</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${logs.map(log => `
+                    <tr>
+                      <td class="font-mono text-sm text-[var(--text-muted)]">${log.time}</td>
+                      <td>${log.user}</td>
+                      <td>${log.action}</td>
+                      <td class="text-[var(--text-secondary)]">${log.detail}</td>
+                      <td>
+                        <span class="status-badge ${log.type === 'error' ? 'error' : log.type === 'warning' ? 'warning' : 'success'}">
+                          ${log.type === 'error' ? '错误' : log.type === 'warning' ? '警告' : '信息'}
+                        </span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    // ============================================
+    // 注册路由
+    // ============================================
+    Router.registerRoutes({
+        '/dashboard': {
+            name: '仪表盘',
+            component: DashboardPage,
+            icon: navMenuItems[0].icon,
+            meta: { closable: false }
+        },
+        '/users': {
+            name: '用户管理',
+            component: UsersPage,
+            icon: navMenuItems[1].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/orders': {
+            name: '订单管理',
+            component: OrdersPage,
+            icon: navMenuItems[2].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/products': {
+            name: '产品管理',
+            component: ProductsPage,
+            icon: navMenuItems[3].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/analytics': {
+            name: '数据分析',
+            component: AnalyticsPage,
+            icon: navMenuItems[4].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/reports': {
+            name: '报表中心',
+            component: ReportsPage,
+            icon: navMenuItems[5].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/settings': {
+            name: '系统设置',
+            component: SettingsPage,
+            icon: systemMenuItems[0].icon,
+            meta: { parent: '/dashboard' }
+        },
+        '/logs': {
+            name: '操作日志',
+            component: LogsPage,
+            icon: systemMenuItems[1].icon,
+            meta: { parent: '/settings' }
+        }
+    });
+
+    // 路由守卫示例
+    Router.beforeEach((to, from) => {
+        // 可以在这里添加权限检查
+        console.log(`Navigating from ${from?.path || 'none'} to ${to.path}`);
+        return true;
+    });
+
+    Router.afterEach((to, from) => {
+        // 页面渲染后的操作
+        initCharts();
+    });
+
+    // ============================================
+    // 图表初始化
+    // ============================================
+    function initCharts() {
+        const revenueChart = document.getElementById('revenue-chart');
+        if (revenueChart) {
+            const data = [35, 42, 38, 55, 48, 62, 58];
+            const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const maxVal = Math.max(...data);
+
+            revenueChart.innerHTML = `
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:rgba(0,212,170,0.3)"/>
+                <stop offset="100%" style="stop-color:rgba(0,212,170,0)"/>
+              </linearGradient>
+            </defs>
+            <path d="${generateAreaPath(data, 400, 180)}" fill="url(#chartGradient)"/>
+            <path d="${generateLinePath(data, 400, 180)}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+            ${data.map((v, i) => {
+                const x = (i / (data.length - 1)) * 400;
+                const y = 180 - (v / maxVal) * 150;
+                return `<circle cx="${x}" cy="${y}" r="4" fill="var(--accent)" class="transition-all hover:r-6"/>`;
+            }).join('')}
+          </svg>
+          <div class="absolute bottom-0 left-0 right-0 flex justify-between px-2 text-xs text-[var(--text-muted)]">
+            ${labels.map(l => `<span>${l}</span>`).join('')}
+          </div>
+        `;
+        }
+    }
+
+    function generateLinePath(data, width, height) {
+        const maxVal = Math.max(...data);
+        const points = data.map((v, i) => {
+            const x = (i / (data.length - 1)) * width;
+            const y = height - (v / maxVal) * (height - 30);
+            return `${x},${y}`;
+        });
+        return `M ${points.join(' L ')}`;
+    }
+
+    function generateAreaPath(data, width, height) {
+        const maxVal = Math.max(...data);
+        const points = data.map((v, i) => {
+            const x = (i / (data.length - 1)) * width;
+            const y = height - (v / maxVal) * (height - 30);
+            return `${x},${y}`;
+        });
+        return `M 0,${height} L ${points.join(' L ')} L ${width},${height} Z`;
+    }
+
+    // ============================================
+    // 侧边栏折叠
+    // ============================================
+    function initSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const collapseBtn = document.getElementById('collapse-btn');
+        const mainContent = document.querySelector('.main-content');
+
+        if (collapseBtn && sidebar) {
+            collapseBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                if (window.innerWidth >= 768) {
+                    mainContent.style.marginLeft = sidebar.classList.contains('collapsed') ? '-188px' : '0';
+                }
+            });
+        }
+
+        // 移动端菜单
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', toggleMobileSidebar);
+        }
+    }
+
+    function toggleMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('hidden');
+    }
+
+    // ============================================
+    // 初始化
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+        renderNavMenu();
+        initSidebar();
+        TabManager.init();
+        Router.init();
+    });
+</script>
+</body>
+</html>

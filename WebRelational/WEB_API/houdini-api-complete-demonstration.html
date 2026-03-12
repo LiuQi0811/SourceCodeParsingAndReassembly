@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Houdini API 完整演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root {
+            --bg: #020617;
+            --card: #020617;
+            --border: #1f2937;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-soft: rgba(59, 130, 246, 0.15);
+            --secondary: #ec4899;
+            --success: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0, #020617 60%, #000 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.15;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-blob:nth-child(1) {
+            width: 600px;
+            height: 600px;
+            background: var(--primary);
+            top: -200px;
+            right: -200px;
+        }
+
+        .bg-blob:nth-child(2) {
+            width: 500px;
+            height: 500px;
+            background: var(--secondary);
+            bottom: -150px;
+            left: -150px;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            50% {
+                transform: translate(30px, -30px) scale(1.05);
+            }
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-left h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #e5e7eb;
+        }
+
+        .header-left p {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .badge-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            border-radius: 999px;
+            padding: 4px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.success {
+            border-color: rgba(34, 197, 94, 0.5);
+            color: var(--success);
+        }
+
+        main {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+
+        .card {
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.95);
+        }
+
+        .card-header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #e5e7eb;
+        }
+
+        .card-body {
+            padding: 16px 18px;
+        }
+
+        /* Paint Worklet 演示区 */
+        .paint-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .paint-box {
+            position: relative;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            min-height: 160px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s ease;
+        }
+
+        .paint-box:hover {
+            transform: scale(1.02);
+        }
+
+        .paint-box-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e5e7eb;
+            margin-bottom: 4px;
+        }
+
+        .paint-box-desc {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .paint-box-info {
+            font-size: 10px;
+            color: var(--muted);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .paint-box-info code {
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* 控制面板 */
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        button {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: rgba(15, 23, 42, 0.9);
+            color: #e5e7eb;
+            padding: 10px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: rgba(148, 163, 184, 0.6);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        button.primary:hover {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        button.secondary {
+            background: linear-gradient(135deg, var(--secondary), #be185d);
+            border-color: var(--secondary);
+            color: #fff;
+        }
+
+        button.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+        }
+
+        button.danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        /* 信息面板 */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .info-item {
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.8);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+        }
+
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e5e7eb;
+            word-break: break-all;
+        }
+
+        .info-value.highlight {
+            color: var(--primary);
+        }
+
+        /* 代码展示区 */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #e5e7eb;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .code-block .keyword {
+            color: #c792ea;
+        }
+
+        .code-block .string {
+            color: #c3e88d;
+        }
+
+        .code-block .number {
+            color: #f78c6c;
+        }
+
+        .code-block .comment {
+            color: #546e7a;
+        }
+
+        /* 状态指示器 */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            font-size: 11px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot.warning {
+            background: #f59e0b;
+            box-shadow: 0 0 8px #f59e0b;
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        footer {
+            position: relative;
+            z-index: 1;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .footer-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        .fade-in:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .fade-in:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 640px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .badge-group {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .paint-demo {
+                grid-template-columns: 1fr;
+            }
+
+            footer {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .footer-group {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<!-- 背景装饰 -->
+<div class="bg-decoration" aria-hidden="true">
+    <div class="bg-blob"></div>
+    <div class="bg-blob"></div>
+</div>
+
+<header>
+    <div class="header-left">
+        <h1>Houdini API 完整演示</h1>
+        <p>CSS Painting API + Typed OM + CSS.registerProperty</p>
+    </div>
+    <div class="badge-group">
+        <span class="badge" id="support-badge">检测中...</span>
+        <span class="badge">单文件可运行</span>
+    </div>
+</header>
+
+<main>
+    <!-- Paint Worklet 演示区 -->
+    <section class="card fade-in">
+        <div class="card-header">
+            <span class="card-title">Paint Worklet 自定义绘制</span>
+            <div class="status-bar">
+                <div class="status-dot" id="paint-status"></div>
+                <span id="paint-status-text">初始化中...</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="paint-demo">
+                <div class="paint-box" id="paint-box-1">
+                    <div>
+                        <div class="paint-box-title">圆形背景</div>
+                        <div class="paint-box-desc">动态绘制的圆形图案</div>
+                    </div>
+                    <div class="paint-box-info">
+                        <code>--circle-color</code> 可动画
+                    </div>
+                </div>
+                <div class="paint-box" id="paint-box-2">
+                    <div>
+                        <div class="paint-box-title">网格图案</div>
+                        <div class="paint-box-desc">参数化网格绘制</div>
+                    </div>
+                    <div class="paint-box-info">
+                        <code>--grid-size</code> 控制密度
+                    </div>
+                </div>
+                <div class="paint-box" id="paint-box-3">
+                    <div>
+                        <div class="paint-box-title">波浪效果</div>
+                        <div class="paint-box-desc">平滑波浪动画</div>
+                    </div>
+                    <div class="paint-box-info">
+                        <code>--wave-color</code> 渐变色
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid-2">
+        <!-- 控制面板 -->
+        <section class="card fade-in">
+            <div class="card-header">
+                <span class="card-title">交互控制</span>
+            </div>
+            <div class="card-body">
+                <div class="control-grid">
+                    <button type="button" class="primary" onclick="randomizeColors()">
+                        随机配色
+                    </button>
+                    <button type="button" class="secondary" onclick="animateProperties()">
+                        动画演示
+                    </button>
+                    <button type="button" onclick="typedOMDemo()">
+                        Typed OM 演示
+                    </button>
+                    <button type="button" onclick="inspectProperties()">
+                        检查属性
+                    </button>
+                    <button type="button" class="danger" onclick="resetAll()">
+                        重置全部
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 状态信息 -->
+        <section class="card fade-in">
+            <div class="card-header">
+                <span class="card-title">运行时状态</span>
+            </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">CSS.registerProperty</span>
+                        <span class="info-value" id="info-register">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Paint Worklet</span>
+                        <span class="info-value" id="info-worklet">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Typed OM</span>
+                        <span class="info-value" id="info-typed">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">当前动画</span>
+                        <span class="info-value" id="info-animation">无</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 代码展示 -->
+    <section class="card fade-in">
+        <div class="card-header">
+            <span class="card-title">核心代码</span>
+        </div>
+        <div class="card-body">
+            <div class="code-block" id="code-display">
+                <span class="comment">// 初始化中...</span>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div class="footer-group">
+        <div class="footer-item">
+            <span class="status-dot"></span>
+            <span>Houdini API 演示</span>
+        </div>
+        <div class="footer-item">
+            <span>Paint API + Typed OM + Properties & Values API</span>
+        </div>
+    </div>
+    <div class="footer-item">
+        <span id="browser-info">-</span>
+    </div>
+</footer>
+
+<script>
+    // ========================================
+    // Houdini API 完整演示 - 单文件实现
+    // ========================================
+
+    // Paint Worklet 代码（内联）
+    const paintWorkletCode = `
+      // 圆形背景 Worklet
+      registerPaint('circle-pattern', class {
+        static get inputProperties() {
+          return ['--circle-color', --circle-count'];
+        }
+
+        static get contextOptions() {
+          return { alpha: true };
+        }
+
+        paint(ctx, size, props) {
+          const color = props.get('--circle-color') || '#3b82f6';
+          const count = parseInt(props.get('--circle-count')) || 5;
+
+          // 背景
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, 0, size.width, size.height);
+
+          // 绘制多个圆形
+          for (let i = 0; i < count; i++) {
+            const radius = Math.min(size.width, size.height) * (0.1 + i * 0.05);
+            const x = size.width * (0.3 + i * 0.1);
+            const y = size.height * (0.7 - i * 0.1);
+
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.3 - i * 0.05;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+      });
+
+      // 网格图案 Worklet
+      registerPaint('grid-pattern', class {
+        static get inputProperties() {
+          return ['--grid-color', '--grid-size'];
+        }
+
+        paint(ctx, size, props) {
+          const color = props.get('--grid-color') || '#3b82f6';
+          const gridSize = parseInt(props.get('--grid-size')) || 20;
+
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, 0, size.width, size.height);
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 0.5;
+          ctx.globalAlpha = 0.3;
+
+          // 垂直线
+          for (let x = 0; x < size.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, size.height);
+            ctx.stroke();
+          }
+
+          // 水平线
+          for (let y = 0; y < size.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(size.width, y);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1;
+        }
+      });
+
+      // 波浪效果 Worklet
+      registerPaint('wave-pattern', class {
+        static get inputProperties() {
+          return ['--wave-color', '--wave-amplitude'];
+        }
+
+        paint(ctx, size, props) {
+          const color = props.get('--wave-color') || '#ec4899';
+          const amplitude = parseFloat(props.get('--wave-amplitude')) || 20;
+
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, 0, size.width, size.height);
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+
+          for (let wave = 0; wave < 3; wave++) {
+            ctx.beginPath();
+            ctx.globalAlpha = 0.5 - wave * 0.15;
+
+            for (let x = 0; x <= size.width; x++) {
+              const y = size.height * (0.3 + wave * 0.2) +
+                       Math.sin(x * 0.02 + wave) * amplitude;
+
+              if (x === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1;
+        }
+      });
+    `;
+
+    // 状态管理
+    const state = {
+        paintSupported: false,
+        registerSupported: false,
+        typedOMSupported: false,
+        animationActive: false,
+        animationId: null
+    };
+
+    // DOM 元素缓存
+    const elements = {};
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        cacheElements();
+        checkBrowserSupport();
+        initHoudini();
+        updateBrowserInfo();
+    });
+
+    // 缓存 DOM 元素
+    function cacheElements() {
+        elements.supportBadge = document.getElementById('support-badge');
+        elements.paintStatus = document.getElementById('paint-status');
+        elements.paintStatusText = document.getElementById('paint-status-text');
+        elements.paintBox1 = document.getElementById('paint-box-1');
+        elements.paintBox2 = document.getElementById('paint-box-2');
+        elements.paintBox3 = document.getElementById('paint-box-3');
+        elements.infoRegister = document.getElementById('info-register');
+        elements.infoWorklet = document.getElementById('info-worklet');
+        elements.infoTyped = document.getElementById('info-typed');
+        elements.infoAnimation = document.getElementById('info-animation');
+        elements.codeDisplay = document.getElementById('code-display');
+        elements.browserInfo = document.getElementById('browser-info');
+    }
+
+    // 检查浏览器支持
+    function checkBrowserSupport() {
+        state.paintSupported = 'paintWorklet' in CSS;
+        state.registerSupported = 'registerProperty' in CSS;
+        state.typedOMSupported = 'attributeStyleMap' in Element.prototype;
+
+        // 更新支持状态显示
+        const supportLevel =
+            (state.paintSupported ? 1 : 0) +
+            (state.registerSupported ? 1 : 0) +
+            (state.typedOMSupported ? 1 : 0);
+
+        if (supportLevel === 3) {
+            elements.supportBadge.textContent = '完全支持';
+            elements.supportBadge.classList.add('success');
+        } else if (supportLevel > 0) {
+            elements.supportBadge.textContent = '部分支持';
+            elements.supportBadge.style.borderColor = '#f59e0b';
+            elements.supportBadge.style.color = '#fbbf24';
+        } else {
+            elements.supportBadge.textContent = '不支持';
+            elements.supportBadge.style.borderColor = '#ef4444';
+            elements.supportBadge.style.color = '#f87171';
+        }
+
+        // 更新状态信息
+        elements.infoRegister.textContent = state.registerSupported ? '支持' : '不支持';
+        elements.infoWorklet.textContent = state.paintSupported ? '支持' : '不支持';
+        elements.infoTyped.textContent = state.typedOMSupported ? '支持' : '不支持';
+
+        elements.infoRegister.classList.toggle('highlight', state.registerSupported);
+        elements.infoWorklet.classList.toggle('highlight', state.paintSupported);
+        elements.infoTyped.classList.toggle('highlight', state.typedOMSupported);
+    }
+
+    // 初始化 Houdini API
+    async function initHoudini() {
+        // 1. 注册自定义属性
+        if (state.registerSupported) {
+            registerCustomProperties();
+            updateCodeDisplay('registerProperty');
+        }
+
+        // 2. 加载 Paint Worklet
+        if (state.paintSupported) {
+            try {
+                await loadPaintWorklet();
+                elements.paintStatusText.textContent = 'Paint Worklet 已加载';
+                applyPaintStyles();
+            } catch (err) {
+                console.error('Paint Worklet 加载失败:', err);
+                elements.paintStatusText.textContent = '加载失败';
+                elements.paintStatus.classList.add('error');
+                applyFallbackStyles();
+            }
+        } else {
+            elements.paintStatusText.textContent = '不支持 Paint API';
+            elements.paintStatus.classList.add('warning');
+            applyFallbackStyles();
+        }
+    }
+
+    // 注册自定义 CSS 属性
+    function registerCustomProperties() {
+        const properties = [
+            {
+                name: '--circle-color',
+                syntax: '<color>',
+                inherits: false,
+                initialValue: '#3b82f6'
+            },
+            {
+                name: '--circle-count',
+                syntax: '<integer>',
+                inherits: false,
+                initialValue: '5'
+            },
+            {
+                name: '--grid-color',
+                syntax: '<color>',
+                inherits: false,
+                initialValue: '#22c55e'
+            },
+            {
+                name: '--grid-size',
+                syntax: '<length>',
+                inherits: false,
+                initialValue: '20px'
+            },
+            {
+                name: '--wave-color',
+                syntax: '<color>',
+                inherits: false,
+                initialValue: '#ec4899'
+            },
+            {
+                name: '--wave-amplitude',
+                syntax: '<length>',
+                inherits: false,
+                initialValue: '20px'
+            }
+        ];
+
+        properties.forEach(prop => {
+            try {
+                CSS.registerProperty(prop);
+                console.log(`已注册自定义属性: ${prop.name}`);
+            } catch (err) {
+                // 属性可能已存在
+                console.warn(`注册属性 ${prop.name} 失败:`, err.message);
+            }
+        });
+    }
+
+    // 加载 Paint Worklet (使用 Blob URL)
+    async function loadPaintWorklet() {
+        const blob = new Blob([paintWorkletCode], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+
+        try {
+            await CSS.paintWorklet.addModule(url);
+            console.log('Paint Worklet 加载成功');
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
+
+    // 应用 Paint 样式
+    function applyPaintStyles() {
+        if (!state.paintSupported) return;
+
+        // 使用 Typed OM 设置样式
+        if (state.typedOMSupported) {
+            elements.paintBox1.attributeStyleMap.set('--circle-color', '#3b82f6');
+            elements.paintBox1.attributeStyleMap.set('--circle-count', CSS.number(5));
+            elements.paintBox1.attributeStyleMap.set('background-image', 'paint(circle-pattern)');
+
+            elements.paintBox2.attributeStyleMap.set('--grid-color', '#22c55e');
+            elements.paintBox2.attributeStyleMap.set('--grid-size', CSS.px(20));
+            elements.paintBox2.attributeStyleMap.set('background-image', 'paint(grid-pattern)');
+
+            elements.paintBox3.attributeStyleMap.set('--wave-color', '#ec4899');
+            elements.paintBox3.attributeStyleMap.set('--wave-amplitude', CSS.px(20));
+            elements.paintBox3.attributeStyleMap.set('background-image', 'paint(wave-pattern)');
+        } else {
+            // 降级到普通样式
+            elements.paintBox1.style.cssText = '--circle-color: #3b82f6; --circle-count: 5; background-image: paint(circle-pattern);';
+            elements.paintBox2.style.cssText = '--grid-color: #22c55e; --grid-size: 20px; background-image: paint(grid-pattern);';
+            elements.paintBox3.style.cssText = '--wave-color: #ec4899; --wave-amplitude: 20px; background-image: paint(wave-pattern);';
+        }
+    }
+
+    // 降级样式
+    function applyFallbackStyles() {
+        const fallbacks = [
+            'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
+            'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'
+        ];
+
+        [elements.paintBox1, elements.paintBox2, elements.paintBox3].forEach((box, i) => {
+            box.style.background = fallbacks[i];
+        });
+    }
+
+    // 随机配色
+    function randomizeColors() {
+        const hue1 = Math.floor(Math.random() * 360);
+        const hue2 = (hue1 + 120) % 360;
+        const hue3 = (hue1 + 240) % 360;
+
+        const colors = [
+            `hsl(${hue1}, 70%, 60%)`,
+            `hsl(${hue2}, 70%, 60%)`,
+            `hsl(${hue3}, 70%, 60%)`
+        ];
+
+        if (state.typedOMSupported) {
+            elements.paintBox1.attributeStyleMap.set('--circle-color', colors[0]);
+            elements.paintBox2.attributeStyleMap.set('--grid-color', colors[1]);
+            elements.paintBox3.attributeStyleMap.set('--wave-color', colors[2]);
+        } else {
+            elements.paintBox1.style.setProperty('--circle-color', colors[0]);
+            elements.paintBox2.style.setProperty('--grid-color', colors[1]);
+            elements.paintBox3.style.setProperty('--wave-color', colors[2]);
+        }
+
+        updateCodeDisplay('randomize', colors);
+        console.log('已应用随机配色:', colors);
+    }
+
+    // 动画演示
+    function animateProperties() {
+        if (state.animationActive) {
+            cancelAnimationFrame(state.animationId);
+            state.animationActive = false;
+            elements.infoAnimation.textContent = '已停止';
+            elements.paintStatus.classList.remove('warning');
+            return;
+        }
+
+        state.animationActive = true;
+        elements.infoAnimation.textContent = '运行中';
+        elements.paintStatus.classList.add('warning');
+
+        let frame = 0;
+
+        function animate() {
+            if (!state.animationActive) return;
+
+            frame++;
+            const hue = (frame * 2) % 360;
+            const color = `hsl(${hue}, 70%, 60%)`;
+            const amplitude = 10 + Math.sin(frame * 0.05) * 15;
+            const gridSize = 15 + Math.sin(frame * 0.03) * 10;
+
+            if (state.typedOMSupported) {
+                elements.paintBox1.attributeStyleMap.set('--circle-color', color);
+                elements.paintBox2.attributeStyleMap.set('--grid-size', CSS.px(gridSize));
+                elements.paintBox3.attributeStyleMap.set('--wave-amplitude', CSS.px(amplitude));
+            } else {
+                elements.paintBox1.style.setProperty('--circle-color', color);
+                elements.paintBox2.style.setProperty('--grid-size', `${gridSize}px`);
+                elements.paintBox3.style.setProperty('--wave-amplitude', `${amplitude}px`);
+            }
+
+            state.animationId = requestAnimationFrame(animate);
+        }
+
+        animate();
+        updateCodeDisplay('animate');
+    }
+
+    // Typed OM 演示
+    function typedOMDemo() {
+        if (!state.typedOMSupported) {
+            alert('当前浏览器不支持 CSS Typed OM');
+            return;
+        }
+
+        const box = elements.paintBox1;
+
+        // 演示 Typed OM 的各种操作
+        console.group('Typed OM 演示');
+
+        // 设置值
+        box.attributeStyleMap.set('margin-top', CSS.px(20));
+        box.attributeStyleMap.set('padding', CSS.px(16));
+        box.attributeStyleMap.set('border-radius', CSS.px(12));
+
+        // 读取值
+        const marginTop = box.attributeStyleMap.get('margin-top');
+        console.log('margin-top:', marginTop.value, marginTop.unit);
+
+        // 获取所有设置
+        const entries = [...box.attributeStyleMap.entries()];
+        console.log('所有行内样式:', entries);
+
+        console.groupEnd();
+
+        updateCodeDisplay('typedOM', { marginTop, entries });
+    }
+
+    // 检查属性
+    function inspectProperties() {
+        if (!state.typedOMSupported) {
+            alert('当前浏览器不支持 CSS Typed OM');
+            return;
+        }
+
+        const box = elements.paintBox1;
+        const styles = box.computedStyleMap();
+
+        const relevantProps = [
+            '--circle-color',
+            '--circle-count',
+            'background-image',
+            'margin-top',
+            'padding'
+        ];
+
+        console.group('计算样式检查');
+        relevantProps.forEach(prop => {
+            const value = styles.get(prop);
+            console.log(`${prop}:`, value);
+        });
+        console.groupEnd();
+
+        updateCodeDisplay('inspect', relevantProps);
+    }
+
+    // 重置全部
+    function resetAll() {
+        // 停止动画
+        if (state.animationActive) {
+            cancelAnimationFrame(state.animationId);
+            state.animationActive = false;
+            elements.infoAnimation.textContent = '无';
+            elements.paintStatus.classList.remove('warning');
+        }
+
+        // 重置样式
+        [elements.paintBox1, elements.paintBox2, elements.paintBox3].forEach(box => {
+            if (state.typedOMSupported) {
+                box.attributeStyleMap.clear();
+            } else {
+                box.removeAttribute('style');
+            }
+        });
+
+        // 重新应用 Paint 样式
+        if (state.paintSupported) {
+            applyPaintStyles();
+        } else {
+            applyFallbackStyles();
+        }
+
+        updateCodeDisplay('reset');
+        console.log('已重置所有样式');
+    }
+
+    // 更新代码显示
+    function updateCodeDisplay(type, data) {
+        let code = '';
+
+        switch (type) {
+            case 'registerProperty':
+                code = `<span class="comment">// 注册自定义 CSS 属性</span>
+CSS.registerProperty({
+  <span class="keyword">name</span>: <span class="string">'--circle-color'</span>,
+  <span class="keyword">syntax</span>: <span class="string">'&lt;color&gt;'</span>,
+  <span class="keyword">inherits</span>: <span class="keyword">false</span>,
+  <span class="keyword">initialValue</span>: <span class="string">'#3b82f6'</span>
+});`;
+                break;
+
+            case 'randomize':
+                code = `<span class="comment">// 随机配色</span>
+<span class="keyword">const</span> colors = ${JSON.stringify(data, null, 2).replace(/"/g, '<span class="string">"</span>').replace(/:/g, ': ')};
+
+elements.paintBox1.attributeStyleMap.set(<span class="string">'--circle-color'</span>, colors[<span class="number">0</span>]);`;
+                break;
+
+            case 'animate':
+                code = `<span class="comment">// 动态更新属性</span>
+<span class="keyword">function</span> <span class="keyword">animate</span>() {
+  <span class="keyword">const</span> hue = (frame * <span class="number">2</span>) % <span class="number">360</span>;
+  <span class="keyword">const</span> color = <span class="string">\`hsl(\${hue}, 70%, 60%)\`</span>;
+
+  box.attributeStyleMap.set(<span class="string">'--circle-color'</span>, color);
+  box.attributeStyleMap.set(<span class="string">'--grid-size'</span>, CSS.px(gridSize));
+
+  requestAnimationFrame(animate);
+}`;
+                break;
+
+            case 'typedOM':
+                code = `<span class="comment">// Typed OM 操作演示</span>
+<span class="comment">// 设置样式</span>
+box.attributeStyleMap.set(<span class="string">'margin-top'</span>, CSS.px(<span class="number">20</span>));
+box.attributeStyleMap.set(<span class="string">'padding'</span>, CSS.px(<span class="number">16</span>));
+
+<span class="comment">// 读取样式</span>
+<span class="keyword">const</span> marginTop = box.attributeStyleMap.get(<span class="string">'margin-top'</span>);
+<span class="comment">// => CSSUnitValue { value: 20, unit: 'px' }</span>`;
+                break;
+
+            case 'inspect':
+                code = `<span class="comment">// 检查计算样式</span>
+<span class="keyword">const</span> styles = element.computedStyleMap();
+<span class="keyword">const</span> color = styles.get(<span class="string">'--circle-color'</span>);
+<span class="keyword">const</span> bg = styles.get(<span class="string">'background-image'</span>);
+
+<span class="comment">// 返回 CSSStyleValue 对象</span>`;
+                break;
+
+            case 'reset':
+                code = `<span class="comment">// 重置样式</span>
+elements.forEach(box => {
+  box.attributeStyleMap.clear();
+});
+
+<span class="comment">// 重新应用 Paint 样式</span>
+applyPaintStyles();`;
+                break;
+
+            default:
+                code = '<span class="comment">// 选择一个操作查看代码</span>';
+        }
+
+        elements.codeDisplay.innerHTML = code;
+    }
+
+    // 更新浏览器信息
+    function updateBrowserInfo() {
+        const ua = navigator.userAgent;
+        let browser = 'Unknown';
+
+        if (ua.includes('Chrome')) browser = 'Chrome';
+        else if (ua.includes('Firefox')) browser = 'Firefox';
+        else if (ua.includes('Safari')) browser = 'Safari';
+        else if (ua.includes('Edge')) browser = 'Edge';
+
+        elements.browserInfo.textContent = `${browser} - Houdini 支持:${state.paintSupported ? 'Paint ✓' : 'Paint ✗'} ${state.registerSupported ? 'Register ✓' : 'Register ✗'}${state.typedOMSupported ? 'Typed OM ✓' : 'Typed OM ✗'}`;
+    }
+</script>
+</body>
+
+</html>
