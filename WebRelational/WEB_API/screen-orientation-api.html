@@ -1,0 +1,2153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>屏幕方向 API 企业级应用平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --primary-light: #a78bfa;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #475569;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            --radius: 8px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-dark) 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-input);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 1.5rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .sidebar-title {
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .tab-list {
+            list-style: none;
+        }
+
+        .tab-item {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-item:last-child {
+            border-bottom: none;
+        }
+
+        .tab-btn {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tab-btn:hover {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--primary-light);
+            border-left: 3px solid var(--primary);
+        }
+
+        .tab-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Content Area */
+        .content-area {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .content-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .content-body {
+            padding: 1.5rem;
+        }
+
+        /* Tab Panels */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            filter: brightness(1.1);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border-color);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        /* Orientation Display */
+        .orientation-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .device-frame {
+            position: relative;
+            width: 200px;
+            height: 320px;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            border-radius: 30px;
+            padding: 10px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .device-frame.landscape {
+            width: 320px;
+            height: 200px;
+        }
+
+        .device-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            border-radius: 22px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .device-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .device-notch {
+            position: absolute;
+            top: 5px;
+            width: 60px;
+            height: 6px;
+            background: #1a202c;
+            border-radius: 3px;
+        }
+
+        .orientation-icon {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1rem;
+        }
+
+        .orientation-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .orientation-angle {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 0.5rem;
+        }
+
+        /* Info Cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-card {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .info-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-light);
+        }
+
+        .info-value.success {
+            color: var(--success);
+        }
+
+        .info-value.warning {
+            color: var(--warning);
+        }
+
+        .info-value.danger {
+            color: var(--danger);
+        }
+
+        /* Compass */
+        .compass-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .compass {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                #ef4444 0deg 90deg,
+                #22c55e 90deg 180deg,
+                #3b82f6 180deg 270deg,
+                #f59e0b 270deg 360deg
+            );
+            position: relative;
+            box-shadow: 
+                0 0 0 10px var(--bg-dark),
+                0 0 0 12px var(--border-color),
+                var(--shadow);
+        }
+
+        .compass::before {
+            content: '';
+            position: absolute;
+            inset: 15px;
+            background: var(--bg-dark);
+            border-radius: 50%;
+        }
+
+        .compass-needle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 100px;
+            background: linear-gradient(to top, var(--danger) 50%, white 50%);
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%);
+            transition: transform 0.3s ease-out;
+            border-radius: 2px;
+        }
+
+        .compass-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .compass-labels {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .compass-label {
+            position: absolute;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .compass-label.north { top: 25px; color: var(--danger); }
+        .compass-label.south { bottom: 25px; }
+        .compass-label.east { right: 25px; }
+        .compass-label.west { left: 25px; }
+
+        /* Controls Grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .control-input {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .control-select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        /* Lock Options */
+        .lock-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .lock-option {
+            background: var(--bg-dark);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lock-option:hover {
+            border-color: var(--primary);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .lock-option.active {
+            border-color: var(--primary);
+            background: rgba(139, 92, 246, 0.2);
+        }
+
+        .lock-option-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lock-option-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: var(--primary-light);
+        }
+
+        .lock-option-label {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .lock-option-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Gyroscope Visual */
+        .gyro-visual {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        .gyro-axis {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .gyro-bar-container {
+            width: 60px;
+            height: 200px;
+            background: var(--bg-dark);
+            border-radius: 30px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gyro-bar {
+            position: absolute;
+            bottom: 50%;
+            left: 5px;
+            right: 5px;
+            background: linear-gradient(to top, var(--primary), var(--primary-light));
+            border-radius: 25px;
+            transition: all 0.1s;
+        }
+
+        .gyro-bar.positive {
+            bottom: 50%;
+        }
+
+        .gyro-bar.negative {
+            top: 50%;
+            bottom: auto;
+        }
+
+        .gyro-center-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--text-secondary);
+        }
+
+        .gyro-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary-light);
+        }
+
+        .gyro-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        /* 3D Cube */
+        .cube-container {
+            perspective: 800px;
+            width: 200px;
+            height: 200px;
+            margin: 2rem auto;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s;
+        }
+
+        .cube-face {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: 2px solid var(--border-color);
+            background: rgba(139, 92, 246, 0.3);
+            backdrop-filter: blur(5px);
+        }
+
+        .cube-face.front  { transform: rotateY(0deg) translateZ(100px); }
+        .cube-face.back   { transform: rotateY(180deg) translateZ(100px); }
+        .cube-face.right  { transform: rotateY(90deg) translateZ(100px); }
+        .cube-face.left   { transform: rotateY(-90deg) translateZ(100px); }
+        .cube-face.top    { transform: rotateX(90deg) translateZ(100px); }
+        .cube-face.bottom { transform: rotateX(-90deg) translateZ(100px); }
+
+        /* Log Panel */
+        .log-panel {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        .log-item {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            font-family: monospace;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            margin-right: 0.5rem;
+        }
+
+        .log-type {
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-right: 0.5rem;
+        }
+
+        .log-type.info {
+            background: var(--info);
+            color: white;
+        }
+
+        .log-type.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .log-type.error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .log-type.warn {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* Code Panel */
+        .code-panel {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .code-header {
+            padding: 0.75rem 1rem;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-title {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .code-content {
+            padding: 1rem;
+            overflow: auto;
+            max-height: 300px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* API Reference */
+        .api-section {
+            margin-bottom: 2rem;
+        }
+
+        .api-section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+            display: inline-block;
+        }
+
+        .api-item {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-name {
+            font-family: monospace;
+            color: var(--primary-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .api-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .api-params {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+            background: var(--bg-input);
+            padding: 0.5rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .api-example {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-input);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--success);
+            white-space: pre-wrap;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--success);
+            color: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification.error {
+            background: var(--danger);
+        }
+
+        /* Section Divider */
+        .section-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 1.5rem 0;
+        }
+
+        /* Switch */
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: var(--bg-input);
+            border-radius: var(--radius);
+        }
+
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--border-color);
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .switch input:checked + .switch-slider {
+            background: var(--primary);
+        }
+
+        .switch input:checked + .switch-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .device-frame {
+                width: 150px;
+                height: 240px;
+            }
+
+            .device-frame.landscape {
+                width: 240px;
+                height: 150px;
+            }
+
+            .compass {
+                width: 200px;
+                height: 200px;
+            }
+
+            .compass-needle {
+                height: 80px;
+            }
+
+            .gyro-visual {
+                gap: 1rem;
+            }
+
+            .gyro-bar-container {
+                width: 50px;
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <svg viewBox="0 0 40 40" fill="none">
+                    <rect width="40" height="40" rx="8" fill="url(#logoGrad)"/>
+                    <rect x="8" y="4" width="24" height="40" rx="3" fill="none" stroke="white" stroke-width="2" transform="rotate(90 20 24)"/>
+                    <path d="M20 10L20 30M10 20L30 20" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="20" cy="20" r="4" fill="white"/>
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#8b5cf6"/>
+                            <stop offset="100%" stop-color="#06b6d4"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h1>屏幕方向 API 企业级应用平台</h1>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span id="currentOrientation">检测中...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-title">功能模块</div>
+            <ul class="tab-list">
+                <li class="tab-item">
+                    <button class="tab-btn active" data-tab="orientation">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                                <line x1="12" y1="18" x2="12" y2="18"/>
+                            </svg>
+                        </span>
+                        方向检测
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="lock">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </span>
+                        方向锁定
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="device">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                <line x1="12" y1="18" x2="12" y2="18"/>
+                            </svg>
+                        </span>
+                        设备方向
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="motion">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                            </svg>
+                        </span>
+                        运动传感器
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="events">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </span>
+                        事件监听
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="api">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </span>
+                        API参考
+                    </button>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Orientation Panel -->
+            <div class="tab-panel active" id="orientation-panel">
+                <div class="content-header">
+                    <h2 class="content-title">方向检测</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="refreshOrientation()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                            </svg>
+                            刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="orientation-display">
+                        <div class="device-frame" id="deviceFrame">
+                            <div class="device-screen">
+                                <div class="device-notch"></div>
+                                <svg class="orientation-icon" id="orientationIcon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                    <rect x="4" y="2" width="16" height="20" rx="2"/>
+                                    <line x1="12" y1="18" x2="12" y2="18"/>
+                                </svg>
+                                <div class="orientation-text" id="orientationTypeDisplay">Portrait</div>
+                                <div class="orientation-angle" id="orientationAngleDisplay">0°</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">屏幕方向信息</h3>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">方向类型</div>
+                            <div class="info-value" id="infoType">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">旋转角度</div>
+                            <div class="info-value" id="infoAngle">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">屏幕宽度</div>
+                            <div class="info-value" id="infoWidth">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">屏幕高度</div>
+                            <div class="info-value" id="infoHeight">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">宽高比</div>
+                            <div class="info-value" id="infoRatio">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">锁定状态</div>
+                            <div class="info-value" id="infoLocked">--</div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">当前 screen.orientation 对象</span>
+                            <button class="btn btn-secondary" onclick="copyOrientationData()">复制</button>
+                        </div>
+                        <pre class="code-content" id="orientationData">// 加载中...</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lock Panel -->
+            <div class="tab-panel" id="lock-panel">
+                <div class="content-header">
+                    <h2 class="content-title">方向锁定</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-danger" id="unlockBtn" onclick="unlockOrientation()" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                            </svg>
+                            解除锁定
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">当前锁定</div>
+                            <div class="info-value" id="lockStatus">未锁定</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">锁定类型</div>
+                            <div class="info-value" id="lockType">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">API 支持</div>
+                            <div class="info-value" id="lockSupport">检测中</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">选择锁定方向</h3>
+                    <div class="lock-options">
+                        <div class="lock-option" onclick="lockOrientation('portrait-primary')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="2" width="12" height="20" rx="2"/>
+                                    <line x1="12" y1="18" x2="12" y2="18"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">主纵向</div>
+                            <div class="lock-option-desc">portrait-primary</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('portrait-secondary')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="2" width="12" height="20" rx="2"/>
+                                    <line x1="12" y1="6" x2="12" y2="6"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">次纵向</div>
+                            <div class="lock-option-desc">portrait-secondary</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('landscape-primary')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                                    <line x1="18" y1="12" x2="18" y2="12"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">主横向</div>
+                            <div class="lock-option-desc">landscape-primary</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('landscape-secondary')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                                    <line x1="6" y1="12" x2="6" y2="12"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">次横向</div>
+                            <div class="lock-option-desc">landscape-secondary</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('portrait')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="2" width="12" height="20" rx="2"/>
+                                    <path d="M12 6v12"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">任意纵向</div>
+                            <div class="lock-option-desc">portrait</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('landscape')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                                    <path d="M6 12h12"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">任意横向</div>
+                            <div class="lock-option-desc">landscape</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('any')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">任意方向</div>
+                            <div class="lock-option-desc">any</div>
+                        </div>
+                        <div class="lock-option" onclick="lockOrientation('natural')">
+                            <div class="lock-option-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                            </div>
+                            <div class="lock-option-label">自然方向</div>
+                            <div class="lock-option-desc">natural</div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">锁定代码示例</span>
+                        </div>
+                        <pre class="code-content">// 锁定屏幕方向
+try {
+    await screen.orientation.lock('portrait');
+    console.log('方向已锁定');
+} catch (error) {
+    console.error('锁定失败:', error);
+}
+
+// 解除锁定
+screen.orientation.unlock();
+
+// 检查是否支持锁定
+if ('lock' in screen.orientation) {
+    console.log('支持方向锁定');
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Orientation Panel -->
+            <div class="tab-panel" id="device-panel">
+                <div class="content-header">
+                    <h2 class="content-title">设备方向传感器</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="requestMotionBtn" onclick="requestMotionPermission()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                            启用传感器
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetDeviceOrientation()">
+                            重置视图
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="compass-container">
+                        <div class="compass" id="compass">
+                            <div class="compass-needle" id="compassNeedle"></div>
+                            <div class="compass-center"></div>
+                            <div class="compass-labels">
+                                <span class="compass-label north">N</span>
+                                <span class="compass-label south">S</span>
+                                <span class="compass-label east">E</span>
+                                <span class="compass-label west">W</span>
+                            </div>
+                        </div>
+                        <div class="info-grid" style="max-width: 400px;">
+                            <div class="info-card">
+                                <div class="info-label">Alpha (Z轴)</div>
+                                <div class="info-value" id="alphaValue">0°</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">Beta (X轴)</div>
+                                <div class="info-value" id="betaValue">0°</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">Gamma (Y轴)</div>
+                                <div class="info-value" id="gammaValue">0°</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem; text-align: center;">3D 设备姿态</h3>
+                    <div class="cube-container">
+                        <div class="cube" id="cube">
+                            <div class="cube-face front">前</div>
+                            <div class="cube-face back">后</div>
+                            <div class="cube-face right">右</div>
+                            <div class="cube-face left">左</div>
+                            <div class="cube-face top">上</div>
+                            <div class="cube-face bottom">下</div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">DeviceOrientationEvent 示例</span>
+                        </div>
+                        <pre class="code-content">// 监听设备方向变化
+window.addEventListener('deviceorientation', (event) => {
+    // Alpha: 绕Z轴旋转 (0-360°)，指南针方向
+    const alpha = event.alpha;
+    
+    // Beta: 绕X轴旋转 (-180° to 180°)，前后倾斜
+    const beta = event.beta;
+    
+    // Gamma: 绕Y轴旋转 (-90° to 90°)，左右倾斜
+    const gamma = event.gamma;
+    
+    console.log(`Alpha: ${alpha}, Beta: ${beta}, Gamma: ${gamma}`);
+});
+
+// iOS 13+ 需要请求权限
+if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    const permission = await DeviceOrientationEvent.requestPermission();
+    if (permission === 'granted') {
+        // 开始监听
+    }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Motion Panel -->
+            <div class="tab-panel" id="motion-panel">
+                <div class="content-header">
+                    <h2 class="content-title">运动传感器</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="requestMotionBtn2" onclick="requestMotionPermission()">
+                            启用传感器
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <h3 style="margin-bottom: 1rem;">加速度 (m/s²)</h3>
+                    <div class="gyro-visual">
+                        <div class="gyro-axis">
+                            <div class="gyro-label">X轴</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="accelXBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="accelXValue">0</div>
+                        </div>
+                        <div class="gyro-axis">
+                            <div class="gyro-label">Y轴</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="accelYBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="accelYValue">0</div>
+                        </div>
+                        <div class="gyro-axis">
+                            <div class="gyro-label">Z轴</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="accelZBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="accelZValue">0</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">旋转速率 (°/s)</h3>
+                    <div class="gyro-visual">
+                        <div class="gyro-axis">
+                            <div class="gyro-label">Alpha</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="rotAlphaBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="rotAlphaValue">0</div>
+                        </div>
+                        <div class="gyro-axis">
+                            <div class="gyro-label">Beta</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="rotBetaBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="rotBetaValue">0</div>
+                        </div>
+                        <div class="gyro-axis">
+                            <div class="gyro-label">Gamma</div>
+                            <div class="gyro-bar-container">
+                                <div class="gyro-bar" id="rotGammaBar"></div>
+                                <div class="gyro-center-line"></div>
+                            </div>
+                            <div class="gyro-value" id="rotGammaValue">0</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">加速度(含重力)</div>
+                            <div class="info-value" id="totalAccel">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">传感器状态</div>
+                            <div class="info-value" id="motionStatus">未激活</div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">DeviceMotionEvent 示例</span>
+                        </div>
+                        <pre class="code-content">// 监听设备运动
+window.addEventListener('devicemotion', (event) => {
+    // 加速度 (不含重力)
+    const accel = event.acceleration;
+    console.log('加速度:', accel.x, accel.y, accel.z);
+    
+    // 加速度 (含重力)
+    const accelGrav = event.accelerationIncludingGravity;
+    console.log('加速度(含重力):', accelGrav.x, accelGrav.y, accelGrav.z);
+    
+    // 旋转速率
+    const rotation = event.rotationRate;
+    console.log('旋转速率:', rotation.alpha, rotation.beta, rotation.gamma);
+    
+    // 间隔时间
+    const interval = event.interval;
+});</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Panel -->
+            <div class="tab-panel" id="events-panel">
+                <div class="content-header">
+                    <h2 class="content-title">事件监听</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="clearEventLog()">
+                            清空日志
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">方向变化事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="trackOrientation" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">resize 事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="trackResize" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">设备方向事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="trackDeviceOrientation" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">设备运动事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="trackDeviceMotion">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">事件统计</h3>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">方向变化次数</div>
+                            <div class="info-value" id="orientationChangeCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">resize 次数</div>
+                            <div class="info-value" id="resizeCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">设备方向更新</div>
+                            <div class="info-value" id="deviceOrientationCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">运动更新</div>
+                            <div class="info-value" id="motionCount">0</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">事件日志</h3>
+                    <div class="log-panel" id="eventLog">
+                        <div class="log-item">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-type info">INFO</span>
+                            <span>等待事件...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Reference Panel -->
+            <div class="tab-panel" id="api-panel">
+                <div class="content-header">
+                    <h2 class="content-title">API 参考</h2>
+                </div>
+                <div class="content-body">
+                    <div class="api-section">
+                        <h3 class="api-section-title">Screen Orientation API</h3>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation</div>
+                            <div class="api-desc">返回 ScreenOrientation 对象，包含当前屏幕方向信息</div>
+                            <div class="api-params">返回类型: ScreenOrientation</div>
+                            <div class="api-example">const orientation = screen.orientation;
+console.log(orientation.type);  // "portrait-primary"
+console.log(orientation.angle); // 0</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation.type</div>
+                            <div class="api-desc">返回当前屏幕方向的类型字符串</div>
+                            <div class="api-params">返回值: "portrait-primary" | "portrait-secondary" | "landscape-primary" | "landscape-secondary"</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation.angle</div>
+                            <div class="api-desc">返回当前屏幕方向的旋转角度</div>
+                            <div class="api-params">返回值: 0 | 90 | 180 | 270</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation.lock(orientation)</div>
+                            <div class="api-desc">锁定屏幕到指定方向。返回 Promise，成功时 resolve，失败时 reject</div>
+                            <div class="api-params">参数: orientation - "portrait" | "landscape" | "portrait-primary" | "portrait-secondary" | "landscape-primary" | "landscape-secondary" | "any" | "natural"</div>
+                            <div class="api-example">try {
+    await screen.orientation.lock('portrait');
+    console.log('锁定成功');
+} catch (error) {
+    console.error('锁定失败:', error);
+}</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation.unlock()</div>
+                            <div class="api-desc">解除屏幕方向锁定，恢复自动旋转</div>
+                            <div class="api-params">无参数，无返回值</div>
+                            <div class="api-example">screen.orientation.unlock();
+console.log('已解除锁定');</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">screen.orientation.onchange</div>
+                            <div class="api-desc">屏幕方向变化时触发的事件处理函数</div>
+                            <div class="api-params">事件类型: Event</div>
+                            <div class="api-example">screen.orientation.addEventListener('change', () => {
+    console.log('方向变化:', screen.orientation.type);
+});</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">方向类型说明</h3>
+                        <div class="api-item">
+                            <div class="api-name">portrait-primary</div>
+                            <div class="api-desc">主纵向模式，设备处于自然纵向方向（通常角度为0°）</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">portrait-secondary</div>
+                            <div class="api-desc">次纵向模式，设备倒置（通常角度为180°）</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">landscape-primary</div>
+                            <div class="api-desc">主横向模式，设备向左旋转90°</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">landscape-secondary</div>
+                            <div class="api-desc">次横向模式，设备向右旋转90°（或向左270°）</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">portrait</div>
+                            <div class="api-desc">任意纵向模式，锁定到 portrait-primary 或 portrait-secondary</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">landscape</div>
+                            <div class="api-desc">任意横向模式，锁定到 landscape-primary 或 landscape-secondary</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">any</div>
+                            <div class="api-desc">允许任意方向，解除锁定效果相同</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">natural</div>
+                            <div class="api-desc">自然方向，通常是设备的默认方向（手机为 portrait-primary，平板可能为 landscape-primary）</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">DeviceOrientationEvent</h3>
+                        <div class="api-item">
+                            <div class="api-name">deviceorientation 事件</div>
+                            <div class="api-desc">设备物理方向变化时触发，提供三轴旋转数据</div>
+                            <div class="api-params">事件属性: alpha, beta, gamma, absolute, webkitCompassHeading</div>
+                            <div class="api-example">window.addEventListener('deviceorientation', (e) => {
+    // Alpha: 绕Z轴旋转 (0-360°)，指南针方向
+    // Beta: 绕X轴旋转 (-180° to 180°)，前后倾斜
+    // Gamma: 绕Y轴旋转 (-90° to 90°)，左右倾斜
+    console.log(e.alpha, e.beta, e.gamma);
+});</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.alpha</div>
+                            <div class="api-desc">绕Z轴的旋转角度（0-360°），表示设备绕垂直轴的旋转，即指南针方向</div>
+                            <div class="api-params">范围: 0 - 360</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.beta</div>
+                            <div class="api-desc">绕X轴的旋转角度（-180° to 180°），表示设备前后倾斜</div>
+                            <div class="api-params">范围: -180 - 180</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.gamma</div>
+                            <div class="api-desc">绕Y轴的旋转角度（-90° to 90°），表示设备左右倾斜</div>
+                            <div class="api-params">范围: -90 - 90</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.absolute</div>
+                            <div class="api-desc">指示方向数据是否为绝对值（相对于地球坐标系）</div>
+                            <div class="api-params">类型: boolean</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">DeviceOrientationEvent.requestPermission()</div>
+                            <div class="api-desc">iOS 13+ 需要请求权限才能访问设备方向数据</div>
+                            <div class="api-params">返回: Promise&lt;"granted" | "denied"&gt;</div>
+                            <div class="api-example">// iOS 权限请求
+if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    const permission = await DeviceOrientationEvent.requestPermission();
+    if (permission === 'granted') {
+        window.addEventListener('deviceorientation', handler);
+    }
+}</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">DeviceMotionEvent</h3>
+                        <div class="api-item">
+                            <div class="api-name">devicemotion 事件</div>
+                            <div class="api-desc">设备运动变化时触发，提供加速度和旋转速率数据</div>
+                            <div class="api-params">事件属性: acceleration, accelerationIncludingGravity, rotationRate, interval</div>
+                            <div class="api-example">window.addEventListener('devicemotion', (e) => {
+    // 不含重力的加速度
+    console.log(e.acceleration);
+    
+    // 含重力的加速度
+    console.log(e.accelerationIncludingGravity);
+    
+    // 旋转速率
+    console.log(e.rotationRate);
+});</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.acceleration</div>
+                            <div class="api-desc">设备在三轴上的加速度（不含重力）</div>
+                            <div class="api-params">属性: x, y, z (单位: m/s²)</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.accelerationIncludingGravity</div>
+                            <div class="api-desc">设备在三轴上的加速度（包含重力）</div>
+                            <div class="api-params">属性: x, y, z (单位: m/s²)</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.rotationRate</div>
+                            <div class="api-desc">设备在三轴上的旋转速率</div>
+                            <div class="api-params">属性: alpha, beta, gamma (单位: °/s)</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">event.interval</div>
+                            <div class="api-desc">从设备获取数据的间隔时间（毫秒）</div>
+                            <div class="api-params">类型: double</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">相关事件</h3>
+                        <div class="api-item">
+                            <div class="api-name">orientationchange 事件</div>
+                            <div class="api-desc">窗口方向变化时触发（旧API，建议使用 screen.orientation.onchange）</div>
+                            <div class="api-example">window.addEventListener('orientationchange', () => {
+    console.log(window.orientation); // 0, 90, -90, 180
+});</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">resize 事件</div>
+                            <div class="api-desc">窗口大小变化时触发，方向变化通常伴随 resize</div>
+                            <div class="api-example">window.addEventListener('resize', () => {
+    console.log(window.innerWidth, window.innerHeight);
+});</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">兼容性检测</h3>
+                        <div class="api-item">
+                            <div class="api-name">检测 Screen Orientation API 支持</div>
+                            <div class="api-example">if (screen && screen.orientation) {
+    console.log('支持 Screen Orientation API');
+    console.log('支持锁定:', 'lock' in screen.orientation);
+} else {
+    console.log('不支持 Screen Orientation API');
+}</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">检测 DeviceOrientationEvent 支持</div>
+                            <div class="api-example">if (window.DeviceOrientationEvent) {
+    console.log('支持 DeviceOrientationEvent');
+    
+    // iOS 13+ 需要检查权限请求
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        console.log('需要请求权限');
+    }
+}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">操作成功！</div>
+
+    <script>
+        // Global State
+        let currentLockType = null;
+        let motionEnabled = false;
+        let eventStats = {
+            orientationChange: 0,
+            resize: 0,
+            deviceOrientation: 0,
+            motion: 0
+        };
+
+        // DOM Elements
+        const deviceFrame = document.getElementById('deviceFrame');
+        const orientationTypeDisplay = document.getElementById('orientationTypeDisplay');
+        const orientationAngleDisplay = document.getElementById('orientationAngleDisplay');
+        const compassNeedle = document.getElementById('compassNeedle');
+        const cube = document.getElementById('cube');
+
+        // Tab Navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                const tabId = btn.getAttribute('data-tab');
+                document.getElementById(`${tabId}-panel`).classList.add('active');
+            });
+        });
+
+        // Utility Functions
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification show' + (isError ? ' error' : '');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        function logEvent(type, message) {
+            const log = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<span class="log-time">${time}</span><span class="log-type ${type}">${type.toUpperCase()}</span><span>${message}</span>`;
+            log.insertBefore(item, log.firstChild);
+            
+            // Limit log items
+            while (log.children.length > 100) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function clearEventLog() {
+            document.getElementById('eventLog').innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-type info">INFO</span><span>日志已清空</span></div>';
+            eventStats = { orientationChange: 0, resize: 0, deviceOrientation: 0, motion: 0 };
+            updateEventStats();
+        }
+
+        function updateEventStats() {
+            document.getElementById('orientationChangeCount').textContent = eventStats.orientationChange;
+            document.getElementById('resizeCount').textContent = eventStats.resize;
+            document.getElementById('deviceOrientationCount').textContent = eventStats.deviceOrientation;
+            document.getElementById('motionCount').textContent = eventStats.motion;
+        }
+
+        // Screen Orientation Functions
+        function updateOrientationDisplay() {
+            if (!screen.orientation) return;
+
+            const type = screen.orientation.type;
+            const angle = screen.orientation.angle;
+
+            // Update header badge
+            document.getElementById('currentOrientation').textContent = type;
+
+            // Update device frame
+            const isLandscape = type.includes('landscape');
+            deviceFrame.className = 'device-frame' + (isLandscape ? ' landscape' : '');
+
+            // Update orientation text
+            const typeNames = {
+                'portrait-primary': '纵向',
+                'portrait-secondary': '纵向(倒置)',
+                'landscape-primary': '横向',
+                'landscape-secondary': '横向(反向)'
+            };
+            orientationTypeDisplay.textContent = typeNames[type] || type;
+            orientationAngleDisplay.textContent = `${angle}°`;
+
+            // Update info cards
+            document.getElementById('infoType').textContent = type;
+            document.getElementById('infoAngle').textContent = `${angle}°`;
+            document.getElementById('infoWidth').textContent = `${window.innerWidth}px`;
+            document.getElementById('infoHeight').textContent = `${window.innerHeight}px`;
+            
+            const ratio = (window.innerWidth / window.innerHeight).toFixed(2);
+            document.getElementById('infoRatio').textContent = ratio;
+
+            // Update lock status
+            document.getElementById('infoLocked').textContent = currentLockType ? '已锁定' : '未锁定';
+            document.getElementById('infoLocked').className = 'info-value' + (currentLockType ? ' warning' : ' success');
+
+            // Update orientation data
+            const orientationData = {
+                type: type,
+                angle: angle,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                devicePixelRatio: window.devicePixelRatio,
+                locked: !!currentLockType
+            };
+            document.getElementById('orientationData').textContent = JSON.stringify(orientationData, null, 2);
+        }
+
+        function refreshOrientation() {
+            updateOrientationDisplay();
+            logEvent('info', '方向信息已刷新');
+            showNotification('方向信息已刷新');
+        }
+
+        function copyOrientationData() {
+            const data = document.getElementById('orientationData').textContent;
+            navigator.clipboard.writeText(data);
+            showNotification('数据已复制');
+        }
+
+        // Lock Functions
+        async function lockOrientation(orientation) {
+            if (!screen.orientation || !screen.orientation.lock) {
+                showNotification('此设备不支持方向锁定', true);
+                logEvent('error', '设备不支持方向锁定');
+                return;
+            }
+
+            try {
+                await screen.orientation.lock(orientation);
+                currentLockType = orientation;
+                
+                // Update UI
+                document.getElementById('lockStatus').textContent = '已锁定';
+                document.getElementById('lockStatus').className = 'info-value warning';
+                document.getElementById('lockType').textContent = orientation;
+                document.getElementById('unlockBtn').disabled = false;
+
+                // Highlight active option
+                document.querySelectorAll('.lock-option').forEach(opt => {
+                    opt.classList.remove('active');
+                    if (opt.querySelector('.lock-option-desc').textContent === orientation) {
+                        opt.classList.add('active');
+                    }
+                });
+
+                logEvent('success', `方向已锁定: ${orientation}`);
+                showNotification(`方向已锁定: ${orientation}`);
+            } catch (error) {
+                logEvent('error', `锁定失败: ${error.message}`);
+                showNotification('锁定失败: ' + error.message, true);
+            }
+        }
+
+        function unlockOrientation() {
+            if (!screen.orientation) return;
+
+            screen.orientation.unlock();
+            currentLockType = null;
+
+            // Update UI
+            document.getElementById('lockStatus').textContent = '未锁定';
+            document.getElementById('lockStatus').className = 'info-value success';
+            document.getElementById('lockType').textContent = '--';
+            document.getElementById('unlockBtn').disabled = true;
+
+            document.querySelectorAll('.lock-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+
+            logEvent('info', '方向锁定已解除');
+            showNotification('方向锁定已解除');
+        }
+
+        // Check lock support
+        function checkLockSupport() {
+            const supported = screen && screen.orientation && 'lock' in screen.orientation;
+            document.getElementById('lockSupport').textContent = supported ? '支持' : '不支持';
+            document.getElementById('lockSupport').className = 'info-value' + (supported ? ' success' : ' danger');
+        }
+
+        // Device Orientation Functions
+        async function requestMotionPermission() {
+            try {
+                // iOS 13+ requires permission
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        throw new Error('权限被拒绝');
+                    }
+                }
+
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        throw new Error('权限被拒绝');
+                    }
+                }
+
+                motionEnabled = true;
+                document.getElementById('motionStatus').textContent = '已激活';
+                document.getElementById('motionStatus').className = 'info-value success';
+                
+                logEvent('success', '传感器已启用');
+                showNotification('传感器已启用');
+
+            } catch (error) {
+                logEvent('error', `权限请求失败: ${error.message}`);
+                showNotification('权限请求失败: ' + error.message, true);
+            }
+        }
+
+        function handleDeviceOrientation(event) {
+            if (!document.getElementById('trackDeviceOrientation').checked) return;
+
+            const alpha = event.alpha || 0;
+            const beta = event.beta || 0;
+            const gamma = event.gamma || 0;
+
+            // Update compass
+            compassNeedle.style.transform = `translate(-50%, -100%) rotate(${alpha}deg)`;
+
+            // Update cube
+            cube.style.transform = `rotateX(${beta}deg) rotateY(${gamma}deg) rotateZ(${alpha}deg)`;
+
+            // Update values
+            document.getElementById('alphaValue').textContent = `${alpha.toFixed(1)}°`;
+            document.getElementById('betaValue').textContent = `${beta.toFixed(1)}°`;
+            document.getElementById('gammaValue').textContent = `${gamma.toFixed(1)}°`;
+
+            eventStats.deviceOrientation++;
+            updateEventStats();
+        }
+
+        function handleDeviceMotion(event) {
+            if (!document.getElementById('trackDeviceMotion').checked) return;
+
+            const accel = event.accelerationIncludingGravity || {};
+            const rotation = event.rotationRate || {};
+
+            // Update acceleration bars
+            updateBar('accelXBar', 'accelXValue', accel.x, 20);
+            updateBar('accelYBar', 'accelYValue', accel.y, 20);
+            updateBar('accelZBar', 'accelZValue', accel.z, 20);
+
+            // Update rotation bars
+            updateBar('rotAlphaBar', 'rotAlphaValue', rotation.alpha, 360);
+            updateBar('rotBetaBar', 'rotBetaValue', rotation.beta, 360);
+            updateBar('rotGammaBar', 'rotGammaValue', rotation.gamma, 360);
+
+            // Calculate total acceleration
+            const total = Math.sqrt(
+                Math.pow(accel.x || 0, 2) +
+                Math.pow(accel.y || 0, 2) +
+                Math.pow(accel.z || 0, 2)
+            );
+            document.getElementById('totalAccel').textContent = total.toFixed(2);
+
+            eventStats.motion++;
+            updateEventStats();
+        }
+
+        function updateBar(barId, valueId, value, max) {
+            const bar = document.getElementById(barId);
+            const valueEl = document.getElementById(valueId);
+            
+            if (!bar || !valueEl) return;
+
+            const normalizedValue = value || 0;
+            const percentage = Math.min(Math.abs(normalizedValue) / max * 50, 50);
+            
+            if (normalizedValue >= 0) {
+                bar.style.top = '50%';
+                bar.style.bottom = 'auto';
+                bar.style.height = percentage + '%';
+            } else {
+                bar.style.bottom = '50%';
+                bar.style.top = 'auto';
+                bar.style.height = percentage + '%';
+            }
+
+            valueEl.textContent = normalizedValue.toFixed(1);
+        }
+
+        function resetDeviceOrientation() {
+            compassNeedle.style.transform = 'translate(-50%, -100%) rotate(0deg)';
+            cube.style.transform = 'rotateX(0deg) rotateY(0deg) rotateZ(0deg)';
+            
+            document.getElementById('alphaValue').textContent = '0°';
+            document.getElementById('betaValue').textContent = '0°';
+            document.getElementById('gammaValue').textContent = '0°';
+            
+            logEvent('info', '视图已重置');
+            showNotification('视图已重置');
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Screen orientation change
+            if (screen.orientation) {
+                screen.orientation.addEventListener('change', () => {
+                    if (document.getElementById('trackOrientation').checked) {
+                        eventStats.orientationChange++;
+                        updateEventStats();
+                        logEvent('success', `方向变化: ${screen.orientation.type} (${screen.orientation.angle}°)`);
+                    }
+                    updateOrientationDisplay();
+                });
+            }
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                if (document.getElementById('trackResize').checked) {
+                    eventStats.resize++;
+                    updateEventStats();
+                    logEvent('info', `窗口大小变化: ${window.innerWidth}x${window.innerHeight}`);
+                }
+                updateOrientationDisplay();
+            });
+
+            // Device orientation
+            window.addEventListener('deviceorientation', handleDeviceOrientation);
+
+            // Device motion
+            window.addEventListener('devicemotion', handleDeviceMotion);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check API support
+            if (!screen.orientation) {
+                showNotification('此浏览器不支持 Screen Orientation API', true);
+                document.getElementById('orientationData').textContent = '// 此浏览器不支持 Screen Orientation API';
+            }
+
+            // Initial display
+            updateOrientationDisplay();
+            checkLockSupport();
+            setupEventListeners();
+
+            logEvent('info', '应用已初始化');
+        });
+    </script>
+</body>
+</html>

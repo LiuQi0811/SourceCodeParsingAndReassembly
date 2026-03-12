@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private State Token API Pro - 企业级隐私令牌平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #fef3c7;
+            --primary-200: #fcd34d;
+            --primary-500: #f59e0b;
+            --primary-600: #d97706;
+            --primary-700: #b45309;
+            --primary-800: #92400e;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #3b82f6;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #92400e 0%, #78350f 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(245, 158, 11, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.18rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.25rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.2rem 0.25rem; border-radius: var(--radius-lg); margin-bottom: 0.12rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.06rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.08rem; }
+        .header-title h1 { font-size: 0.45rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.6rem; } }
+        .header-icon { width: 0.75rem; height: 0.75rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.35rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.25rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.06rem; }
+        .header-status { display: flex; align-items: center; gap: 0.03rem; background: rgba(255, 255, 255, 0.1); padding: 0.03rem 0.08rem; border-radius: 99px; font-size: 0.22rem; }
+        .status-dot { width: 0.08rem; height: 0.08rem; border-radius: 50%; background: var(--success-500); }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.03rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.35rem; height: 0.35rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.12rem; left: 0.12rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.03rem 0.06rem; font-size: 0.18rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.08rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.02rem; font-family: monospace; font-size: 0.16rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 20px; padding: 0.06rem 0.03rem; background: transparent; border: none; cursor: pointer; font-size: 0.2rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.01rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 26px; font-size: 0.25rem; padding: 0.08rem 0.15rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.28rem; height: 0.28rem; }
+        .tab-content { display: none; padding: 0.08rem; animation: fadeIn 0.15s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.15rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.1rem; margin-bottom: 0.08rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.06rem; padding-bottom: 0.04rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.02rem; }
+        .card-title { font-size: 0.28rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.03rem; }
+        .card-badge { font-size: 0.18rem; padding: 0.01rem 0.04rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.04rem; margin-bottom: 0.08rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.05rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.06rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(245, 158, 11, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.35rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.18rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.01rem; }
+
+        /* Token Display */
+        .token-display { display: flex; align-items: center; justify-content: center; gap: 0.15rem; padding: 0.15rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.08rem; border: 1px solid var(--border-color); }
+        .token-icon { width: 0.9rem; height: 0.9rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 3px rgba(245, 158, 11, 0.3); }
+        .token-icon svg { width: 0.45rem; height: 0.45rem; color: white; }
+        .token-info { text-align: left; }
+        .token-status { font-size: 0.3rem; font-weight: 700; color: var(--text-primary); }
+        .token-desc { font-size: 0.22rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.02rem; padding: 0.04rem 0.08rem; border-radius: var(--radius); font-size: 0.2rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.2rem; height: 0.2rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 0.02rem 0.05rem; font-size: 0.18rem; }
+        .btn-lg { padding: 0.06rem 0.12rem; font-size: 0.22rem; }
+
+        /* Demo Buttons */
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.06rem; margin-bottom: 0.08rem; }
+
+        /* Flow Diagram */
+        .flow-diagram { display: flex; flex-direction: column; gap: 0.06rem; margin-bottom: 0.08rem; }
+        @media (min-width: 640px) { .flow-diagram { flex-direction: row; align-items: center; } }
+        .flow-step { flex: 1; background: var(--bg-tertiary); border-radius: var(--radius); padding: 0.1rem; text-align: center; position: relative; }
+        .flow-step::after { content: ''; position: absolute; right: -0.08rem; top: 50%; transform: translateY(-50%); border: 0.05rem solid transparent; border-left-color: var(--primary-500); }
+        @media (max-width: 639px) { .flow-step::after { right: 50%; top: auto; bottom: -0.08rem; transform: translateX(50%); border: 0.05rem solid transparent; border-top-color: var(--primary-500); border-left-color: transparent; } }
+        .flow-step:last-child::after { display: none; }
+        .flow-icon { font-size: 0.35rem; margin-bottom: 0.03rem; }
+        .flow-title { font-size: 0.2rem; font-weight: 600; color: var(--text-primary); }
+        .flow-desc { font-size: 0.16rem; color: var(--text-muted); }
+
+        /* Token Status */
+        .token-status-card { display: flex; align-items: center; gap: 0.08rem; padding: 0.08rem 0.12rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.06rem; }
+        .token-status-icon { width: 0.4rem; height: 0.4rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.2rem; }
+        .token-status-icon.has { background: var(--success-50); color: var(--success-500); }
+        .token-status-icon.none { background: var(--error-50); color: var(--error-500); }
+        .token-status-text { flex: 1; }
+        .token-status-title { font-size: 0.2rem; font-weight: 600; color: var(--text-primary); }
+        .token-status-desc { font-size: 0.16rem; color: var(--text-muted); }
+
+        /* Event Log */
+        .event-log { max-height: 70px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.16rem; }
+        .log-item { padding: 0.02rem 0.05rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.03rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-event { font-weight: 600; color: var(--primary-600); }
+        .log-detail { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.08rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.18rem; overflow-x: auto; margin: 0.04rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.2rem; }
+        .api-table th, .api-table td { padding: 0.04rem 0.05rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.18rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.01rem 0.04rem; border-radius: 99px; font-size: 0.16rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.02rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.18em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.12rem; right: 0.12rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.03rem; max-width: calc(100vw - 0.24rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.15rem; right: 0.15rem; max-width: 90px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.05rem; padding: 0.06rem 0.08rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: toastIn 0.15s ease; border: 1px solid var(--border-color); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.25rem; height: 0.25rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.22rem; }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.02rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.03rem 0.05rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.2rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.18rem; }
+
+        /* Simulation */
+        .simulation-area { background: var(--bg-tertiary); border-radius: var(--radius); padding: 0.1rem; margin-bottom: 0.08rem; }
+        .sim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; }
+        .sim-title { font-size: 0.22rem; font-weight: 600; color: var(--text-primary); }
+        .sim-badge { font-size: 0.16rem; padding: 0.01rem 0.05rem; border-radius: 99px; background: var(--primary-50); color: var(--primary-600); }
+        .sim-content { display: grid; grid-template-columns: 1fr 1fr; gap: 0.08rem; }
+        .sim-box { background: var(--card-bg); border-radius: var(--radius); padding: 0.08rem; border: 1px solid var(--border-color); }
+        .sim-box-title { font-size: 0.18rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.04rem; }
+        .sim-box-content { font-size: 0.16rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">🔐</div>
+                        <h1>Private State Token</h1>
+                    </div>
+                    <p class="header-subtitle">隐私令牌 | 跨站信任传递，保护用户隐私</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot"></span><span>API 支持</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>S</kbd> 模拟</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="flow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>流程</span></button>
+                <button class="tab-btn" data-tab="sim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg><span>模拟</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="token-display">
+                    <div class="token-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                    <div class="token-info"><div class="token-status">Private State Token API</div><div class="token-desc">跨站点信任传递，保护用户隐私</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="tokenCount">0</div><div class="stat-label">令牌数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="issuerCount">0</div><div class="stat-label">发行者</div></div>
+                    <div class="stat-card"><div class="stat-value" id="trustLevel">--</div><div class="stat-label">信任等级</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">令牌状态</h3></div>
+                    <div class="token-status-card">
+                        <div class="token-status-icon none" id="tokenIcon">?</div>
+                        <div class="token-status-text">
+                            <div class="token-status-title" id="tokenTitle">检测中...</div>
+                            <div class="token-status-desc" id="tokenDesc">正在检测令牌状态</div>
+                        </div>
+                    </div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" id="checkBtn">检测令牌</button>
+                        <button class="btn btn-secondary btn-lg" id="refreshBtn">刷新状态</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">发行者配置</h3></div>
+                    <div class="info-list">
+                        <div class="info-item"><span class="info-label">issuerOrigin</span><span class="info-value">未配置</span></div>
+                        <div class="info-item"><span class="info-label">redemptionMode</span><span class="info-value">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Tab -->
+            <div class="tab-content" id="tab-flow">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">工作流程</h3></div>
+                    <div class="flow-diagram">
+                        <div class="flow-step"><div class="flow-icon">🌐</div><div class="flow-title">访问发行站</div><div class="flow-desc">完成验证</div></div>
+                        <div class="flow-step"><div class="flow-icon">🎫</div><div class="flow-title">发行令牌</div><div class="flow-desc">签发加密</div></div>
+                        <div class="flow-step"><div class="flow-icon">🔄</div><div class="flow-title">跨站传递</div><div class="flow-desc">隐私保护</div></div>
+                        <div class="flow-step"><div class="flow-icon">✅</div><div class="flow-title">兑换验证</div><div class="flow-desc">验证信任</div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">核心概念</h3></div>
+                    <div class="info-list">
+                        <div class="info-item"><span class="info-label">Issuer</span><span class="info-value">发行者站点</span></div>
+                        <div class="info-item"><span class="info-label">Redeemer</span><span class="info-value">兑换者站点</span></div>
+                        <div class="info-item"><span class="info-label">Private Token</span><span class="info-value">加密信任令牌</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">隐私保护</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>特性</th><th>说明</th></tr></thead><tbody>
+                            <tr><td>不可链接</td><td>无法跨站追踪用户</td></tr>
+                            <tr><td>加密存储</td><td>令牌内容加密保护</td></tr>
+                            <tr><td>有限使用</td><td>每个令牌仅用一次</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation Tab -->
+            <div class="tab-content" id="tab-sim">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">模拟场景</h3></div>
+                    <div class="simulation-area">
+                        <div class="sim-header">
+                            <span class="sim-title">反欺诈验证流程</span>
+                            <span class="sim-badge" id="simStatus">就绪</span>
+                        </div>
+                        <div class="sim-content">
+                            <div class="sim-box"><div class="sim-box-title">发行站点</div><div class="sim-box-content" id="issuerStatus">等待用户验证...</div></div>
+                            <div class="sim-box"><div class="sim-box-title">目标站点</div><div class="sim-box-content" id="redeemerStatus">等待令牌兑换...</div></div>
+                        </div>
+                    </div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary" id="issueBtn">模拟发行</button>
+                        <button class="btn btn-secondary" id="redeemBtn">模拟兑换</button>
+                        <button class="btn btn-secondary" id="resetBtn">重置</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件日志</h3><button class="btn btn-secondary btn-sm" id="clearLogBtn">清除</button></div>
+                    <div class="event-log" id="eventLog"><div style="padding: 0.08rem; text-align: center; color: var(--text-muted); font-size: 0.16rem;">等待事件...</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">使用场景</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>场景</th><th>说明</th></tr></thead><tbody>
+                            <tr><td>反欺诈</td><td>验证真实用户</td></tr>
+                            <tr><td>广告验证</td><td>验证曝光真实性</td></tr>
+                            <tr><td>登录信任</td><td>跨站点信任传递</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshApiBtn">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>hasPrivateToken()</code></td><td>检查令牌</td></tr>
+                            <tr><td><code>hasRedemptionRecord()</code></td><td>检查兑换记录</td></tr>
+                            <tr><td><code>fetch() privateToken</code></td><td>携带令牌请求</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="comment">// 检查令牌</span>
+<span class="keyword">const</span> has = <span class="keyword">await</span> document.<span class="function">hasPrivateToken</span>(<span class="string">'https://issuer.example'</span>);
+
+<span class="comment">// 携带令牌请求</span>
+<span class="function">fetch</span>(<span class="string">'/api'</span>, {
+  privateToken: { issuer: <span class="string">'https://issuer.example'</span> }
+});
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody>
+                            <tr><td>Chrome</td><td>116+</td></tr>
+                            <tr><td>Edge</td><td>116+</td></tr>
+                            <tr><td>Firefox</td><td>不支持</td></tr>
+                            <tr><td>Safari</td><td>不支持</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = { theme: 'light', tokens: 0, trust: '--', step: 0 };
+        const hasPST = 'hasPrivateToken' in document;
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('pst-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('pst-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toasts'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-content"><div class="toast-title">${title}</div></div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'toastIn 0.15s ease reverse'; setTimeout(() => t.remove(), 150); }, 700);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Token ====================
+        const Token = {
+            init() {
+                const el = document.getElementById('apiSupport');
+                el.textContent = hasPST ? '支持' : '不支持';
+                el.style.color = hasPST ? 'var(--success-500)' : 'var(--error-500)';
+                this.update();
+            },
+
+            update() {
+                const icon = document.getElementById('tokenIcon');
+                const title = document.getElementById('tokenTitle');
+                const desc = document.getElementById('tokenDesc');
+                if (!hasPST) {
+                    icon.className = 'token-status-icon none'; icon.textContent = '✗';
+                    title.textContent = '不支持'; desc.textContent = '浏览器不支持此 API';
+                } else {
+                    icon.className = 'token-status-icon none'; icon.textContent = '?';
+                    title.textContent = '未检测'; desc.textContent = '点击检测按钮检查';
+                }
+            },
+
+            async check() {
+                if (!hasPST) { toast('error', '浏览器不支持'); return; }
+                const icon = document.getElementById('tokenIcon');
+                const title = document.getElementById('tokenTitle');
+                const desc = document.getElementById('tokenDesc');
+
+                icon.className = 'token-status-icon none'; icon.textContent = '⏳';
+                title.textContent = '检测中...'; desc.textContent = '正在检测令牌状态';
+                await new Promise(r => setTimeout(r, 400));
+
+                const has = Math.random() > 0.5;
+                if (has) {
+                    icon.className = 'token-status-icon has'; icon.textContent = '✓';
+                    title.textContent = '已获取令牌'; desc.textContent = '用户已通过验证';
+                    S.tokens = Math.floor(Math.random() * 5) + 1;
+                    S.trust = ['低', '中', '高'][Math.floor(Math.random() * 3)];
+                } else {
+                    icon.className = 'token-status-icon none'; icon.textContent = '○';
+                    title.textContent = '无令牌'; desc.textContent = '需要访问发行者站点';
+                    S.tokens = 0; S.trust = '--';
+                }
+                document.getElementById('tokenCount').textContent = S.tokens;
+                document.getElementById('trustLevel').textContent = S.trust;
+                toast('info', has ? '检测到令牌' : '未检测到令牌');
+            },
+
+            refresh() { this.update(); S.tokens = 0; S.trust = '--'; document.getElementById('tokenCount').textContent = '0'; document.getElementById('trustLevel').textContent = '--'; toast('info', '已刷新'); }
+        };
+
+        // ==================== Simulation ====================
+        const Sim = {
+            init() {
+                document.getElementById('issueBtn').addEventListener('click', () => this.issue());
+                document.getElementById('redeemBtn').addEventListener('click', () => this.redeem());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('clearLogBtn').addEventListener('click', () => this.clear());
+            },
+
+            async issue() {
+                const status = document.getElementById('simStatus');
+                const issuer = document.getElementById('issuerStatus');
+                status.textContent = '发行中'; status.style.background = 'var(--warning-50)'; status.style.color = 'var(--warning-500)';
+
+                this.log('issue', '验证用户...');
+                await new Promise(r => setTimeout(r, 200));
+                issuer.textContent = '验证身份...';
+                this.log('verify', '验证通过');
+                await new Promise(r => setTimeout(r, 200));
+                issuer.textContent = '✅ 已签发 3 个令牌';
+                status.textContent = '已发行'; status.style.background = 'var(--success-50)'; status.style.color = 'var(--success-500)';
+                S.step = 1;
+                toast('success', '令牌发行成功');
+            },
+
+            async redeem() {
+                if (S.step < 1) { toast('error', '请先发行令牌'); return; }
+                const status = document.getElementById('simStatus');
+                const redeemer = document.getElementById('redeemerStatus');
+                status.textContent = '兑换中'; status.style.background = 'var(--warning-50)'; status.style.color = 'var(--warning-500)';
+
+                this.log('redeem', '请求兑换...');
+                await new Promise(r => setTimeout(r, 200));
+                redeemer.textContent = '验证令牌...';
+                this.log('verify', '令牌有效');
+                await new Promise(r => setTimeout(r, 200));
+                redeemer.textContent = '✅ 用户信任已验证';
+                status.textContent = '已完成'; status.style.background = 'var(--success-50)'; status.style.color = 'var(--success-500)';
+                S.step = 2;
+                toast('success', '令牌兑换成功');
+            },
+
+            reset() {
+                S.step = 0;
+                document.getElementById('simStatus').textContent = '就绪';
+                document.getElementById('simStatus').style.background = 'var(--primary-50)';
+                document.getElementById('simStatus').style.color = 'var(--primary-600)';
+                document.getElementById('issuerStatus').textContent = '等待用户验证...';
+                document.getElementById('redeemerStatus').textContent = '等待令牌兑换...';
+                toast('info', '已重置');
+            },
+
+            log(event, detail) {
+                const log = document.getElementById('eventLog');
+                const p = log.querySelector('div[style]');
+                if (p) p.remove();
+                const t = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-time">${t}</span><span class="log-event">${event}</span><span class="log-detail">${detail}</span></div>`);
+                while (log.children.length > 8) log.lastChild.remove();
+            },
+
+            clear() { document.getElementById('eventLog').innerHTML = '<div style="padding: 0.08rem; text-align: center; color: var(--text-muted); font-size: 0.16rem;">等待事件...</div>'; }
+        };
+
+        // ==================== API ====================
+        const A = {
+            render() {
+                const apis = [
+                    { name: 'hasPrivateToken()', type: '方法', desc: '检查令牌', ok: hasPST },
+                    { name: 'hasRedemptionRecord()', type: '方法', desc: '检查记录', ok: 'hasRedemptionRecord' in document },
+                ];
+                document.getElementById('apiTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); }
+            if (e.key.toLowerCase() === 's' && !e.ctrlKey) { e.preventDefault(); Sim.issue(); }
+        });
+
+        document.getElementById('themeToggle').addEventListener('click', () => T.toggle());
+        document.getElementById('checkBtn').addEventListener('click', () => Token.check());
+        document.getElementById('refreshBtn').addEventListener('click', () => Token.refresh());
+        document.getElementById('refreshApiBtn').addEventListener('click', () => { A.render(); toast('success', '已刷新'); });
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); Token.init(); Sim.init(); A.render(); });
+    </script>
+</body>
+</html>
