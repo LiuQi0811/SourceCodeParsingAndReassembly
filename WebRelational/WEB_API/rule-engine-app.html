@@ -1,0 +1,3248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>规则引擎管理平台 - 企业级应用</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1890ff;
+            --primary-hover: #40a9ff;
+            --success-color: #52c41a;
+            --warning-color: #faad14;
+            --error-color: #ff4d4f;
+            --text-primary: #262626;
+            --text-secondary: #8c8c8c;
+            --border-color: #d9d9d9;
+            --bg-light: #f5f7fa;
+            --bg-white: #ffffff;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+            --radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            color: white;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .user-info:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            background: var(--success-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* 主容器 */
+        .main-container {
+            display: flex;
+            margin-top: 64px;
+            min-height: calc(100vh - 64px);
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-white);
+            border-right: 1px solid var(--border-color);
+            padding: 16px 0;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            bottom: 0;
+            overflow-y: auto;
+            transition: var(--transition);
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .nav-section {
+            padding: 8px 16px;
+        }
+
+        .nav-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            padding-left: 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-light);
+        }
+
+        .nav-item.active {
+            background: #e6f7ff;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .nav-item .icon {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .nav-item .label {
+            white-space: nowrap;
+        }
+
+        /* 内容区 */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .content.expanded {
+            margin-left: 64px;
+        }
+
+        /* 选项卡 */
+        .tabs-container {
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .tabs-header {
+            display: flex;
+            background: #fafafa;
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 16px 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+            position: relative;
+            transition: var(--transition);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(24, 144, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0 12px;
+            transition: var(--transition);
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            padding: 10px 8px;
+            outline: none;
+            width: 200px;
+            font-size: 14px;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #73d13d;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* 表格 */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: #fafafa;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover td {
+            background: #fafafa;
+        }
+
+        /* 状态标签 */
+        .status-tag {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #f6ffed;
+            color: var(--success-color);
+        }
+
+        .status-inactive {
+            background: #fff7e6;
+            color: var(--warning-color);
+        }
+
+        .status-error {
+            background: #fff2f0;
+            color: var(--error-color);
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-icon.blue { background: #e6f7ff; color: var(--primary-color); }
+        .stat-icon.green { background: #f6ffed; color: var(--success-color); }
+        .stat-icon.orange { background: #fff7e6; color: var(--warning-color); }
+        .stat-icon.red { background: #fff2f0; color: var(--error-color); }
+
+        .stat-info h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stat-info p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--text-secondary);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            background: var(--bg-light);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* 表单 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-label .required {
+            color: var(--error-color);
+            margin-left: 4px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        /* API文档样式 */
+        .api-section {
+            margin-bottom: 24px;
+        }
+
+        .api-endpoint {
+            background: var(--bg-light);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .method-get { background: #e6f7ff; color: var(--primary-color); }
+        .method-post { background: #f6ffed; color: var(--success-color); }
+        .method-put { background: #fff7e6; color: var(--warning-color); }
+        .method-delete { background: #fff2f0; color: var(--error-color); }
+
+        .api-path {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .api-desc {
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .api-params {
+            margin-top: 12px;
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+
+        .api-params h4 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .param-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+
+        .param-item:last-child {
+            border-bottom: none;
+        }
+
+        .param-name {
+            font-family: 'Monaco', 'Menlo', monospace;
+            color: var(--primary-color);
+            min-width: 120px;
+        }
+
+        .param-type {
+            color: var(--warning-color);
+            min-width: 80px;
+        }
+
+        .param-desc {
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        /* 代码块 */
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: var(--radius);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 4px;
+            color: #d4d4d4;
+            cursor: pointer;
+            font-size: 12px;
+            transition: var(--transition);
+        }
+
+        .code-block .copy-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* 执行结果 */
+        .result-panel {
+            background: #1e1e1e;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .result-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-status.success { color: var(--success-color); }
+        .result-status.error { color: var(--error-color); }
+
+        .result-time {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .result-body {
+            color: #d4d4d4;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+
+        /* 版本历史 */
+        .version-timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .version-timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .version-item {
+            position: relative;
+            padding: 16px;
+            background: var(--bg-light);
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+        }
+
+        .version-item::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            border: 2px solid var(--bg-white);
+        }
+
+        .version-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .version-number {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .version-date {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .version-changes {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 220px !important;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .content {
+                margin-left: 0 !important;
+            }
+
+            .header {
+                padding: 0 16px;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .toolbar-left, .toolbar-right {
+                justify-content: center;
+            }
+
+            .search-box input {
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .mobile-menu-btn {
+                display: block !important;
+            }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        /* Toast通知 */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 3000;
+        }
+
+        .toast {
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--error-color); }
+        .toast.warning { border-left: 4px solid var(--warning-color); }
+
+        /* 操作按钮组 */
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: var(--text-secondary);
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .action-btn:hover {
+            background: var(--bg-light);
+            color: var(--primary-color);
+        }
+
+        .action-btn.danger:hover {
+            color: var(--error-color);
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-white);
+            cursor: pointer;
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .page-btn:hover, .page-btn.active {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .page-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--bg-light);
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        /* 下拉菜单 */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            min-width: 160px;
+            display: none;
+            z-index: 100;
+        }
+
+        .dropdown-menu.active {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dropdown-item:hover {
+            background: var(--bg-light);
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 规则编辑器 */
+        .rule-editor {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #fafafa;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .editor-content {
+            min-height: 200px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            border: none;
+            width: 100%;
+            outline: none;
+        }
+
+        /* 条件构建器 */
+        .condition-builder {
+            background: var(--bg-light);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .condition-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .condition-row select, .condition-row input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 13px;
+        }
+
+        .condition-connector {
+            padding: 4px 12px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">⚙</div>
+            <span>规则引擎管理平台</span>
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <div class="avatar">A</div>
+                <span>Admin</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-title">主要功能</div>
+                    <div class="nav-item active" onclick="switchTab('dashboard', this)">
+                        <span class="icon">📊</span>
+                        <span class="label">控制台</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('rules', this)">
+                        <span class="icon">📋</span>
+                        <span class="label">规则管理</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('groups', this)">
+                        <span class="icon">📁</span>
+                        <span class="label">分组管理</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('execute', this)">
+                        <span class="icon">▶️</span>
+                        <span class="label">规则执行</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-title">高级功能</div>
+                    <div class="nav-item" onclick="switchTab('versions', this)">
+                        <span class="icon">📜</span>
+                        <span class="label">版本管理</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('import-export', this)">
+                        <span class="icon">🔄</span>
+                        <span class="label">导入导出</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('api-docs', this)">
+                        <span class="icon">📚</span>
+                        <span class="label">API文档</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-title">系统</div>
+                    <div class="nav-item" onclick="switchTab('logs', this)">
+                        <span class="icon">📝</span>
+                        <span class="label">执行日志</span>
+                    </div>
+                    <div class="nav-item" onclick="switchTab('settings', this)">
+                        <span class="icon">⚙️</span>
+                        <span class="label">系统设置</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- 内容区 -->
+        <main class="content" id="content">
+            <!-- 控制台 -->
+            <div id="tab-dashboard" class="tab-panel active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">📋</div>
+                        <div class="stat-info">
+                            <h3 id="total-rules">128</h3>
+                            <p>规则总数</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">✓</div>
+                        <div class="stat-info">
+                            <h3 id="active-rules">96</h3>
+                            <p>启用规则</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">▶️</div>
+                        <div class="stat-info">
+                            <h3 id="exec-count">1,234</h3>
+                            <p>今日执行次数</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red">⚠️</div>
+                        <div class="stat-info">
+                            <h3 id="error-count">12</h3>
+                            <p>执行异常</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="tab-btn" onclick="switchSubTab('recent', 'dashboard', this)">最近执行</button>
+                        <button class="tab-btn" onclick="switchSubTab('statistics', 'dashboard', this)">统计分析</button>
+                    </div>
+                    <div id="subtab-overview" class="tab-content active">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">快速操作</span>
+                            </div>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button class="btn btn-primary" onclick="openRuleModal()">+ 创建规则</button>
+                                <button class="btn btn-success" onclick="switchTab('execute', this)">执行测试</button>
+                                <button class="btn btn-outline" onclick="switchTab('import-export', this)">导入规则</button>
+                                <button class="btn btn-outline" onclick="switchTab('api-docs', this)">查看API</button>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">规则分组分布</span>
+                            </div>
+                            <div id="group-distribution">
+                                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                                    <span style="width: 120px;">风控规则</span>
+                                    <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                                        <div class="progress-fill" style="width: 45%;"></div>
+                                    </div>
+                                    <span style="width: 60px; text-align: right;">45%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                                    <span style="width: 120px;">营销规则</span>
+                                    <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                                        <div class="progress-fill" style="width: 30%; background: var(--success-color);"></div>
+                                    </div>
+                                    <span style="width: 60px; text-align: right;">30%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                                    <span style="width: 120px;">业务规则</span>
+                                    <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                                        <div class="progress-fill" style="width: 25%; background: var(--warning-color);"></div>
+                                    </div>
+                                    <span style="width: 60px; text-align: right;">25%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-recent" class="tab-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>执行时间</th>
+                                        <th>规则名称</th>
+                                        <th>输入参数</th>
+                                        <th>执行结果</th>
+                                        <th>耗时</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-executions">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="subtab-statistics" class="tab-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon blue">⏱️</div>
+                                <div class="stat-info">
+                                    <h3>12ms</h3>
+                                    <p>平均执行时间</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon green">99.2%</div>
+                                <div class="stat-info">
+                                    <h3>99.2%</h3>
+                                    <p>成功率</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon orange">📈</div>
+                                <div class="stat-info">
+                                    <h3>+15%</h3>
+                                    <p>周环比增长</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon red">🔥</div>
+                                <div class="stat-info">
+                                    <h3>风控规则</h3>
+                                    <p>最热规则组</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 规则管理 -->
+            <div id="tab-rules" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('rule-list', 'rules', this)">规则列表</button>
+                        <button class="tab-btn" onclick="switchSubTab('rule-create', 'rules', this)">创建规则</button>
+                        <button class="tab-btn" onclick="switchSubTab('rule-batch', 'rules', this)">批量操作</button>
+                    </div>
+                    <div id="subtab-rule-list" class="tab-content active">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <span>🔍</span>
+                                    <input type="text" placeholder="搜索规则名称..." id="rule-search" onkeyup="searchRules()">
+                                </div>
+                                <select class="form-select" style="width: auto;" id="group-filter" onchange="filterByGroup()">
+                                    <option value="">全部分组</option>
+                                </select>
+                                <select class="form-select" style="width: auto;" id="status-filter" onchange="filterByStatus()">
+                                    <option value="">全部状态</option>
+                                    <option value="active">已启用</option>
+                                    <option value="inactive">已禁用</option>
+                                </select>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn btn-primary" onclick="openRuleModal()">+ 新建规则</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" onchange="toggleAllRules(this)"></th>
+                                        <th>规则ID</th>
+                                        <th>规则名称</th>
+                                        <th>所属分组</th>
+                                        <th>优先级</th>
+                                        <th>状态</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rules-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="rules-pagination"></div>
+                    </div>
+                    <div id="subtab-rule-create" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">创建新规则</span>
+                            </div>
+                            <form id="create-rule-form" onsubmit="createRule(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">规则名称 <span class="required">*</span></label>
+                                        <input type="text" class="form-input" name="name" required placeholder="请输入规则名称">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">规则编码 <span class="required">*</span></label>
+                                        <input type="text" class="form-input" name="code" required placeholder="如: RULE_001">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">所属分组 <span class="required">*</span></label>
+                                        <select class="form-select" name="groupId" required id="rule-group-select">
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">优先级</label>
+                                        <input type="number" class="form-input" name="priority" value="100" min="1" max="1000">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">规则描述</label>
+                                    <textarea class="form-textarea" name="description" placeholder="请输入规则描述"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">规则条件</label>
+                                    <div class="condition-builder">
+                                        <div class="condition-row">
+                                            <select id="condition-field">
+                                                <option value="amount">金额</option>
+                                                <option value="age">年龄</option>
+                                                <option value="score">评分</option>
+                                                <option value="level">等级</option>
+                                            </select>
+                                            <select id="condition-operator">
+                                                <option value="gt">大于</option>
+                                                <option value="gte">大于等于</option>
+                                                <option value="lt">小于</option>
+                                                <option value="lte">小于等于</option>
+                                                <option value="eq">等于</option>
+                                                <option value="neq">不等于</option>
+                                            </select>
+                                            <input type="text" id="condition-value" placeholder="值">
+                                            <button type="button" class="btn btn-sm btn-outline" onclick="addCondition()">+ 添加条件</button>
+                                        </div>
+                                        <div id="conditions-list"></div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">规则表达式 (JSON格式)</label>
+                                    <textarea class="form-textarea" name="expression" rows="8" placeholder='{"conditions": [], "actions": []}'></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">执行动作</label>
+                                    <textarea class="form-textarea" name="actions" rows="4" placeholder='[{"type": "reject", "message": "风险过高"}]'></textarea>
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button type="submit" class="btn btn-primary">创建规则</button>
+                                    <button type="button" class="btn btn-outline" onclick="testRuleForm()">测试规则</button>
+                                    <button type="reset" class="btn btn-outline">重置</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="subtab-rule-batch" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">批量操作</span>
+                            </div>
+                            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                <button class="btn btn-success" onclick="batchEnable()">批量启用</button>
+                                <button class="btn btn-warning" onclick="batchDisable()">批量禁用</button>
+                                <button class="btn btn-danger" onclick="batchDelete()">批量删除</button>
+                                <button class="btn btn-outline" onclick="batchExport()">批量导出</button>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <p style="color: var(--text-secondary);">已选择 <span id="selected-count">0</span> 条规则</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分组管理 -->
+            <div id="tab-groups" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('group-list', 'groups', this)">分组列表</button>
+                        <button class="tab-btn" onclick="switchSubTab('group-create', 'groups', this)">创建分组</button>
+                    </div>
+                    <div id="subtab-group-list" class="tab-content active">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <span>🔍</span>
+                                    <input type="text" placeholder="搜索分组名称..." id="group-search" onkeyup="searchGroups()">
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn btn-primary" onclick="openGroupModal()">+ 新建分组</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>分组ID</th>
+                                        <th>分组名称</th>
+                                        <th>分组编码</th>
+                                        <th>规则数量</th>
+                                        <th>描述</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="groups-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="subtab-group-create" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">创建新分组</span>
+                            </div>
+                            <form id="create-group-form" onsubmit="createGroup(event)">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">分组名称 <span class="required">*</span></label>
+                                        <input type="text" class="form-input" name="name" required placeholder="请输入分组名称">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">分组编码 <span class="required">*</span></label>
+                                        <input type="text" class="form-input" name="code" required placeholder="如: RISK_CONTROL">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">分组描述</label>
+                                    <textarea class="form-textarea" name="description" placeholder="请输入分组描述"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">创建分组</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 规则执行 -->
+            <div id="tab-execute" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('single-exec', 'execute', this)">单规则执行</button>
+                        <button class="tab-btn" onclick="switchSubTab('batch-exec', 'execute', this)">批量执行</button>
+                        <button class="tab-btn" onclick="switchSubTab('chain-exec', 'execute', this)">规则链执行</button>
+                    </div>
+                    <div id="subtab-single-exec" class="tab-content active">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">执行规则</span>
+                            </div>
+                            <form id="exec-form" onsubmit="executeRule(event)">
+                                <div class="form-group">
+                                    <label class="form-label">选择规则 <span class="required">*</span></label>
+                                    <select class="form-select" name="ruleId" required id="exec-rule-select">
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">输入参数 (JSON格式) <span class="required">*</span></label>
+                                    <textarea class="form-textarea" name="params" rows="6" required placeholder='{"amount": 10000, "age": 25, "score": 750}'></textarea>
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button type="submit" class="btn btn-primary">▶ 执行规则</button>
+                                    <button type="button" class="btn btn-outline" onclick="formatExecParams()">格式化JSON</button>
+                                </div>
+                            </form>
+                            <div class="result-panel" id="exec-result" style="display: none;">
+                                <div class="result-header">
+                                    <div class="result-status" id="exec-status"></div>
+                                    <div class="result-time" id="exec-time"></div>
+                                </div>
+                                <div class="result-body" id="exec-output"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-batch-exec" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">批量执行</span>
+                            </div>
+                            <form id="batch-exec-form" onsubmit="batchExecute(event)">
+                                <div class="form-group">
+                                    <label class="form-label">选择分组</label>
+                                    <select class="form-select" name="groupId" id="batch-group-select">
+                                        <option value="">全部规则</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">输入参数 (JSON数组格式)</label>
+                                    <textarea class="form-textarea" name="params" rows="8" placeholder='[{"amount": 1000}, {"amount": 5000}]'></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">▶ 批量执行</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="subtab-chain-exec" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">规则链执行</span>
+                            </div>
+                            <p style="color: var(--text-secondary); margin-bottom: 16px;">按顺序执行多个规则，前一个规则的输出可作为后一个规则的输入</p>
+                            <form id="chain-exec-form" onsubmit="chainExecute(event)">
+                                <div class="form-group">
+                                    <label class="form-label">选择规则链</label>
+                                    <select class="form-select" name="chainId" id="chain-select">
+                                        <option value="risk_chain">风控规则链</option>
+                                        <option value="marketing_chain">营销规则链</option>
+                                        <option value="business_chain">业务规则链</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">输入参数</label>
+                                    <textarea class="form-textarea" name="params" rows="6"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">▶ 执行规则链</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 版本管理 -->
+            <div id="tab-versions" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('version-history', 'versions', this)">版本历史</button>
+                        <button class="tab-btn" onclick="switchSubTab('version-compare', 'versions', this)">版本对比</button>
+                        <button class="tab-btn" onclick="switchSubTab('version-rollback', 'versions', this)">版本回滚</button>
+                    </div>
+                    <div id="subtab-version-history" class="tab-content active">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <select class="form-select" style="width: auto;" id="version-rule-select" onchange="loadVersionHistory()">
+                                    <option value="">选择规则</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="version-timeline" id="version-timeline">
+                            <div class="empty-state">
+                                <div class="icon">📜</div>
+                                <h3>请选择规则查看版本历史</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-version-compare" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">版本对比</span>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">选择规则</label>
+                                    <select class="form-select" id="compare-rule-select">
+                                        <option value="">选择规则</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">版本A</label>
+                                    <select class="form-select" id="version-a-select">
+                                        <option value="">选择版本</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">版本B</label>
+                                    <select class="form-select" id="version-b-select">
+                                        <option value="">选择版本</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="compareVersions()">对比版本</button>
+                            <div id="compare-result" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+                    <div id="subtab-version-rollback" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">版本回滚</span>
+                            </div>
+                            <p style="color: var(--text-secondary); margin-bottom: 16px;">将规则回滚到指定的历史版本</p>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">选择规则</label>
+                                    <select class="form-select" id="rollback-rule-select">
+                                        <option value="">选择规则</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">目标版本</label>
+                                    <select class="form-select" id="rollback-version-select">
+                                        <option value="">选择版本</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-warning" onclick="rollbackVersion()">执行回滚</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 导入导出 -->
+            <div id="tab-import-export" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('export', 'import-export', this)">导出规则</button>
+                        <button class="tab-btn" onclick="switchSubTab('import', 'import-export', this)">导入规则</button>
+                    </div>
+                    <div id="subtab-export" class="tab-content active">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">导出规则</span>
+                            </div>
+                            <form id="export-form" onsubmit="exportRules(event)">
+                                <div class="form-group">
+                                    <label class="form-label">导出范围</label>
+                                    <div style="display: flex; gap: 20px; margin-top: 8px;">
+                                        <label><input type="radio" name="exportScope" value="all" checked> 全部规则</label>
+                                        <label><input type="radio" name="exportScope" value="group"> 按分组</label>
+                                        <label><input type="radio" name="exportScope" value="selected"> 已选择</label>
+                                    </div>
+                                </div>
+                                <div class="form-group" id="export-group-select-container" style="display: none;">
+                                    <label class="form-label">选择分组</label>
+                                    <select class="form-select" id="export-group-select" multiple style="height: 120px;">
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">导出格式</label>
+                                    <select class="form-select" name="format">
+                                        <option value="json">JSON</option>
+                                        <option value="yaml">YAML</option>
+                                        <option value="xml">XML</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">导出选项</label>
+                                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                                        <label><input type="checkbox" name="includeVersions" checked> 包含版本历史</label>
+                                        <label><input type="checkbox" name="includeLogs"> 包含执行日志</label>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">📥 导出规则</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="subtab-import" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">导入规则</span>
+                            </div>
+                            <form id="import-form" onsubmit="importRules(event)">
+                                <div class="form-group">
+                                    <label class="form-label">选择文件</label>
+                                    <input type="file" class="form-input" name="file" accept=".json,.yaml,.xml" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">导入策略</label>
+                                    <select class="form-select" name="strategy">
+                                        <option value="skip">跳过已存在的规则</option>
+                                        <option value="overwrite">覆盖已存在的规则</option>
+                                        <option value="rename">重命名已存在的规则</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">导入预览</label>
+                                    <div class="code-block" id="import-preview" style="min-height: 100px;">
+                                        <span style="color: var(--text-secondary);">选择文件后显示预览...</span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">📤 导入规则</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="tab-api-docs" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('api-rules', 'api-docs', this)">规则API</button>
+                        <button class="tab-btn" onclick="switchSubTab('api-groups', 'api-docs', this)">分组API</button>
+                        <button class="tab-btn" onclick="switchSubTab('api-execute', 'api-docs', this)">执行API</button>
+                        <button class="tab-btn" onclick="switchSubTab('api-version', 'api-docs', this)">版本API</button>
+                        <button class="tab-btn" onclick="switchSubTab('api-import', 'api-docs', this)">导入导出API</button>
+                    </div>
+                    <div id="subtab-api-rules" class="tab-content active">
+                        <div class="api-section">
+                            <h3 style="margin-bottom: 16px;">规则管理接口</h3>
+                            
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/rules</span>
+                                <p class="api-desc">获取规则列表，支持分页、筛选和排序</p>
+                                <div class="api-params">
+                                    <h4>查询参数</h4>
+                                    <div class="param-item">
+                                        <span class="param-name">page</span>
+                                        <span class="param-type">integer</span>
+                                        <span class="param-desc">页码，默认1</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">pageSize</span>
+                                        <span class="param-type">integer</span>
+                                        <span class="param-desc">每页数量，默认20</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">groupId</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">分组ID筛选</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">status</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">状态筛选: active/inactive</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">keyword</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">关键词搜索</span>
+                                    </div>
+                                </div>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "code": 200,
+  "data": {
+    "list": [...],
+    "total": 100,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/rules/{id}</span>
+                                <p class="api-desc">获取单个规则详情</p>
+                                <div class="api-params">
+                                    <h4>路径参数</h4>
+                                    <div class="param-item">
+                                        <span class="param-name">id</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">规则ID</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules</span>
+                                <p class="api-desc">创建新规则</p>
+                                <div class="api-params">
+                                    <h4>请求体</h4>
+                                </div>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "name": "风控规则001",
+  "code": "RISK_001",
+  "groupId": "group_001",
+  "priority": 100,
+  "description": "高风险交易拦截规则",
+  "expression": {
+    "conditions": [
+      {"field": "amount", "operator": "gt", "value": 50000}
+    ],
+    "logic": "and"
+  },
+  "actions": [
+    {"type": "reject", "message": "交易金额超限"}
+  ],
+  "status": "active"
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-put">PUT</span>
+                                <span class="api-path">/api/v1/rules/{id}</span>
+                                <p class="api-desc">更新规则信息</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-delete">DELETE</span>
+                                <span class="api-path">/api/v1/rules/{id}</span>
+                                <p class="api-desc">删除规则（软删除）</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/{id}/enable</span>
+                                <p class="api-desc">启用规则</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/{id}/disable</span>
+                                <p class="api-desc">禁用规则</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/batch</span>
+                                <p class="api-desc">批量操作规则</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "ruleIds": ["rule_001", "rule_002"],
+  "action": "enable" // enable/disable/delete
+}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-api-groups" class="tab-content">
+                        <div class="api-section">
+                            <h3 style="margin-bottom: 16px;">分组管理接口</h3>
+                            
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/groups</span>
+                                <p class="api-desc">获取分组列表</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/groups/{id}</span>
+                                <p class="api-desc">获取分组详情</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/groups</span>
+                                <p class="api-desc">创建新分组</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "name": "风控规则组",
+  "code": "RISK_CONTROL",
+  "description": "用于风险控制的规则集合"
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-put">PUT</span>
+                                <span class="api-path">/api/v1/groups/{id}</span>
+                                <p class="api-desc">更新分组信息</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-delete">DELETE</span>
+                                <span class="api-path">/api/v1/groups/{id}</span>
+                                <p class="api-desc">删除分组（分组下有规则时不可删除）</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/groups/{id}/rules</span>
+                                <p class="api-desc">获取分组下的所有规则</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-api-execute" class="tab-content">
+                        <div class="api-section">
+                            <h3 style="margin-bottom: 16px;">规则执行接口</h3>
+                            
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/execute</span>
+                                <p class="api-desc">执行单个规则</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "ruleId": "rule_001",
+  "params": {
+    "amount": 100000,
+    "userId": "user_123",
+    "transactionId": "txn_456"
+  },
+  "options": {
+    "debug": true,
+    "timeout": 5000
+  }
+}
+                                </div>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+// 响应示例
+{
+  "code": 200,
+  "data": {
+    "ruleId": "rule_001",
+    "result": "reject",
+    "message": "交易金额超限",
+    "actions": [...],
+    "executionTime": 12,
+    "debugInfo": {...}
+  }
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/execute/batch</span>
+                                <p class="api-desc">批量执行规则</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "ruleIds": ["rule_001", "rule_002"],
+  "params": {...},
+  "stopOnFirstMatch": true
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/execute/group/{groupId}</span>
+                                <p class="api-desc">执行分组下所有规则</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/execute/chain</span>
+                                <p class="api-desc">执行规则链</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "chainId": "risk_chain",
+  "params": {...},
+  "passOutput": true
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/test</span>
+                                <p class="api-desc">测试规则（不保存执行记录）</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-api-version" class="tab-content">
+                        <div class="api-section">
+                            <h3 style="margin-bottom: 16px;">版本管理接口</h3>
+                            
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/rules/{id}/versions</span>
+                                <p class="api-desc">获取规则版本历史</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/rules/{id}/versions/{versionId}</span>
+                                <p class="api-desc">获取特定版本详情</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/{id}/versions</span>
+                                <p class="api-desc">创建新版本（手动保存快照）</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/{id}/rollback/{versionId}</span>
+                                <p class="api-desc">回滚到指定版本</p>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/rules/{id}/compare</span>
+                                <p class="api-desc">对比两个版本</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+{
+  "versionA": "v1.0.0",
+  "versionB": "v1.1.0"
+}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-api-import" class="tab-content">
+                        <div class="api-section">
+                            <h3 style="margin-bottom: 16px;">导入导出接口</h3>
+                            
+                            <div class="api-endpoint">
+                                <span class="api-method method-get">GET</span>
+                                <span class="api-path">/api/v1/export</span>
+                                <p class="api-desc">导出规则</p>
+                                <div class="api-params">
+                                    <h4>查询参数</h4>
+                                    <div class="param-item">
+                                        <span class="param-name">scope</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">导出范围: all/group/selected</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">groupId</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">分组ID（scope=group时必填）</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">ruleIds</span>
+                                        <span class="param-type">array</span>
+                                        <span class="param-desc">规则ID列表（scope=selected时必填）</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">format</span>
+                                        <span class="param-type">string</span>
+                                        <span class="param-desc">导出格式: json/yaml/xml</span>
+                                    </div>
+                                    <div class="param-item">
+                                        <span class="param-name">includeVersions</span>
+                                        <span class="param-type">boolean</span>
+                                        <span class="param-desc">是否包含版本历史</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/import</span>
+                                <p class="api-desc">导入规则</p>
+                                <div class="code-block" style="margin-top: 12px;">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+// Content-Type: multipart/form-data
+{
+  "file": "&lt;binary&gt;",
+  "strategy": "skip", // skip/overwrite/rename
+  "validateOnly": false
+}
+                                </div>
+                            </div>
+
+                            <div class="api-endpoint">
+                                <span class="api-method method-post">POST</span>
+                                <span class="api-path">/api/v1/import/preview</span>
+                                <p class="api-desc">预览导入结果（不实际导入）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 执行日志 -->
+            <div id="tab-logs" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('log-list', 'logs', this)">日志列表</button>
+                        <button class="tab-btn" onclick="switchSubTab('log-stats', 'logs', this)">统计分析</button>
+                    </div>
+                    <div id="subtab-log-list" class="tab-content active">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <div class="search-box">
+                                    <span>🔍</span>
+                                    <input type="text" placeholder="搜索..." id="log-search">
+                                </div>
+                                <select class="form-select" style="width: auto;" id="log-status-filter">
+                                    <option value="">全部状态</option>
+                                    <option value="success">成功</option>
+                                    <option value="error">失败</option>
+                                </select>
+                                <input type="date" class="form-input" style="width: auto;" id="log-date-filter">
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="btn btn-outline" onclick="refreshLogs()">🔄 刷新</button>
+                                <button class="btn btn-outline" onclick="exportLogs()">📥 导出</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>执行ID</th>
+                                        <th>规则名称</th>
+                                        <th>输入参数</th>
+                                        <th>执行结果</th>
+                                        <th>状态</th>
+                                        <th>耗时</th>
+                                        <th>执行时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logs-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="logs-pagination"></div>
+                    </div>
+                    <div id="subtab-log-stats" class="tab-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon blue">📊</div>
+                                <div class="stat-info">
+                                    <h3>5,234</h3>
+                                    <p>总执行次数</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon green">✓</div>
+                                <div class="stat-info">
+                                    <h3>98.5%</h3>
+                                    <p>成功率</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon orange">⏱️</div>
+                                <div class="stat-info">
+                                    <h3>15ms</h3>
+                                    <p>平均耗时</p>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon red">⚠️</div>
+                                <div class="stat-info">
+                                    <h3>78</h3>
+                                    <p>异常次数</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系统设置 -->
+            <div id="tab-settings" class="tab-panel">
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" onclick="switchSubTab('general-settings', 'settings', this)">基本设置</button>
+                        <button class="tab-btn" onclick="switchSubTab('exec-settings', 'settings', this)">执行配置</button>
+                        <button class="tab-btn" onclick="switchSubTab('notify-settings', 'settings', this)">通知设置</button>
+                    </div>
+                    <div id="subtab-general-settings" class="tab-content active">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">基本设置</span>
+                            </div>
+                            <form id="general-settings-form">
+                                <div class="form-group">
+                                    <label class="form-label">系统名称</label>
+                                    <input type="text" class="form-input" value="规则引擎管理平台">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">默认每页显示数量</label>
+                                    <select class="form-select">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">自动保存版本</label>
+                                    <div style="display: flex; gap: 20px; margin-top: 8px;">
+                                        <label><input type="radio" name="autoSave" checked> 开启</label>
+                                        <label><input type="radio" name="autoSave"> 关闭</label>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="subtab-exec-settings" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">执行配置</span>
+                            </div>
+                            <form id="exec-settings-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">默认超时时间(ms)</label>
+                                        <input type="number" class="form-input" value="5000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">最大并发数</label>
+                                        <input type="number" class="form-input" value="100">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">执行模式</label>
+                                    <select class="form-select">
+                                        <option value="sync">同步执行</option>
+                                        <option value="async">异步执行</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">日志保留天数</label>
+                                    <input type="number" class="form-input" value="30">
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div id="subtab-notify-settings" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">通知设置</span>
+                            </div>
+                            <form id="notify-settings-form">
+                                <div class="form-group">
+                                    <label class="form-label">异常通知</label>
+                                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                                        <label><input type="checkbox" checked> 邮件通知</label>
+                                        <label><input type="checkbox"> 短信通知</label>
+                                        <label><input type="checkbox" checked> 系统消息</label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">通知接收邮箱</label>
+                                    <input type="email" class="form-input" placeholder="admin@example.com">
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 规则编辑模态框 -->
+    <div class="modal-overlay" id="rule-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="rule-modal-title">创建规则</h3>
+                <button class="modal-close" onclick="closeRuleModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="rule-form">
+                    <input type="hidden" name="id" id="rule-id">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">规则名称 <span class="required">*</span></label>
+                            <input type="text" class="form-input" name="name" id="rule-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">规则编码 <span class="required">*</span></label>
+                            <input type="text" class="form-input" name="code" id="rule-code" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">所属分组 <span class="required">*</span></label>
+                            <select class="form-select" name="groupId" id="rule-groupId" required>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">优先级</label>
+                            <input type="number" class="form-input" name="priority" id="rule-priority" value="100">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">规则描述</label>
+                        <textarea class="form-textarea" name="description" id="rule-description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">规则表达式</label>
+                        <textarea class="form-textarea" name="expression" id="rule-expression" rows="6"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">状态</label>
+                        <select class="form-select" name="status" id="rule-status">
+                            <option value="active">启用</option>
+                            <option value="inactive">禁用</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeRuleModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分组编辑模态框 -->
+    <div class="modal-overlay" id="group-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="group-modal-title">创建分组</h3>
+                <button class="modal-close" onclick="closeGroupModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="group-form">
+                    <input type="hidden" name="id" id="group-id">
+                    <div class="form-group">
+                        <label class="form-label">分组名称 <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="name" id="group-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">分组编码 <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="code" id="group-code" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">分组描述</label>
+                        <textarea class="form-textarea" name="description" id="group-description"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeGroupModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveGroup()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据模拟 ====================
+        let rules = [
+            { id: 'rule_001', name: '大额交易风控规则', code: 'RISK_LARGE_AMOUNT', groupId: 'group_001', priority: 100, status: 'active', description: '单笔交易金额超过5万触发风控', expression: '{"conditions":[{"field":"amount","operator":"gt","value":50000}],"logic":"and"}', createdAt: '2024-01-15 10:30:00' },
+            { id: 'rule_002', name: '高频交易检测', code: 'RISK_HIGH_FREQ', groupId: 'group_001', priority: 90, status: 'active', description: '检测短时间内高频交易行为', expression: '{"conditions":[{"field":"count","operator":"gt","value":10},{"field":"period","operator":"eq","value":"1h"}],"logic":"and"}', createdAt: '2024-01-16 14:20:00' },
+            { id: 'rule_003', name: '新用户首单优惠', code: 'MKT_NEW_USER', groupId: 'group_002', priority: 80, status: 'active', description: '新用户首单享受9折优惠', expression: '{"conditions":[{"field":"isNewUser","operator":"eq","value":true},{"field":"orderCount","operator":"eq","value":0}],"logic":"and"}', createdAt: '2024-01-17 09:15:00' },
+            { id: 'rule_004', name: 'VIP会员折扣', code: 'MKT_VIP_DISCOUNT', groupId: 'group_002', priority: 70, status: 'active', description: 'VIP会员享受专属折扣', expression: '{"conditions":[{"field":"memberLevel","operator":"gte","value":3}],"logic":"and"}', createdAt: '2024-01-18 16:45:00' },
+            { id: 'rule_005', name: '黑名单检测', code: 'RISK_BLACKLIST', groupId: 'group_001', priority: 200, status: 'active', description: '黑名单用户禁止交易', expression: '{"conditions":[{"field":"isBlacklisted","operator":"eq","value":true}],"logic":"and"}', createdAt: '2024-01-19 11:00:00' },
+            { id: 'rule_006', name: '订单金额校验', code: 'BIZ_ORDER_CHECK', groupId: 'group_003', priority: 50, status: 'inactive', description: '校验订单金额是否合法', expression: '{"conditions":[{"field":"orderAmount","operator":"gt","value":0}],"logic":"and"}', createdAt: '2024-01-20 08:30:00' },
+        ];
+
+        let groups = [
+            { id: 'group_001', name: '风控规则', code: 'RISK_CONTROL', description: '风险控制相关规则集合', ruleCount: 3, createdAt: '2024-01-10 10:00:00' },
+            { id: 'group_002', name: '营销规则', code: 'MARKETING', description: '营销活动相关规则集合', ruleCount: 2, createdAt: '2024-01-11 11:00:00' },
+            { id: 'group_003', name: '业务规则', code: 'BUSINESS', description: '业务逻辑相关规则集合', ruleCount: 1, createdAt: '2024-01-12 12:00:00' },
+        ];
+
+        let versions = [
+            { id: 'ver_001', ruleId: 'rule_001', version: 'v1.2.0', changes: '优化风控阈值，提升检测精度', createdAt: '2024-01-20 15:30:00' },
+            { id: 'ver_002', ruleId: 'rule_001', version: 'v1.1.0', changes: '增加交易时间限制条件', createdAt: '2024-01-18 10:00:00' },
+            { id: 'ver_003', ruleId: 'rule_001', version: 'v1.0.0', changes: '初始版本', createdAt: '2024-01-15 10:30:00' },
+        ];
+
+        let executionLogs = [
+            { id: 'exec_001', ruleName: '大额交易风控规则', params: '{"amount": 60000}', result: 'reject', status: 'success', duration: 12, createdAt: '2024-01-21 10:30:15' },
+            { id: 'exec_002', ruleName: '新用户首单优惠', params: '{"isNewUser": true, "orderCount": 0}', result: 'pass', status: 'success', duration: 8, createdAt: '2024-01-21 10:28:42' },
+            { id: 'exec_003', ruleName: '黑名单检测', params: '{"userId": "user_123"}', result: 'pass', status: 'success', duration: 5, createdAt: '2024-01-21 10:25:18' },
+            { id: 'exec_004', ruleName: '高频交易检测', params: '{"count": 15, "period": "1h"}', result: 'reject', status: 'success', duration: 15, createdAt: '2024-01-21 10:20:33' },
+        ];
+
+        let selectedRules = [];
+        let currentPage = 1;
+        const pageSize = 10;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            renderRules();
+            renderGroups();
+            renderLogs();
+            updateSelects();
+            renderRecentExecutions();
+        });
+
+        // ==================== 标签页切换 ====================
+        function switchTab(tabId, element) {
+            console.log('switchTab called:', tabId, element);
+            
+            // 更新导航 - 移除所有 active
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            // 添加 active 到当前导航项
+            if (element && element.classList.contains('nav-item')) {
+                element.classList.add('active');
+            } else {
+                // 找到对应的导航项
+                const navItems = document.querySelectorAll('.nav-item');
+                navItems.forEach(item => {
+                    if (item.getAttribute('onclick') && item.getAttribute('onclick').includes("'" + tabId + "'")) {
+                        item.classList.add('active');
+                    }
+                });
+            }
+            
+            // 更新内容 - 移除所有 active
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            
+            // 显示当前内容
+            const targetPanel = document.getElementById('tab-' + tabId);
+            console.log('Target panel:', 'tab-' + tabId, targetPanel);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+            
+            // 移动端关闭侧边栏
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('mobile-open');
+            }
+        }
+
+        function switchSubTab(subTabId, parentTab, element) {
+            console.log('switchSubTab called:', subTabId, parentTab, element);
+            
+            const parent = document.getElementById('tab-' + parentTab);
+            if (!parent) {
+                console.error('Parent not found:', 'tab-' + parentTab);
+                return;
+            }
+            
+            parent.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (element) {
+                element.classList.add('active');
+            }
+            
+            parent.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            const targetContent = document.getElementById('subtab-' + subTabId);
+            console.log('Target content:', 'subtab-' + subTabId, targetContent);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        }
+
+        // ==================== 规则管理 ====================
+        function renderRules() {
+            const tbody = document.getElementById('rules-table-body');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageRules = rules.slice(start, end);
+            
+            tbody.innerHTML = pageRules.map(rule => {
+                const group = groups.find(g => g.id === rule.groupId);
+                return `
+                    <tr>
+                        <td><input type="checkbox" value="${rule.id}" onchange="toggleRuleSelection('${rule.id}')"></td>
+                        <td><code>${rule.id}</code></td>
+                        <td><strong>${rule.name}</strong></td>
+                        <td><span class="tag">${group ? group.name : '-'}</span></td>
+                        <td>${rule.priority}</td>
+                        <td><span class="status-tag ${rule.status === 'active' ? 'status-active' : 'status-inactive'}">${rule.status === 'active' ? '已启用' : '已禁用'}</span></td>
+                        <td>${rule.createdAt}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="action-btn" onclick="editRule('${rule.id}')" title="编辑">✏️</button>
+                                <button class="action-btn" onclick="toggleRuleStatus('${rule.id}')" title="${rule.status === 'active' ? '禁用' : '启用'}">${rule.status === 'active' ? '⏸️' : '▶️'}</button>
+                                <button class="action-btn" onclick="viewRuleVersions('${rule.id}')" title="版本">📜</button>
+                                <button class="action-btn danger" onclick="deleteRule('${rule.id}')" title="删除">🗑️</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            renderPagination('rules-pagination', rules.length, currentPage);
+        }
+
+        function renderPagination(containerId, total, current) {
+            const totalPages = Math.ceil(total / pageSize);
+            const container = document.getElementById(containerId);
+            
+            let html = '';
+            html += `<button class="page-btn" onclick="goToPage(${current - 1})" ${current === 1 ? 'disabled' : ''}>上一页</button>`;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= current - 2 && i <= current + 2)) {
+                    html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+                } else if (i === current - 3 || i === current + 3) {
+                    html += '<span style="padding: 8px;">...</span>';
+                }
+            }
+            
+            html += `<button class="page-btn" onclick="goToPage(${current + 1})" ${current === totalPages ? 'disabled' : ''}>下一页</button>`;
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(rules.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderRules();
+        }
+
+        function searchRules() {
+            const keyword = document.getElementById('rule-search').value.toLowerCase();
+            const filtered = rules.filter(r => 
+                r.name.toLowerCase().includes(keyword) || 
+                r.code.toLowerCase().includes(keyword)
+            );
+            // 简化处理，实际应该用filtered数据
+            showToast('搜索完成，找到 ' + filtered.length + ' 条结果', 'success');
+        }
+
+        function filterByGroup() {
+            const groupId = document.getElementById('group-filter').value;
+            showToast('按分组筛选: ' + (groupId || '全部'), 'success');
+        }
+
+        function filterByStatus() {
+            const status = document.getElementById('status-filter').value;
+            showToast('按状态筛选: ' + (status || '全部'), 'success');
+        }
+
+        function toggleAllRules(checkbox) {
+            const checkboxes = document.querySelectorAll('#rules-table-body input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                const ruleId = cb.value;
+                if (checkbox.checked && !selectedRules.includes(ruleId)) {
+                    selectedRules.push(ruleId);
+                } else if (!checkbox.checked) {
+                    selectedRules = selectedRules.filter(id => id !== ruleId);
+                }
+            });
+            updateSelectedCount();
+        }
+
+        function toggleRuleSelection(ruleId) {
+            if (selectedRules.includes(ruleId)) {
+                selectedRules = selectedRules.filter(id => id !== ruleId);
+            } else {
+                selectedRules.push(ruleId);
+            }
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selected-count').textContent = selectedRules.length;
+        }
+
+        function openRuleModal(ruleId = null) {
+            const modal = document.getElementById('rule-modal');
+            const title = document.getElementById('rule-modal-title');
+            
+            if (ruleId) {
+                title.textContent = '编辑规则';
+                const rule = rules.find(r => r.id === ruleId);
+                if (rule) {
+                    document.getElementById('rule-id').value = rule.id;
+                    document.getElementById('rule-name').value = rule.name;
+                    document.getElementById('rule-code').value = rule.code;
+                    document.getElementById('rule-groupId').value = rule.groupId;
+                    document.getElementById('rule-priority').value = rule.priority;
+                    document.getElementById('rule-description').value = rule.description;
+                    document.getElementById('rule-expression').value = rule.expression;
+                    document.getElementById('rule-status').value = rule.status;
+                }
+            } else {
+                title.textContent = '创建规则';
+                document.getElementById('rule-form').reset();
+                document.getElementById('rule-id').value = '';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeRuleModal() {
+            document.getElementById('rule-modal').classList.remove('active');
+        }
+
+        function saveRule() {
+            const id = document.getElementById('rule-id').value;
+            const ruleData = {
+                name: document.getElementById('rule-name').value,
+                code: document.getElementById('rule-code').value,
+                groupId: document.getElementById('rule-groupId').value,
+                priority: parseInt(document.getElementById('rule-priority').value) || 100,
+                description: document.getElementById('rule-description').value,
+                expression: document.getElementById('rule-expression').value,
+                status: document.getElementById('rule-status').value,
+            };
+            
+            if (id) {
+                // 更新
+                const index = rules.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    rules[index] = { ...rules[index], ...ruleData };
+                    showToast('规则更新成功', 'success');
+                }
+            } else {
+                // 创建
+                ruleData.id = 'rule_' + String(rules.length + 1).padStart(3, '0');
+                ruleData.createdAt = new Date().toLocaleString('zh-CN');
+                rules.push(ruleData);
+                showToast('规则创建成功', 'success');
+            }
+            
+            closeRuleModal();
+            renderRules();
+            updateSelects();
+        }
+
+        function editRule(ruleId) {
+            openRuleModal(ruleId);
+        }
+
+        function toggleRuleStatus(ruleId) {
+            const rule = rules.find(r => r.id === ruleId);
+            if (rule) {
+                rule.status = rule.status === 'active' ? 'inactive' : 'active';
+                showToast(`规则已${rule.status === 'active' ? '启用' : '禁用'}`, 'success');
+                renderRules();
+            }
+        }
+
+        function deleteRule(ruleId) {
+            if (confirm('确定要删除该规则吗？')) {
+                rules = rules.filter(r => r.id !== ruleId);
+                showToast('规则已删除', 'success');
+                renderRules();
+                updateSelects();
+            }
+        }
+
+        function viewRuleVersions(ruleId) {
+            switchTab('versions', null);
+            document.getElementById('version-rule-select').value = ruleId;
+            loadVersionHistory();
+        }
+
+        function createRule(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const ruleData = {
+                id: 'rule_' + String(rules.length + 1).padStart(3, '0'),
+                name: formData.get('name'),
+                code: formData.get('code'),
+                groupId: formData.get('groupId'),
+                priority: parseInt(formData.get('priority')) || 100,
+                description: formData.get('description'),
+                expression: formData.get('expression'),
+                status: 'active',
+                createdAt: new Date().toLocaleString('zh-CN')
+            };
+            rules.push(ruleData);
+            showToast('规则创建成功', 'success');
+            form.reset();
+            renderRules();
+            updateSelects();
+        }
+
+        // ==================== 分组管理 ====================
+        function renderGroups() {
+            const tbody = document.getElementById('groups-table-body');
+            tbody.innerHTML = groups.map(group => `
+                <tr>
+                    <td><code>${group.id}</code></td>
+                    <td><strong>${group.name}</strong></td>
+                    <td>${group.code}</td>
+                    <td>${group.ruleCount}</td>
+                    <td>${group.description}</td>
+                    <td>${group.createdAt}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="editGroup('${group.id}')" title="编辑">✏️</button>
+                            <button class="action-btn" onclick="viewGroupRules('${group.id}')" title="查看规则">📋</button>
+                            <button class="action-btn danger" onclick="deleteGroup('${group.id}')" title="删除">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function searchGroups() {
+            const keyword = document.getElementById('group-search').value.toLowerCase();
+            showToast('搜索分组...', 'success');
+        }
+
+        function openGroupModal(groupId = null) {
+            const modal = document.getElementById('group-modal');
+            const title = document.getElementById('group-modal-title');
+            
+            if (groupId) {
+                title.textContent = '编辑分组';
+                const group = groups.find(g => g.id === groupId);
+                if (group) {
+                    document.getElementById('group-id').value = group.id;
+                    document.getElementById('group-name').value = group.name;
+                    document.getElementById('group-code').value = group.code;
+                    document.getElementById('group-description').value = group.description;
+                }
+            } else {
+                title.textContent = '创建分组';
+                document.getElementById('group-form').reset();
+                document.getElementById('group-id').value = '';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeGroupModal() {
+            document.getElementById('group-modal').classList.remove('active');
+        }
+
+        function saveGroup() {
+            const id = document.getElementById('group-id').value;
+            const groupData = {
+                name: document.getElementById('group-name').value,
+                code: document.getElementById('group-code').value,
+                description: document.getElementById('group-description').value,
+            };
+            
+            if (id) {
+                const index = groups.findIndex(g => g.id === id);
+                if (index !== -1) {
+                    groups[index] = { ...groups[index], ...groupData };
+                    showToast('分组更新成功', 'success');
+                }
+            } else {
+                groupData.id = 'group_' + String(groups.length + 1).padStart(3, '0');
+                groupData.ruleCount = 0;
+                groupData.createdAt = new Date().toLocaleString('zh-CN');
+                groups.push(groupData);
+                showToast('分组创建成功', 'success');
+            }
+            
+            closeGroupModal();
+            renderGroups();
+            updateSelects();
+        }
+
+        function editGroup(groupId) {
+            openGroupModal(groupId);
+        }
+
+        function deleteGroup(groupId) {
+            const group = groups.find(g => g.id === groupId);
+            if (group && group.ruleCount > 0) {
+                showToast('该分组下存在规则，无法删除', 'error');
+                return;
+            }
+            if (confirm('确定要删除该分组吗？')) {
+                groups = groups.filter(g => g.id !== groupId);
+                showToast('分组已删除', 'success');
+                renderGroups();
+                updateSelects();
+            }
+        }
+
+        function viewGroupRules(groupId) {
+            switchTab('rules', null);
+            document.getElementById('group-filter').value = groupId;
+            showToast('已筛选分组规则', 'success');
+        }
+
+        function createGroup(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const groupData = {
+                id: 'group_' + String(groups.length + 1).padStart(3, '0'),
+                name: formData.get('name'),
+                code: formData.get('code'),
+                description: formData.get('description'),
+                ruleCount: 0,
+                createdAt: new Date().toLocaleString('zh-CN')
+            };
+            groups.push(groupData);
+            showToast('分组创建成功', 'success');
+            form.reset();
+            renderGroups();
+            updateSelects();
+        }
+
+        // ==================== 规则执行 ====================
+        function executeRule(event) {
+            event.preventDefault();
+            const form = event.target;
+            const ruleId = form.ruleId.value;
+            const params = form.params.value;
+            
+            const startTime = Date.now();
+            
+            // 模拟执行
+            setTimeout(() => {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                const resultPanel = document.getElementById('exec-result');
+                const statusEl = document.getElementById('exec-status');
+                const timeEl = document.getElementById('exec-time');
+                const outputEl = document.getElementById('exec-output');
+                
+                const rule = rules.find(r => r.id === ruleId);
+                const result = {
+                    ruleId: ruleId,
+                    ruleName: rule ? rule.name : 'Unknown',
+                    result: Math.random() > 0.3 ? 'pass' : 'reject',
+                    message: Math.random() > 0.3 ? '规则校验通过' : '规则校验未通过',
+                    executionTime: duration,
+                    timestamp: new Date().toISOString()
+                };
+                
+                resultPanel.style.display = 'block';
+                statusEl.className = 'result-status ' + (result.result === 'pass' ? 'success' : 'error');
+                statusEl.innerHTML = (result.result === 'pass' ? '✓' : '✗') + ' ' + result.message;
+                timeEl.textContent = '执行耗时: ' + duration + 'ms';
+                outputEl.textContent = JSON.stringify(result, null, 2);
+                
+                showToast('规则执行完成', 'success');
+            }, 500);
+        }
+
+        function formatExecParams() {
+            const textarea = document.querySelector('#exec-form textarea[name="params"]');
+            try {
+                const json = JSON.parse(textarea.value);
+                textarea.value = JSON.stringify(json, null, 2);
+                showToast('JSON格式化成功', 'success');
+            } catch (e) {
+                showToast('JSON格式错误', 'error');
+            }
+        }
+
+        function batchExecute(event) {
+            event.preventDefault();
+            showToast('批量执行已提交', 'success');
+        }
+
+        function chainExecute(event) {
+            event.preventDefault();
+            showToast('规则链执行已提交', 'success');
+        }
+
+        function testRuleForm() {
+            showToast('规则测试中...', 'success');
+        }
+
+        // ==================== 版本管理 ====================
+        function loadVersionHistory() {
+            const ruleId = document.getElementById('version-rule-select').value;
+            const container = document.getElementById('version-timeline');
+            
+            if (!ruleId) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📜</div>
+                        <h3>请选择规则查看版本历史</h3>
+                    </div>
+                `;
+                return;
+            }
+            
+            const ruleVersions = versions.filter(v => v.ruleId === ruleId);
+            
+            if (ruleVersions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📜</div>
+                        <h3>暂无版本历史</h3>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = ruleVersions.map(v => `
+                <div class="version-item">
+                    <div class="version-header">
+                        <span class="version-number">${v.version}</span>
+                        <span class="version-date">${v.createdAt}</span>
+                    </div>
+                    <div class="version-changes">${v.changes}</div>
+                    <div style="margin-top: 8px;">
+                        <button class="btn btn-sm btn-outline" onclick="rollbackToVersion('${v.id}')">回滚到此版本</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function compareVersions() {
+            const result = document.getElementById('compare-result');
+            result.innerHTML = `
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+// 版本差异对比结果
+{
+  "added": ["priority: 100"],
+  "removed": ["priority: 50"],
+  "modified": ["expression: 条件阈值从50000调整为100000"]
+}
+                </div>
+            `;
+            showToast('版本对比完成', 'success');
+        }
+
+        function rollbackVersion() {
+            if (confirm('确定要回滚到指定版本吗？')) {
+                showToast('版本回滚成功', 'success');
+            }
+        }
+
+        function rollbackToVersion(versionId) {
+            if (confirm('确定要回滚到此版本吗？')) {
+                showToast('版本回滚成功', 'success');
+            }
+        }
+
+        // ==================== 导入导出 ====================
+        function exportRules(event) {
+            event.preventDefault();
+            const format = document.querySelector('#export-form select[name="format"]').value;
+            
+            const exportData = {
+                rules: rules,
+                groups: groups,
+                exportedAt: new Date().toISOString(),
+                version: '1.0.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rules_export_${Date.now()}.${format}`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('规则导出成功', 'success');
+        }
+
+        function importRules(event) {
+            event.preventDefault();
+            const fileInput = document.querySelector('#import-form input[name="file"]');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        document.getElementById('import-preview').textContent = JSON.stringify(data, null, 2);
+                        showToast('文件解析成功，点击导入按钮完成导入', 'success');
+                    } catch (err) {
+                        showToast('文件解析失败', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // ==================== 日志管理 ====================
+        function renderLogs() {
+            const tbody = document.getElementById('logs-table-body');
+            tbody.innerHTML = executionLogs.map(log => `
+                <tr>
+                    <td><code>${log.id}</code></td>
+                    <td>${log.ruleName}</td>
+                    <td><code style="font-size: 12px;">${log.params.substring(0, 30)}...</code></td>
+                    <td><span class="status-tag ${log.result === 'pass' ? 'status-active' : 'status-error'}">${log.result === 'pass' ? '通过' : '拒绝'}</span></td>
+                    <td><span class="status-tag ${log.status === 'success' ? 'status-active' : 'status-error'}">${log.status === 'success' ? '成功' : '失败'}</span></td>
+                    <td>${log.duration}ms</td>
+                    <td>${log.createdAt}</td>
+                    <td>
+                        <button class="action-btn" onclick="viewLogDetail('${log.id}')" title="详情">📋</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRecentExecutions() {
+            const tbody = document.getElementById('recent-executions');
+            tbody.innerHTML = executionLogs.slice(0, 5).map(log => `
+                <tr>
+                    <td>${log.createdAt}</td>
+                    <td>${log.ruleName}</td>
+                    <td><code style="font-size: 12px;">${log.params}</code></td>
+                    <td><span class="status-tag ${log.result === 'pass' ? 'status-active' : 'status-error'}">${log.result === 'pass' ? '通过' : '拒绝'}</span></td>
+                    <td>${log.duration}ms</td>
+                </tr>
+            `).join('');
+        }
+
+        function refreshLogs() {
+            showToast('日志已刷新', 'success');
+            renderLogs();
+        }
+
+        function exportLogs() {
+            const blob = new Blob([JSON.stringify(executionLogs, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `execution_logs_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('日志导出成功', 'success');
+        }
+
+        function viewLogDetail(logId) {
+            const log = executionLogs.find(l => l.id === logId);
+            if (log) {
+                alert('执行详情:\n' + JSON.stringify(log, null, 2));
+            }
+        }
+
+        // ==================== 批量操作 ====================
+        function batchEnable() {
+            if (selectedRules.length === 0) {
+                showToast('请先选择规则', 'warning');
+                return;
+            }
+            selectedRules.forEach(id => {
+                const rule = rules.find(r => r.id === id);
+                if (rule) rule.status = 'active';
+            });
+            showToast(`已启用 ${selectedRules.length} 条规则`, 'success');
+            renderRules();
+        }
+
+        function batchDisable() {
+            if (selectedRules.length === 0) {
+                showToast('请先选择规则', 'warning');
+                return;
+            }
+            selectedRules.forEach(id => {
+                const rule = rules.find(r => r.id === id);
+                if (rule) rule.status = 'inactive';
+            });
+            showToast(`已禁用 ${selectedRules.length} 条规则`, 'success');
+            renderRules();
+        }
+
+        function batchDelete() {
+            if (selectedRules.length === 0) {
+                showToast('请先选择规则', 'warning');
+                return;
+            }
+            if (confirm(`确定要删除选中的 ${selectedRules.length} 条规则吗？`)) {
+                rules = rules.filter(r => !selectedRules.includes(r.id));
+                showToast(`已删除 ${selectedRules.length} 条规则`, 'success');
+                selectedRules = [];
+                updateSelectedCount();
+                renderRules();
+                updateSelects();
+            }
+        }
+
+        function batchExport() {
+            if (selectedRules.length === 0) {
+                showToast('请先选择规则', 'warning');
+                return;
+            }
+            const exportData = rules.filter(r => selectedRules.includes(r.id));
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `selected_rules_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('导出成功', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function updateSelects() {
+            // 更新分组选择器
+            const groupOptions = '<option value="">请选择分组</option>' + 
+                groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            
+            document.getElementById('rule-group-select').innerHTML = groupOptions;
+            document.getElementById('rule-groupId').innerHTML = groupOptions;
+            document.getElementById('group-filter').innerHTML = '<option value="">全部分组</option>' + 
+                groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            document.getElementById('export-group-select').innerHTML = 
+                groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            document.getElementById('batch-group-select').innerHTML = '<option value="">全部规则</option>' + 
+                groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            
+            // 更新规则选择器
+            const ruleOptions = '<option value="">请选择规则</option>' + 
+                rules.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            
+            document.getElementById('exec-rule-select').innerHTML = ruleOptions;
+            document.getElementById('version-rule-select').innerHTML = ruleOptions;
+            document.getElementById('compare-rule-select').innerHTML = ruleOptions;
+            document.getElementById('rollback-rule-select').innerHTML = ruleOptions;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            // 获取代码块元素
+            const codeBlock = btn.parentElement;
+            // 克隆节点以临时移除按钮
+            const clone = codeBlock.cloneNode(true);
+            // 移除克隆中的按钮
+            const btnInClone = clone.querySelector('.copy-btn');
+            if (btnInClone) {
+                btnInClone.remove();
+            }
+            // 获取纯代码文本
+            const code = clone.textContent.trim();
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.style.background = 'rgba(82, 196, 26, 0.3)';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                btn.textContent = '复制失败';
+                setTimeout(() => btn.textContent = '复制', 2000);
+            });
+        }
+
+        function saveSettings() {
+            showToast('设置保存成功', 'success');
+        }
+
+        function addCondition() {
+            const field = document.getElementById('condition-field').value;
+            const operator = document.getElementById('condition-operator').value;
+            const value = document.getElementById('condition-value').value;
+            
+            if (!value) {
+                showToast('请输入条件值', 'warning');
+                return;
+            }
+            
+            const list = document.getElementById('conditions-list');
+            const conditionHtml = `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px;">
+                    <span class="condition-connector">AND</span>
+                    <span>${field} ${operator} ${value}</span>
+                    <button type="button" class="action-btn danger" onclick="this.parentElement.remove()">×</button>
+                </div>
+            `;
+            list.innerHTML += conditionHtml;
+            showToast('条件已添加', 'success');
+        }
+
+        // 导出范围切换
+        document.querySelectorAll('input[name="exportScope"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const container = document.getElementById('export-group-select-container');
+                container.style.display = this.value === 'group' ? 'block' : 'none';
+            });
+        });
+
+        // 文件预览
+        document.querySelector('#import-form input[name="file"]').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        document.getElementById('import-preview').textContent = JSON.stringify(data, null, 2);
+                    } catch (err) {
+                        document.getElementById('import-preview').textContent = '文件解析失败，请检查格式';
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>

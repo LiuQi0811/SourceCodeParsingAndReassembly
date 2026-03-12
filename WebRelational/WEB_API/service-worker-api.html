@@ -1,0 +1,2927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Worker API 企业级应用</title>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --code-bg: #1e293b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1 .icon {
+            font-size: 2rem;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background: var(--danger-color);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--card-bg);
+            padding: 0.75rem;
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .tab-btn .badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.125rem 0.5rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+        }
+
+        .tab-btn:not(.active) .badge {
+            background: var(--bg-color);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        /* Code Block */
+        .code-block {
+            background: var(--code-bg);
+            color: #e2e8f0;
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #e2e8f0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .code-block .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Info Box */
+        .info-box {
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-box.info {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .info-box.success {
+            background: #f0fdf4;
+            border-left: 4px solid var(--success-color);
+        }
+
+        .info-box.warning {
+            background: #fffbeb;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .info-box.error {
+            background: #fef2f2;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background: var(--bg-color);
+        }
+
+        /* Status Indicator */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.pending {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        /* Log Console */
+        .log-console {
+            background: var(--code-bg);
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: monospace;
+            font-size: 0.8125rem;
+            color: #e2e8f0;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry .time {
+            color: #64748b;
+            flex-shrink: 0;
+        }
+
+        .log-entry .type {
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .log-entry .type.info { background: var(--primary-color); }
+        .log-entry .type.success { background: var(--success-color); }
+        .log-entry .type.error { background: var(--danger-color); }
+        .log-entry .type.warning { background: var(--warning-color); }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* API Method Card */
+        .api-method {
+            background: var(--bg-color);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-method-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .api-method-name {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .api-method-return {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        .api-method-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .api-method-params {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .api-method-params strong {
+            color: var(--text-color);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .tab-nav {
+                padding: 0.5rem;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 0.875rem;
+                font-size: 0.8125rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8125rem;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        /* Accordion */
+        .accordion {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .accordion-header {
+            padding: 1rem 1.25rem;
+            background: var(--bg-color);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .accordion-header:hover {
+            background: var(--border-color);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .accordion-content.open {
+            max-height: 1000px;
+        }
+
+        .accordion-body {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Notification Toast */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            padding: 1rem 1.25rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--danger-color); }
+        .toast.warning { border-left: 4px solid var(--warning-color); }
+        .toast.info { border-left: 4px solid var(--primary-color); }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        /* Stats Card */
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Lifecycle Diagram */
+        .lifecycle-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 1.5rem;
+            background: var(--bg-color);
+            border-radius: 0.75rem;
+        }
+
+        .lifecycle-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .lifecycle-step .icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .lifecycle-step .label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+        }
+
+        .lifecycle-arrow {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>
+                <span class="icon">⚙️</span>
+                Service Worker API 企业级应用
+            </h1>
+            <div class="status-badge">
+                <span class="status-dot" id="swStatusDot"></span>
+                <span id="swStatusText">检测中...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="overview">
+                📋 概览
+            </button>
+            <button class="tab-btn" data-tab="registration">
+                📝 注册管理
+            </button>
+            <button class="tab-btn" data-tab="cache">
+                💾 缓存API
+            </button>
+            <button class="tab-btn" data-tab="events">
+                🎯 事件处理
+            </button>
+            <button class="tab-btn" data-tab="clients">
+                👥 客户端管理
+            </button>
+            <button class="tab-btn" data-tab="push">
+                🔔 推送通知
+            </button>
+            <button class="tab-btn" data-tab="background">
+                🔄 后台同步
+            </button>
+            <button class="tab-btn" data-tab="demo">
+                🚀 实战演示
+            </button>
+        </nav>
+
+        <!-- Tab: Overview -->
+        <div class="tab-content active" id="tab-overview">
+            <div class="grid grid-4" style="margin-bottom: 1.5rem;">
+                <div class="stat-card">
+                    <div class="stat-value" id="statSupported">--</div>
+                    <div class="stat-label">API 支持度</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+                    <div class="stat-value" id="statCaches">0</div>
+                    <div class="stat-label">缓存数量</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <div class="stat-value" id="statClients">0</div>
+                    <div class="stat-label">客户端数量</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                    <div class="stat-value" id="statVersion">--</div>
+                    <div class="stat-label">SW 状态</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🔄 Service Worker 生命周期</h2>
+                </div>
+                <div class="card-body">
+                    <div class="lifecycle-diagram">
+                        <div class="lifecycle-step">
+                            <span class="icon">📝</span>
+                            <span class="label">注册<br>register()</span>
+                        </div>
+                        <span class="lifecycle-arrow">→</span>
+                        <div class="lifecycle-step">
+                            <span class="icon">⚙️</span>
+                            <span class="label">安装<br>install</span>
+                        </div>
+                        <span class="lifecycle-arrow">→</span>
+                        <div class="lifecycle-step">
+                            <span class="icon">⏳</span>
+                            <span class="label">等待<br>waiting</span>
+                        </div>
+                        <span class="lifecycle-arrow">→</span>
+                        <div class="lifecycle-step">
+                            <span class="icon">✅</span>
+                            <span class="label">激活<br>activate</span>
+                        </div>
+                        <span class="lifecycle-arrow">→</span>
+                        <div class="lifecycle-step">
+                            <span class="icon">🚀</span>
+                            <span class="label">运行<br>activated</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📚 API 接口概览</h2>
+                    </div>
+                    <div class="card-body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>接口名称</th>
+                                    <th>描述</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>ServiceWorker</code></td>
+                                    <td>表示一个 Service Worker</td>
+                                    <td><span class="status success" id="api-sw">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>ServiceWorkerContainer</code></td>
+                                    <td>Service Worker 容器</td>
+                                    <td><span class="status success" id="api-container">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>ServiceWorkerRegistration</code></td>
+                                    <td>注册对象</td>
+                                    <td><span class="status success" id="api-registration">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>Cache</code></td>
+                                    <td>缓存存储对象</td>
+                                    <td><span class="status success" id="api-cache">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>CacheStorage</code></td>
+                                    <td>缓存存储管理</td>
+                                    <td><span class="status success" id="api-cachestorage">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>Clients</code></td>
+                                    <td>客户端管理</td>
+                                    <td><span class="status success" id="api-clients">支持</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>PushManager</code></td>
+                                    <td>推送管理</td>
+                                    <td><span class="status pending" id="api-push">检测中</span></td>
+                                </tr>
+                                <tr>
+                                    <td><code>SyncManager</code></td>
+                                    <td>后台同步</td>
+                                    <td><span class="status pending" id="api-sync">检测中</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">✨ 核心特性</h2>
+                    </div>
+                    <div class="card-body">
+                        <ul class="feature-list">
+                            <li>离线缓存 - 让网页在离线状态下也能访问</li>
+                            <li>推送通知 - 接收服务器推送的消息</li>
+                            <li>后台同步 - 在后台执行数据同步任务</li>
+                            <li>请求拦截 - 拦截和处理网络请求</li>
+                            <li>预缓存 - 在安装时预先缓存资源</li>
+                            <li>更新管理 - 自动检测和更新 Service Worker</li>
+                            <li>多客户端 - 管理多个打开的页面窗口</li>
+                            <li>消息通信 - 与主线程进行双向通信</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Registration -->
+        <div class="tab-content" id="tab-registration">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📝 注册 Service Worker</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-box info">
+                            <strong>注意：</strong>Service Worker 只能在 HTTPS 或 localhost 环境下运行。
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Service Worker 脚本路径</label>
+                            <input type="text" class="form-input" id="swPath" value="/sw.js" placeholder="/sw.js">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">作用域 (Scope)</label>
+                            <input type="text" class="form-input" id="swScope" value="/" placeholder="/">
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="registerSW()">
+                                🚀 注册 Service Worker
+                            </button>
+                            <button class="btn btn-secondary" onclick="unregisterSW()">
+                                🗑️ 注销 Service Worker
+                            </button>
+                            <button class="btn btn-warning" onclick="updateSW()">
+                                🔄 更新 Service Worker
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 注册状态</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="registrationStatus">
+                            <div class="empty-state">
+                                <div class="icon">📋</div>
+                                <p>尚未注册 Service Worker</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 ServiceWorkerContainer 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">navigator.serviceWorker.register(scriptURL, options)</span>
+                            <span class="api-method-return">返回: Promise&lt;ServiceWorkerRegistration&gt;</span>
+                        </div>
+                        <p class="api-method-desc">注册一个 Service Worker，返回一个 Promise，解析为 ServiceWorkerRegistration 对象。</p>
+                        <p class="api-method-params"><strong>参数：</strong>scriptURL - SW 脚本路径; options.scope - 作用域路径</p>
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">navigator.serviceWorker.getRegistration(scope)</span>
+                            <span class="api-method-return">返回: Promise&lt;ServiceWorkerRegistration | undefined&gt;</span>
+                        </div>
+                        <p class="api-method-desc">获取指定作用域的 Service Worker 注册。</p>
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">navigator.serviceWorker.getRegistrations()</span>
+                            <span class="api-method-return">返回: Promise&lt;ServiceWorkerRegistration[]&gt;</span>
+                        </div>
+                        <p class="api-method-desc">获取所有 Service Worker 注册。</p>
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">navigator.serviceWorker.startMessages()</span>
+                            <span class="api-method-return">返回: void</span>
+                        </div>
+                        <p class="api-method-desc">强制启动消息流，确保消息按顺序传递。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 ServiceWorkerRegistration 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性/方法</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>installing</code></td>
+                                    <td>ServiceWorker | null</td>
+                                    <td>正在安装的 Service Worker</td>
+                                </tr>
+                                <tr>
+                                    <td><code>waiting</code></td>
+                                    <td>ServiceWorker | null</td>
+                                    <td>等待激活的 Service Worker</td>
+                                </tr>
+                                <tr>
+                                    <td><code>active</code></td>
+                                    <td>ServiceWorker | null</td>
+                                    <td>当前激活的 Service Worker</td>
+                                </tr>
+                                <tr>
+                                    <td><code>scope</code></td>
+                                    <td>string</td>
+                                    <td>Service Worker 的作用域</td>
+                                </tr>
+                                <tr>
+                                    <td><code>updateViaCache</code></td>
+                                    <td>string</td>
+                                    <td>更新时的缓存策略</td>
+                                </tr>
+                                <tr>
+                                    <td><code>pushManager</code></td>
+                                    <td>PushManager</td>
+                                    <td>推送管理器</td>
+                                </tr>
+                                <tr>
+                                    <td><code>sync</code></td>
+                                    <td>SyncManager</td>
+                                    <td>后台同步管理器</td>
+                                </tr>
+                                <tr>
+                                    <td><code>unregister()</code></td>
+                                    <td>Promise&lt;boolean&gt;</td>
+                                    <td>注销 Service Worker</td>
+                                </tr>
+                                <tr>
+                                    <td><code>update()</code></td>
+                                    <td>Promise&lt;void&gt;</td>
+                                    <td>检查更新</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Cache -->
+        <div class="tab-content" id="tab-cache">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">💾 缓存管理</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">缓存名称</label>
+                            <input type="text" class="form-input" id="cacheName" value="my-cache-v1" placeholder="缓存名称">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">资源 URL</label>
+                            <input type="text" class="form-input" id="cacheUrl" value="/" placeholder="要缓存的 URL">
+                        </div>
+                        
+                        <div class="btn-group" style="margin-bottom: 1rem;">
+                            <button class="btn btn-primary" onclick="openCache()">📂 打开缓存</button>
+                            <button class="btn btn-success" onclick="addToCache()">➕ 添加资源</button>
+                            <button class="btn btn-secondary" onclick="listCache()">📋 列出缓存</button>
+                            <button class="btn btn-danger" onclick="deleteCache()">🗑️ 删除缓存</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">匹配 URL (查找缓存)</label>
+                            <input type="text" class="form-input" id="matchUrl" value="/" placeholder="要匹配的 URL">
+                            <button class="btn btn-primary" style="margin-top: 0.5rem;" onclick="matchCache()">🔍 匹配缓存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 缓存列表</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="cacheList">
+                            <div class="empty-state">
+                                <div class="icon">💾</div>
+                                <p>暂无缓存数据</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 Cache 接口方法</h2>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.match(request, options)</span>
+                                <span class="api-method-return">返回: Promise&lt;Response | undefined&gt;</span>
+                            </div>
+                            <p class="api-method-desc">在缓存中查找匹配的请求，返回第一个匹配的响应。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.matchAll(request, options)</span>
+                                <span class="api-method-return">返回: Promise&lt;Response[]&gt;</span>
+                            </div>
+                            <p class="api-method-desc">返回缓存中所有匹配的响应数组。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.add(request)</span>
+                                <span class="api-method-return">返回: Promise&lt;void&gt;</span>
+                            </div>
+                            <p class="api-method-desc">获取请求并将其添加到缓存中。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.addAll(requests)</span>
+                                <span class="api-method-return">返回: Promise&lt;void&gt;</span>
+                            </div>
+                            <p class="api-method-desc">批量获取并添加多个请求到缓存。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.put(request, response)</span>
+                                <span class="api-method-return">返回: Promise&lt;void&gt;</span>
+                            </div>
+                            <p class="api-method-desc">将请求-响应对添加到缓存。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.delete(request, options)</span>
+                                <span class="api-method-return">返回: Promise&lt;boolean&gt;</span>
+                            </div>
+                            <p class="api-method-desc">从缓存中删除匹配的条目。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">cache.keys(request, options)</span>
+                                <span class="api-method-return">返回: Promise&lt;Request[]&gt;</span>
+                            </div>
+                            <p class="api-method-desc">返回缓存中所有请求的数组。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 CacheStorage 接口方法</h2>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">caches.match(request, options)</span>
+                                <span class="api-method-return">返回: Promise&lt;Response | undefined&gt;</span>
+                            </div>
+                            <p class="api-method-desc">在所有缓存中查找匹配的请求。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">caches.has(cacheName)</span>
+                                <span class="api-method-return">返回: Promise&lt;boolean&gt;</span>
+                            </div>
+                            <p class="api-method-desc">检查是否存在指定名称的缓存。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">caches.open(cacheName)</span>
+                                <span class="api-method-return">返回: Promise&lt;Cache&gt;</span>
+                            </div>
+                            <p class="api-method-desc">打开指定名称的缓存对象。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">caches.delete(cacheName)</span>
+                                <span class="api-method-return">返回: Promise&lt;boolean&gt;</span>
+                            </div>
+                            <p class="api-method-desc">删除指定名称的缓存。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">caches.keys()</span>
+                                <span class="api-method-return">返回: Promise&lt;string[]&gt;</span>
+                            </div>
+                            <p class="api-method-desc">返回所有缓存名称的数组。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Events -->
+        <div class="tab-content" id="tab-events">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🎯 Service Worker 事件</h2>
+                </div>
+                <div class="card-body">
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>📦 install 事件 - 安装阶段</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">在 Service Worker 安装时触发，通常用于预缓存静态资源。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll([
+                '/',
+                '/styles.css',
+                '/script.js',
+                '/offline.html'
+            ]))
+            .then(() => self.skipWaiting())
+    );
+});</pre>
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>关键方法：</strong><code>event.waitUntil()</code> 延长安装过程；<code>self.skipWaiting()</code> 跳过等待直接激活</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>✅ activate 事件 - 激活阶段</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">在 Service Worker 激活时触发，通常用于清理旧缓存。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames
+                    .filter(name => name !== CACHE_NAME)
+                    .map(name => caches.delete(name))
+            );
+        }).then(() => self.clients.claim())
+    );
+});</pre>
+                                </div>
+                                <p style="margin-top: 1rem;"><strong>关键方法：</strong><code>self.clients.claim()</code> 立即控制所有客户端</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>🌐 fetch 事件 - 请求拦截</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">拦截所有网络请求，实现缓存策略。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                if (response) {
+                    return response; // 缓存命中
+                }
+                return fetch(event.request)
+                    .then(response => {
+                        // 克隆响应并缓存
+                        return caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, response.clone());
+                                return response;
+                            });
+                    });
+            })
+            .catch(() => caches.match('/offline.html'))
+    );
+});</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>💬 message 事件 - 消息通信</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">接收来自主线程的消息。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>// 主线程发送消息
+navigator.serviceWorker.controller.postMessage({
+    type: 'CACHE_URLS',
+    urls: ['/page1', '/page2']
+});
+
+// Service Worker 接收消息
+self.addEventListener('message', (event) => {
+    if (event.data.type === 'CACHE_URLS') {
+        event.waitUntil(
+            caches.open(CACHE_NAME)
+                .then(cache => cache.addAll(event.data.urls))
+        );
+    }
+});</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>🔔 push 事件 - 推送消息</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">接收服务器推送的消息。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>self.addEventListener('push', (event) => {
+    const data = event.data.json();
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icon.png',
+            badge: '/badge.png',
+            data: data.url
+        })
+    );
+});</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>🔄 sync 事件 - 后台同步</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">在后台执行同步任务。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>// 注册同步任务
+navigator.serviceWorker.ready.then(reg => {
+    reg.sync.register('sync-data');
+});
+
+// Service Worker 处理同步
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-data') {
+        event.waitUntil(
+            // 执行同步逻辑
+            fetch('/api/sync', { method: 'POST' })
+        );
+    }
+});</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="accordion">
+                        <div class="accordion-header" onclick="toggleAccordion(this)">
+                            <span>🖱️ notificationclick 事件 - 通知点击</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="accordion-body">
+                                <p style="margin-bottom: 1rem;">处理用户点击通知的行为。</p>
+                                <div class="code-block">
+                                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                    <pre>self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window' })
+            .then(clientList => {
+                // 如果已有窗口则聚焦
+                for (const client of clientList) {
+                    if (client.url === event.notification.data && 'focus' in client) {
+                        return client.focus();
+                    }
+                }
+                // 否则打开新窗口
+                if (clients.openWindow) {
+                    return clients.openWindow(event.notification.data);
+                }
+            })
+    );
+});</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 ExtendableEvent 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-box info">
+                        <strong>ExtendableEvent</strong> 是 install 和 activate 事件的基类，提供了延长事件生命周期的能力。
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">event.waitUntil(promise)</span>
+                            <span class="api-method-return">返回: void</span>
+                        </div>
+                        <p class="api-method-desc">延长事件的生命周期，直到 Promise 完成。用于确保安装或激活过程完成后再进入下一阶段。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 FetchEvent 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性/方法</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>request</code></td>
+                                    <td>Request</td>
+                                    <td>触发事件的请求对象</td>
+                                </tr>
+                                <tr>
+                                    <td><code>clientId</code></td>
+                                    <td>string | null</td>
+                                    <td>发起请求的客户端 ID</td>
+                                </tr>
+                                <tr>
+                                    <td><code>isReload</code></td>
+                                    <td>boolean</td>
+                                    <td>是否为刷新操作</td>
+                                </tr>
+                                <tr>
+                                    <td><code>respondWith(response)</code></td>
+                                    <td>void</td>
+                                    <td>用自定义响应覆盖默认响应</td>
+                                </tr>
+                                <tr>
+                                    <td><code>preloadResponse</code></td>
+                                    <td>Promise&lt;Response&gt;</td>
+                                    <td>预加载的响应</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Clients -->
+        <div class="tab-content" id="tab-clients">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">👥 客户端管理</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group" style="margin-bottom: 1rem;">
+                            <button class="btn btn-primary" onclick="getClients()">📋 获取所有客户端</button>
+                            <button class="btn btn-secondary" onclick="claimClients()">🎯 接管客户端</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">消息内容</label>
+                            <input type="text" class="form-input" id="messageContent" value="Hello from main thread!" placeholder="消息内容">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">目标客户端 ID (留空则广播)</label>
+                            <input type="text" class="form-input" id="targetClientId" placeholder="客户端 ID">
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn btn-success" onclick="sendMessage()">📤 发送消息</button>
+                            <button class="btn btn-warning" onclick="broadcastMessage()">📢 广播消息</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 客户端列表</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="clientList">
+                            <div class="empty-state">
+                                <div class="icon">👥</div>
+                                <p>点击"获取所有客户端"查看</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 Clients 接口方法</h2>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">clients.get(id)</span>
+                                <span class="api-method-return">返回: Promise&lt;Client | undefined&gt;</span>
+                            </div>
+                            <p class="api-method-desc">根据 ID 获取客户端对象。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">clients.matchAll(options)</span>
+                                <span class="api-method-return">返回: Promise&lt;Client[]&gt;</span>
+                            </div>
+                            <p class="api-method-desc">获取所有匹配的客户端。options 可包含 type, includeUncontrolled。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">clients.openWindow(url)</span>
+                                <span class="api-method-return">返回: Promise&lt;WindowClient | null&gt;</span>
+                            </div>
+                            <p class="api-method-desc">打开一个新窗口并返回其客户端对象。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">clients.claim()</span>
+                                <span class="api-method-return">返回: Promise&lt;void&gt;</span>
+                            </div>
+                            <p class="api-method-desc">让 Service Worker 立即控制所有客户端。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 Client 接口属性</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>id</code></td>
+                                    <td>string</td>
+                                    <td>客户端的唯一标识符</td>
+                                </tr>
+                                <tr>
+                                    <td><code>type</code></td>
+                                    <td>string</td>
+                                    <td>客户端类型: window, worker, sharedworker</td>
+                                </tr>
+                                <tr>
+                                    <td><code>url</code></td>
+                                    <td>string</td>
+                                    <td>客户端的 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>frameType</code></td>
+                                    <td>string</td>
+                                    <td>帧类型: top-level, nested, auxiliary</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 WindowClient 接口</h2>
+                </div>
+                <div class="card-body">
+                    <p style="margin-bottom: 1rem;">WindowClient 继承自 Client，表示浏览器窗口中的客户端。</p>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性/方法</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>focused</code></td>
+                                    <td>boolean</td>
+                                    <td>窗口是否获得焦点</td>
+                                </tr>
+                                <tr>
+                                    <td><code>visibilityState</code></td>
+                                    <td>string</td>
+                                    <td>可见性状态: hidden, visible, prerender</td>
+                                </tr>
+                                <tr>
+                                    <td><code>focus()</code></td>
+                                    <td>Promise&lt;WindowClient&gt;</td>
+                                    <td>使窗口获得焦点</td>
+                                </tr>
+                                <tr>
+                                    <td><code>navigate(url)</code></td>
+                                    <td>Promise&lt;WindowClient&gt;</td>
+                                    <td>导航到指定 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>postMessage(message)</code></td>
+                                    <td>void</td>
+                                    <td>向客户端发送消息</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Push -->
+        <div class="tab-content" id="tab-push">
+            <div class="info-box warning" style="margin-bottom: 1.5rem;">
+                <strong>注意：</strong>推送通知需要 HTTPS 环境和后端支持。此演示展示 API 用法。
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🔔 推送订阅</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">VAPID 公钥</label>
+                            <input type="text" class="form-input" id="vapidKey" placeholder="输入 VAPID 公钥">
+                        </div>
+                        
+                        <div class="btn-group" style="margin-bottom: 1rem;">
+                            <button class="btn btn-primary" onclick="subscribePush()">📱 订阅推送</button>
+                            <button class="btn btn-danger" onclick="unsubscribePush()">🚫 取消订阅</button>
+                            <button class="btn btn-secondary" onclick="getPushSubscription()">📋 获取订阅</button>
+                        </div>
+
+                        <div id="pushSubscriptionInfo" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📢 发送通知</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">通知标题</label>
+                            <input type="text" class="form-input" id="notifTitle" value="测试通知" placeholder="通知标题">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">通知内容</label>
+                            <input type="text" class="form-input" id="notifBody" value="这是一条测试通知消息" placeholder="通知内容">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">图标 URL</label>
+                            <input type="text" class="form-input" id="notifIcon" placeholder="/icon.png">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">标签 (Tag)</label>
+                            <input type="text" class="form-input" id="notifTag" placeholder="notification-tag">
+                        </div>
+                        <button class="btn btn-success" onclick="showNotification()">🔔 显示通知</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 PushManager 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">pushManager.subscribe(options)</span>
+                                <span class="api-method-return">返回: Promise&lt;PushSubscription&gt;</span>
+                            </div>
+                            <p class="api-method-desc">订阅推送服务。options 包含 userVisibleOnly 和 applicationServerKey。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">pushManager.getSubscription()</span>
+                                <span class="api-method-return">返回: Promise&lt;PushSubscription | null&gt;</span>
+                            </div>
+                            <p class="api-method-desc">获取当前的推送订阅。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">pushManager.permissionState()</span>
+                                <span class="api-method-return">返回: Promise&lt;string&gt;</span>
+                            </div>
+                            <p class="api-method-desc">返回推送权限状态: granted, denied, prompt。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">pushManager.supportedContentEncodings</span>
+                                <span class="api-method-return">返回: string[]</span>
+                            </div>
+                            <p class="api-method-desc">返回支持的内容编码列表。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 PushSubscription 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性/方法</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>endpoint</code></td>
+                                    <td>string</td>
+                                    <td>推送服务的端点 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>expirationTime</code></td>
+                                    <td>number | null</td>
+                                    <td>订阅过期时间</td>
+                                </tr>
+                                <tr>
+                                    <td><code>options</code></td>
+                                    <td>PushSubscriptionOptions</td>
+                                    <td>订阅选项</td>
+                                </tr>
+                                <tr>
+                                    <td><code>getKey(name)</code></td>
+                                    <td>ArrayBuffer | null</td>
+                                    <td>获取加密密钥: p256dh, auth</td>
+                                </tr>
+                                <tr>
+                                    <td><code>toJSON()</code></td>
+                                    <td>object</td>
+                                    <td>返回订阅的 JSON 表示</td>
+                                </tr>
+                                <tr>
+                                    <td><code>unsubscribe()</code></td>
+                                    <td>Promise&lt;boolean&gt;</td>
+                                    <td>取消订阅</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 NotificationOptions 配置</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>body</code></td>
+                                    <td>string</td>
+                                    <td>通知正文内容</td>
+                                </tr>
+                                <tr>
+                                    <td><code>icon</code></td>
+                                    <td>string</td>
+                                    <td>通知图标 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>badge</code></td>
+                                    <td>string</td>
+                                    <td>通知徽章 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>image</code></td>
+                                    <td>string</td>
+                                    <td>大图 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>tag</code></td>
+                                    <td>string</td>
+                                    <td>通知标签，用于分组</td>
+                                </tr>
+                                <tr>
+                                    <td><code>data</code></td>
+                                    <td>any</td>
+                                    <td>附加数据</td>
+                                </tr>
+                                <tr>
+                                    <td><code>requireInteraction</code></td>
+                                    <td>boolean</td>
+                                    <td>是否需要用户交互才关闭</td>
+                                </tr>
+                                <tr>
+                                    <td><code>actions</code></td>
+                                    <td>NotificationAction[]</td>
+                                    <td>操作按钮数组</td>
+                                </tr>
+                                <tr>
+                                    <td><code>vibrate</code></td>
+                                    <td>number[]</td>
+                                    <td>振动模式</td>
+                                </tr>
+                                <tr>
+                                    <td><code>renotify</code></td>
+                                    <td>boolean</td>
+                                    <td>相同 tag 是否重新通知</td>
+                                </tr>
+                                <tr>
+                                    <td><code>silent</code></td>
+                                    <td>boolean</td>
+                                    <td>是否静默</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Background Sync -->
+        <div class="tab-content" id="tab-background">
+            <div class="info-box info" style="margin-bottom: 1.5rem;">
+                <strong>后台同步</strong>允许在设备恢复网络连接时执行任务，即使用户已离开页面。
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">🔄 同步任务管理</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">同步标签 (Tag)</label>
+                            <input type="text" class="form-input" id="syncTag" value="sync-data" placeholder="同步任务标签">
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="registerSync()">📝 注册同步任务</button>
+                            <button class="btn btn-secondary" onclick="getSyncRegistrations()">📋 获取同步列表</button>
+                        </div>
+
+                        <div id="syncStatus" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">📊 同步状态</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="syncList">
+                            <div class="empty-state">
+                                <div class="icon">🔄</div>
+                                <p>暂无同步任务</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 SyncManager 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">syncManager.register(tag)</span>
+                                <span class="api-method-return">返回: Promise&lt;void&gt;</span>
+                            </div>
+                            <p class="api-method-desc">注册一个后台同步任务。tag 用于标识和去重。</p>
+                        </div>
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">syncManager.getTags()</span>
+                                <span class="api-method-return">返回: Promise&lt;string[]&gt;</span>
+                            </div>
+                            <p class="api-method-desc">获取所有已注册的同步任务标签。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 SyncEvent 接口</h2>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>属性</th>
+                                    <th>类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>tag</code></td>
+                                    <td>string</td>
+                                    <td>同步任务的标签</td>
+                                </tr>
+                                <tr>
+                                    <td><code>lastChance</code></td>
+                                    <td>boolean</td>
+                                    <td>是否为最后一次重试</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="code-block" style="margin-top: 1rem;">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                        <pre>self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-data') {
+        event.waitUntil(
+            // 执行同步逻辑
+            syncData().catch(err => {
+                // 如果失败且不是最后一次重试，会自动重试
+                if (event.lastChance) {
+                    console.error('同步最终失败:', err);
+                }
+                throw err; // 触发重试
+            })
+        );
+    }
+});</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 BackgroundFetch API</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-box info" style="margin-bottom: 1rem;">
+                        Background Fetch API 允许在后台下载大文件，即使页面关闭也能继续。
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">backgroundFetchManager.fetch(id, requests, options)</span>
+                            <span class="api-method-return">返回: Promise&lt;BackgroundFetchRegistration&gt;</span>
+                        </div>
+                        <p class="api-method-desc">启动后台下载任务。</p>
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">backgroundFetchManager.get(id)</span>
+                            <span class="api-method-return">返回: Promise&lt;BackgroundFetchRegistration | undefined&gt;</span>
+                        </div>
+                        <p class="api-method-desc">获取指定 ID 的后台下载任务。</p>
+                    </div>
+                    <div class="api-method">
+                        <div class="api-method-header">
+                            <span class="api-method-name">backgroundFetchManager.getIds()</span>
+                            <span class="api-method-return">返回: Promise&lt;string[]&gt;</span>
+                        </div>
+                        <p class="api-method-desc">获取所有后台下载任务的 ID。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Demo -->
+        <div class="tab-content" id="tab-demo">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🚀 实战演示</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-box info" style="margin-bottom: 1rem;">
+                        此演示将创建一个完整的 Service Worker 示例，包含离线缓存、请求拦截等功能。
+                    </div>
+                    
+                    <div class="btn-group" style="margin-bottom: 1.5rem;">
+                        <button class="btn btn-primary" onclick="generateSWCode()">📝 生成 SW 代码</button>
+                        <button class="btn btn-success" onclick="testOffline()">🔌 测试离线模式</button>
+                        <button class="btn btn-warning" onclick="clearAllCaches()">🗑️ 清除所有缓存</button>
+                    </div>
+
+                    <div id="swCodeOutput"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📋 操作日志</h2>
+                    <button class="btn btn-secondary" onclick="clearLogs()">清除日志</button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="log-console" id="logConsole">
+                        <div class="log-entry">
+                            <span class="time">--:--:--</span>
+                            <span class="type info">INFO</span>
+                            <span>等待操作...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📖 完整 Service Worker 示例</h2>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                        <pre>// sw.js - 完整的 Service Worker 示例
+
+const CACHE_NAME = 'my-app-v1';
+const STATIC_ASSETS = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/script.js',
+    '/offline.html'
+];
+
+// 安装事件 - 预缓存静态资源
+self.addEventListener('install', (event) => {
+    console.log('[SW] Installing...');
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                console.log('[SW] Caching static assets');
+                return cache.addAll(STATIC_ASSETS);
+            })
+            .then(() => self.skipWaiting())
+    );
+});
+
+// 激活事件 - 清理旧缓存
+self.addEventListener('activate', (event) => {
+    console.log('[SW] Activating...');
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames
+                    .filter(name => name !== CACHE_NAME)
+                    .map(name => {
+                        console.log('[SW] Deleting old cache:', name);
+                        return caches.delete(name);
+                    })
+            );
+        }).then(() => self.clients.claim())
+    );
+});
+
+// Fetch 事件 - 缓存优先策略
+self.addEventListener('fetch', (event) => {
+    // 只处理 GET 请求
+    if (event.request.method !== 'GET') return;
+    
+    event.respondWith(
+        caches.match(event.request)
+            .then(cachedResponse => {
+                if (cachedResponse) {
+                    // 缓存命中，返回缓存
+                    return cachedResponse;
+                }
+                
+                // 缓存未命中，从网络获取
+                return fetch(event.request)
+                    .then(response => {
+                        // 检查是否为有效响应
+                        if (!response || response.status !== 200 || response.type !== 'basic') {
+                            return response;
+                        }
+                        
+                        // 克隆响应并缓存
+                        const responseToCache = response.clone();
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, responseToCache);
+                            });
+                        
+                        return response;
+                    })
+                    .catch(() => {
+                        // 网络失败，返回离线页面
+                        if (event.request.mode === 'navigate') {
+                            return caches.match('/offline.html');
+                        }
+                    });
+            })
+    );
+});
+
+// 消息事件 - 与主线程通信
+self.addEventListener('message', (event) => {
+    console.log('[SW] Message received:', event.data);
+    
+    if (event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+    
+    if (event.data.type === 'CACHE_URLS') {
+        event.waitUntil(
+            caches.open(CACHE_NAME)
+                .then(cache => cache.addAll(event.data.urls))
+        );
+    }
+});
+
+// 推送事件
+self.addEventListener('push', (event) => {
+    const data = event.data ? event.data.json() : {};
+    event.waitUntil(
+        self.registration.showNotification(data.title || '新消息', {
+            body: data.body || '您有一条新消息',
+            icon: data.icon || '/icon.png',
+            badge: '/badge.png',
+            data: data.url
+        })
+    );
+});
+
+// 通知点击事件
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true })
+            .then(clientList => {
+                for (const client of clientList) {
+                    if (client.url === event.notification.data && 'focus' in client) {
+                        return client.focus();
+                    }
+                }
+                if (clients.openWindow) {
+                    return clients.openWindow(event.notification.data || '/');
+                }
+            })
+    );
+});
+
+// 后台同步事件
+self.addEventListener('sync', (event) => {
+    console.log('[SW] Sync event:', event.tag);
+    
+    if (event.tag === 'sync-data') {
+        event.waitUntil(
+            fetch('/api/sync', { method: 'POST' })
+                .then(response => console.log('[SW] Sync completed'))
+                .catch(err => {
+                    console.error('[SW] Sync failed:', err);
+                    throw err; // 触发重试
+                })
+        );
+    }
+});
+
+console.log('[SW] Service Worker loaded');</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ==================== 全局状态 ====================
+        let swRegistration = null;
+        let currentCache = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            checkSWStatus();
+            updateStats();
+        });
+
+        // ==================== Tab 切换 ====================
+        function initTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+                    
+                    // 更新按钮状态
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 更新内容显示
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`tab-${tabId}`).classList.add('active');
+                });
+            });
+        }
+
+        // ==================== Service Worker 状态检测 ====================
+        async function checkSWStatus() {
+            const statusDot = document.getElementById('swStatusDot');
+            const statusText = document.getElementById('swStatusText');
+            
+            if (!('serviceWorker' in navigator)) {
+                statusDot.classList.add('inactive');
+                statusText.textContent = '不支持';
+                document.getElementById('statVersion').textContent = '不支持';
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                swRegistration = registration;
+                
+                if (registration) {
+                    statusDot.classList.remove('inactive');
+                    statusText.textContent = '已激活';
+                    document.getElementById('statVersion').textContent = '运行中';
+                    
+                    // 更新注册状态显示
+                    updateRegistrationStatus(registration);
+                } else {
+                    statusDot.classList.add('inactive');
+                    statusText.textContent = '未注册';
+                    document.getElementById('statVersion').textContent = '未注册';
+                }
+            } catch (error) {
+                statusDot.classList.add('inactive');
+                statusText.textContent = '错误';
+                log('error', '状态检测失败: ' + error.message);
+            }
+
+            // 检测推送支持
+            if ('PushManager' in window) {
+                document.getElementById('api-push').className = 'status success';
+                document.getElementById('api-push').textContent = '支持';
+            } else {
+                document.getElementById('api-push').className = 'status error';
+                document.getElementById('api-push').textContent = '不支持';
+            }
+
+            // 检测同步支持
+            if ('SyncManager' in window) {
+                document.getElementById('api-sync').className = 'status success';
+                document.getElementById('api-sync').textContent = '支持';
+            } else {
+                document.getElementById('api-sync').className = 'status error';
+                document.getElementById('api-sync').textContent = '不支持';
+            }
+        }
+
+        // ==================== 统计更新 ====================
+        async function updateStats() {
+            // 缓存数量
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                document.getElementById('statCaches').textContent = cacheNames.length;
+            }
+
+            // 客户端数量
+            if (swRegistration && swRegistration.active) {
+                try {
+                    const clients = await navigator.serviceWorker.ready.then(reg => {
+                        return reg.active ? 'SW Active' : 'No SW';
+                    });
+                } catch (e) {}
+            }
+        }
+
+        // ==================== 注册管理 ====================
+        async function registerSW() {
+            if (!('serviceWorker' in navigator)) {
+                showToast('error', '浏览器不支持 Service Worker');
+                return;
+            }
+
+            const path = document.getElementById('swPath').value;
+            const scope = document.getElementById('swScope').value;
+
+            try {
+                log('info', `正在注册 Service Worker: ${path}`);
+                
+                swRegistration = await navigator.serviceWorker.register(path, { scope });
+                
+                log('success', 'Service Worker 注册成功!');
+                showToast('success', 'Service Worker 注册成功!');
+                
+                updateRegistrationStatus(swRegistration);
+                checkSWStatus();
+                
+                // 监听状态变化
+                swRegistration.addEventListener('updatefound', () => {
+                    log('info', '发现新的 Service Worker');
+                });
+                
+            } catch (error) {
+                log('error', '注册失败: ' + error.message);
+                showToast('error', '注册失败: ' + error.message);
+            }
+        }
+
+        async function unregisterSW() {
+            if (!swRegistration) {
+                showToast('warning', '没有已注册的 Service Worker');
+                return;
+            }
+
+            try {
+                const result = await swRegistration.unregister();
+                if (result) {
+                    log('success', 'Service Worker 已注销');
+                    showToast('success', 'Service Worker 已注销');
+                    swRegistration = null;
+                    checkSWStatus();
+                }
+            } catch (error) {
+                log('error', '注销失败: ' + error.message);
+                showToast('error', '注销失败: ' + error.message);
+            }
+        }
+
+        async function updateSW() {
+            if (!swRegistration) {
+                showToast('warning', '没有已注册的 Service Worker');
+                return;
+            }
+
+            try {
+                await swRegistration.update();
+                log('success', '已请求更新 Service Worker');
+                showToast('success', '已请求更新');
+            } catch (error) {
+                log('error', '更新失败: ' + error.message);
+                showToast('error', '更新失败: ' + error.message);
+            }
+        }
+
+        function updateRegistrationStatus(registration) {
+            const statusDiv = document.getElementById('registrationStatus');
+            
+            const states = {
+                installing: registration.installing,
+                waiting: registration.waiting,
+                active: registration.active
+            };
+
+            let html = '<table><thead><tr><th>状态</th><th>脚本 URL</th><th>状态值</th></tr></thead><tbody>';
+            
+            for (const [state, worker] of Object.entries(states)) {
+                if (worker) {
+                    html += `<tr>
+                        <td><span class="status ${state === 'active' ? 'success' : 'pending'}">${state}</span></td>
+                        <td style="font-family: monospace; font-size: 0.8125rem;">${worker.scriptURL}</td>
+                        <td>${worker.state}</td>
+                    </tr>`;
+                }
+            }
+            
+            html += `<tr>
+                <td><strong>Scope</strong></td>
+                <td colspan="2" style="font-family: monospace;">${registration.scope}</td>
+            </tr>`;
+            
+            html += '</tbody></table>';
+            statusDiv.innerHTML = html;
+        }
+
+        // ==================== 缓存管理 ====================
+        async function openCache() {
+            const name = document.getElementById('cacheName').value;
+            try {
+                currentCache = await caches.open(name);
+                log('success', `已打开缓存: ${name}`);
+                showToast('success', `已打开缓存: ${name}`);
+                listCache();
+            } catch (error) {
+                log('error', '打开缓存失败: ' + error.message);
+            }
+        }
+
+        async function addToCache() {
+            const url = document.getElementById('cacheUrl').value;
+            const name = document.getElementById('cacheName').value;
+            
+            try {
+                const cache = await caches.open(name);
+                await cache.add(url);
+                log('success', `已添加资源到缓存: ${url}`);
+                showToast('success', '资源已添加到缓存');
+                listCache();
+            } catch (error) {
+                log('error', '添加失败: ' + error.message);
+                showToast('error', '添加失败: ' + error.message);
+            }
+        }
+
+        async function listCache() {
+            const listDiv = document.getElementById('cacheList');
+            
+            try {
+                const cacheNames = await caches.keys();
+                
+                if (cacheNames.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state"><div class="icon">💾</div><p>暂无缓存</p></div>';
+                    return;
+                }
+
+                let html = '';
+                for (const name of cacheNames) {
+                    const cache = await caches.open(name);
+                    const keys = await cache.keys();
+                    
+                    html += `<div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <strong style="color: var(--primary-color);">📁 ${name}</strong>
+                            <span class="status success">${keys.length} 条目</span>
+                        </div>`;
+                    
+                    if (keys.length > 0) {
+                        html += '<div style="background: var(--bg-color); border-radius: 0.5rem; padding: 0.75rem; font-size: 0.8125rem;">';
+                        keys.slice(0, 5).forEach(request => {
+                            html += `<div style="padding: 0.25rem 0; border-bottom: 1px solid var(--border-color);">${request.url}</div>`;
+                        });
+                        if (keys.length > 5) {
+                            html += `<div style="padding: 0.25rem 0; color: var(--text-secondary);">... 还有 ${keys.length - 5} 条</div>`;
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                
+                listDiv.innerHTML = html;
+                document.getElementById('statCaches').textContent = cacheNames.length;
+                
+            } catch (error) {
+                listDiv.innerHTML = `<div class="info-box error">${error.message}</div>`;
+            }
+        }
+
+        async function deleteCache() {
+            const name = document.getElementById('cacheName').value;
+            
+            try {
+                const result = await caches.delete(name);
+                if (result) {
+                    log('success', `已删除缓存: ${name}`);
+                    showToast('success', `已删除缓存: ${name}`);
+                    listCache();
+                } else {
+                    log('warning', `缓存不存在: ${name}`);
+                }
+            } catch (error) {
+                log('error', '删除失败: ' + error.message);
+            }
+        }
+
+        async function matchCache() {
+            const url = document.getElementById('matchUrl').value;
+            
+            try {
+                const response = await caches.match(url);
+                if (response) {
+                    log('success', `缓存命中: ${url}`);
+                    showToast('success', '缓存命中!');
+                    console.log('Response:', response);
+                } else {
+                    log('warning', `缓存未命中: ${url}`);
+                    showToast('warning', '缓存未命中');
+                }
+            } catch (error) {
+                log('error', '匹配失败: ' + error.message);
+            }
+        }
+
+        // ==================== 客户端管理 ====================
+        async function getClients() {
+            const listDiv = document.getElementById('clientList');
+            
+            if (!swRegistration || !swRegistration.active) {
+                listDiv.innerHTML = '<div class="info-box warning">需要先注册 Service Worker</div>';
+                return;
+            }
+
+            // 在主线程中，我们只能通过 navigator.serviceWorker 获取有限信息
+            // 实际的 clients.matchAll() 需要在 SW 中执行
+            
+            const clients = [];
+            if (navigator.serviceWorker.controller) {
+                clients.push({
+                    id: 'current',
+                    url: window.location.href,
+                    type: 'window'
+                });
+            }
+
+            if (clients.length === 0) {
+                listDiv.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>没有受控的客户端</p></div>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>ID</th><th>URL</th><th>类型</th></tr></thead><tbody>';
+            clients.forEach(client => {
+                html += `<tr>
+                    <td style="font-family: monospace; font-size: 0.75rem;">${client.id}</td>
+                    <td style="font-size: 0.8125rem;">${client.url}</td>
+                    <td><span class="status success">${client.type}</span></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            
+            listDiv.innerHTML = html;
+            document.getElementById('statClients').textContent = clients.length;
+        }
+
+        async function claimClients() {
+            if (!swRegistration || !swRegistration.active) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            // 发送消息让 SW 执行 claim
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'CLAIM_CLIENTS' });
+                log('info', '已发送接管请求');
+                showToast('info', '已发送接管请求');
+            } else {
+                showToast('warning', '当前页面不受 Service Worker 控制');
+            }
+        }
+
+        function sendMessage() {
+            const content = document.getElementById('messageContent').value;
+            const targetId = document.getElementById('targetClientId').value;
+
+            if (!navigator.serviceWorker.controller) {
+                showToast('warning', '当前页面不受 Service Worker 控制');
+                return;
+            }
+
+            navigator.serviceWorker.controller.postMessage({
+                type: 'MESSAGE',
+                content: content,
+                targetId: targetId || null
+            });
+
+            log('success', '消息已发送: ' + content);
+            showToast('success', '消息已发送');
+        }
+
+        function broadcastMessage() {
+            const content = document.getElementById('messageContent').value;
+
+            if (!navigator.serviceWorker.controller) {
+                showToast('warning', '当前页面不受 Service Worker 控制');
+                return;
+            }
+
+            navigator.serviceWorker.controller.postMessage({
+                type: 'BROADCAST',
+                content: content
+            });
+
+            log('success', '广播消息已发送: ' + content);
+            showToast('success', '广播消息已发送');
+        }
+
+        // ==================== 推送通知 ====================
+        async function subscribePush() {
+            if (!swRegistration) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    showToast('error', '通知权限被拒绝');
+                    return;
+                }
+
+                const subscription = await swRegistration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: document.getElementById('vapidKey').value || undefined
+                });
+
+                log('success', '推送订阅成功!');
+                showToast('success', '推送订阅成功!');
+                
+                displaySubscription(subscription);
+            } catch (error) {
+                log('error', '订阅失败: ' + error.message);
+                showToast('error', '订阅失败: ' + error.message);
+            }
+        }
+
+        async function unsubscribePush() {
+            if (!swRegistration) {
+                return;
+            }
+
+            try {
+                const subscription = await swRegistration.pushManager.getSubscription();
+                if (subscription) {
+                    await subscription.unsubscribe();
+                    log('success', '已取消推送订阅');
+                    showToast('success', '已取消推送订阅');
+                    document.getElementById('pushSubscriptionInfo').innerHTML = '';
+                }
+            } catch (error) {
+                log('error', '取消订阅失败: ' + error.message);
+            }
+        }
+
+        async function getPushSubscription() {
+            if (!swRegistration) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            try {
+                const subscription = await swRegistration.pushManager.getSubscription();
+                if (subscription) {
+                    displaySubscription(subscription);
+                    log('success', '已获取推送订阅信息');
+                } else {
+                    document.getElementById('pushSubscriptionInfo').innerHTML = 
+                        '<div class="info-box info">暂无推送订阅</div>';
+                }
+            } catch (error) {
+                log('error', '获取订阅失败: ' + error.message);
+            }
+        }
+
+        function displaySubscription(subscription) {
+            const infoDiv = document.getElementById('pushSubscriptionInfo');
+            const json = subscription.toJSON();
+            
+            infoDiv.innerHTML = `
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    <pre>${JSON.stringify(json, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        async function showNotification() {
+            if (!swRegistration) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            const title = document.getElementById('notifTitle').value;
+            const options = {
+                body: document.getElementById('notifBody').value,
+                icon: document.getElementById('notifIcon').value || undefined,
+                tag: document.getElementById('notifTag').value || undefined
+            };
+
+            try {
+                await swRegistration.showNotification(title, options);
+                log('success', '通知已显示: ' + title);
+                showToast('success', '通知已显示');
+            } catch (error) {
+                log('error', '显示通知失败: ' + error.message);
+                showToast('error', '显示通知失败: ' + error.message);
+            }
+        }
+
+        // ==================== 后台同步 ====================
+        async function registerSync() {
+            if (!swRegistration) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            const tag = document.getElementById('syncTag').value;
+
+            try {
+                await swRegistration.sync.register(tag);
+                log('success', `已注册同步任务: ${tag}`);
+                showToast('success', '同步任务已注册');
+                
+                document.getElementById('syncStatus').innerHTML = 
+                    `<div class="status success">已注册: ${tag}</div>`;
+            } catch (error) {
+                log('error', '注册同步失败: ' + error.message);
+                showToast('error', '注册同步失败: ' + error.message);
+            }
+        }
+
+        async function getSyncRegistrations() {
+            if (!swRegistration) {
+                showToast('warning', '需要先注册 Service Worker');
+                return;
+            }
+
+            try {
+                const tags = await swRegistration.sync.getTags();
+                const listDiv = document.getElementById('syncList');
+                
+                if (tags.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state"><div class="icon">🔄</div><p>暂无同步任务</p></div>';
+                    return;
+                }
+
+                let html = '<table><thead><tr><th>标签</th><th>状态</th></tr></thead><tbody>';
+                tags.forEach(tag => {
+                    html += `<tr>
+                        <td style="font-family: monospace;">${tag}</td>
+                        <td><span class="status pending">等待同步</span></td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                
+                listDiv.innerHTML = html;
+            } catch (error) {
+                log('error', '获取同步列表失败: ' + error.message);
+            }
+        }
+
+        // ==================== 实战演示 ====================
+        function generateSWCode() {
+            const outputDiv = document.getElementById('swCodeOutput');
+            outputDiv.innerHTML = `
+                <div class="info-box success">
+                    <strong>Service Worker 代码已生成！</strong>
+                    <p style="margin-top: 0.5rem;">请查看下方"完整 Service Worker 示例"部分获取完整代码。</p>
+                </div>
+            `;
+            log('success', 'Service Worker 代码已生成');
+        }
+
+        async function testOffline() {
+            if (!navigator.onLine) {
+                showToast('info', '当前已处于离线状态');
+                return;
+            }
+            
+            showToast('info', '请在浏览器开发者工具中模拟离线模式');
+            log('info', '请在 DevTools > Network > Offline 中模拟离线');
+        }
+
+        async function clearAllCaches() {
+            try {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                log('success', `已清除 ${cacheNames.length} 个缓存`);
+                showToast('success', '所有缓存已清除');
+                listCache();
+            } catch (error) {
+                log('error', '清除缓存失败: ' + error.message);
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function log(type, message) {
+            const logConsole = document.getElementById('logConsole');
+            const time = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="time">${time}</span>
+                <span class="type ${type}">${type.toUpperCase()}</span>
+                <span>${message}</span>
+            `;
+            
+            logConsole.insertBefore(entry, logConsole.firstChild);
+        }
+
+        function clearLogs() {
+            document.getElementById('logConsole').innerHTML = `
+                <div class="log-entry">
+                    <span class="time">--:--:--</span>
+                    <span class="type info">INFO</span>
+                    <span>日志已清除</span>
+                </div>
+            `;
+        }
+
+        function showToast(type, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector('span:last-child');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                arrow.textContent = '▼';
+            } else {
+                content.classList.add('open');
+                arrow.textContent = '▲';
+            }
+        }
+
+        function copyCode(btn) {
+            const code = btn.parentElement.querySelector('pre').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = '已复制!';
+                setTimeout(() => btn.textContent = '复制', 2000);
+            });
+        }
+    </script>
+</body>
+</html>
