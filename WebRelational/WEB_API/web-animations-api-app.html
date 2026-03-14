@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Animations API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #a78bfa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f5f3ff;
+            --bg-card: #ffffff;
+            --border: #ddd6fe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f5f3ff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #1e1b4b;
+                --bg-card: #312e81;
+                --border: #3730a3;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Animation Stage */
+        .animation-stage {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .animation-target {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Timeline */
+        .timeline-container {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .timeline-track {
+            position: relative;
+            height: 40px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .timeline-progress {
+            position: absolute;
+            top: 0; left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            transition: width 0.1s;
+        }
+        
+        .timeline-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Keyframe Editor */
+        .keyframe-editor {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .keyframe-item {
+            display: grid;
+            grid-template-columns: 80px 1fr 80px;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .keyframe-offset {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .keyframe-properties {
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(139, 92, 246, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.anim { background: rgba(139, 92, 246, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Preset Buttons */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 16px 0;
+        }
+        
+        .preset-btn {
+            padding: 12px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:hover { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+        .preset-btn.active { border-color: var(--primary); background: rgba(139, 92, 246, 0.15); }
+        
+        .preset-icon { font-size: 24px; margin-bottom: 4px; }
+        .preset-name { font-size: 12px; font-weight: 600; }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+            
+            .keyframe-item { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎬</div>
+            <div class="logo-text">Web Animations <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">动画控制</div>
+                    <div class="nav-item" data-tab="element-animate" onclick="switchTab('element-animate')">
+                        <span class="nav-icon">✨</span><span>Element.animate</span>
+                    </div>
+                    <div class="nav-item" data-tab="animation-control" onclick="switchTab('animation-control')">
+                        <span class="nav-icon">🎮</span><span>动画控制</span>
+                    </div>
+                    <div class="nav-item" data-tab="keyframe-effect" onclick="switchTab('keyframe-effect')">
+                        <span class="nav-icon">🎞️</span><span>关键帧效果</span>
+                    </div>
+                    <div class="nav-item" data-tab="timeline" onclick="switchTab('timeline')">
+                        <span class="nav-icon">⏱️</span><span>时间轴</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web Animations API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎬</div>
+                        <div class="stat-value" id="animation-count">0</div>
+                        <div class="stat-label">动画数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">▶️</div>
+                        <div class="stat-value" id="running-count">0</div>
+                        <div class="stat-label">运行中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="current-time">0</div>
+                        <div class="stat-label">当前时间(ms)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>Element.animate()</span>
+                                        <span id="api-animate" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>Animation 对象</span>
+                                        <span id="api-animation" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>KeyframeEffect</span>
+                                        <span id="api-keyframe" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>document.timeline</span>
+                                        <span id="api-timeline" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>getAnimations()</span>
+                                        <span id="api-getAnimations" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">动画演示</label>
+                                <div class="animation-stage">
+                                    <div class="animation-target" id="demo-target">🚀</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="btn btn-primary" onclick="playDemoAnimation()">▶️ 播放</button>
+                                    <button class="btn btn-outline" onclick="pauseDemoAnimation()">⏸️ 暂停</button>
+                                    <button class="btn btn-outline" onclick="reverseDemoAnimation()">🔄 反向</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            选择预设动画效果，点击播放查看效果
+                        </div>
+                        <div class="preset-grid">
+                            <div class="preset-btn" onclick="selectPreset('fade')">
+                                <div class="preset-icon">🌫️</div>
+                                <div class="preset-name">淡入淡出</div>
+                            </div>
+                            <div class="preset-btn" onclick="selectPreset('slide')">
+                                <div class="preset-icon">➡️</div>
+                                <div class="preset-name">滑动</div>
+                            </div>
+                            <div class="preset-btn" onclick="selectPreset('rotate')">
+                                <div class="preset-icon">🔄</div>
+                                <div class="preset-name">旋转</div>
+                            </div>
+                            <div class="preset-btn" onclick="selectPreset('scale')">
+                                <div class="preset-icon">📐</div>
+                                <div class="preset-name">缩放</div>
+                            </div>
+                            <div class="preset-btn" onclick="selectPreset('bounce')">
+                                <div class="preset-icon">🏀</div>
+                                <div class="preset-name">弹跳</div>
+                            </div>
+                            <div class="preset-btn" onclick="selectPreset('shake')">
+                                <div class="preset-icon">📳</div>
+                                <div class="preset-name">抖动</div>
+                            </div>
+                        </div>
+                        <div class="animation-stage">
+                            <div class="animation-target" id="preset-target">⭐</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn btn-primary" onclick="playPresetAnimation()">▶️ 播放预设</button>
+                            <button class="btn btn-danger" onclick="cancelPresetAnimation()">⏹️ 取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Element.animate -->
+            <div id="panel-element-animate" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>Element.animate()</h1>
+                        <p>使用 animate 方法创建动画</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>Element.animate(keyframes, options)</strong> 是创建动画的主要方法，返回 Animation 对象。
+                    </div>
+                    
+                    <div class="animation-stage">
+                        <div class="animation-target" id="animate-target">🎯</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">关键帧设置</label>
+                        <div class="keyframe-editor">
+                            <div class="keyframe-item">
+                                <div class="keyframe-offset">0%</div>
+                                <div class="keyframe-properties">
+                                    <input type="text" class="form-input" id="kf-0" value="opacity: 0; transform: translateX(-100px)">
+                                </div>
+                            </div>
+                            <div class="keyframe-item">
+                                <div class="keyframe-offset">50%</div>
+                                <div class="keyframe-properties">
+                                    <input type="text" class="form-input" id="kf-50" value="opacity: 1; transform: translateX(0)">
+                                </div>
+                            </div>
+                            <div class="keyframe-item">
+                                <div class="keyframe-offset">100%</div>
+                                <div class="keyframe-properties">
+                                    <input type="text" class="form-input" id="kf-100" value="opacity: 0; transform: translateX(100px)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">持续时间 (ms)</label>
+                            <input type="number" class="form-input" id="anim-duration" value="1000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">延迟 (ms)</label>
+                            <input type="number" class="form-input" id="anim-delay" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">迭代次数</label>
+                            <input type="text" class="form-input" id="anim-iterations" value="1" placeholder="数字或 Infinity">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">缓动函数</label>
+                            <select class="form-select" id="anim-easing">
+                                <option value="linear">linear</option>
+                                <option value="ease" selected>ease</option>
+                                <option value="ease-in">ease-in</option>
+                                <option value="ease-out">ease-out</option>
+                                <option value="ease-in-out">ease-in-out</option>
+                                <option value="cubic-bezier(0.68, -0.55, 0.265, 1.55)">bounce</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">填充模式</label>
+                            <select class="form-select" id="anim-fill">
+                                <option value="none">none</option>
+                                <option value="forwards" selected>forwards</option>
+                                <option value="backwards">backwards</option>
+                                <option value="both">both</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">方向</label>
+                            <select class="form-select" id="anim-direction">
+                                <option value="normal" selected>normal</option>
+                                <option value="reverse">reverse</option>
+                                <option value="alternate">alternate</option>
+                                <option value="alternate-reverse">alternate-reverse</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="createCustomAnimation()">🎬 创建动画</button>
+                        <button class="btn btn-outline" onclick="resetAnimateTarget()">↩️ 重置</button>
+                    </div>
+                    
+                    <div id="animate-result" style="display: none; margin-top: 16px;">
+                        <div class="result-box">
+                            <div class="result-title">动画信息</div>
+                            <div class="result-grid" id="animate-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 动画控制 -->
+            <div id="panel-animation-control" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>动画控制</h1>
+                        <p>控制 Animation 对象的播放状态</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        Animation 对象提供 <strong>play(), pause(), reverse(), finish(), cancel()</strong> 等控制方法。
+                    </div>
+                    
+                    <div class="animation-stage">
+                        <div class="animation-target" id="control-target">🎮</div>
+                    </div>
+                    
+                    <div class="timeline-container">
+                        <div class="timeline-track">
+                            <div class="timeline-progress" id="timeline-progress" style="width: 0%;"></div>
+                        </div>
+                        <div class="timeline-label">
+                            <span id="timeline-current">0ms</span>
+                            <span id="timeline-total">1000ms</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="controlPlay()">▶️ play()</button>
+                        <button class="btn btn-outline" onclick="controlPause()">⏸️ pause()</button>
+                        <button class="btn btn-outline" onclick="controlReverse()">🔄 reverse()</button>
+                        <button class="btn btn-danger" onclick="controlFinish()">⏭️ finish()</button>
+                        <button class="btn btn-outline" onclick="controlCancel()">⏹️ cancel()</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">播放速率</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="range" style="flex: 1;" id="playback-rate" min="0.1" max="3" step="0.1" value="1" oninput="updatePlaybackRate()">
+                            <span id="rate-value" style="font-weight: 600; min-width: 40px;">1x</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">跳转到时间点</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" class="form-input" id="seek-time" value="0" style="flex: 1;">
+                            <button class="btn btn-outline" onclick="seekToTime()">跳转</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">Animation 状态</div>
+                        <div class="result-grid" id="control-status">
+                            <div class="result-item"><div class="result-label">playState</div><div class="result-value" id="status-playState">-</div></div>
+                            <div class="result-item"><div class="result-label">currentTime</div><div class="result-value" id="status-currentTime">-</div></div>
+                            <div class="result-item"><div class="result-label">startTime</div><div class="result-value" id="status-startTime">-</div></div>
+                            <div class="result-item"><div class="result-label">playbackRate</div><div class="result-value" id="status-playbackRate">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 关键帧效果 -->
+            <div id="panel-keyframe-effect" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>关键帧效果</h1>
+                        <p>使用 KeyframeEffect 创建可复用的动画效果</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>KeyframeEffect</strong> 允许您创建独立的关键帧效果，然后应用到多个元素或动画中。
+                    </div>
+                    
+                    <div class="animation-stage" style="height: 300px;">
+                        <div style="display: flex; justify-content: space-around; align-items: center; height: 100%;">
+                            <div class="animation-target" id="effect-target-1" style="position: relative;">1️⃣</div>
+                            <div class="animation-target" id="effect-target-2" style="position: relative;">2️⃣</div>
+                            <div class="animation-target" id="effect-target-3" style="position: relative;">3️⃣</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createKeyframeEffect()">🎬 创建效果</button>
+                        <button class="btn btn-success" onclick="applyEffectToAll()">▶️ 应用到所有</button>
+                        <button class="btn btn-outline" onclick="getKeyframes()">📋 获取关键帧</button>
+                    </div>
+                    
+                    <div id="keyframe-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">关键帧数据</div>
+                            <pre id="keyframe-data" style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); overflow-x: auto; font-family: monospace; font-size: 12px;"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 时间轴 -->
+            <div id="panel-timeline" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>时间轴</h1>
+                        <p>使用 DocumentTimeline 控制动画时间</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>document.timeline</strong> 提供文档的时间轴，可用于同步多个动画。
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">时间轴信息</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">timeline.currentTime</div>
+                                <div class="result-value" id="timeline-time">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">performance.now()</div>
+                                <div class="result-value" id="perf-time">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">Date.now()</div>
+                                <div class="result-value" id="date-time">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="updateTimeline()">🔄 更新时间</button>
+                        <button class="btn btn-outline" onclick="startTimelineMonitor()">📡 开始监控</button>
+                        <button class="btn btn-outline" onclick="stopTimelineMonitor()">⏹️ 停止监控</button>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 20px;">
+                        <div class="result-title">getAnimations()</div>
+                        <div id="animations-list">点击"开始监控"查看动画列表</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web Animations API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心方法</h3>
+                    <div class="api-block">
+                        <span class="api-method">METHOD</span>
+                        <span class="api-signature">element.animate(keyframes, options)</span>
+                        <p class="api-description">在元素上创建并运行动画，返回 Animation 对象。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">Animation 对象</h3>
+                    <table>
+                        <thead>
+                            <tr><th>属性/方法</th><th>类型</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>playState</code></td><td>string</td><td>播放状态 (idle/running/paused/finished)</td></tr>
+                            <tr><td><code>currentTime</code></td><td>number</td><td>当前时间</td></tr>
+                            <tr><td><code>startTime</code></td><td>number</td><td>开始时间</td></tr>
+                            <tr><td><code>playbackRate</code></td><td>number</td><td>播放速率</td></tr>
+                            <tr><td><code>effect</code></td><td>AnimationEffect</td><td>动画效果</td></tr>
+                            <tr><td><code>timeline</code></td><td>AnimationTimeline</td><td>时间轴</td></tr>
+                            <tr><td><code>finished</code></td><td>Promise</td><td>动画完成 Promise</td></tr>
+                            <tr><td><code>ready</code></td><td>Promise</td><td>动画就绪 Promise</td></tr>
+                            <tr><td><code>play()</code></td><td>方法</td><td>播放动画</td></tr>
+                            <tr><td><code>pause()</code></td><td>方法</td><td>暂停动画</td></tr>
+                            <tr><td><code>reverse()</code></td><td>方法</td><td>反向播放</td></tr>
+                            <tr><td><code>finish()</code></td><td>方法</td><td>完成动画</td></tr>
+                            <tr><td><code>cancel()</code></td><td>方法</td><td>取消动画</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">KeyframeEffect</h3>
+                    <table>
+                        <thead><tr><th>属性/方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>new KeyframeEffect(target, keyframes, options)</code></td><td>创建关键帧效果</td></tr>
+                            <tr><td><code>getKeyframes()</code></td><td>获取关键帧数组</td></tr>
+                            <tr><td><code>setKeyframes(keyframes)</code></td><td>设置关键帧</td></tr>
+                            <tr><td><code>target</code></td><td>目标元素</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">动画选项</h3>
+                    <table>
+                        <thead><tr><th>选项</th><th>类型</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>duration</code></td><td>number</td><td>持续时间 (ms)</td></tr>
+                            <tr><td><code>delay</code></td><td>number</td><td>延迟时间 (ms)</td></tr>
+                            <tr><td><code>iterations</code></td><td>number</td><td>迭代次数 (Infinity 无限)</td></tr>
+                            <tr><td><code>easing</code></td><td>string</td><td>缓动函数</td></tr>
+                            <tr><td><code>fill</code></td><td>string</td><td>填充模式 (none/forwards/backwards/both)</td></tr>
+                            <tr><td><code>direction</code></td><td>string</td><td>方向 (normal/reverse/alternate/alternate-reverse)</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 基本动画
+const animation = element.animate([
+    { opacity: 0, transform: 'translateX(-100px)' },
+    { opacity: 1, transform: 'translateX(0)' }
+], {
+    duration: 1000,
+    easing: 'ease-out',
+    fill: 'forwards'
+});
+
+// 控制动画
+animation.pause();
+animation.play();
+animation.reverse();
+
+// 监听完成
+animation.finished.then(() => {
+    console.log('动画完成');
+});
+
+// 使用 KeyframeEffect
+const effect = new KeyframeEffect(
+    element,
+    [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
+    { duration: 1000, iterations: Infinity }
+);
+const anim = new Animation(effect, document.timeline);
+anim.play();</div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var animations = [];
+        var currentAnimation = null;
+        var presetAnimation = null;
+        var keyframeEffect = null;
+        var timelineMonitor = null;
+        var selectedPreset = 'fade';
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            createControlAnimation();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var animateSupported = typeof Element.prototype.animate === 'function';
+            var animationSupported = typeof Animation === 'function';
+            var keyframeSupported = typeof KeyframeEffect === 'function';
+            var timelineSupported = 'timeline' in document;
+            var getAnimationsSupported = typeof document.getAnimations === 'function';
+            
+            document.getElementById('api-animate').textContent = animateSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-animate').style.color = animateSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-animation').textContent = animationSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-animation').style.color = animationSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-keyframe').textContent = keyframeSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-keyframe').style.color = keyframeSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-timeline').textContent = timelineSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-timeline').style.color = timelineSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-getAnimations').textContent = getAnimationsSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-getAnimations').style.color = getAnimationsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = animateSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = animateSupported ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 演示动画 ====================
+        function playDemoAnimation() {
+            var target = document.getElementById('demo-target');
+            
+            currentAnimation = target.animate([
+                { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
+                { transform: 'translate(-50%, -50%) rotate(180deg) scale(1.5)', opacity: 0.5 },
+                { transform: 'translate(-50%, -50%) rotate(360deg) scale(1)', opacity: 1 }
+            ], {
+                duration: 1000,
+                iterations: Infinity,
+                easing: 'ease-in-out'
+            });
+            
+            animations.push(currentAnimation);
+            updateAnimationCount();
+            addLog('anim', '播放演示动画');
+            showToast('动画已开始', 'success');
+        }
+
+        function pauseDemoAnimation() {
+            if (currentAnimation) {
+                currentAnimation.pause();
+                addLog('anim', '暂停演示动画');
+                showToast('动画已暂停', 'success');
+            }
+        }
+
+        function reverseDemoAnimation() {
+            if (currentAnimation) {
+                currentAnimation.reverse();
+                addLog('anim', '反向演示动画');
+                showToast('动画已反向', 'success');
+            }
+        }
+
+        // ==================== 预设动画 ====================
+        var presets = {
+            fade: {
+                keyframes: [
+                    { opacity: 0 },
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ],
+                options: { duration: 1500, easing: 'ease-in-out' }
+            },
+            slide: {
+                keyframes: [
+                    { transform: 'translate(-150%, -50%)' },
+                    { transform: 'translate(-50%, -50%)' },
+                    { transform: 'translate(50%, -50%)' }
+                ],
+                options: { duration: 1500, easing: 'ease-in-out' }
+            },
+            rotate: {
+                keyframes: [
+                    { transform: 'translate(-50%, -50%) rotate(0deg)' },
+                    { transform: 'translate(-50%, -50%) rotate(360deg)' }
+                ],
+                options: { duration: 1000, easing: 'linear' }
+            },
+            scale: {
+                keyframes: [
+                    { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0.5 },
+                    { transform: 'translate(-50%, -50%) scale(1.5)', opacity: 1 },
+                    { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0.5 }
+                ],
+                options: { duration: 1500, easing: 'ease-in-out' }
+            },
+            bounce: {
+                keyframes: [
+                    { transform: 'translate(-50%, -150%)', easing: 'ease-out' },
+                    { transform: 'translate(-50%, -50%)', easing: 'ease-in' },
+                    { transform: 'translate(-50%, -80%)', easing: 'ease-out' },
+                    { transform: 'translate(-50%, -50%)', easing: 'ease-in' }
+                ],
+                options: { duration: 1000 }
+            },
+            shake: {
+                keyframes: [
+                    { transform: 'translate(-50%, -50%) translateX(0)' },
+                    { transform: 'translate(-50%, -50%) translateX(-20px)' },
+                    { transform: 'translate(-50%, -50%) translateX(20px)' },
+                    { transform: 'translate(-50%, -50%) translateX(-20px)' },
+                    { transform: 'translate(-50%, -50%) translateX(20px)' },
+                    { transform: 'translate(-50%, -50%) translateX(0)' }
+                ],
+                options: { duration: 500, easing: 'linear' }
+            }
+        };
+
+        function selectPreset(name) {
+            selectedPreset = name;
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            addLog('anim', '选择预设: ' + name);
+        }
+
+        function playPresetAnimation() {
+            var target = document.getElementById('preset-target');
+            var preset = presets[selectedPreset];
+            
+            if (presetAnimation) {
+                presetAnimation.cancel();
+            }
+            
+            presetAnimation = target.animate(preset.keyframes, preset.options);
+            animations.push(presetAnimation);
+            updateAnimationCount();
+            
+            addLog('anim', '播放预设动画: ' + selectedPreset);
+            showToast('播放: ' + selectedPreset, 'success');
+        }
+
+        function cancelPresetAnimation() {
+            if (presetAnimation) {
+                presetAnimation.cancel();
+                addLog('anim', '取消预设动画');
+                showToast('动画已取消', 'success');
+            }
+        }
+
+        // ==================== 自定义动画 ====================
+        function createCustomAnimation() {
+            var target = document.getElementById('animate-target');
+            
+            var duration = parseInt(document.getElementById('anim-duration').value) || 1000;
+            var delay = parseInt(document.getElementById('anim-delay').value) || 0;
+            var iterations = document.getElementById('anim-iterations').value;
+            var easing = document.getElementById('anim-easing').value;
+            var fill = document.getElementById('anim-fill').value;
+            var direction = document.getElementById('anim-direction').value;
+            
+            // 解析关键帧
+            var keyframes = [
+                { offset: 0, opacity: 0, transform: 'translateX(-100px)' },
+                { offset: 0.5, opacity: 1, transform: 'translateX(0)' },
+                { offset: 1, opacity: 0, transform: 'translateX(100px)' }
+            ];
+            
+            try {
+                var options = {
+                    duration: duration,
+                    delay: delay,
+                    iterations: iterations === 'Infinity' ? Infinity : parseInt(iterations),
+                    easing: easing,
+                    fill: fill,
+                    direction: direction
+                };
+                
+                var animation = target.animate(keyframes, options);
+                animations.push(animation);
+                updateAnimationCount();
+                
+                // 显示结果
+                document.getElementById('animate-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">duration</div><div class="result-value">' + duration + 'ms</div></div>' +
+                    '<div class="result-item"><div class="result-label">delay</div><div class="result-value">' + delay + 'ms</div></div>' +
+                    '<div class="result-item"><div class="result-label">iterations</div><div class="result-value">' + iterations + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">easing</div><div class="result-value">' + easing + '</div></div>';
+                
+                document.getElementById('animate-result').style.display = 'block';
+                
+                addLog('anim', '创建自定义动画');
+                showToast('动画已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+                addLog('anim', '创建失败: ' + e.message);
+            }
+        }
+
+        function resetAnimateTarget() {
+            var target = document.getElementById('animate-target');
+            target.style = '';
+            addLog('anim', '重置动画目标');
+        }
+
+        // ==================== 动画控制 ====================
+        function createControlAnimation() {
+            var target = document.getElementById('control-target');
+            
+            currentAnimation = target.animate([
+                { transform: 'translate(-50%, -50%) scale(1)', backgroundColor: '#8b5cf6' },
+                { transform: 'translate(-50%, -50%) scale(1.5)', backgroundColor: '#a78bfa' },
+                { transform: 'translate(-50%, -50%) scale(1)', backgroundColor: '#8b5cf6' }
+            ], {
+                duration: 2000,
+                iterations: Infinity,
+                easing: 'ease-in-out'
+            });
+            
+            currentAnimation.pause();
+            animations.push(currentAnimation);
+            updateAnimationCount();
+            
+            // 更新状态
+            updateControlStatus();
+            
+            // 定时更新进度
+            setInterval(updateTimelineProgress, 50);
+        }
+
+        function controlPlay() {
+            if (currentAnimation) {
+                currentAnimation.play();
+                addLog('anim', 'play()');
+                showToast('播放', 'success');
+            }
+        }
+
+        function controlPause() {
+            if (currentAnimation) {
+                currentAnimation.pause();
+                addLog('anim', 'pause()');
+                showToast('暂停', 'success');
+            }
+        }
+
+        function controlReverse() {
+            if (currentAnimation) {
+                currentAnimation.reverse();
+                addLog('anim', 'reverse()');
+                showToast('反向', 'success');
+            }
+        }
+
+        function controlFinish() {
+            if (currentAnimation) {
+                currentAnimation.finish();
+                addLog('anim', 'finish()');
+                showToast('完成', 'success');
+            }
+        }
+
+        function controlCancel() {
+            if (currentAnimation) {
+                currentAnimation.cancel();
+                addLog('anim', 'cancel()');
+                showToast('取消', 'success');
+            }
+        }
+
+        function updatePlaybackRate() {
+            var rate = parseFloat(document.getElementById('playback-rate').value);
+            document.getElementById('rate-value').textContent = rate + 'x';
+            
+            if (currentAnimation) {
+                currentAnimation.playbackRate = rate;
+            }
+        }
+
+        function seekToTime() {
+            var time = parseFloat(document.getElementById('seek-time').value);
+            if (currentAnimation && !isNaN(time)) {
+                currentAnimation.currentTime = time;
+                addLog('anim', '跳转到: ' + time + 'ms');
+                showToast('已跳转到 ' + time + 'ms', 'success');
+            }
+        }
+
+        function updateControlStatus() {
+            if (currentAnimation) {
+                document.getElementById('status-playState').textContent = currentAnimation.playState;
+                document.getElementById('status-currentTime').textContent = Math.round(currentAnimation.currentTime) + 'ms';
+                document.getElementById('status-startTime').textContent = currentAnimation.startTime ? Math.round(currentAnimation.startTime) + 'ms' : 'null';
+                document.getElementById('status-playbackRate').textContent = currentAnimation.playbackRate + 'x';
+            }
+        }
+
+        function updateTimelineProgress() {
+            if (currentAnimation) {
+                var progress = (currentAnimation.currentTime / 2000) * 100;
+                document.getElementById('timeline-progress').style.width = progress + '%';
+                document.getElementById('timeline-current').textContent = Math.round(currentAnimation.currentTime) + 'ms';
+                
+                updateControlStatus();
+            }
+        }
+
+        // ==================== 关键帧效果 ====================
+        function createKeyframeEffect() {
+            if (typeof KeyframeEffect === 'undefined') {
+                showToast('KeyframeEffect 不支持', 'warning');
+                return;
+            }
+            
+            var target = document.getElementById('effect-target-1');
+            
+            keyframeEffect = new KeyframeEffect(
+                target,
+                [
+                    { transform: 'scale(1)', opacity: 1 },
+                    { transform: 'scale(1.3)', opacity: 0.7 },
+                    { transform: 'scale(1)', opacity: 1 }
+                ],
+                { duration: 800, iterations: Infinity }
+            );
+            
+            addLog('anim', '创建 KeyframeEffect');
+            showToast('效果已创建', 'success');
+        }
+
+        function applyEffectToAll() {
+            if (!keyframeEffect) {
+                showToast('请先创建效果', 'warning');
+                return;
+            }
+            
+            var targets = [
+                document.getElementById('effect-target-1'),
+                document.getElementById('effect-target-2'),
+                document.getElementById('effect-target-3')
+            ];
+            
+            targets.forEach(function(target, index) {
+                var effect = new KeyframeEffect(
+                    target,
+                    keyframeEffect.getKeyframes(),
+                    { ...keyframeEffect.getTiming(), delay: index * 200 }
+                );
+                var animation = new Animation(effect, document.timeline);
+                animation.play();
+                animations.push(animation);
+            });
+            
+            updateAnimationCount();
+            addLog('anim', '应用效果到所有元素');
+            showToast('效果已应用', 'success');
+        }
+
+        function getKeyframes() {
+            if (!keyframeEffect) {
+                showToast('请先创建效果', 'warning');
+                return;
+            }
+            
+            var keyframes = keyframeEffect.getKeyframes();
+            document.getElementById('keyframe-data').textContent = JSON.stringify(keyframes, null, 2);
+            document.getElementById('keyframe-result').style.display = 'block';
+            
+            addLog('anim', '获取关键帧');
+        }
+
+        // ==================== 时间轴 ====================
+        function updateTimeline() {
+            if (document.timeline) {
+                document.getElementById('timeline-time').textContent = Math.round(document.timeline.currentTime) + 'ms';
+            }
+            document.getElementById('perf-time').textContent = Math.round(performance.now()) + 'ms';
+            document.getElementById('date-time').textContent = Date.now() + 'ms';
+            
+            addLog('anim', '更新时间轴');
+        }
+
+        function startTimelineMonitor() {
+            if (timelineMonitor) return;
+            
+            timelineMonitor = setInterval(function() {
+                updateTimeline();
+                updateAnimationsList();
+            }, 100);
+            
+            addLog('anim', '开始时间轴监控');
+            showToast('监控已开始', 'success');
+        }
+
+        function stopTimelineMonitor() {
+            if (timelineMonitor) {
+                clearInterval(timelineMonitor);
+                timelineMonitor = null;
+                addLog('anim', '停止时间轴监控');
+                showToast('监控已停止', 'success');
+            }
+        }
+
+        function updateAnimationsList() {
+            var container = document.getElementById('animations-list');
+            
+            if (typeof document.getAnimations !== 'function') {
+                container.innerHTML = '<div style="color: var(--text-muted);">getAnimations() 不支持</div>';
+                return;
+            }
+            
+            var anims = document.getAnimations();
+            
+            if (anims.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">当前没有运行中的动画</div>';
+                return;
+            }
+            
+            var html = '<div class="result-grid">';
+            anims.forEach(function(anim, index) {
+                html += '<div class="result-item">';
+                html += '<div class="result-label">动画 ' + (index + 1) + '</div>';
+                html += '<div class="result-value">' + anim.playState + '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+            
+            document.getElementById('running-count').textContent = anims.filter(a => a.playState === 'running').length;
+        }
+
+        // ==================== 统计更新 ====================
+        function updateAnimationCount() {
+            document.getElementById('animation-count').textContent = animations.length;
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>
