@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewport Segments API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #14b8a6;
+            --primary-dark: #0d9488;
+            --secondary: #2dd4bf;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f0fdfa;
+            --bg-card: #ffffff;
+            --border: #99f6e4;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f0fdfa;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #042f2e;
+                --bg-card: #134e4a;
+                --border: #115e59;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(20, 184, 166, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(20, 184, 166, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(20, 184, 166, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3); }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Device Simulator */
+        .device-simulator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .device-frame {
+            position: relative;
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .device-screen {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .device-segment {
+            padding: 20px;
+            text-align: center;
+            color: #1e293b;
+            min-width: 120px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .device-segment:first-child {
+            border-right: 2px solid #e2e8f0;
+        }
+        
+        .device-segment-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .device-segment-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .device-hinge {
+            width: 4px;
+            background: #334155;
+        }
+        
+        /* Segment Visualizer */
+        .segment-visualizer {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .segment-overlay {
+            position: absolute;
+            background: rgba(20, 184, 166, 0.2);
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--primary);
+            transition: all 0.3s;
+        }
+        
+        .segment-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(20, 184, 166, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(20, 184, 166, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.segment { background: rgba(20, 184, 166, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(20, 184, 166, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Warning Box */
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+            
+            .device-simulator { padding: 20px; }
+            
+            .device-screen { flex-direction: column; }
+            
+            .device-segment:first-child { border-right: none; border-bottom: 2px solid #e2e8f0; }
+            
+            .device-hinge { width: 100%; height: 4px; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">📱</div>
+            <div class="logo-text">Viewport Segments <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">视口检测</div>
+                    <div class="nav-item" data-tab="segments-info" onclick="switchTab('segments-info')">
+                        <span class="nav-icon">📐</span><span>视口段信息</span>
+                    </div>
+                    <div class="nav-item" data-tab="device-simulator" onclick="switchTab('device-simulator')">
+                        <span class="nav-icon">🖥️</span><span>设备模拟</span>
+                    </div>
+                    <div class="nav-item" data-tab="change-monitor" onclick="switchTab('change-monitor')">
+                        <span class="nav-icon">📡</span><span>变化监听</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Viewport Segments API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-value" id="segments-count">-</div>
+                        <div class="stat-label">视口段数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📐</div>
+                        <div class="stat-value" id="screen-width">-</div>
+                        <div class="stat-label">屏幕宽度</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📏</div>
+                        <div class="stat-value" id="screen-height">-</div>
+                        <div class="stat-label">屏幕高度</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-test', 'dashboard', this)">快速检测</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>window.visualViewport</span>
+                                        <span id="api-visualViewport" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>visualViewport.segments</span>
+                                        <span id="api-segments" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>segmentchange 事件</span>
+                                        <span id="api-event" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>折叠屏检测</span>
+                                        <span id="api-foldable" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">当前视口信息</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>视口宽度</span>
+                                        <span id="viewport-width" style="font-weight: 600;">-</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>视口高度</span>
+                                        <span id="viewport-height" style="font-weight: 600;">-</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>设备像素比</span>
+                                        <span id="device-pixel-ratio" style="font-weight: 600;">-</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>屏幕方向</span>
+                                        <span id="screen-orientation" style="font-weight: 600;">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-quick-test" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">检测视口段</label>
+                            <button class="btn btn-primary" onclick="detectSegments()">🔍 检测视口段</button>
+                        </div>
+                        <div id="quick-result" style="display: none; margin-top: 16px;">
+                            <div class="result-box">
+                                <div class="result-title">检测结果</div>
+                                <div class="result-grid" id="quick-result-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视口段信息 -->
+            <div id="panel-segments-info" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>视口段信息</h1>
+                        <p>获取详细的视口段数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>视口段 (Viewport Segments)</strong> 是指设备屏幕上独立的显示区域，常见于折叠屏设备。
+                    </div>
+                    
+                    <div class="segment-visualizer" id="segment-visualizer">
+                        <div class="segment-info" id="segment-info">等待检测...</div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">视口段详情</div>
+                        <div id="segments-details">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                点击"检测视口段"按钮获取信息
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-primary" onclick="refreshSegmentsInfo()">🔄 刷新信息</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备模拟 -->
+            <div id="panel-device-simulator" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>设备模拟</h1>
+                        <p>模拟折叠屏设备的视口段</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="warning-box">
+                        <strong>注意：</strong> 这是模拟演示，用于展示 Viewport Segments API 在折叠屏设备上的工作方式。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备类型</label>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-outline active" onclick="selectDevice('folded')" id="device-folded">📱 折叠状态</button>
+                            <button class="btn btn-outline" onclick="selectDevice('unfolded')" id="device-unfolded">📱 展开 (双屏)</button>
+                            <button class="btn btn-outline" onclick="selectDevice('single')" id="device-single">📱 单屏</button>
+                        </div>
+                    </div>
+                    
+                    <div class="device-simulator">
+                        <div class="device-frame" id="device-frame">
+                            <div class="device-screen" id="device-screen">
+                                <div class="device-segment">
+                                    <div class="device-segment-icon">📱</div>
+                                    <div class="device-segment-label">段 1</div>
+                                </div>
+                                <div class="device-hinge" id="device-hinge" style="display: none;"></div>
+                                <div class="device-segment" id="segment-2" style="display: none;">
+                                    <div class="device-segment-icon">📱</div>
+                                    <div class="device-segment-label">段 2</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">模拟视口段数据</div>
+                        <div class="result-grid" id="simulator-result-grid">
+                            <div class="result-item"><div class="result-label">设备类型</div><div class="result-value" id="sim-device-type">折叠状态</div></div>
+                            <div class="result-item"><div class="result-label">视口段数</div><div class="result-value" id="sim-segments-count">1</div></div>
+                            <div class="result-item"><div class="result-label">段1边界</div><div class="result-value" id="sim-segment1">0, 0, 100%, 100%</div></div>
+                            <div class="result-item"><div class="result-label">段2边界</div><div class="result-value" id="sim-segment2">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 变化监听 -->
+            <div id="panel-change-monitor" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>变化监听</h1>
+                        <p>监听视口段变化事件</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>segmentchange 事件</strong> 在视口段发生变化时触发，例如折叠屏展开或折叠时。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">监听状态</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span id="monitor-status" style="font-weight: 600; color: var(--text-muted);">未启动</span>
+                            <button class="btn btn-primary" id="monitor-btn" onclick="toggleMonitor()">▶️ 启动监听</button>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">变化记录</div>
+                        <div id="change-log" style="max-height: 200px; overflow-y: auto;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                启动监听后将记录视口段变化
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-outline" onclick="simulateChange()">🔄 模拟变化</button>
+                        <button class="btn btn-outline" onclick="clearChangeLog()">🗑️ 清空记录</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Viewport Segments API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">概述</h3>
+                    <div class="api-block">
+                        <span class="api-method">API</span>
+                        <span class="api-signature">window.visualViewport.segments</span>
+                        <p class="api-description">返回一个 DOMRect 数组，表示设备屏幕上各个视口段的边界。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">属性</h3>
+                    <table>
+                        <thead>
+                            <tr><th>属性</th><th>类型</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>segments</code></td><td>DOMRect[]</td><td>视口段边界数组</td></tr>
+                            <tr><td><code>width</code></td><td>number</td><td>视口宽度</td></tr>
+                            <tr><td><code>height</code></td><td>number</td><td>视口高度</td></tr>
+                            <tr><td><code>scale</code></td><td>number</td><td>缩放比例</td></tr>
+                            <tr><td><code>offsetLeft</code></td><td>number</td><td>左偏移</td></tr>
+                            <tr><td><code>offsetTop</code></td><td>number</td><td>上偏移</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">事件</h3>
+                    <table>
+                        <thead><tr><th>事件</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>segmentchange</code></td><td>视口段变化时触发</td></tr>
+                            <tr><td><code>resize</code></td><td>视口大小变化时触发</td></tr>
+                            <tr><td><code>scroll</code></td><td>视口滚动时触发</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">DOMRect 结构</h3>
+                    <table>
+                        <thead><tr><th>属性</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>x, y</code></td><td>左上角坐标</td></tr>
+                            <tr><td><code>width</code></td><td>宽度</td></tr>
+                            <tr><td><code>height</code></td><td>高度</td></tr>
+                            <tr><td><code>top, right, bottom, left</code></td><td>边界值</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 检测视口段
+if (window.visualViewport && 'segments' in visualViewport) {
+    const segments = visualViewport.segments;
+    
+    console.log('视口段数量:', segments.length);
+    
+    segments.forEach((segment, index) => {
+        console.log(`段 ${index + 1}:`, {
+            x: segment.x,
+            y: segment.y,
+            width: segment.width,
+            height: segment.height
+        });
+    });
+}
+
+// 监听变化
+visualViewport.addEventListener('segmentchange', (e) => {
+    console.log('视口段已变化');
+    updateLayout(visualViewport.segments);
+});</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="warning-box">
+                        <strong>实验性 API</strong> - Viewport Segments API 目前处于实验阶段，仅部分浏览器支持。主要用于折叠屏设备（如 Samsung Galaxy Fold、Microsoft Surface Duo）。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var isMonitoring = false;
+        var changeRecords = [];
+        var currentDevice = 'folded';
+        var segmentsData = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            updateViewportInfo();
+            
+            // 监听视口变化
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', updateViewportInfo);
+            }
+            window.addEventListener('resize', updateViewportInfo);
+            window.addEventListener('orientationchange', updateViewportInfo);
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var visualViewportSupported = 'visualViewport' in window;
+            var segmentsSupported = false;
+            var eventSupported = false;
+            
+            if (visualViewportSupported) {
+                segmentsSupported = 'segments' in window.visualViewport;
+                // 检测是否支持 segmentchange 事件
+                try {
+                    eventSupported = 'onsegmentchange' in window.visualViewport;
+                } catch (e) {
+                    eventSupported = false;
+                }
+            }
+            
+            // 更新 UI
+            document.getElementById('api-visualViewport').textContent = visualViewportSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-visualViewport').style.color = visualViewportSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-segments').textContent = segmentsSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-segments').style.color = segmentsSupported ? 'var(--success)' : 'var(--warning)';
+            
+            document.getElementById('api-event').textContent = eventSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-event').style.color = eventSupported ? 'var(--success)' : 'var(--warning)';
+            
+            document.getElementById('api-foldable').textContent = segmentsSupported ? '✓ 是' : '✗ 否';
+            document.getElementById('api-foldable').style.color = segmentsSupported ? 'var(--success)' : 'var(--text-muted)';
+            
+            document.getElementById('api-status').textContent = segmentsSupported ? '✓' : '⚠️';
+            document.getElementById('api-status').style.color = segmentsSupported ? 'var(--success)' : 'var(--warning)';
+
+            addLog('api', 'API 支持检测完成');
+            
+            // 如果支持，获取视口段信息
+            if (segmentsSupported) {
+                getSegmentsInfo();
+            }
+        }
+
+        // ==================== 视口信息 ====================
+        function updateViewportInfo() {
+            document.getElementById('viewport-width').textContent = window.innerWidth + 'px';
+            document.getElementById('viewport-height').textContent = window.innerHeight + 'px';
+            document.getElementById('device-pixel-ratio').textContent = window.devicePixelRatio;
+            document.getElementById('screen-width').textContent = screen.width + 'px';
+            document.getElementById('screen-height').textContent = screen.height + 'px';
+            
+            var orientation = screen.orientation ? screen.orientation.type : (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+            document.getElementById('screen-orientation').textContent = orientation;
+        }
+
+        // ==================== 视口段检测 ====================
+        function detectSegments() {
+            var startTime = performance.now();
+            
+            if (!window.visualViewport) {
+                showToast('visualViewport API 不支持', 'warning');
+                showFallbackResult();
+                addLog('segment', '检测失败: API 不支持');
+                return;
+            }
+            
+            if (!('segments' in window.visualViewport)) {
+                showToast('segments 属性不支持，显示模拟数据', 'warning');
+                showSimulatedResult();
+                addLog('segment', '使用模拟数据');
+                return;
+            }
+            
+            try {
+                var segments = window.visualViewport.segments;
+                segmentsData = segments;
+                
+                var duration = Math.round(performance.now() - startTime);
+                
+                document.getElementById('segments-count').textContent = segments ? segments.length : 0;
+                
+                var html = '';
+                if (segments && segments.length > 0) {
+                    for (var i = 0; i < segments.length; i++) {
+                        var seg = segments[i];
+                        html += '<div class="result-item">';
+                        html += '<div class="result-label">段 ' + (i + 1) + '</div>';
+                        html += '<div class="result-value">' + Math.round(seg.width) + ' x ' + Math.round(seg.height) + '</div>';
+                        html += '</div>';
+                    }
+                } else {
+                    html = '<div class="result-item"><div class="result-label">结果</div><div class="result-value">单屏设备</div></div>';
+                }
+                
+                html += '<div class="result-item"><div class="result-label">耗时</div><div class="result-value">' + duration + ' ms</div></div>';
+                
+                document.getElementById('quick-result-grid').innerHTML = html;
+                document.getElementById('quick-result').style.display = 'block';
+                
+                addLog('segment', '检测完成: ' + (segments ? segments.length : 0) + ' 个视口段');
+                showToast('检测完成', 'success');
+                
+            } catch (e) {
+                showToast('检测失败: ' + e.message, 'error');
+                addLog('segment', '错误: ' + e.message);
+            }
+        }
+
+        function showFallbackResult() {
+            var html = '';
+            html += '<div class="result-item"><div class="result-label">状态</div><div class="result-value">API 不支持</div></div>';
+            html += '<div class="result-item"><div class="result-label">视口宽度</div><div class="result-value">' + window.innerWidth + 'px</div></div>';
+            html += '<div class="result-item"><div class="result-label">视口高度</div><div class="result-value">' + window.innerHeight + 'px</div></div>';
+            
+            document.getElementById('quick-result-grid').innerHTML = html;
+            document.getElementById('quick-result').style.display = 'block';
+        }
+
+        function showSimulatedResult() {
+            // 模拟折叠屏数据
+            var simulatedSegments = [
+                { x: 0, y: 0, width: Math.round(window.innerWidth / 2), height: window.innerHeight },
+                { x: Math.round(window.innerWidth / 2), y: 0, width: Math.round(window.innerWidth / 2), height: window.innerHeight }
+            ];
+            
+            segmentsData = simulatedSegments;
+            document.getElementById('segments-count').textContent = '2 (模拟)';
+            
+            var html = '';
+            for (var i = 0; i < simulatedSegments.length; i++) {
+                var seg = simulatedSegments[i];
+                html += '<div class="result-item"><div class="result-label">段 ' + (i + 1) + ' (模拟)</div>';
+                html += '<div class="result-value">' + seg.width + ' x ' + seg.height + '</div></div>';
+            }
+            
+            document.getElementById('quick-result-grid').innerHTML = html;
+            document.getElementById('quick-result').style.display = 'block';
+        }
+
+        function getSegmentsInfo() {
+            if (!window.visualViewport || !('segments' in window.visualViewport)) return;
+            
+            var segments = window.visualViewport.segments;
+            segmentsData = segments;
+            
+            if (segments && segments.length > 0) {
+                document.getElementById('segments-count').textContent = segments.length;
+            }
+        }
+
+        // ==================== 视口段信息面板 ====================
+        function refreshSegmentsInfo() {
+            detectSegments();
+            updateSegmentVisualizer();
+            updateSegmentsDetails();
+        }
+
+        function updateSegmentVisualizer() {
+            var visualizer = document.getElementById('segment-visualizer');
+            var info = document.getElementById('segment-info');
+            
+            // 清除现有覆盖层
+            visualizer.querySelectorAll('.segment-overlay').forEach(el => el.remove());
+            
+            if (!segmentsData || segmentsData.length === 0) {
+                info.textContent = '单屏设备 - 无多个视口段';
+                return;
+            }
+            
+            var containerWidth = visualizer.offsetWidth;
+            var containerHeight = visualizer.offsetHeight;
+            
+            var infoText = '检测到 ' + segmentsData.length + ' 个视口段\n';
+            
+            for (var i = 0; i < segmentsData.length; i++) {
+                var seg = segmentsData[i];
+                var overlay = document.createElement('div');
+                overlay.className = 'segment-overlay';
+                
+                // 计算相对位置
+                var left = (seg.x / window.innerWidth) * containerWidth;
+                var top = (seg.y / window.innerHeight) * containerHeight;
+                var width = (seg.width / window.innerWidth) * containerWidth;
+                var height = (seg.height / window.innerHeight) * containerHeight;
+                
+                overlay.style.left = left + 'px';
+                overlay.style.top = top + 'px';
+                overlay.style.width = width + 'px';
+                overlay.style.height = height + 'px';
+                overlay.textContent = '段 ' + (i + 1);
+                
+                visualizer.appendChild(overlay);
+                
+                infoText += '段' + (i + 1) + ': x=' + Math.round(seg.x) + ', y=' + Math.round(seg.y) + ', w=' + Math.round(seg.width) + ', h=' + Math.round(seg.height) + '\n';
+            }
+            
+            info.textContent = infoText;
+        }
+
+        function updateSegmentsDetails() {
+            var container = document.getElementById('segments-details');
+            
+            if (!segmentsData || segmentsData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">单屏设备 - 无多个视口段</div>';
+                return;
+            }
+            
+            var html = '<div class="result-grid">';
+            
+            for (var i = 0; i < segmentsData.length; i++) {
+                var seg = segmentsData[i];
+                html += '<div class="result-item">';
+                html += '<div class="result-label">段 ' + (i + 1) + '</div>';
+                html += '<div class="result-value">';
+                html += 'X: ' + Math.round(seg.x) + '<br>';
+                html += 'Y: ' + Math.round(seg.y) + '<br>';
+                html += '宽: ' + Math.round(seg.width) + '<br>';
+                html += '高: ' + Math.round(seg.height);
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ==================== 设备模拟 ====================
+        function selectDevice(device) {
+            currentDevice = device;
+            
+            // 更新按钮状态
+            document.querySelectorAll('[id^="device-"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('device-' + device).classList.add('active');
+            
+            var screen = document.getElementById('device-screen');
+            var hinge = document.getElementById('device-hinge');
+            var segment2 = document.getElementById('segment-2');
+            
+            switch (device) {
+                case 'folded':
+                    segment2.style.display = 'none';
+                    hinge.style.display = 'none';
+                    screen.style.flexDirection = 'row';
+                    document.getElementById('sim-device-type').textContent = '折叠状态';
+                    document.getElementById('sim-segments-count').textContent = '1';
+                    document.getElementById('sim-segment1').textContent = '0, 0, 100%, 100%';
+                    document.getElementById('sim-segment2').textContent = '-';
+                    segmentsData = null;
+                    break;
+                    
+                case 'unfolded':
+                    segment2.style.display = 'flex';
+                    hinge.style.display = 'block';
+                    screen.style.flexDirection = 'row';
+                    document.getElementById('sim-device-type').textContent = '展开 (双屏)';
+                    document.getElementById('sim-segments-count').textContent = '2';
+                    document.getElementById('sim-segment1').textContent = '0, 0, 50%, 100%';
+                    document.getElementById('sim-segment2').textContent = '50%, 0, 50%, 100%';
+                    segmentsData = [
+                        { x: 0, y: 0, width: window.innerWidth / 2, height: window.innerHeight },
+                        { x: window.innerWidth / 2, y: 0, width: window.innerWidth / 2, height: window.innerHeight }
+                    ];
+                    break;
+                    
+                case 'single':
+                    segment2.style.display = 'none';
+                    hinge.style.display = 'none';
+                    screen.style.flexDirection = 'row';
+                    document.getElementById('sim-device-type').textContent = '单屏';
+                    document.getElementById('sim-segments-count').textContent = '1';
+                    document.getElementById('sim-segment1').textContent = '0, 0, 100%, 100%';
+                    document.getElementById('sim-segment2').textContent = '-';
+                    segmentsData = null;
+                    break;
+            }
+            
+            addLog('segment', '切换设备模拟: ' + device);
+        }
+
+        // ==================== 变化监听 ====================
+        function toggleMonitor() {
+            isMonitoring = !isMonitoring;
+            
+            var statusEl = document.getElementById('monitor-status');
+            var btn = document.getElementById('monitor-btn');
+            
+            if (isMonitoring) {
+                statusEl.textContent = '监听中...';
+                statusEl.style.color = 'var(--success)';
+                btn.textContent = '⏹️ 停止监听';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline');
+                
+                // 添加监听
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', handleViewportChange);
+                    if ('onsegmentchange' in window.visualViewport) {
+                        window.visualViewport.addEventListener('segmentchange', handleSegmentChange);
+                    }
+                }
+                window.addEventListener('resize', handleViewportChange);
+                
+                addLog('segment', '启动监听');
+                showToast('监听已启动', 'success');
+            } else {
+                statusEl.textContent = '已停止';
+                statusEl.style.color = 'var(--text-muted)';
+                btn.textContent = '▶️ 启动监听';
+                btn.classList.remove('btn-outline');
+                btn.classList.add('btn-primary');
+                
+                // 移除监听
+                if (window.visualViewport) {
+                    window.visualViewport.removeEventListener('resize', handleViewportChange);
+                    window.visualViewport.removeEventListener('segmentchange', handleSegmentChange);
+                }
+                window.removeEventListener('resize', handleViewportChange);
+                
+                addLog('segment', '停止监听');
+                showToast('监听已停止', 'success');
+            }
+        }
+
+        function handleViewportChange() {
+            var now = new Date();
+            var record = {
+                time: now.toTimeString().split(' ')[0],
+                type: 'resize',
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+            changeRecords.unshift(record);
+            updateChangeLog();
+            addLog('segment', '视口变化: ' + window.innerWidth + 'x' + window.innerHeight);
+        }
+
+        function handleSegmentChange() {
+            var now = new Date();
+            var segments = window.visualViewport.segments;
+            var record = {
+                time: now.toTimeString().split(' ')[0],
+                type: 'segmentchange',
+                segments: segments ? segments.length : 0
+            };
+            changeRecords.unshift(record);
+            updateChangeLog();
+            addLog('segment', '视口段变化');
+            showToast('检测到视口段变化', 'success');
+        }
+
+        function simulateChange() {
+            var now = new Date();
+            var record = {
+                time: now.toTimeString().split(' ')[0],
+                type: 'simulated',
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+            changeRecords.unshift(record);
+            updateChangeLog();
+            addLog('segment', '模拟变化事件');
+            showToast('已模拟变化事件', 'success');
+        }
+
+        function updateChangeLog() {
+            var container = document.getElementById('change-log');
+            
+            if (changeRecords.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">暂无变化记录</div>';
+                return;
+            }
+            
+            var html = '<div class="result-grid">';
+            
+            for (var i = 0; i < Math.min(changeRecords.length, 6); i++) {
+                var record = changeRecords[i];
+                html += '<div class="result-item">';
+                html += '<div class="result-label">' + record.time + '</div>';
+                html += '<div class="result-value">' + record.type;
+                if (record.width) html += ' (' + record.width + 'x' + record.height + ')';
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function clearChangeLog() {
+            changeRecords = [];
+            updateChangeLog();
+            showToast('记录已清空', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

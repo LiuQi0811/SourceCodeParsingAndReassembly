@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Transitions API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #06b6d4;
+            --primary-dark: #0891b2;
+            --secondary: #22d3ee;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #ecfeff;
+            --bg-card: #ffffff;
+            --border: #a5f3fc;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #ecfeff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #0c1a1f;
+                --bg-card: #134e4a;
+                --border: #115e59;
+            }
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* View Transitions CSS */
+        ::view-transition-old(root), ::view-transition-new(root) {
+            animation-duration: 0.3s;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes fade-out {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.3);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-content { padding: 16px 12px; }
+
+        .nav-section { margin-bottom: 20px; }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+
+        .nav-item.active {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--primary);
+        }
+
+        .nav-icon { font-size: 16px; }
+
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+
+        .page-header {
+            margin-bottom: 20px;
+        }
+
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(6, 182, 212, 0.1);
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3); }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Transition Demo */
+        .transition-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .demo-card {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(6, 182, 212, 0.3); }
+        .demo-card.active { background: linear-gradient(135deg, var(--success), #059669); }
+
+        .demo-card-icon { font-size: 28px; margin-bottom: 8px; }
+        .demo-card-title { font-weight: 600; font-size: 13px; }
+
+        /* Preview */
+        .transition-preview {
+            width: 100%;
+            height: 200px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+
+        .preview-box {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            view-transition-name: preview-box;
+        }
+
+        .preview-box.state-a { background: linear-gradient(135deg, #ec4899, #f472b6); }
+        .preview-box.state-b { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .preview-box.state-c { background: linear-gradient(135deg, #10b981, #34d399); }
+        .preview-box.state-d { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+
+        /* Effect Buttons */
+        .effect-btn {
+            padding: 10px 16px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            margin: 4px;
+            transition: all 0.2s;
+        }
+
+        .effect-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .effect-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Gallery */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .gallery-item {
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .gallery-item:hover { transform: scale(1.05); }
+        .gallery-item.selected { outline: 3px solid var(--primary); outline-offset: 3px; }
+
+        /* API Block */
+        .api-block {
+            background: rgba(6, 182, 212, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--primary);
+        }
+
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.transition { background: rgba(6, 182, 212, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        th { background: var(--bg-main); font-weight: 600; }
+
+        /* Info Box */
+        .info-box {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+
+            .sidebar.open { transform: translateX(0); }
+
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+
+            .stats-row { grid-template-columns: 1fr 1fr; }
+
+            .form-row { grid-template-columns: 1fr; }
+
+            .transition-demo { grid-template-columns: repeat(2, 1fr); }
+
+            .gallery { grid-template-columns: repeat(4, 1fr); }
+
+            .logo-text { font-size: 14px; }
+
+            .page-title-group h1 { font-size: 20px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+
+            .transition-demo { grid-template-columns: 1fr; }
+
+            .gallery { grid-template-columns: repeat(3, 1fr); }
+
+            .card-tabs { padding: 0 12px; }
+
+            .card-tab { padding: 12px; font-size: 12px; }
+
+            .card-panel { padding: 16px; }
+
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔄</div>
+            <div class="logo-text">View Transitions <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">过渡效果</div>
+                    <div class="nav-item" data-tab="basic-transitions" onclick="switchTab('basic-transitions')">
+                        <span class="nav-icon">✨</span><span>基础过渡</span>
+                    </div>
+                    <div class="nav-item" data-tab="named-transitions" onclick="switchTab('named-transitions')">
+                        <span class="nav-icon">🏷️</span><span>命名过渡</span>
+                    </div>
+                    <div class="nav-item" data-tab="gallery-demo" onclick="switchTab('gallery-demo')">
+                        <span class="nav-icon">🖼️</span><span>图库演示</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>View Transitions API 管理概览</p>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔄</div>
+                        <div class="stat-value" id="transition-count">0</div>
+                        <div class="stat-label">过渡次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✓</div>
+                        <div class="stat-value" id="success-count">0</div>
+                        <div class="stat-label">成功次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="avg-duration">0</div>
+                        <div class="stat-label">平均耗时(ms)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-test', 'dashboard', this)">快速测试</button>
+                    </div>
+
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>document.startViewTransition</span>
+                                        <span id="api-start" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>ViewTransition 对象</span>
+                                        <span id="api-object" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>CSS view-transition-name</span>
+                                        <span id="api-css" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>Promise 支持</span>
+                                        <span id="api-promise" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">过渡预览</label>
+                                <div class="transition-preview">
+                                    <div class="preview-box" id="preview-box">A</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <button class="btn btn-primary" onclick="previewTransition()">▶️ 播放过渡</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="subtab-quick-test" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">选择过渡效果</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                <button class="effect-btn active" onclick="selectEffect('fade')" id="effect-fade">淡入淡出</button>
+                                <button class="effect-btn" onclick="selectEffect('slide')" id="effect-slide">滑动</button>
+                                <button class="effect-btn" onclick="selectEffect('rotate')" id="effect-rotate">旋转</button>
+                                <button class="effect-btn" onclick="selectEffect('bounce')" id="effect-bounce">弹跳</button>
+                                <button class="effect-btn" onclick="selectEffect('flip')" id="effect-flip">翻转</button>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="runQuickTest()">▶️ 运行测试</button>
+                        <div id="quick-result" style="display: none; margin-top: 16px;">
+                            <div class="result-box">
+                                <div class="result-title">测试结果</div>
+                                <div class="result-grid" id="quick-result-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 基础过渡 -->
+            <div id="panel-basic-transitions" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>基础过渡</h1>
+                        <p>体验不同的视图过渡效果</p>
+                    </div>
+                </div>
+
+                <div class="card-container" style="padding: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">点击卡片触发过渡</label>
+                        <div class="transition-demo" id="demo-cards">
+                            <div class="demo-card" onclick="toggleCard(this)">
+                                <div class="demo-card-icon">🎨</div>
+                                <div class="demo-card-title">设计</div>
+                            </div>
+                            <div class="demo-card" onclick="toggleCard(this)">
+                                <div class="demo-card-icon">💻</div>
+                                <div class="demo-card-title">开发</div>
+                            </div>
+                            <div class="demo-card" onclick="toggleCard(this)">
+                                <div class="demo-card-icon">📱</div>
+                                <div class="demo-card-title">移动端</div>
+                            </div>
+                            <div class="demo-card" onclick="toggleCard(this)">
+                                <div class="demo-card-icon">🚀</div>
+                                <div class="demo-card-title">部署</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-box">
+                        <div class="result-title">过渡信息</div>
+                        <div class="result-grid" id="basic-result-grid">
+                            <div class="result-item"><div class="result-label">状态</div><div class="result-value">等待操作</div></div>
+                            <div class="result-item"><div class="result-label">效果</div><div class="result-value">-</div></div>
+                            <div class="result-item"><div class="result-label">耗时</div><div class="result-value">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 命名过渡 -->
+            <div id="panel-named-transitions" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>命名过渡</h1>
+                        <p>使用 view-transition-name 创建独立过渡</p>
+                    </div>
+                </div>
+
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>view-transition-name</strong> 允许为特定元素创建独立的过渡效果。
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">预览区域</label>
+                        <div class="transition-preview" id="named-preview">
+                            <div class="preview-box state-a" id="named-box" style="view-transition-name: named-element;">🌟</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="namedTransition('a')">状态 A</button>
+                        <button class="btn btn-primary" onclick="namedTransition('b')">状态 B</button>
+                        <button class="btn btn-primary" onclick="namedTransition('c')">状态 C</button>
+                        <button class="btn btn-primary" onclick="namedTransition('d')">状态 D</button>
+                    </div>
+                    <div id="named-result" style="display: none; margin-top: 16px;">
+                        <div class="result-box">
+                            <div class="result-title">命名过渡信息</div>
+                            <div class="result-grid" id="named-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图库演示 -->
+            <div id="panel-gallery-demo" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>图库演示</h1>
+                        <p>点击图片查看过渡效果</p>
+                    </div>
+                </div>
+
+                <div class="card-container" style="padding: 20px;">
+                    <div class="gallery" id="gallery">
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌸')">🌸</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌺')">🌺</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌻')">🌻</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌹')">🌹</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌷')">🌷</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🌼')">🌼</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '💐')">💐</div>
+                        <div class="gallery-item" onclick="selectGalleryItem(this, '🏵️')">🏵️</div>
+                    </div>
+                    <div id="gallery-detail" style="display: none;">
+                        <div style="text-align: center; padding: 30px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                            <div id="gallery-detail-icon" style="font-size: 80px;"></div>
+                            <div style="margin-top: 12px; font-size: 16px; font-weight: 600;">已选择</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>View Transitions API 完整文档</p>
+                    </div>
+                </div>
+
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">概述</h3>
+                    <div class="api-block">
+                        <span class="api-method">API</span>
+                        <span class="api-signature">document.startViewTransition(callback)</span>
+                        <p class="api-description">启动视图过渡动画。callback 函数中执行 DOM 更新。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">ViewTransition 对象</h3>
+                    <table>
+                        <thead>
+                            <tr><th>属性/方法</th><th>类型</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>finished</code></td><td>Promise</td><td>过渡动画完成后解析</td></tr>
+                            <tr><td><code>ready</code></td><td>Promise</td><td>过渡动画准备好后解析</td></tr>
+                            <tr><td><code>updateCallbackDone</code></td><td>Promise</td><td>回调函数完成后解析</td></tr>
+                            <tr><td><code>skipTransition()</code></td><td>方法</td><td>跳过过渡动画</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">CSS 伪元素</h3>
+                    <table>
+                        <thead><tr><th>伪元素</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>::view-transition</code></td><td>过渡容器</td></tr>
+                            <tr><td><code>::view-transition-group</code></td><td>过渡组</td></tr>
+                            <tr><td><code>::view-transition-old</code></td><td>旧视图快照</td></tr>
+                            <tr><td><code>::view-transition-new</code></td><td>新视图快照</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 基本用法
+const transition = document.startViewTransition(() => {
+    element.classList.toggle('active');
+});
+
+// 使用 Promise
+transition.ready.then(() => console.log('准备完成'));
+transition.finished.then(() => console.log('过渡完成'));
+
+// CSS 命名过渡
+.box { view-transition-name: my-box; }</div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var transitionCount = 0;
+        var successCount = 0;
+        var totalDuration = 0;
+        var selectedEffect = 'fade';
+        var previewState = 0;
+        var namedState = 'a';
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            if ('startViewTransition' in document) {
+                document.startViewTransition(() => performTabSwitch(tabId));
+            } else {
+                performTabSwitch(tabId);
+            }
+        }
+
+        function performTabSwitch(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+
+            // 关闭移动端侧边栏
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var supported = 'startViewTransition' in document;
+
+            document.getElementById('api-start').textContent = supported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-start').style.color = supported ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('api-status').textContent = supported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = supported ? 'var(--success)' : 'var(--danger)';
+
+            document.getElementById('api-object').textContent = supported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-object').style.color = supported ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('api-css').textContent = supported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-css').style.color = supported ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('api-promise').textContent = '✓ 支持';
+            document.getElementById('api-promise').style.color = 'var(--success)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 视图过渡 ====================
+        async function startTransition(callback, effectName) {
+            effectName = effectName || 'default';
+            var startTime = performance.now();
+
+            if (!('startViewTransition' in document)) {
+                callback();
+                addLog('transition', '使用后备方案');
+                showToast('浏览器不支持 View Transitions API', 'warning');
+                return null;
+            }
+
+            try {
+                var transition = document.startViewTransition(callback);
+
+                transitionCount++;
+                successCount++;
+
+                await transition.finished;
+
+                var duration = Math.round(performance.now() - startTime);
+                totalDuration += duration;
+
+                updateStats();
+                addLog('transition', effectName + ' 完成，耗时: ' + duration + 'ms');
+
+                return transition;
+            } catch (e) {
+                addLog('transition', '错误: ' + e.message);
+                showToast('过渡失败', 'error');
+                return null;
+            }
+        }
+
+        // ==================== 预览过渡 ====================
+        function previewTransition() {
+            var states = ['A', 'B', 'C', 'D'];
+            var colors = ['state-a', 'state-b', 'state-c', 'state-d'];
+
+            previewState = (previewState + 1) % states.length;
+
+            startTransition(() => {
+                var box = document.getElementById('preview-box');
+                box.textContent = states[previewState];
+                box.className = 'preview-box ' + colors[previewState];
+            }, '预览过渡');
+        }
+
+        // ==================== 快速测试 ====================
+        function selectEffect(effect) {
+            selectedEffect = effect;
+            document.querySelectorAll('.effect-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('effect-' + effect).classList.add('active');
+        }
+
+        async function runQuickTest() {
+            var startTime = performance.now();
+
+            await startTransition(() => {
+                var box = document.getElementById('preview-box');
+                box.textContent = box.textContent === '测试' ? '完成' : '测试';
+            }, selectedEffect);
+
+            var duration = Math.round(performance.now() - startTime);
+
+            document.getElementById('quick-result-grid').innerHTML =
+                '<div class="result-item"><div class="result-label">效果</div><div class="result-value">' + selectedEffect + '</div></div>' +
+                '<div class="result-item"><div class="result-label">耗时</div><div class="result-value">' + duration + ' ms</div></div>' +
+                '<div class="result-item"><div class="result-label">状态</div><div class="result-value">✓ 成功</div></div>';
+
+            document.getElementById('quick-result').style.display = 'block';
+            showToast('测试完成', 'success');
+        }
+
+        // ==================== 基础过渡 ====================
+        async function toggleCard(card) {
+            var startTime = performance.now();
+
+            await startTransition(() => card.classList.toggle('active'), '卡片切换');
+
+            var duration = Math.round(performance.now() - startTime);
+            var isActive = card.classList.contains('active');
+
+            document.getElementById('basic-result-grid').innerHTML =
+                '<div class="result-item"><div class="result-label">状态</div><div class="result-value">' + (isActive ? '激活' : '未激活') + '</div></div>' +
+                '<div class="result-item"><div class="result-label">效果</div><div class="result-value">淡入淡出</div></div>' +
+                '<div class="result-item"><div class="result-label">耗时</div><div class="result-value">' + duration + ' ms</div></div>';
+        }
+
+        // ==================== 命名过渡 ====================
+        async function namedTransition(state) {
+            var startTime = performance.now();
+            var icons = { a: '🌟', b: '💎', c: '🔥', d: '⚡' };
+            var classes = { a: 'state-a', b: 'state-b', c: 'state-c', d: 'state-d' };
+
+            await startTransition(() => {
+                var box = document.getElementById('named-box');
+                box.textContent = icons[state];
+                box.className = 'preview-box ' + classes[state];
+                box.style.viewTransitionName = 'named-element';
+            }, '命名过渡');
+
+            var duration = Math.round(performance.now() - startTime);
+
+            document.getElementById('named-result-grid').innerHTML =
+                '<div class="result-item"><div class="result-label">状态</div><div class="result-value">' + state.toUpperCase() + '</div></div>' +
+                '<div class="result-item"><div class="result-label">view-transition-name</div><div class="result-value">named-element</div></div>' +
+                '<div class="result-item"><div class="result-label">耗时</div><div class="result-value">' + duration + ' ms</div></div>';
+
+            document.getElementById('named-result').style.display = 'block';
+        }
+
+        // ==================== 图库演示 ====================
+        async function selectGalleryItem(item, icon) {
+            var startTime = performance.now();
+
+            item.style.viewTransitionName = 'gallery-item';
+
+            await startTransition(() => {
+                document.querySelectorAll('.gallery-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                document.getElementById('gallery-detail-icon').textContent = icon;
+                document.getElementById('gallery-detail').style.display = 'block';
+            }, '图库选择');
+
+            var duration = Math.round(performance.now() - startTime);
+            addLog('transition', '图库选择: ' + icon + ', 耗时: ' + duration + 'ms');
+        }
+
+        // ==================== 统计更新 ====================
+        function updateStats() {
+            document.getElementById('transition-count').textContent = transitionCount;
+            document.getElementById('success-count').textContent = successCount;
+            document.getElementById('avg-duration').textContent = successCount > 0 ? Math.round(totalDuration / successCount) : 0;
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log =>
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

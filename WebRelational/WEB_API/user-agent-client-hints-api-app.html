@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User-Agent Client Hints API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #f59e0b;
+            --primary-dark: #d97706;
+            --secondary: #fbbf24;
+            --accent: #fcd34d;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fefce8;
+            --bg-card: #ffffff;
+            --border: #fde68a;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 20px;
+            --radius-sm: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fefce8;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #1c1917;
+                --bg-card: #292524;
+                --border: #44403c;
+                --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 32px;
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 24px rgba(245, 158, 11, 0.25);
+        }
+        .logo { display: flex; align-items: center; gap: 14px; }
+        .logo-icon {
+            width: 46px; height: 46px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+        }
+        .logo-text { font-size: 20px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .header-btn {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+        .user-profile {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 14px 6px 6px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px; color: white;
+        }
+        .user-name { font-size: 14px; font-weight: 500; color: white; }
+        .main-layout { display: flex; margin-top: 76px; min-height: calc(100vh - 76px); }
+        .sidebar {
+            width: 270px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 76px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .sidebar-content { padding: 24px 16px; }
+        .nav-section { margin-bottom: 28px; }
+        .nav-section-title {
+            font-size: 11px; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            padding: 0 14px;
+            margin-bottom: 10px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 18px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            position: relative;
+        }
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.06));
+            color: var(--primary);
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 50%;
+            transform: translateY(-50%);
+            width: 4px; height: 26px;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            border-radius: 0 4px 4px 0;
+        }
+        .nav-icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .content { flex: 1; margin-left: 270px; padding: 32px 36px; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+        .page-title-group h1 { font-size: 30px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 15px; color: var(--text-secondary); margin-top: 6px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 32px; }
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 28px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        .stat-icon { width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+        .stat-icon.orange { background: rgba(245, 158, 11, 0.12); }
+        .stat-icon.green { background: rgba(16, 185, 129, 0.12); }
+        .stat-icon.blue { background: rgba(59, 130, 246, 0.12); }
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.12); }
+        .stat-value { font-size: 34px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+        .stat-label { font-size: 14px; color: var(--text-secondary); }
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 28px;
+        }
+        .card-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; }
+        .card-tab {
+            padding: 18px 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            position: relative;
+        }
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); }
+        .card-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 24px; right: 24px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 3px 3px 0 0;
+        }
+        .card-panel { display: none; padding: 28px; }
+        .card-panel.active { display: block; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 28px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 10px 18px; font-size: 13px; }
+        .form-group { margin-bottom: 24px; }
+        .form-label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: var(--bg-card);
+            font-family: inherit;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid var(--border);
+        }
+        .result-title { font-weight: 600; margin-bottom: 14px; font-size: 15px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+        .result-item { background: var(--bg-card); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+        .result-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+        .result-value { font-size: 15px; font-weight: 600; word-break: break-all; }
+        .info-card {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(251, 191, 36, 0.03));
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+        .info-card h4 { margin-bottom: 8px; font-size: 15px; }
+        .info-card p { font-size: 14px; color: var(--text-secondary); }
+        .brand-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            margin: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .brand-tag .brand-name { color: var(--primary); }
+        .brand-tag .brand-version { color: var(--text-muted); font-size: 12px; }
+        .api-block {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(251, 191, 36, 0.03));
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary);
+        }
+        .api-method {
+            display: inline-block;
+            padding: 5px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 14px;
+        }
+        .method-ua { background: rgba(245, 158, 11, 0.18); color: var(--primary); }
+        .method-hint { background: rgba(16, 185, 129, 0.18); color: var(--success); }
+        .api-signature { font-family: 'SF Mono', monospace; font-size: 14px; font-weight: 500; }
+        .api-description { margin-top: 12px; font-size: 14px; color: var(--text-secondary); }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 22px;
+            border-radius: var(--radius-sm);
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin-top: 18px;
+            position: relative;
+        }
+        .code-block .copy-btn {
+            position: absolute; top: 14px; right: 14px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 8px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        .toast-container { position: fixed; top: 92px; right: 36px; z-index: 3000; }
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 18px 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            animation: toastIn 0.4s ease;
+            min-width: 340px;
+            border: 1px solid var(--border);
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(120px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.warning { border-left: 4px solid var(--warning); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 18px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 10px; }
+        .log-type { padding: 3px 8px; border-radius: 4px; font-size: 10px; margin-right: 10px; }
+        .log-type.ua { background: rgba(245, 158, 11, 0.3); }
+        .log-type.hint { background: rgba(16, 185, 129, 0.3); }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .checkbox-item:hover { border-color: var(--primary); }
+        .checkbox-item.checked { border-color: var(--primary); background: rgba(245, 158, 11, 0.1); }
+        .checkbox-item input { display: none; }
+        .checkbox-item .check { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .checkbox-item.checked .check { background: var(--primary); border-color: var(--primary); color: white; }
+        @media (max-width: 1200px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; padding: 24px; }
+            .stats-row { grid-template-columns: 1fr; }
+            .mobile-menu-btn { display: flex !important; }
+        }
+        .mobile-menu-btn { display: none; width: 44px; height: 44px; background: rgba(255,255,255,0.15); border: none; border-radius: 12px; color: white; font-size: 22px; cursor: pointer; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔍</div>
+            <div class="logo-text">User-Agent Client <span>Hints</span></div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" onclick="refreshAllData()">🔄 刷新数据</button>
+            <div class="user-profile">
+                <div class="user-avatar">A</div>
+                <span class="user-name">Admin</span>
+            </div>
+        </div>
+    </header>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')"><span class="nav-icon">📊</span><span>控制台</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">基础信息</div>
+                    <div class="nav-item" data-tab="brands" onclick="switchTab('brands')"><span class="nav-icon">🏷️</span><span>品牌信息</span></div>
+                    <div class="nav-item" data-tab="platform" onclick="switchTab('platform')"><span class="nav-icon">💻</span><span>平台信息</span></div>
+                    <div class="nav-item" data-tab="mobile" onclick="switchTab('mobile')"><span class="nav-icon">📱</span><span>移动设备</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">高级功能</div>
+                    <div class="nav-item" data-tab="high-entropy" onclick="switchTab('high-entropy')"><span class="nav-icon">🔐</span><span>高熵值</span></div>
+                    <div class="nav-item" data-tab="compare" onclick="switchTab('compare')"><span class="nav-icon">⚖️</span><span>对比传统UA</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')"><span class="nav-icon">📖</span><span>API文档</span></div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')"><span class="nav-icon">📜</span><span>操作日志</span></div>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>控制台</h1><p>User-Agent Client Hints API 管理概览</p></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-icon orange">🏷️</div><div class="stat-value" id="brands-count">-</div><div class="stat-label">品牌数量</div></div>
+                    <div class="stat-card"><div class="stat-icon green">💻</div><div class="stat-value" id="platform-value">-</div><div class="stat-label">操作系统</div></div>
+                    <div class="stat-card"><div class="stat-icon blue">📱</div><div class="stat-value" id="mobile-value">-</div><div class="stat-label">移动设备</div></div>
+                    <div class="stat-card"><div class="stat-icon purple">🔐</div><div class="stat-value" id="api-support">-</div><div class="stat-label">API支持</div></div>
+                </div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-test', 'dashboard', this)">快速检测</button>
+                    </div>
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="padding: 24px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>navigator.userAgentData</span><span id="api-userAgentData" style="color: var(--text-muted);">检测中...</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>brands 属性</span><span id="api-brands" style="color: var(--text-muted);">检测中...</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>platform 属性</span><span id="api-platform" style="color: var(--text-muted);">检测中...</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>getHighEntropyValues()</span><span id="api-highEntropy" style="color: var(--text-muted);">检测中...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">当前客户端信息</label>
+                                <div style="padding: 24px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                                    <div id="client-info-list">加载中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-quick-test" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">选择要获取的高熵值提示</label>
+                            <div class="checkbox-group" id="hint-checkboxes">
+                                <label class="checkbox-item checked">
+                                    <input type="checkbox" checked data-hint="architecture">
+                                    <span class="check">✓</span>
+                                    <span>architecture</span>
+                                </label>
+                                <label class="checkbox-item checked">
+                                    <input type="checkbox" checked data-hint="bitness">
+                                    <span class="check">✓</span>
+                                    <span>bitness</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" data-hint="model">
+                                    <span class="check">✓</span>
+                                    <span>model</span>
+                                </label>
+                                <label class="checkbox-item checked">
+                                    <input type="checkbox" checked data-hint="platformVersion">
+                                    <span class="check">✓</span>
+                                    <span>platformVersion</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" data-hint="uaFullVersion">
+                                    <span class="check">✓</span>
+                                    <span>uaFullVersion</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" data-hint="fullVersionList">
+                                    <span class="check">✓</span>
+                                    <span>fullVersionList</span>
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="getHighEntropyValues()">🔐 获取高熵值</button>
+                        <div id="quick-result" style="display: none; margin-top: 20px;">
+                            <div class="result-box">
+                                <div class="result-title">高熵值结果</div>
+                                <div class="result-grid" id="quick-result-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 品牌信息 -->
+            <div id="panel-brands" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>品牌信息</h1><p>获取浏览器的品牌和版本信息</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="info-card">
+                        <h4>什么是 brands？</h4>
+                        <p>brands 属性返回一个数组，包含浏览器的品牌名称和主要版本号。这比传统的 User-Agent 字符串更结构化、更隐私友好。</p>
+                    </div>
+                    <div id="brands-list" style="margin: 20px 0;">
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">加载中...</div>
+                    </div>
+                    <div class="result-box">
+                        <div class="result-title">原始数据</div>
+                        <pre id="brands-raw" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius-sm); overflow-x: auto; font-family: monospace; font-size: 13px;">-</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 平台信息 -->
+            <div id="panel-platform" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>平台信息</h1><p>获取操作系统平台信息</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="info-card">
+                        <h4>什么是 platform？</h4>
+                        <p>platform 属性返回用户代理运行的平台（操作系统），如 "Windows"、"macOS"、"Linux"、"Android" 或 "iOS"。</p>
+                    </div>
+                    <div class="result-grid" id="platform-info" style="margin-top: 20px;">
+                        <div class="result-item"><div class="result-label">平台</div><div class="result-value" id="platform-name">-</div></div>
+                        <div class="result-item"><div class="result-label">平台版本</div><div class="result-value" id="platform-version">-</div></div>
+                        <div class="result-item"><div class="result-label">架构</div><div class="result-value" id="platform-arch">-</div></div>
+                        <div class="result-item"><div class="result-label">位数</div><div class="result-value" id="platform-bitness">-</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 移动设备 -->
+            <div id="panel-mobile" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>移动设备</h1><p>检测是否为移动设备</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="info-card">
+                        <h4>什么是 mobile？</h4>
+                        <p>mobile 属性返回一个布尔值，指示用户代理是否在移动设备上运行。</p>
+                    </div>
+                    <div style="text-align: center; padding: 40px; margin: 20px 0; background: var(--bg-main); border-radius: var(--radius-sm);">
+                        <div id="mobile-icon" style="font-size: 64px; margin-bottom: 16px;">📱</div>
+                        <div id="mobile-status" style="font-size: 24px; font-weight: 700;">检测中...</div>
+                        <div id="mobile-desc" style="color: var(--text-secondary); margin-top: 8px;">-</div>
+                    </div>
+                    <div class="result-box">
+                        <div class="result-title">设备模型</div>
+                        <div class="result-item" style="margin-top: 12px;">
+                            <div class="result-label">model</div>
+                            <div class="result-value" id="device-model">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高熵值 -->
+            <div id="panel-high-entropy" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>高熵值</h1><p>获取更详细的用户代理信息</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="info-card">
+                        <h4>什么是高熵值？</h4>
+                        <p>高熵值提示需要用户授权才能获取，包含更详细的设备信息，如架构、位数、完整版本等。</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">选择要获取的高熵值提示</label>
+                        <div class="checkbox-group" id="entropy-checkboxes">
+                            <label class="checkbox-item checked">
+                                <input type="checkbox" checked data-hint="architecture">
+                                <span class="check">✓</span>
+                                <span>architecture</span>
+                            </label>
+                            <label class="checkbox-item checked">
+                                <input type="checkbox" checked data-hint="bitness">
+                                <span class="check">✓</span>
+                                <span>bitness</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" data-hint="model">
+                                <span class="check">✓</span>
+                                <span>model</span>
+                            </label>
+                            <label class="checkbox-item checked">
+                                <input type="checkbox" checked data-hint="platformVersion">
+                                <span class="check">✓</span>
+                                <span>platformVersion</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" data-hint="uaFullVersion">
+                                <span class="check">✓</span>
+                                <span>uaFullVersion</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" data-hint="fullVersionList">
+                                <span class="check">✓</span>
+                                <span>fullVersionList</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="fetchHighEntropyValues()">🔐 获取高熵值</button>
+                    <div id="entropy-result" style="display: none; margin-top: 20px;">
+                        <div class="result-box">
+                            <div class="result-title">高熵值结果</div>
+                            <div class="result-grid" id="entropy-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对比传统UA -->
+            <div id="panel-compare" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>对比传统UA</h1><p>比较 User-Agent Client Hints 与传统 User-Agent 字符串</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="info-card">
+                        <h4>为什么要使用 Client Hints？</h4>
+                        <p>传统的 User-Agent 字符串包含过多信息，容易被用于指纹追踪。Client Hints 提供了更隐私友好的方式，让网站只获取必要的信息。</p>
+                    </div>
+                    <div class="form-row" style="margin-top: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">传统 User-Agent</label>
+                            <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                <div id="traditional-ua" style="font-family: monospace; font-size: 13px; word-break: break-all;">-</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">User-Agent Client Hints</label>
+                            <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                <div id="client-hints" style="font-family: monospace; font-size: 13px;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-box">
+                        <div class="result-title">对比分析</div>
+                        <div id="compare-analysis"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>API 文档</h1><p>User-Agent Client Hints API 完整文档</p></div></div>
+                <div class="card-container" style="padding: 28px;">
+                    <h3 style="margin-bottom: 20px;">概述</h3>
+                    <div class="api-block">
+                        <span class="api-method method-ua">API</span>
+                        <span class="api-signature">navigator.userAgentData</span>
+                        <p class="api-description">返回 NavigatorUAData 对象，包含用户代理信息。</p>
+                    </div>
+
+                    <h3 style="margin: 28px 0 20px;">NavigatorUAData 属性</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                        <thead>
+                            <tr style="background: var(--bg-main);">
+                                <th style="padding: 14px; text-align: left; border-bottom: 1px solid var(--border);">属性</th>
+                                <th style="padding: 14px; text-align: left; border-bottom: 1px solid var(--border);">类型</th>
+                                <th style="padding: 14px; text-align: left; border-bottom: 1px solid var(--border);">说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>brands</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">UADataValues[]</td><td style="padding: 14px; border-bottom: 1px solid var(--border);">浏览器品牌和版本</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>mobile</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">boolean</td><td style="padding: 14px; border-bottom: 1px solid var(--border);">是否为移动设备</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>platform</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">string</td><td style="padding: 14px; border-bottom: 1px solid var(--border);">操作系统平台</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 28px 0 20px;">NavigatorUAData 方法</h3>
+                    <div class="api-block">
+                        <span class="api-method method-hint">METHOD</span>
+                        <span class="api-signature">getHighEntropyValues(hints)</span>
+                        <p class="api-description">返回 Promise，解析为包含高熵值提示的对象。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// 获取高熵值
+const uaData = navigator.userAgentData;
+const highEntropy = await uaData.getHighEntropyValues([
+    'architecture',
+    'bitness',
+    'model',
+    'platformVersion',
+    'uaFullVersion',
+    'fullVersionList'
+]);
+
+console.log(highEntropy);</div>
+                    </div>
+
+                    <h3 style="margin: 28px 0 20px;">高熵值提示</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                        <thead>
+                            <tr style="background: var(--bg-main);">
+                                <th style="padding: 14px; text-align: left; border-bottom: 1px solid var(--border);">提示名</th>
+                                <th style="padding: 14px; text-align: left; border-bottom: 1px solid var(--border);">说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>architecture</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">CPU 架构 (x86, arm)</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>bitness</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">系统位数 (64, 32)</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>model</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">设备型号</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>platformVersion</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">操作系统版本</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>uaFullVersion</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">浏览器完整版本</td></tr>
+                            <tr><td style="padding: 14px; border-bottom: 1px solid var(--border);"><code>fullVersionList</code></td><td style="padding: 14px; border-bottom: 1px solid var(--border);">完整品牌版本列表</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 28px 0 20px;">使用示例</h3>
+                    <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// 检测 API 支持
+if ('userAgentData' in navigator) {
+    const ua = navigator.userAgentData;
+    
+    // 获取基础信息
+    console.log('品牌:', ua.brands);
+    console.log('平台:', ua.platform);
+    console.log('移动设备:', ua.mobile);
+    
+    // 获取高熵值
+    const highEntropy = await ua.getHighEntropyValues([
+        'architecture',
+        'bitness',
+        'platformVersion'
+    ]);
+    
+    console.log('架构:', highEntropy.architecture);
+    console.log('位数:', highEntropy.bitness);
+    console.log('系统版本:', highEntropy.platformVersion);
+}</div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>操作日志</h1><p>查看所有操作记录</p></div>
+                    <button class="btn btn-outline" onclick="clearLogs()">🗑️ 清空日志</button>
+                </div>
+                <div class="card-container" style="padding: 28px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var uaData = null;
+        var highEntropyData = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            loadBasicData();
+            setupCheckboxListeners();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+                if (items[i].getAttribute('data-tab') === tabId) {
+                    items[i].classList.add('active');
+                }
+            }
+            var panels = document.querySelectorAll('.tab-panel');
+            for (var j = 0; j < panels.length; j++) {
+                panels[j].classList.remove('active');
+            }
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            var tabs = parentEl.querySelectorAll('.card-tab');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+            if (btn) btn.classList.add('active');
+            var panels = parentEl.querySelectorAll('.card-panel');
+            for (var j = 0; j < panels.length; j++) panels[j].classList.remove('active');
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var uaDataSupported = 'userAgentData' in navigator;
+            
+            document.getElementById('api-userAgentData').textContent = uaDataSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-userAgentData').style.color = uaDataSupported ? 'var(--success)' : 'var(--danger)';
+
+            if (uaDataSupported) {
+                uaData = navigator.userAgentData;
+                
+                var brandsSupported = uaData && 'brands' in uaData;
+                var platformSupported = uaData && 'platform' in uaData;
+                var highEntropySupported = uaData && typeof uaData.getHighEntropyValues === 'function';
+
+                document.getElementById('api-brands').textContent = brandsSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-brands').style.color = brandsSupported ? 'var(--success)' : 'var(--danger)';
+                document.getElementById('api-platform').textContent = platformSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-platform').style.color = platformSupported ? 'var(--success)' : 'var(--danger)';
+                document.getElementById('api-highEntropy').textContent = highEntropySupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-highEntropy').style.color = highEntropySupported ? 'var(--success)' : 'var(--danger)';
+
+                document.getElementById('api-support').textContent = '✓ 支持';
+                document.getElementById('api-support').style.color = 'var(--success)';
+            } else {
+                document.getElementById('api-brands').textContent = '✗ 不支持';
+                document.getElementById('api-brands').style.color = 'var(--danger)';
+                document.getElementById('api-platform').textContent = '✗ 不支持';
+                document.getElementById('api-platform').style.color = 'var(--danger)';
+                document.getElementById('api-highEntropy').textContent = '✗ 不支持';
+                document.getElementById('api-highEntropy').style.color = 'var(--danger)';
+                document.getElementById('api-support').textContent = '✗ 不支持';
+                document.getElementById('api-support').style.color = 'var(--danger)';
+            }
+
+            addLog('ua', 'API 支持检测完成');
+        }
+
+        // ==================== 加载基础数据 ====================
+        function loadBasicData() {
+            if (!uaData) {
+                // 使用传统 UA 作为后备
+                loadFallbackData();
+                return;
+            }
+
+            // 品牌信息
+            var brands = uaData.brands || [];
+            document.getElementById('brands-count').textContent = brands.length;
+            
+            var brandsHtml = '';
+            for (var i = 0; i < brands.length; i++) {
+                brandsHtml += '<span class="brand-tag"><span class="brand-name">' + brands[i].brand + '</span><span class="brand-version">v' + brands[i].version + '</span></span>';
+            }
+            document.getElementById('brands-list').innerHTML = brandsHtml || '<div style="text-align: center; padding: 20px; color: var(--text-muted);">无品牌信息</div>';
+            document.getElementById('brands-raw').textContent = JSON.stringify(brands, null, 2);
+
+            // 平台信息
+            var platform = uaData.platform || 'unknown';
+            document.getElementById('platform-value').textContent = platform;
+            document.getElementById('platform-name').textContent = platform;
+
+            // 移动设备
+            var isMobile = uaData.mobile || false;
+            document.getElementById('mobile-value').textContent = isMobile ? '是' : '否';
+            document.getElementById('mobile-icon').textContent = isMobile ? '📱' : '💻';
+            document.getElementById('mobile-status').textContent = isMobile ? '移动设备' : '桌面设备';
+            document.getElementById('mobile-desc').textContent = isMobile ? '当前设备是移动设备' : '当前设备是桌面设备';
+
+            // 客户端信息列表
+            updateClientInfoList();
+
+            // 对比
+            updateCompare();
+
+            addLog('ua', '基础数据加载完成');
+        }
+
+        function loadFallbackData() {
+            // 使用传统 User-Agent
+            var ua = navigator.userAgent;
+            
+            document.getElementById('brands-count').textContent = '-';
+            document.getElementById('brands-list').innerHTML = '<div style="text-align: center; padding: 20px; color: var(--warning);">⚠️ API 不支持，显示传统 UA 解析结果</div>';
+            document.getElementById('brands-raw').textContent = ua;
+
+            // 简单解析 UA
+            var platform = 'unknown';
+            if (ua.indexOf('Windows') > -1) platform = 'Windows';
+            else if (ua.indexOf('Mac') > -1) platform = 'macOS';
+            else if (ua.indexOf('Linux') > -1) platform = 'Linux';
+            else if (ua.indexOf('Android') > -1) platform = 'Android';
+            else if (ua.indexOf('iOS') > -1 || ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) platform = 'iOS';
+
+            document.getElementById('platform-value').textContent = platform;
+            document.getElementById('platform-name').textContent = platform;
+
+            var isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            document.getElementById('mobile-value').textContent = isMobile ? '是' : '否';
+            document.getElementById('mobile-icon').textContent = isMobile ? '📱' : '💻';
+            document.getElementById('mobile-status').textContent = isMobile ? '移动设备' : '桌面设备';
+            document.getElementById('mobile-desc').textContent = '(基于传统 UA 解析)';
+
+            updateClientInfoList();
+            updateCompare();
+
+            addLog('ua', '使用传统 UA 后备方案');
+        }
+
+        function updateClientInfoList() {
+            var container = document.getElementById('client-info-list');
+            var html = '';
+
+            if (uaData) {
+                html += '<div style="display: flex; flex-direction: column; gap: 10px;">';
+                html += '<div style="display: flex; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border-radius: 8px;">';
+                html += '<span>品牌数量</span><span style="font-weight: 600;">' + (uaData.brands ? uaData.brands.length : 0) + '</span>';
+                html += '</div>';
+                html += '<div style="display: flex; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border-radius: 8px;">';
+                html += '<span>平台</span><span style="font-weight: 600;">' + (uaData.platform || '-') + '</span>';
+                html += '</div>';
+                html += '<div style="display: flex; justify-content: space-between; padding: 10px 14px; background: var(--bg-card); border-radius: 8px;">';
+                html += '<span>移动设备</span><span style="font-weight: 600;">' + (uaData.mobile ? '是' : '否') + '</span>';
+                html += '</div>';
+                html += '</div>';
+            } else {
+                html = '<div style="color: var(--warning);">API 不支持</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function updateCompare() {
+            // 传统 UA
+            var traditionalUA = navigator.userAgent;
+            document.getElementById('traditional-ua').textContent = traditionalUA;
+
+            // Client Hints
+            if (uaData) {
+                var clientHints = {
+                    brands: uaData.brands,
+                    mobile: uaData.mobile,
+                    platform: uaData.platform
+                };
+                document.getElementById('client-hints').textContent = JSON.stringify(clientHints, null, 2);
+            } else {
+                document.getElementById('client-hints').textContent = 'API 不支持';
+            }
+
+            // 对比分析
+            var analysis = document.getElementById('compare-analysis');
+            var analysisHtml = '<div class="result-grid">';
+            
+            analysisHtml += '<div class="result-item"><div class="result-label">传统 UA 长度</div><div class="result-value">' + traditionalUA.length + ' 字符</div></div>';
+            analysisHtml += '<div class="result-item"><div class="result-label">Client Hints 信息量</div><div class="result-value">' + (uaData ? '结构化数据' : '不可用') + '</div></div>';
+            analysisHtml += '<div class="result-item"><div class="result-label">隐私友好</div><div class="result-value">' + (uaData ? '✓ 是' : '✗ 否') + '</div></div>';
+            analysisHtml += '<div class="result-item"><div class="result-label">可选择性获取</div><div class="result-value">' + (uaData ? '✓ 是' : '✗ 否') + '</div></div>';
+            
+            analysisHtml += '</div>';
+            analysis.innerHTML = analysisHtml;
+        }
+
+        // ==================== 高熵值 ====================
+        function setupCheckboxListeners() {
+            var checkboxes = document.querySelectorAll('.checkbox-item');
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].addEventListener('click', function() {
+                    var input = this.querySelector('input');
+                    input.checked = !input.checked;
+                    this.classList.toggle('checked', input.checked);
+                });
+            }
+        }
+
+        function getSelectedHints(containerId) {
+            var container = document.getElementById(containerId);
+            if (!container) return [];
+            
+            var checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            var hints = [];
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked) {
+                    hints.push(checkboxes[i].getAttribute('data-hint'));
+                }
+            }
+            return hints;
+        }
+
+        async function getHighEntropyValues() {
+            var hints = getSelectedHints('hint-checkboxes');
+            
+            if (hints.length === 0) {
+                showToast('请至少选择一个高熵值提示', 'warning');
+                return;
+            }
+
+            if (!uaData || typeof uaData.getHighEntropyValues !== 'function') {
+                showToast('API 不支持', 'error');
+                return;
+            }
+
+            try {
+                addLog('hint', '请求高熵值: ' + hints.join(', '));
+                var data = await uaData.getHighEntropyValues(hints);
+                highEntropyData = data;
+
+                displayHighEntropyResult(data, 'quick-result-grid');
+                document.getElementById('quick-result').style.display = 'block';
+
+                addLog('hint', '高熵值获取成功');
+                showToast('高熵值获取成功', 'success');
+            } catch (e) {
+                addLog('hint', '错误: ' + e.message);
+                showToast('获取失败: ' + e.message, 'error');
+            }
+        }
+
+        async function fetchHighEntropyValues() {
+            var hints = getSelectedHints('entropy-checkboxes');
+            
+            if (hints.length === 0) {
+                showToast('请至少选择一个高熵值提示', 'warning');
+                return;
+            }
+
+            if (!uaData || typeof uaData.getHighEntropyValues !== 'function') {
+                showToast('API 不支持', 'error');
+                return;
+            }
+
+            try {
+                addLog('hint', '请求高熵值: ' + hints.join(', '));
+                var data = await uaData.getHighEntropyValues(hints);
+                highEntropyData = data;
+
+                displayHighEntropyResult(data, 'entropy-result-grid');
+                document.getElementById('entropy-result').style.display = 'block';
+
+                // 更新平台信息
+                if (data.platformVersion) {
+                    document.getElementById('platform-version').textContent = data.platformVersion;
+                }
+                if (data.architecture) {
+                    document.getElementById('platform-arch').textContent = data.architecture;
+                }
+                if (data.bitness) {
+                    document.getElementById('platform-bitness').textContent = data.bitness;
+                }
+                if (data.model) {
+                    document.getElementById('device-model').textContent = data.model;
+                }
+
+                addLog('hint', '高熵值获取成功');
+                showToast('高熵值获取成功', 'success');
+            } catch (e) {
+                addLog('hint', '错误: ' + e.message);
+                showToast('获取失败: ' + e.message, 'error');
+            }
+        }
+
+        function displayHighEntropyResult(data, containerId) {
+            var container = document.getElementById(containerId);
+            var html = '';
+
+            var keys = ['architecture', 'bitness', 'model', 'platformVersion', 'uaFullVersion', 'fullVersionList', 'brands', 'mobile', 'platform'];
+            
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                if (data[key] !== undefined) {
+                    var value = data[key];
+                    if (typeof value === 'object') {
+                        value = JSON.stringify(value, null, 2);
+                    }
+                    html += '<div class="result-item"><div class="result-label">' + key + '</div><div class="result-value" style="font-size: 13px; white-space: pre-wrap;">' + value + '</div></div>';
+                }
+            }
+
+            container.innerHTML = html || '<div class="result-item"><div class="result-value">无数据</div></div>';
+        }
+
+        // ==================== 刷新 ====================
+        function refreshAllData() {
+            checkApiSupport();
+            loadBasicData();
+            showToast('数据已刷新', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            var time = now.toTimeString().split(' ')[0];
+
+            logs.unshift({ type: type, message: message, time: time });
+            if (logs.length > 100) logs.pop();
+
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            var html = '';
+
+            for (var i = 0; i < logs.length; i++) {
+                var log = logs[i];
+                html += '<div class="log-entry">';
+                html += '<span class="log-time">' + log.time + '</span>';
+                html += '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>';
+                html += log.message;
+                html += '</div>';
+            }
+
+            container.innerHTML = html || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() {
+                t.style.opacity = '0';
+                setTimeout(function() { t.remove(); }, 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            var c = clone.querySelector('.copy-btn');
+            if (c) c.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>
