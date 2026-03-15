@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Events API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --secondary: #6366f1;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #cbd5e1;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.25s ease;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 32px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+        }
+        .logo { display: flex; align-items: center; gap: 14px; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .logo-text { font-size: 20px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.8; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .header-btn {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        .user-profile {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 12px 6px 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 13px; color: white;
+        }
+        .user-name { font-size: 14px; font-weight: 500; color: white; }
+        .main-layout { display: flex; margin-top: 72px; min-height: calc(100vh - 72px); }
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 72px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .sidebar-content { padding: 20px 16px; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title {
+            font-size: 11px; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            position: relative;
+        }
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(99, 102, 241, 0.05));
+            color: var(--primary);
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 50%;
+            transform: translateY(-50%);
+            width: 3px; height: 24px;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            border-radius: 0 3px 3px 0;
+        }
+        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .content { flex: 1; margin-left: 260px; padding: 28px 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+        .page-title-group h1 { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 15px; color: var(--text-secondary); margin-top: 4px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 28px; }
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        .stat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .stat-icon.blue { background: rgba(14, 165, 233, 0.1); }
+        .stat-icon.green { background: rgba(16, 185, 129, 0.1); }
+        .stat-icon.purple { background: rgba(99, 102, 246, 0.1); }
+        .stat-icon.orange { background: rgba(245, 158, 11, 0.1); }
+        .stat-value { font-size: 32px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .stat-label { font-size: 14px; color: var(--text-secondary); }
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .card-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 20px; }
+        .card-tab {
+            padding: 16px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            position: relative;
+        }
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); }
+        .card-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 20px; right: 20px;
+            height: 2px;
+            background: var(--primary);
+        }
+        .card-panel { display: none; padding: 24px; }
+        .card-panel.active { display: block; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: var(--bg-card);
+            font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-textarea { min-height: 100px; resize: vertical; line-height: 1.8; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .event-demo-area {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 40px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            cursor: pointer;
+            user-select: none;
+        }
+        .event-demo-area:hover { border-color: var(--primary); background: linear-gradient(135deg, #e0f2fe, #bae6fd); }
+        .event-demo-area.active { border-color: var(--success); background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+        .event-demo-area.dragover { border-color: var(--accent); background: linear-gradient(135deg, #fef3c7, #fde68a); }
+        .demo-icon { font-size: 48px; margin-bottom: 16px; }
+        .demo-text { font-size: 16px; color: var(--text-secondary); }
+        .event-info {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .event-info-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .event-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+        .event-info-item { background: var(--bg-card); padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+        .event-info-label { color: var(--text-muted); }
+        .event-info-value { font-weight: 600; color: var(--text-primary); word-break: break-all; }
+        .api-block {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary);
+        }
+        .api-method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 12px;
+        }
+        .method-event { background: rgba(14, 165, 233, 0.2); color: #0284c7; }
+        .method-property { background: rgba(16, 185, 129, 0.2); color: #059669; }
+        .api-signature { font-family: 'SF Mono', monospace; font-size: 14px; font-weight: 500; }
+        .api-description { margin-top: 10px; font-size: 14px; color: var(--text-secondary); }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin-top: 16px;
+            position: relative;
+        }
+        .code-block .copy-btn {
+            position: absolute; top: 12px; right: 12px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 8px; }
+        .log-type.mouse { background: rgba(14, 165, 233, 0.3); }
+        .log-type.keyboard { background: rgba(16, 185, 129, 0.3); }
+        .log-type.touch { background: rgba(245, 158, 11, 0.3); }
+        .log-type.pointer { background: rgba(99, 102, 246, 0.3); }
+        .log-type.focus { background: rgba(236, 72, 153, 0.3); }
+        .log-type.wheel { background: rgba(139, 92, 246, 0.3); }
+        .log-type.drag { background: rgba(20, 184, 166, 0.3); }
+        .log-type.input { background: rgba(34, 197, 94, 0.3); }
+        .toast-container { position: fixed; top: 88px; right: 32px; z-index: 3000; }
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: toastIn 0.3s ease;
+            min-width: 320px;
+            border: 1px solid var(--border);
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.warning { border-left: 4px solid var(--warning); }
+        .key-display {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 12px;
+            background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 4px;
+        }
+        .key-display.active {
+            background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-color: var(--primary-dark);
+        }
+        .keyboard-row { display: flex; justify-content: center; margin: 4px 0; }
+        .keyboard-container { padding: 20px; background: var(--bg-main); border-radius: var(--radius-sm); }
+        .touch-area {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: var(--radius-sm);
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .touch-point {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(14, 165, 233, 0.5);
+            border: 2px solid var(--primary);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+        .drag-item {
+            padding: 16px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: var(--radius-sm);
+            cursor: grab;
+            font-weight: 500;
+            margin-bottom: 12px;
+            transition: var(--transition);
+        }
+        .drag-item:active { cursor: grabbing; }
+        .drag-item.dragging { opacity: 0.5; transform: scale(0.95); }
+        .drop-zone {
+            min-height: 150px;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+        .drop-zone.dragover { border-color: var(--primary); background: rgba(14, 165, 233, 0.1); }
+        .drop-zone.dropped { border-style: solid; border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
+        @media (max-width: 1200px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; padding: 20px; }
+            .stats-row { grid-template-columns: 1fr; }
+            .mobile-menu-btn { display: flex !important; }
+        }
+        .mobile-menu-btn { display: none; width: 40px; height: 40px; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; color: white; font-size: 20px; cursor: pointer; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">UI Events <span>API</span></div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" onclick="clearAllLogs()">🗑️ 清空日志</button>
+            <div class="user-profile">
+                <div class="user-avatar">A</div>
+                <span class="user-name">Admin</span>
+            </div>
+        </div>
+    </header>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')"><span class="nav-icon">📊</span><span>控制台</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">鼠标事件</div>
+                    <div class="nav-item" data-tab="mouse" onclick="switchTab('mouse')"><span class="nav-icon">🖱️</span><span>MouseEvent</span></div>
+                    <div class="nav-item" data-tab="wheel" onclick="switchTab('wheel')"><span class="nav-icon">🎡</span><span>WheelEvent</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">键盘事件</div>
+                    <div class="nav-item" data-tab="keyboard" onclick="switchTab('keyboard')"><span class="nav-icon">⌨️</span><span>KeyboardEvent</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">触摸/指针</div>
+                    <div class="nav-item" data-tab="touch" onclick="switchTab('touch')"><span class="nav-icon">👆</span><span>TouchEvent</span></div>
+                    <div class="nav-item" data-tab="pointer" onclick="switchTab('pointer')"><span class="nav-icon">👉</span><span>PointerEvent</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">其他事件</div>
+                    <div class="nav-item" data-tab="focus" onclick="switchTab('focus')"><span class="nav-icon">🎯</span><span>FocusEvent</span></div>
+                    <div class="nav-item" data-tab="input" onclick="switchTab('input')"><span class="nav-icon">📝</span><span>InputEvent</span></div>
+                    <div class="nav-item" data-tab="drag" onclick="switchTab('drag')"><span class="nav-icon">🖐️</span><span>DragEvent</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')"><span class="nav-icon">📖</span><span>API文档</span></div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')"><span class="nav-icon">📜</span><span>事件日志</span></div>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>控制台</h1><p>UI Events API 事件监控概览</p></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-icon blue">🖱️</div><div class="stat-value" id="mouse-count">0</div><div class="stat-label">鼠标事件</div></div>
+                    <div class="stat-card"><div class="stat-icon green">⌨️</div><div class="stat-value" id="keyboard-count">0</div><div class="stat-label">键盘事件</div></div>
+                    <div class="stat-card"><div class="stat-icon purple">👆</div><div class="stat-value" id="touch-count">0</div><div class="stat-label">触摸事件</div></div>
+                    <div class="stat-card"><div class="stat-icon orange">⚡</div><div class="stat-value" id="total-count">0</div><div class="stat-label">总事件数</div></div>
+                </div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-test', 'dashboard', this)">快速测试</button>
+                    </div>
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">支持的事件类型</label>
+                                <div style="padding: 20px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🖱️ MouseEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">⌨️ KeyboardEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">👆 TouchEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">👉 PointerEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🎯 FocusEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">📝 InputEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🖐️ DragEvent</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🎡 WheelEvent</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">事件继承关系</label>
+                                <div style="padding: 20px; background: var(--bg-main); border-radius: var(--radius-sm); font-size: 13px; line-height: 2;">
+                                    <div>Event → UIEvent → MouseEvent</div>
+                                    <div>Event → UIEvent → KeyboardEvent</div>
+                                    <div>Event → UIEvent → TouchEvent</div>
+                                    <div>Event → UIEvent → PointerEvent</div>
+                                    <div>Event → UIEvent → FocusEvent</div>
+                                    <div>Event → InputEvent</div>
+                                    <div>Event → UIEvent → DragEvent</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-quick-test" class="card-panel">
+                        <div class="event-demo-area" id="quick-demo-area">
+                            <div class="demo-icon">⚡</div>
+                            <div class="demo-text">在此区域测试各种事件：点击、移动、滚轮、键盘等</div>
+                        </div>
+                        <div class="event-info" id="quick-event-info" style="display: none;">
+                            <div class="event-info-title">最近事件信息</div>
+                            <div class="event-info-grid" id="quick-event-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MouseEvent -->
+            <div id="panel-mouse" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>MouseEvent</h1><p>鼠标事件接口</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('mouse-demo', 'mouse', this)">事件演示</button>
+                        <button class="card-tab" onclick="switchSubTab('mouse-props', 'mouse', this)">属性列表</button>
+                    </div>
+                    <div id="subtab-mouse-demo" class="card-panel active">
+                        <div class="event-demo-area" id="mouse-demo-area">
+                            <div class="demo-icon">🖱️</div>
+                            <div class="demo-text">在此区域测试鼠标事件：click, dblclick, mousedown, mouseup, mousemove, mouseover, mouseout</div>
+                        </div>
+                        <div class="event-info" id="mouse-event-info">
+                            <div class="event-info-title">MouseEvent 属性</div>
+                            <div class="event-info-grid" id="mouse-event-grid">
+                                <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="mouse-type">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">clientX</span><br><span class="event-info-value" id="mouse-x">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">clientY</span><br><span class="event-info-value" id="mouse-y">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">pageX</span><br><span class="event-info-value" id="mouse-pageX">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">pageY</span><br><span class="event-info-value" id="mouse-pageY">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">screenX</span><br><span class="event-info-value" id="mouse-screenX">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">screenY</span><br><span class="event-info-value" id="mouse-screenY">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">button</span><br><span class="event-info-value" id="mouse-button">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">buttons</span><br><span class="event-info-value" id="mouse-buttons">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">altKey</span><br><span class="event-info-value" id="mouse-alt">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">ctrlKey</span><br><span class="event-info-value" id="mouse-ctrl">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">shiftKey</span><br><span class="event-info-value" id="mouse-shift">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">metaKey</span><br><span class="event-info-value" id="mouse-meta">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">movementX</span><br><span class="event-info-value" id="mouse-movementX">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">movementY</span><br><span class="event-info-value" id="mouse-movementY">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-mouse-props" class="card-panel">
+                        <div class="api-block">
+                            <span class="api-method method-event">EVENT</span>
+                            <span class="api-signature">click, dblclick, mousedown, mouseup, mousemove, mouseover, mouseout, mouseenter, mouseleave</span>
+                            <p class="api-description">MouseEvent 继承自 UIEvent，提供鼠标相关的事件信息。</p>
+                        </div>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>element.addEventListener('click', function(e) {
+    console.log('Client:', e.clientX, e.clientY);
+    console.log('Button:', e.button);
+    console.log('Keys:', e.altKey, e.ctrlKey, e.shiftKey);
+});</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WheelEvent -->
+            <div id="panel-wheel" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>WheelEvent</h1><p>滚轮事件接口</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="event-demo-area" id="wheel-demo-area">
+                        <div class="demo-icon">🎡</div>
+                        <div class="demo-text">在此区域滚动鼠标滚轮</div>
+                    </div>
+                    <div class="event-info" id="wheel-event-info">
+                        <div class="event-info-title">WheelEvent 属性</div>
+                        <div class="event-info-grid" id="wheel-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">deltaX</span><br><span class="event-info-value" id="wheel-deltaX">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">deltaY</span><br><span class="event-info-value" id="wheel-deltaY">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">deltaZ</span><br><span class="event-info-value" id="wheel-deltaZ">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">deltaMode</span><br><span class="event-info-value" id="wheel-deltaMode">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KeyboardEvent -->
+            <div id="panel-keyboard" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>KeyboardEvent</h1><p>键盘事件接口</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('keyboard-demo', 'keyboard', this)">事件演示</button>
+                        <button class="card-tab" onclick="switchSubTab('keyboard-visual', 'keyboard', this)">虚拟键盘</button>
+                    </div>
+                    <div id="subtab-keyboard-demo" class="card-panel active">
+                        <div class="form-group">
+                            <label class="form-label">在此输入框中测试键盘事件</label>
+                            <input type="text" class="form-input" id="keyboard-input" placeholder="点击此处并按下键盘..." autocomplete="off">
+                        </div>
+                        <div class="event-info" id="keyboard-event-info">
+                            <div class="event-info-title">KeyboardEvent 属性</div>
+                            <div class="event-info-grid" id="keyboard-event-grid">
+                                <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="kb-type">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">key</span><br><span class="event-info-value" id="kb-key">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">code</span><br><span class="event-info-value" id="kb-code">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">keyCode</span><br><span class="event-info-value" id="kb-keyCode">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">which</span><br><span class="event-info-value" id="kb-which">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">altKey</span><br><span class="event-info-value" id="kb-alt">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">ctrlKey</span><br><span class="event-info-value" id="kb-ctrl">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">shiftKey</span><br><span class="event-info-value" id="kb-shift">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">metaKey</span><br><span class="event-info-value" id="kb-meta">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">repeat</span><br><span class="event-info-value" id="kb-repeat">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">location</span><br><span class="event-info-value" id="kb-location">-</span></div>
+                                <div class="event-info-item"><span class="event-info-label">isComposing</span><br><span class="event-info-value" id="kb-composing">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-keyboard-visual" class="card-panel">
+                        <div class="keyboard-container" id="keyboard-visual">
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="Escape">Esc</div>
+                                <div class="key-display" data-key="F1">F1</div>
+                                <div class="key-display" data-key="F2">F2</div>
+                                <div class="key-display" data-key="F3">F3</div>
+                                <div class="key-display" data-key="F4">F4</div>
+                                <div class="key-display" data-key="F5">F5</div>
+                                <div class="key-display" data-key="F6">F6</div>
+                                <div class="key-display" data-key="F7">F7</div>
+                                <div class="key-display" data-key="F8">F8</div>
+                                <div class="key-display" data-key="F9">F9</div>
+                                <div class="key-display" data-key="F10">F10</div>
+                                <div class="key-display" data-key="F11">F11</div>
+                                <div class="key-display" data-key="F12">F12</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="Backquote">`</div>
+                                <div class="key-display" data-key="Digit1">1</div>
+                                <div class="key-display" data-key="Digit2">2</div>
+                                <div class="key-display" data-key="Digit3">3</div>
+                                <div class="key-display" data-key="Digit4">4</div>
+                                <div class="key-display" data-key="Digit5">5</div>
+                                <div class="key-display" data-key="Digit6">6</div>
+                                <div class="key-display" data-key="Digit7">7</div>
+                                <div class="key-display" data-key="Digit8">8</div>
+                                <div class="key-display" data-key="Digit9">9</div>
+                                <div class="key-display" data-key="Digit0">0</div>
+                                <div class="key-display" data-key="Minus">-</div>
+                                <div class="key-display" data-key="Equal">=</div>
+                                <div class="key-display" data-key="Backspace" style="min-width: 80px;">Back</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="Tab" style="min-width: 60px;">Tab</div>
+                                <div class="key-display" data-key="KeyQ">Q</div>
+                                <div class="key-display" data-key="KeyW">W</div>
+                                <div class="key-display" data-key="KeyE">E</div>
+                                <div class="key-display" data-key="KeyR">R</div>
+                                <div class="key-display" data-key="KeyT">T</div>
+                                <div class="key-display" data-key="KeyY">Y</div>
+                                <div class="key-display" data-key="KeyU">U</div>
+                                <div class="key-display" data-key="KeyI">I</div>
+                                <div class="key-display" data-key="KeyO">O</div>
+                                <div class="key-display" data-key="KeyP">P</div>
+                                <div class="key-display" data-key="BracketLeft">[</div>
+                                <div class="key-display" data-key="BracketRight">]</div>
+                                <div class="key-display" data-key="Backslash">\</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="CapsLock" style="min-width: 70px;">Caps</div>
+                                <div class="key-display" data-key="KeyA">A</div>
+                                <div class="key-display" data-key="KeyS">S</div>
+                                <div class="key-display" data-key="KeyD">D</div>
+                                <div class="key-display" data-key="KeyF">F</div>
+                                <div class="key-display" data-key="KeyG">G</div>
+                                <div class="key-display" data-key="KeyH">H</div>
+                                <div class="key-display" data-key="KeyJ">J</div>
+                                <div class="key-display" data-key="KeyK">K</div>
+                                <div class="key-display" data-key="KeyL">L</div>
+                                <div class="key-display" data-key="Semicolon">;</div>
+                                <div class="key-display" data-key="Quote">'</div>
+                                <div class="key-display" data-key="Enter" style="min-width: 80px;">Enter</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="ShiftLeft" style="min-width: 90px;">Shift</div>
+                                <div class="key-display" data-key="KeyZ">Z</div>
+                                <div class="key-display" data-key="KeyX">X</div>
+                                <div class="key-display" data-key="KeyC">C</div>
+                                <div class="key-display" data-key="KeyV">V</div>
+                                <div class="key-display" data-key="KeyB">B</div>
+                                <div class="key-display" data-key="KeyN">N</div>
+                                <div class="key-display" data-key="KeyM">M</div>
+                                <div class="key-display" data-key="Comma">,</div>
+                                <div class="key-display" data-key="Period">.</div>
+                                <div class="key-display" data-key="Slash">/</div>
+                                <div class="key-display" data-key="ShiftRight" style="min-width: 90px;">Shift</div>
+                            </div>
+                            <div class="keyboard-row">
+                                <div class="key-display" data-key="ControlLeft" style="min-width: 60px;">Ctrl</div>
+                                <div class="key-display" data-key="MetaLeft">Win</div>
+                                <div class="key-display" data-key="AltLeft" style="min-width: 50px;">Alt</div>
+                                <div class="key-display" data-key="Space" style="min-width: 300px;">Space</div>
+                                <div class="key-display" data-key="AltRight" style="min-width: 50px;">Alt</div>
+                                <div class="key-display" data-key="MetaRight">Win</div>
+                                <div class="key-display" data-key="ContextMenu">Menu</div>
+                                <div class="key-display" data-key="ControlRight" style="min-width: 60px;">Ctrl</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TouchEvent -->
+            <div id="panel-touch" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>TouchEvent</h1><p>触摸事件接口</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="touch-area" id="touch-demo-area">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-muted);">
+                            <div style="font-size: 48px; margin-bottom: 16px;">👆</div>
+                            <div>在此区域触摸（支持多点触控）</div>
+                        </div>
+                    </div>
+                    <div class="event-info" id="touch-event-info">
+                        <div class="event-info-title">TouchEvent 属性</div>
+                        <div class="event-info-grid" id="touch-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="touch-type">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">touches</span><br><span class="event-info-value" id="touch-touches">0</span></div>
+                            <div class="event-info-item"><span class="event-info-label">targetTouches</span><br><span class="event-info-value" id="touch-target">0</span></div>
+                            <div class="event-info-item"><span class="event-info-label">changedTouches</span><br><span class="event-info-value" id="touch-changed">0</span></div>
+                            <div class="event-info-item"><span class="event-info-label">altKey</span><br><span class="event-info-value" id="touch-alt">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">ctrlKey</span><br><span class="event-info-value" id="touch-ctrl">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">shiftKey</span><br><span class="event-info-value" id="touch-shift">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">metaKey</span><br><span class="event-info-value" id="touch-meta">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PointerEvent -->
+            <div id="panel-pointer" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>PointerEvent</h1><p>指针事件接口（统一鼠标、触摸、笔输入）</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="event-demo-area" id="pointer-demo-area">
+                        <div class="demo-icon">👉</div>
+                        <div class="demo-text">在此区域测试指针事件（支持鼠标、触摸、笔）</div>
+                    </div>
+                    <div class="event-info" id="pointer-event-info">
+                        <div class="event-info-title">PointerEvent 属性</div>
+                        <div class="event-info-grid" id="pointer-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="pointer-type">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">pointerType</span><br><span class="event-info-value" id="pointer-pointerType">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">pointerId</span><br><span class="event-info-value" id="pointer-id">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">isPrimary</span><br><span class="event-info-value" id="pointer-primary">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">clientX</span><br><span class="event-info-value" id="pointer-x">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">clientY</span><br><span class="event-info-value" id="pointer-y">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">pressure</span><br><span class="event-info-value" id="pointer-pressure">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">width</span><br><span class="event-info-value" id="pointer-width">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">height</span><br><span class="event-info-value" id="pointer-height">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">tiltX</span><br><span class="event-info-value" id="pointer-tiltX">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">tiltY</span><br><span class="event-info-value" id="pointer-tiltY">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">twist</span><br><span class="event-info-value" id="pointer-twist">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FocusEvent -->
+            <div id="panel-focus" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>FocusEvent</h1><p>焦点事件接口</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">输入框 1</label>
+                            <input type="text" class="form-input focus-demo-input" id="focus-input1" placeholder="点击获取焦点...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">输入框 2</label>
+                            <input type="text" class="form-input focus-demo-input" id="focus-input2" placeholder="点击获取焦点...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">输入框 3</label>
+                            <input type="text" class="form-input focus-demo-input" id="focus-input3" placeholder="点击获取焦点...">
+                        </div>
+                    </div>
+                    <div class="event-info" id="focus-event-info">
+                        <div class="event-info-title">FocusEvent 属性</div>
+                        <div class="event-info-grid" id="focus-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="focus-type">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">target</span><br><span class="event-info-value" id="focus-target">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">relatedTarget</span><br><span class="event-info-value" id="focus-related">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- InputEvent -->
+            <div id="panel-input" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>InputEvent</h1><p>输入事件接口</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="form-group">
+                        <label class="form-label">在此输入内容测试 InputEvent</label>
+                        <input type="text" class="form-input" id="input-demo-input" placeholder="输入内容...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">可编辑区域 (contenteditable)</label>
+                        <div contenteditable="true" class="form-textarea" id="input-demo-div" style="min-height: 100px;">在此编辑内容...</div>
+                    </div>
+                    <div class="event-info" id="input-event-info">
+                        <div class="event-info-title">InputEvent 属性</div>
+                        <div class="event-info-grid" id="input-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="input-type">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">inputType</span><br><span class="event-info-value" id="input-inputType">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">data</span><br><span class="event-info-value" id="input-data">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">isComposing</span><br><span class="event-info-value" id="input-composing">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DragEvent -->
+            <div id="panel-drag" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>DragEvent</h1><p>拖拽事件接口</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">可拖拽元素</label>
+                            <div>
+                                <div class="drag-item" draggable="true" id="drag-item1">拖拽项 1</div>
+                                <div class="drag-item" draggable="true" id="drag-item2">拖拽项 2</div>
+                                <div class="drag-item" draggable="true" id="drag-item3">拖拽项 3</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">放置区域</label>
+                            <div class="drop-zone" id="drop-zone"><span class="drop-placeholder" style="color: var(--text-muted);">将元素拖放到此处</span></div>
+                        </div>
+                    </div>
+                    <div class="event-info" id="drag-event-info">
+                        <div class="event-info-title">DragEvent 属性</div>
+                        <div class="event-info-grid" id="drag-event-grid">
+                            <div class="event-info-item"><span class="event-info-label">type</span><br><span class="event-info-value" id="drag-type">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">dataTransfer</span><br><span class="event-info-value" id="drag-dataTransfer">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">clientX</span><br><span class="event-info-value" id="drag-x">-</span></div>
+                            <div class="event-info-item"><span class="event-info-label">clientY</span><br><span class="event-info-value" id="drag-y">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>API 文档</h1><p>UI Events API 完整接口文档</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <h3 style="margin-bottom: 20px;">事件继承关系</h3>
+                    <div class="api-block">
+                        <span class="api-method method-event">BASE</span>
+                        <span class="api-signature">Event</span>
+                        <p class="api-description">所有事件的基础接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// Event 基础属性
+event.type          // 事件类型
+event.target        // 事件目标
+event.currentTarget // 当前目标
+event.bubbles       // 是否冒泡
+event.cancelable    // 是否可取消
+event.timeStamp     // 时间戳
+event.isTrusted     // 是否可信</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">UI</span>
+                        <span class="api-signature">UIEvent : Event</span>
+                        <p class="api-description">用户界面事件的基础接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// UIEvent 属性
+event.view          // Window 对象
+event.detail        // 事件细节</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">MOUSE</span>
+                        <span class="api-signature">MouseEvent : UIEvent</span>
+                        <p class="api-description">鼠标事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// MouseEvent 属性
+event.clientX, event.clientY     // 相对于视口
+event.pageX, event.pageY         // 相对于文档
+event.screenX, event.screenY     // 相对于屏幕
+event.button                     // 按下的按钮
+event.buttons                    // 按钮状态掩码
+event.altKey, event.ctrlKey      // 修饰键状态
+event.shiftKey, event.metaKey    // 修饰键状态
+event.movementX, event.movementY // 移动距离</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">KEYBOARD</span>
+                        <span class="api-signature">KeyboardEvent : UIEvent</span>
+                        <p class="api-description">键盘事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// KeyboardEvent 属性
+event.key        // 按键值 (如 'a', 'Enter', 'Shift')
+event.code       // 物理键码 (如 'KeyA', 'Enter', 'ShiftLeft')
+event.keyCode    // 已废弃，数字键码
+event.location   // 按键位置
+event.repeat     // 是否重复
+event.isComposing // 是否在组合输入中</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">TOUCH</span>
+                        <span class="api-signature">TouchEvent : UIEvent</span>
+                        <p class="api-description">触摸事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// TouchEvent 属性
+event.touches        // 当前所有触摸点
+event.targetTouches  // 目标元素上的触摸点
+event.changedTouches // 发生变化的触摸点
+
+// Touch 对象属性
+touch.identifier  // 唯一标识
+touch.clientX, touch.clientY  // 坐标
+touch.pageX, touch.pageY      // 页面坐标
+touch.screenX, touch.screenY  // 屏幕坐标</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">POINTER</span>
+                        <span class="api-signature">PointerEvent : MouseEvent</span>
+                        <p class="api-description">指针事件接口（统一鼠标、触摸、笔）。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// PointerEvent 属性
+event.pointerId    // 指针唯一标识
+event.pointerType  // 类型: 'mouse', 'pen', 'touch'
+event.isPrimary    // 是否为主指针
+event.pressure     // 压力 (0-1)
+event.width, event.height  // 接触区域大小
+event.tiltX, event.tiltY   // 倾斜角度
+event.twist        // 旋转角度</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">FOCUS</span>
+                        <span class="api-signature">FocusEvent : UIEvent</span>
+                        <p class="api-description">焦点事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// FocusEvent 属性
+event.relatedTarget  // 相关目标元素
+
+// 事件类型: focus, blur, focusin, focusout</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">INPUT</span>
+                        <span class="api-signature">InputEvent : UIEvent</span>
+                        <p class="api-description">输入事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// InputEvent 属性
+event.inputType    // 输入类型
+event.data         // 输入的数据
+event.isComposing  // 是否在组合输入中
+
+// inputType 值: 'insertText', 'deleteContent', 'insertFromPaste'...</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">DRAG</span>
+                        <span class="api-signature">DragEvent : MouseEvent</span>
+                        <p class="api-description">拖拽事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// DragEvent 属性
+event.dataTransfer  // DataTransfer 对象
+
+// 事件类型: drag, dragstart, dragend, 
+//          dragover, dragenter, dragleave, drop
+
+// DataTransfer 方法
+dataTransfer.setData(format, data)
+dataTransfer.getData(format)
+dataTransfer.clearData()</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method method-event">WHEEL</span>
+                        <span class="api-signature">WheelEvent : MouseEvent</span>
+                        <p class="api-description">滚轮事件接口。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>// WheelEvent 属性
+event.deltaX    // 水平滚动量
+event.deltaY    // 垂直滚动量
+event.deltaZ    // Z轴滚动量
+event.deltaMode // 滚动单位
+// deltaMode: 0=像素, 1=行, 2=页</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>事件日志</h1><p>查看所有捕获的事件</p></div>
+                    <button class="btn btn-outline" onclick="clearAllLogs()">🗑️ 清空日志</button>
+                </div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待事件...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var mouseCount = 0, keyboardCount = 0, touchCount = 0, totalCount = 0;
+        var logs = [];
+        var activeKeys = {};
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            initMouseEventListeners();
+            initKeyboardEventListeners();
+            initTouchEventListeners();
+            initPointerEventListeners();
+            initFocusEventListeners();
+            initInputEventListeners();
+            initDragEventListeners();
+            initWheelEventListeners();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+                if (items[i].getAttribute('data-tab') === tabId) {
+                    items[i].classList.add('active');
+                }
+            }
+            var panels = document.querySelectorAll('.tab-panel');
+            for (var j = 0; j < panels.length; j++) {
+                panels[j].classList.remove('active');
+            }
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            var tabs = parentEl.querySelectorAll('.card-tab');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+            if (btn) btn.classList.add('active');
+            var panels = parentEl.querySelectorAll('.card-panel');
+            for (var j = 0; j < panels.length; j++) panels[j].classList.remove('active');
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== MouseEvent ====================
+        function initMouseEventListeners() {
+            var area = document.getElementById('mouse-demo-area');
+            if (!area) return;
+
+            var events = ['click', 'dblclick', 'mousedown', 'mouseup', 'mousemove', 'mouseover', 'mouseout', 'mouseenter', 'mouseleave', 'contextmenu'];
+            
+            for (var i = 0; i < events.length; i++) {
+                area.addEventListener(events[i], function(e) {
+                    handleMouseEvent(e);
+                });
+            }
+
+            // 快速测试区域
+            var quickArea = document.getElementById('quick-demo-area');
+            if (quickArea) {
+                quickArea.addEventListener('click', handleQuickEvent);
+                quickArea.addEventListener('mousemove', handleQuickEvent);
+                quickArea.addEventListener('mousedown', handleQuickEvent);
+                quickArea.addEventListener('mouseup', handleQuickEvent);
+            }
+        }
+
+        function handleMouseEvent(e) {
+            mouseCount++;
+            totalCount++;
+            updateStats();
+
+            document.getElementById('mouse-type').textContent = e.type;
+            document.getElementById('mouse-x').textContent = e.clientX;
+            document.getElementById('mouse-y').textContent = e.clientY;
+            document.getElementById('mouse-pageX').textContent = e.pageX;
+            document.getElementById('mouse-pageY').textContent = e.pageY;
+            document.getElementById('mouse-screenX').textContent = e.screenX;
+            document.getElementById('mouse-screenY').textContent = e.screenY;
+            document.getElementById('mouse-button').textContent = e.button;
+            document.getElementById('mouse-buttons').textContent = e.buttons;
+            document.getElementById('mouse-alt').textContent = e.altKey;
+            document.getElementById('mouse-ctrl').textContent = e.ctrlKey;
+            document.getElementById('mouse-shift').textContent = e.shiftKey;
+            document.getElementById('mouse-meta').textContent = e.metaKey;
+            document.getElementById('mouse-movementX').textContent = e.movementX || 0;
+            document.getElementById('mouse-movementY').textContent = e.movementY || 0;
+
+            addLog('mouse', e.type + ' (' + e.clientX + ', ' + e.clientY + ')');
+        }
+
+        function handleQuickEvent(e) {
+            totalCount++;
+            updateStats();
+
+            var info = document.getElementById('quick-event-info');
+            var grid = document.getElementById('quick-event-grid');
+            
+            info.style.display = 'block';
+            grid.innerHTML = '';
+            
+            var props = [
+                { label: 'type', value: e.type },
+                { label: 'clientX', value: e.clientX },
+                { label: 'clientY', value: e.clientY },
+                { label: 'target', value: e.target.tagName }
+            ];
+
+            for (var i = 0; i < props.length; i++) {
+                grid.innerHTML += '<div class="event-info-item"><span class="event-info-label">' + props[i].label + '</span><br><span class="event-info-value">' + props[i].value + '</span></div>';
+            }
+
+            addLog('mouse', 'Quick: ' + e.type);
+        }
+
+        // ==================== KeyboardEvent ====================
+        function initKeyboardEventListeners() {
+            var input = document.getElementById('keyboard-input');
+            if (!input) return;
+
+            input.addEventListener('keydown', handleKeyboardEvent);
+            input.addEventListener('keyup', handleKeyboardEvent);
+            input.addEventListener('keypress', handleKeyboardEvent);
+
+            // 全局键盘监听（用于虚拟键盘）
+            document.addEventListener('keydown', handleGlobalKeyDown);
+            document.addEventListener('keyup', handleGlobalKeyUp);
+        }
+
+        function handleKeyboardEvent(e) {
+            keyboardCount++;
+            totalCount++;
+            updateStats();
+
+            document.getElementById('kb-type').textContent = e.type;
+            document.getElementById('kb-key').textContent = e.key;
+            document.getElementById('kb-code').textContent = e.code;
+            document.getElementById('kb-keyCode').textContent = e.keyCode;
+            document.getElementById('kb-which').textContent = e.which;
+            document.getElementById('kb-alt').textContent = e.altKey;
+            document.getElementById('kb-ctrl').textContent = e.ctrlKey;
+            document.getElementById('kb-shift').textContent = e.shiftKey;
+            document.getElementById('kb-meta').textContent = e.metaKey;
+            document.getElementById('kb-repeat').textContent = e.repeat;
+            document.getElementById('kb-location').textContent = e.location;
+            document.getElementById('kb-composing').textContent = e.isComposing;
+
+            addLog('keyboard', e.type + ' - ' + e.key + ' (' + e.code + ')');
+        }
+
+        function handleGlobalKeyDown(e) {
+            activeKeys[e.code] = true;
+            updateVirtualKeyboard();
+        }
+
+        function handleGlobalKeyUp(e) {
+            delete activeKeys[e.code];
+            updateVirtualKeyboard();
+        }
+
+        function updateVirtualKeyboard() {
+            var keys = document.querySelectorAll('.key-display');
+            for (var i = 0; i < keys.length; i++) {
+                var code = keys[i].getAttribute('data-key');
+                if (activeKeys[code]) {
+                    keys[i].classList.add('active');
+                } else {
+                    keys[i].classList.remove('active');
+                }
+            }
+        }
+
+        // ==================== TouchEvent ====================
+        function initTouchEventListeners() {
+            var area = document.getElementById('touch-demo-area');
+            if (!area) return;
+
+            area.addEventListener('touchstart', handleTouchEvent);
+            area.addEventListener('touchmove', handleTouchEvent);
+            area.addEventListener('touchend', handleTouchEvent);
+            area.addEventListener('touchcancel', handleTouchEvent);
+        }
+
+        function handleTouchEvent(e) {
+            e.preventDefault();
+            touchCount++;
+            totalCount++;
+            updateStats();
+
+            document.getElementById('touch-type').textContent = e.type;
+            document.getElementById('touch-touches').textContent = e.touches.length;
+            document.getElementById('touch-target').textContent = e.targetTouches.length;
+            document.getElementById('touch-changed').textContent = e.changedTouches.length;
+            document.getElementById('touch-alt').textContent = e.altKey;
+            document.getElementById('touch-ctrl').textContent = e.ctrlKey;
+            document.getElementById('touch-shift').textContent = e.shiftKey;
+            document.getElementById('touch-meta').textContent = e.metaKey;
+
+            // 显示触摸点
+            var area = document.getElementById('touch-demo-area');
+            var existingPoints = area.querySelectorAll('.touch-point');
+            for (var i = 0; i < existingPoints.length; i++) {
+                existingPoints[i].remove();
+            }
+
+            for (var j = 0; j < e.touches.length; j++) {
+                var touch = e.touches[j];
+                var rect = area.getBoundingClientRect();
+                var point = document.createElement('div');
+                point.className = 'touch-point';
+                point.style.left = (touch.clientX - rect.left) + 'px';
+                point.style.top = (touch.clientY - rect.top) + 'px';
+                point.textContent = touch.identifier;
+                area.appendChild(point);
+            }
+
+            addLog('touch', e.type + ' - ' + e.touches.length + ' touches');
+        }
+
+        // ==================== PointerEvent ====================
+        function initPointerEventListeners() {
+            var area = document.getElementById('pointer-demo-area');
+            if (!area) return;
+
+            var events = ['pointerdown', 'pointerup', 'pointermove', 'pointerover', 'pointerout', 'pointerenter', 'pointerleave', 'pointercancel'];
+            
+            for (var i = 0; i < events.length; i++) {
+                area.addEventListener(events[i], handlePointerEvent);
+            }
+        }
+
+        function handlePointerEvent(e) {
+            totalCount++;
+            updateStats();
+
+            document.getElementById('pointer-type').textContent = e.type;
+            document.getElementById('pointer-pointerType').textContent = e.pointerType;
+            document.getElementById('pointer-id').textContent = e.pointerId;
+            document.getElementById('pointer-primary').textContent = e.isPrimary;
+            document.getElementById('pointer-x').textContent = e.clientX;
+            document.getElementById('pointer-y').textContent = e.clientY;
+            document.getElementById('pointer-pressure').textContent = e.pressure;
+            document.getElementById('pointer-width').textContent = e.width;
+            document.getElementById('pointer-height').textContent = e.height;
+            document.getElementById('pointer-tiltX').textContent = e.tiltX;
+            document.getElementById('pointer-tiltY').textContent = e.tiltY;
+            document.getElementById('pointer-twist').textContent = e.twist;
+
+            addLog('pointer', e.type + ' - ' + e.pointerType + ' (' + e.pointerId + ')');
+        }
+
+        // ==================== FocusEvent ====================
+        function initFocusEventListeners() {
+            var inputs = document.querySelectorAll('.focus-demo-input');
+            for (var i = 0; i < inputs.length; i++) {
+                inputs[i].addEventListener('focus', handleFocusEvent);
+                inputs[i].addEventListener('blur', handleFocusEvent);
+                inputs[i].addEventListener('focusin', handleFocusEvent);
+                inputs[i].addEventListener('focusout', handleFocusEvent);
+            }
+        }
+
+        function handleFocusEvent(e) {
+            totalCount++;
+            updateStats();
+
+            document.getElementById('focus-type').textContent = e.type;
+            document.getElementById('focus-target').textContent = e.target.id || e.target.tagName;
+            document.getElementById('focus-related').textContent = e.relatedTarget ? (e.relatedTarget.id || e.relatedTarget.tagName) : 'null';
+
+            addLog('focus', e.type + ' - ' + (e.target.id || e.target.tagName));
+        }
+
+        // ==================== InputEvent ====================
+        function initInputEventListeners() {
+            var input = document.getElementById('input-demo-input');
+            var div = document.getElementById('input-demo-div');
+
+            if (input) {
+                input.addEventListener('input', handleInputEvent);
+                input.addEventListener('beforeinput', handleInputEvent);
+            }
+            if (div) {
+                div.addEventListener('input', handleInputEvent);
+                div.addEventListener('beforeinput', handleInputEvent);
+            }
+        }
+
+        function handleInputEvent(e) {
+            totalCount++;
+            updateStats();
+
+            document.getElementById('input-type').textContent = e.type;
+            document.getElementById('input-inputType').textContent = e.inputType || '-';
+            document.getElementById('input-data').textContent = e.data || '-';
+            document.getElementById('input-composing').textContent = e.isComposing || false;
+
+            addLog('input', e.type + ' - ' + (e.inputType || 'unknown'));
+        }
+
+        // ==================== DragEvent ====================
+        // ==================== DragEvent ====================
+        var draggedElement = null;
+
+        function initDragEventListeners() {
+            var items = document.querySelectorAll('.drag-item');
+            var dropZone = document.getElementById('drop-zone');
+
+            for (var i = 0; i < items.length; i++) {
+                items[i].addEventListener('dragstart', handleDragStart);
+                items[i].addEventListener('dragend', handleDragEnd);
+            }
+
+            if (dropZone) {
+                dropZone.addEventListener('dragover', handleDragOver);
+                dropZone.addEventListener('dragenter', handleDragEnter);
+                dropZone.addEventListener('dragleave', handleDragLeave);
+                dropZone.addEventListener('drop', handleDrop);
+            }
+        }
+
+        function handleDragStart(e) {
+            draggedElement = e.target;
+            e.target.classList.add('dragging');
+            
+            // 设置拖拽数据
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.dataTransfer.effectAllowed = 'move';
+            
+            handleDragEvent(e);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedElement = null;
+            handleDragEvent(e);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var dropZone = document.getElementById('drop-zone');
+            dropZone.classList.add('dragover');
+            handleDragEvent(e);
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            handleDragEvent(e);
+        }
+
+        function handleDragLeave(e) {
+            var dropZone = document.getElementById('drop-zone');
+            dropZone.classList.remove('dragover');
+            handleDragEvent(e);
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            var dropZone = document.getElementById('drop-zone');
+            dropZone.classList.remove('dragover');
+            
+            // 获取被拖拽元素的 ID
+            var draggedId = e.dataTransfer.getData('text/plain');
+            var draggedEl = document.getElementById(draggedId);
+            
+            if (draggedEl) {
+                // 检查容器中是否已有内容
+                var placeholder = dropZone.querySelector('.drop-placeholder');
+                if (placeholder) placeholder.remove();
+                
+                // 克隆元素并添加到容器
+                var clone = draggedEl.cloneNode(true);
+                clone.classList.remove('dragging');
+                clone.style.marginBottom = '8px';
+                clone.draggable = false;
+                dropZone.appendChild(clone);
+                
+                // 隐藏原元素
+                draggedEl.style.opacity = '0.3';
+                draggedEl.draggable = false;
+                
+                dropZone.classList.add('dropped');
+                showToast('拖拽成功！元素已放入容器', 'success');
+            }
+            
+            handleDragEvent(e);
+        }
+
+        function handleDragEvent(e) {
+            totalCount++;
+            updateStats();
+
+            document.getElementById('drag-type').textContent = e.type;
+            document.getElementById('drag-dataTransfer').textContent = e.dataTransfer ? 'yes' : 'no';
+            document.getElementById('drag-x').textContent = e.clientX;
+            document.getElementById('drag-y').textContent = e.clientY;
+
+            addLog('drag', e.type + ' (' + e.clientX + ', ' + e.clientY + ')');
+        }
+
+        // ==================== WheelEvent ====================
+        function initWheelEventListeners() {
+            var area = document.getElementById('wheel-demo-area');
+            if (!area) return;
+
+            area.addEventListener('wheel', handleWheelEvent);
+        }
+
+        function handleWheelEvent(e) {
+            e.preventDefault();
+            totalCount++;
+            updateStats();
+
+            document.getElementById('wheel-deltaX').textContent = e.deltaX;
+            document.getElementById('wheel-deltaY').textContent = e.deltaY;
+            document.getElementById('wheel-deltaZ').textContent = e.deltaZ;
+            
+            var mode = 'PIXEL';
+            if (e.deltaMode === 1) mode = 'LINE';
+            else if (e.deltaMode === 2) mode = 'PAGE';
+            document.getElementById('wheel-deltaMode').textContent = mode;
+
+            addLog('wheel', 'wheel - deltaY: ' + e.deltaY);
+        }
+
+        // ==================== 日志管理 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            var time = now.toTimeString().split(' ')[0];
+
+            logs.unshift({ type: type, message: message, time: time });
+            if (logs.length > 100) logs.pop();
+
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            var html = '';
+
+            for (var i = 0; i < logs.length; i++) {
+                var log = logs[i];
+                html += '<div class="log-entry">';
+                html += '<span class="log-time">' + log.time + '</span>';
+                html += '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>';
+                html += log.message;
+                html += '</div>';
+            }
+
+            container.innerHTML = html || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearAllLogs() {
+            logs = [];
+            mouseCount = 0;
+            keyboardCount = 0;
+            touchCount = 0;
+            totalCount = 0;
+            updateStats();
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function updateStats() {
+            document.getElementById('mouse-count').textContent = mouseCount;
+            document.getElementById('keyboard-count').textContent = keyboardCount;
+            document.getElementById('touch-count').textContent = touchCount;
+            document.getElementById('total-count').textContent = totalCount;
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() {
+                t.style.opacity = '0';
+                setTimeout(function() { t.remove(); }, 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            var c = clone.querySelector('.copy-btn');
+            if (c) c.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>

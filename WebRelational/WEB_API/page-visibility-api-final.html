@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Visibility API Pro - 企业级页面可见性监测平台</title>
+    <style>
+        /* ==================== CSS Reset & Variables ==================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            /* Primary Colors - Purple Theme */
+            --primary-50: #faf5ff;
+            --primary-100: #f3e8ff;
+            --primary-200: #e9d5ff;
+            --primary-300: #d8b4fe;
+            --primary-400: #c084fc;
+            --primary-500: #a855f7;
+            --primary-600: #9333ea;
+            --primary-700: #7c3aed;
+            --primary-800: #6b21a8;
+            --primary-900: #581c87;
+
+            /* Neutral Colors */
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+
+            /* Status Colors */
+            --success-500: #22c55e;
+            --success-600: #16a34a;
+            --warning-500: #f59e0b;
+            --warning-600: #d97706;
+            --error-500: #ef4444;
+            --error-600: #dc2626;
+            --info-500: #3b82f6;
+
+            /* Visibility Colors */
+            --visible-color: #22c55e;
+            --hidden-color: #f59e0b;
+            --prerender-color: #64748b;
+
+            /* Theme Variables */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #7c3aed 0%, #581c87 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            /* Border Radius */
+            --radius-sm: 0.25rem;
+            --radius: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+
+            /* Transitions */
+            --transition-fast: 150ms ease;
+            --transition: 200ms ease;
+            --transition-slow: 300ms ease;
+        }
+
+        /* Dark Mode */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #6b21a8 0%, #581c87 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --gray-50: #1e293b;
+            --gray-100: #334155;
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+            --info-50: rgba(59, 130, 246, 0.15);
+            --primary-50: rgba(168, 85, 247, 0.15);
+        }
+
+        /* ==================== Base Styles ==================== */
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color var(--transition), color var(--transition);
+        }
+
+        /* ==================== Layout ==================== */
+        .app-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .app-container {
+                padding: 1rem;
+            }
+        }
+
+        /* ==================== Header ==================== */
+        .app-header {
+            background: var(--header-bg);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-xl);
+            margin-bottom: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        @media (min-width: 768px) {
+            .app-header {
+                padding: 1rem 1.25rem;
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .header-content {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        @media (min-width: 768px) {
+            .header-title h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        .header-icon {
+            width: 1.75rem;
+            height: 1.75rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.65rem;
+            margin-top: 0.1rem;
+        }
+
+        @media (min-width: 768px) {
+            .header-subtitle {
+                font-size: 0.75rem;
+            }
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-full);
+            font-size: 0.65rem;
+            backdrop-filter: blur(4px);
+            transition: all var(--transition);
+        }
+
+        .header-status.visible {
+            background: rgba(34, 197, 94, 0.3);
+        }
+
+        .header-status.hidden {
+            background: rgba(245, 158, 11, 0.3);
+        }
+
+        .status-indicator {
+            width: 0.4rem;
+            height: 0.4rem;
+            border-radius: 50%;
+            background: var(--visible-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.hidden {
+            background: var(--hidden-color);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: var(--radius);
+            color: white;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .theme-toggle svg {
+            width: 0.875rem;
+            height: 0.875rem;
+        }
+
+        /* ==================== Shortcuts Panel ==================== */
+        .shortcuts-panel {
+            position: fixed;
+            bottom: 0.5rem;
+            left: 0.5rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0.25rem 0.4rem;
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .shortcuts-panel {
+                display: flex;
+                gap: 0.5rem;
+            }
+        }
+
+        .shortcuts-panel kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 0.05rem 0.15rem;
+            font-family: monospace;
+            font-size: 0.5rem;
+        }
+
+        /* ==================== Tabs ==================== */
+        .tabs-container {
+            background: var(--card-bg);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .tabs-nav {
+            display: flex;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .tabs-nav::-webkit-scrollbar {
+            height: 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 50px;
+            padding: 0.4rem 0.25rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.55rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all var(--transition);
+            position: relative;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.15rem;
+        }
+
+        @media (min-width: 640px) {
+            .tab-btn {
+                flex-direction: row;
+                min-width: 70px;
+                font-size: 0.65rem;
+                padding: 0.5rem 0.75rem;
+            }
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-600);
+            background: var(--bg-secondary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-600);
+            background: var(--card-bg);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-600);
+        }
+
+        .tab-btn svg {
+            width: 0.75rem;
+            height: 0.75rem;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 0.5rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @media (min-width: 768px) {
+            .tab-content {
+                padding: 0.75rem;
+            }
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ==================== Cards ==================== */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 0.625rem;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .card {
+                padding: 0.75rem;
+                margin-bottom: 0.625rem;
+            }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .card-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .card-badge {
+            font-size: 0.5rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: var(--radius-full);
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: var(--success-50);
+            color: var(--success-600);
+        }
+
+        .badge-warning {
+            background: var(--warning-50);
+            color: var(--warning-600);
+        }
+
+        .badge-error {
+            background: var(--error-50);
+            color: var(--error-600);
+        }
+
+        .badge-info {
+            background: var(--info-50);
+            color: var(--info-500);
+        }
+
+        /* ==================== Visibility Display ==================== */
+        .visibility-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0.75rem;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%);
+            border-radius: var(--radius-xl);
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border-color);
+            transition: all var(--transition-slow);
+        }
+
+        .visibility-display.visible {
+            border-color: var(--visible-color);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
+        }
+
+        .visibility-display.hidden {
+            border-color: var(--hidden-color);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+        }
+
+        .visibility-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            transition: all var(--transition-slow);
+        }
+
+        .visibility-icon.visible {
+            background: linear-gradient(135deg, var(--visible-color) 0%, #16a34a 100%);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .visibility-icon.hidden {
+            background: linear-gradient(135deg, var(--hidden-color) 0%, #d97706 100%);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .visibility-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: white;
+        }
+
+        .visibility-state {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.125rem;
+        }
+
+        .visibility-description {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* ==================== Stats Grid ==================== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.35rem;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.4rem;
+            }
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%);
+            border: 1px solid var(--primary-100);
+            border-radius: var(--radius);
+            padding: 0.4rem;
+            text-align: center;
+            transition: all var(--transition);
+        }
+
+        [data-theme="dark"] .stat-card {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, var(--card-bg) 100%);
+            border-color: rgba(168, 85, 247, 0.2);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-value {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--primary-600);
+        }
+
+        @media (min-width: 768px) {
+            .stat-value {
+                font-size: 1rem;
+            }
+        }
+
+        .stat-label {
+            font-size: 0.5rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.05rem;
+        }
+
+        /* ==================== Timer Display ==================== */
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .timer-item {
+            text-align: center;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            min-width: 80px;
+        }
+
+        .timer-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: monospace;
+        }
+
+        .timer-label {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        /* ==================== Progress Bar ==================== */
+        .progress-section {
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .progress-label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+        }
+
+        .progress-value {
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .progress-bar {
+            height: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: var(--radius-full);
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.visible {
+            background: linear-gradient(90deg, var(--visible-color), #4ade80);
+        }
+
+        .progress-fill.hidden {
+            background: linear-gradient(90deg, var(--hidden-color), #fbbf24);
+        }
+
+        /* ==================== Demo Panel ==================== */
+        .demo-panel {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 0.5rem;
+            margin-top: 0.35rem;
+        }
+
+        .demo-title {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .demo-video {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--gray-800);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+            font-size: 0.65rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-video.playing::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, var(--primary-600), var(--primary-400), var(--primary-600));
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .demo-video-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .demo-video-icon svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: white;
+        }
+
+        /* ==================== Animation Demo ==================== */
+        .animation-demo {
+            height: 60px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            position: relative;
+            overflow: hidden;
+            margin-top: 0.35rem;
+        }
+
+        .animation-ball {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 10px;
+            transition: opacity var(--transition);
+        }
+
+        .animation-ball.paused {
+            opacity: 0.4;
+        }
+
+        /* ==================== Buttons ==================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: var(--radius);
+            font-size: 0.6rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: none;
+            white-space: nowrap;
+        }
+
+        .btn svg {
+            width: 0.6rem;
+            height: 0.6rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-600);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-700);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success-500);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.2rem 0.35rem;
+            font-size: 0.55rem;
+        }
+
+        /* ==================== Info List ==================== */
+        .info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.3rem 0.4rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.6rem;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: monospace;
+            font-size: 0.55rem;
+        }
+
+        /* ==================== Event Log ==================== */
+        .event-log {
+            max-height: 180px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .event-item {
+            padding: 0.25rem 0.35rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.55rem;
+            display: flex;
+            gap: 0.25rem;
+            align-items: flex-start;
+        }
+
+        .event-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-time {
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .event-type {
+            font-weight: 600;
+            padding: 0.05rem 0.2rem;
+            border-radius: 2px;
+            font-size: 0.45rem;
+        }
+
+        .event-type.visible {
+            background: var(--success-50);
+            color: var(--success-600);
+        }
+
+        .event-type.hidden {
+            background: var(--warning-50);
+            color: var(--warning-600);
+        }
+
+        .event-detail {
+            flex: 1;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        /* ==================== Code Block ==================== */
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 0.5rem;
+            border-radius: var(--radius);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.55rem;
+            overflow-x: auto;
+            margin: 0.35rem 0;
+            line-height: 1.5;
+        }
+
+        .code-block .keyword {
+            color: #c792ea;
+        }
+
+        .code-block .string {
+            color: #c3e88d;
+        }
+
+        .code-block .number {
+            color: #f78c6c;
+        }
+
+        .code-block .comment {
+            color: #546e7a;
+        }
+
+        .code-block .function {
+            color: #82aaff;
+        }
+
+        .code-block .property {
+            color: #ffcb6b;
+        }
+
+        /* ==================== API Table ==================== */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.6rem;
+        }
+
+        .api-table th, .api-table td {
+            padding: 0.35rem 0.4rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .api-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            font-size: 0.55rem;
+        }
+
+        .api-table tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .api-status {
+            display: inline-flex;
+            padding: 0.1rem 0.3rem;
+            border-radius: var(--radius-full);
+            font-size: 0.5rem;
+            font-weight: 500;
+        }
+
+        .api-status.supported {
+            background: var(--success-50);
+            color: var(--success-600);
+        }
+
+        .api-status.unsupported {
+            background: var(--error-50);
+            color: var(--error-600);
+        }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 0.05rem 0.2rem;
+            border-radius: 2px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.55em;
+            color: var(--primary-600);
+        }
+
+        /* ==================== Toast ==================== */
+        .toast-container {
+            position: fixed;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            max-width: calc(100vw - 1rem);
+        }
+
+        @media (min-width: 768px) {
+            .toast-container {
+                bottom: 0.75rem;
+                right: 0.75rem;
+                max-width: 280px;
+            }
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.35rem;
+            padding: 0.4rem 0.5rem;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-xl);
+            animation: slideIn 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-success {
+            border-left: 2px solid var(--success-500);
+        }
+
+        .toast-error {
+            border-left: 2px solid var(--error-500);
+        }
+
+        .toast-warning {
+            border-left: 2px solid var(--warning-500);
+        }
+
+        .toast-info {
+            border-left: 2px solid var(--primary-500);
+        }
+
+        .toast-icon {
+            width: 0.75rem;
+            height: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.65rem;
+        }
+
+        .toast-message {
+            font-size: 0.55rem;
+            color: var(--text-secondary);
+            margin-top: 0.025rem;
+        }
+
+        /* ==================== Empty State ==================== */
+        .empty-state {
+            text-align: center;
+            padding: 1rem 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 1.75rem;
+            height: 1.75rem;
+            margin: 0 auto 0.35rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.1rem;
+        }
+
+        /* ==================== Use Cases ==================== */
+        .use-cases {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .use-case-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            transition: all var(--transition);
+        }
+
+        .use-case-item:hover {
+            border-color: var(--primary-300);
+            transform: translateX(3px);
+        }
+
+        .use-case-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            background: var(--primary-100);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        [data-theme="dark"] .use-case-icon {
+            background: rgba(168, 85, 247, 0.2);
+        }
+
+        .use-case-icon svg {
+            width: 0.75rem;
+            height: 0.75rem;
+            color: var(--primary-600);
+        }
+
+        .use-case-content h4 {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.1rem;
+        }
+
+        .use-case-content p {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+        }
+
+        /* ==================== Checkbox ==================== */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 0.65rem;
+            height: 0.65rem;
+            accent-color: var(--primary-600);
+            cursor: pointer;
+        }
+
+        .checkbox-wrapper label {
+            font-size: 0.55rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        /* ==================== Timeline ==================== */
+        .timeline {
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.3rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 0.3rem 0.4rem;
+            margin-bottom: 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.55rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0.4rem;
+            height: 0.4rem;
+            border-radius: 50%;
+            background: var(--primary-500);
+            border: 2px solid var(--card-bg);
+        }
+
+        .timeline-item.visible::before {
+            background: var(--visible-color);
+        }
+
+        .timeline-item.hidden::before {
+            background: var(--hidden-color);
+        }
+
+        /* ==================== Focus State ==================== */
+        .focus-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.4rem 0.6rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            margin-bottom: 0.5rem;
+        }
+
+        .focus-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: var(--success-500);
+            transition: background var(--transition);
+        }
+
+        .focus-dot.blurred {
+            background: var(--gray-400);
+        }
+
+        .focus-text {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div>
+                <div class="header-title">
+                    <div class="header-icon">👁️</div>
+                    <h1>Page Visibility API Pro</h1>
+                </div>
+                <p class="header-subtitle">页面可见性监测 | 智能资源管理、性能优化</p>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                    <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         style="display: none;">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+                <div class="header-status visible" id="headerStatus">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusText">可见</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Shortcuts Panel -->
+    <div class="shortcuts-panel">
+        <span><kbd>R</kbd> 刷新</span>
+        <span><kbd>T</kbd> 主题</span>
+        <span><kbd>P</kbd> 播放</span>
+        <span><kbd>E</kbd> 导出</span>
+    </div>
+
+    <!-- Main Content -->
+    <main class="tabs-container">
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="overview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span>概览</span>
+            </button>
+            <button class="tab-btn" data-tab="demos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span>演示</span>
+            </button>
+            <button class="tab-btn" data-tab="usecases">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <span>应用</span>
+            </button>
+            <button class="tab-btn" data-tab="events">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                <span>事件</span>
+            </button>
+            <button class="tab-btn" data-tab="api">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                </svg>
+                <span>API</span>
+            </button>
+        </nav>
+
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="tab-overview">
+            <div class="visibility-display visible" id="visibilityDisplay">
+                <div class="visibility-icon visible" id="visibilityIcon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </div>
+                <div class="visibility-state" id="visibilityState">页面可见</div>
+                <div class="visibility-description" id="visibilityDescription">用户正在查看此页面</div>
+            </div>
+
+            <div class="timer-display">
+                <div class="timer-item">
+                    <div class="timer-value" id="visibleTime">00:00:00</div>
+                    <div class="timer-label">可见时长</div>
+                </div>
+                <div class="timer-item">
+                    <div class="timer-value" id="hiddenTime">00:00:00</div>
+                    <div class="timer-label">隐藏时长</div>
+                </div>
+            </div>
+
+            <!-- Progress Section -->
+            <div class="progress-section">
+                <div class="progress-header">
+                    <span class="progress-label">页面活跃度</span>
+                    <span class="progress-value" id="activePercent">100%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill visible" id="progressFill" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="visibilityCount">0</div>
+                    <div class="stat-label">状态切换</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="visibleCount">0</div>
+                    <div class="stat-label">可见次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hiddenCount">0</div>
+                    <div class="stat-label">隐藏次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgHiddenTime">--</div>
+                    <div class="stat-label">平均隐藏</div>
+                </div>
+            </div>
+
+            <!-- Focus State -->
+            <div class="focus-indicator">
+                <div class="focus-dot" id="focusDot"></div>
+                <span class="focus-text">窗口焦点: <strong id="focusStatus">聚焦</strong></span>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">当前状态详情</h3>
+                    <button class="btn btn-secondary btn-sm" id="refreshInfo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                        </svg>
+                        刷新
+                    </button>
+                </div>
+                <div class="info-list">
+                    <div class="info-item">
+                        <span class="info-label">visibilityState</span>
+                        <span class="info-value" id="infoVisibilityState">visible</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">hidden</span>
+                        <span class="info-value" id="infoHidden">false</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">hasFocus()</span>
+                        <span class="info-value" id="infoHasFocus">true</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">上次状态变化</span>
+                        <span class="info-value" id="infoLastChange">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">API 简介</h3>
+                </div>
+                <p style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 0.35rem;">
+                    Page Visibility API 让开发者能够确定页面当前是否可见。这对于优化性能和用户体验非常有用。
+                </p>
+                <div class="code-block">
+                    <span class="comment">// 监听可见性变化</span>
+                    document.<span class="function">addEventListener</span>(<span
+                        class="string">'visibilitychange'</span>, () => {
+                    <span class="keyword">if</span> (document.<span class="property">hidden</span>) {
+                    <span class="function">pauseVideo</span>(); <span class="comment">// 页面隐藏</span>
+                    } <span class="keyword">else</span> {
+                    <span class="function">resumeVideo</span>(); <span class="comment">// 页面可见</span>
+                    }
+                    });
+                </div>
+            </div>
+        </div>
+
+        <!-- Demos Tab -->
+        <div class="tab-content" id="tab-demos">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🎬 视频播放控制</h3>
+                    <span class="card-badge badge-info" id="videoStatus">已暂停</span>
+                </div>
+                <p style="font-size: 0.55rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+                    页面隐藏时自动暂停，返回时恢复
+                </p>
+                <div class="demo-panel">
+                    <div class="demo-title">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        模拟视频播放器
+                    </div>
+                    <div class="demo-video" id="demoVideo">
+                        <div class="demo-video-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.35rem; margin-top: 0.35rem;">
+                        <button class="btn btn-primary btn-sm" id="playVideoBtn">▶ 播放</button>
+                        <button class="btn btn-secondary btn-sm" id="pauseVideoBtn">⏸ 暂停</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🎨 动画控制</h3>
+                    <span class="card-badge badge-info" id="animationStatus">运行中</span>
+                </div>
+                <p style="font-size: 0.55rem; color: var(--text-muted); margin-bottom: 0.35rem;">
+                    页面隐藏时暂停动画，节省 CPU
+                </p>
+                <div class="animation-demo">
+                    <div class="animation-ball" id="animationBall"></div>
+                </div>
+                <div style="display: flex; gap: 0.35rem; margin-top: 0.35rem;">
+                    <button class="btn btn-success btn-sm" id="startAnimationBtn">开始</button>
+                    <button class="btn btn-secondary btn-sm" id="stopAnimationBtn">停止</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">⏱️ 定时器控制</h3>
+                    <span class="card-badge badge-info" id="timerStatus">运行中</span>
+                </div>
+                <div class="demo-panel">
+                    <div class="demo-title">计时器</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-600); text-align: center; font-family: monospace;">
+                        <span id="timerDisplay">00:00</span>
+                    </div>
+                    <div style="display: flex; gap: 0.35rem; margin-top: 0.35rem; justify-content: center;">
+                        <button class="btn btn-primary btn-sm" id="startTimerBtn">开始</button>
+                        <button class="btn btn-secondary btn-sm" id="resetTimerBtn">重置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Use Cases Tab -->
+        <div class="tab-content" id="tab-usecases">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">实际应用场景</h3>
+                </div>
+                <div class="use-cases">
+                    <div class="use-case-item">
+                        <div class="use-case-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                        </div>
+                        <div class="use-case-content">
+                            <h4>视频/音频播放控制</h4>
+                            <p>页面隐藏时自动暂停，节省带宽和电池</p>
+                        </div>
+                    </div>
+                    <div class="use-case-item">
+                        <div class="use-case-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="use-case-content">
+                            <h4>定时器优化</h4>
+                            <p>页面隐藏时暂停倒计时，减少 CPU 占用</p>
+                        </div>
+                    </div>
+                    <div class="use-case-item">
+                        <div class="use-case-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            </svg>
+                        </div>
+                        <div class="use-case-content">
+                            <h4>实时数据同步</h4>
+                            <p>仅在页面可见时轮询数据，减少服务器压力</p>
+                        </div>
+                    </div>
+                    <div class="use-case-item">
+                        <div class="use-case-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                            </svg>
+                        </div>
+                        <div class="use-case-content">
+                            <h4>广告展示追踪</h4>
+                            <p>准确统计广告实际展示时间</p>
+                        </div>
+                    </div>
+                    <div class="use-case-item">
+                        <div class="use-case-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <div class="use-case-content">
+                            <h4>游戏暂停</h4>
+                            <p>玩家离开时自动暂停游戏</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">最佳实践</h3>
+                </div>
+                <ul style="font-size: 0.6rem; color: var(--text-secondary); padding-left: 1rem;">
+                    <li style="margin-bottom: 0.15rem;">✓ 始终检查 API 支持性</li>
+                    <li style="margin-bottom: 0.15rem;">✓ 不要仅依赖 visibilityState 做关键判断</li>
+                    <li style="margin-bottom: 0.15rem;">✓ 结合 hasFocus() 完善检测</li>
+                    <li style="margin-bottom: 0.15rem;">✓ 考虑 prerender 状态的特殊处理</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Events Tab -->
+        <div class="tab-content" id="tab-events">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">事件监听</h3>
+                    <span class="card-badge badge-success" id="eventListenerStatus">监听中</span>
+                </div>
+                <div class="checkbox-wrapper" style="margin-bottom: 0.35rem;">
+                    <input type="checkbox" id="listenVisibility" checked>
+                    <label for="listenVisibility">visibilitychange</label>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="eventVisibleCount">0</div>
+                    <div class="stat-label">可见事件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="eventHiddenCount">0</div>
+                    <div class="stat-label">隐藏事件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="eventTotalCount">0</div>
+                    <div class="stat-label">总计</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="eventMaxHidden">--</div>
+                    <div class="stat-label">最长隐藏</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">事件日志</h3>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn btn-secondary btn-sm" id="exportEventLog">导出</button>
+                        <button class="btn btn-secondary btn-sm" id="clearEventLog">清空</button>
+                    </div>
+                </div>
+                <div class="event-log" id="eventLog">
+                    <div class="empty-state">
+                        <h3>等待事件...</h3>
+                        <p>切换标签页触发事件</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">状态时间线</h3>
+                </div>
+                <div class="timeline" id="timeline">
+                    <div class="empty-state">
+                        <h3>暂无记录</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Tab -->
+        <div class="tab-content" id="tab-api">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">API 支持检测</h3>
+                    <button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="api-table">
+                        <thead>
+                        <tr>
+                            <th>API</th>
+                            <th>类型</th>
+                            <th>描述</th>
+                            <th>状态</th>
+                        </tr>
+                        </thead>
+                        <tbody id="apiSupportTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">属性说明</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="api-table">
+                        <thead>
+                        <tr>
+                            <th>属性</th>
+                            <th>类型</th>
+                            <th>可能值</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>document.visibilityState</code></td>
+                            <td>string</td>
+                            <td>visible, hidden, prerender</td>
+                        </tr>
+                        <tr>
+                            <td><code>document.hidden</code></td>
+                            <td>boolean</td>
+                            <td>true, false</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">visibilityState 值</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="api-table">
+                        <thead>
+                        <tr>
+                            <th>值</th>
+                            <th>hidden</th>
+                            <th>触发条件</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>visible</code></td>
+                            <td>false</td>
+                            <td>页面在前台显示</td>
+                        </tr>
+                        <tr>
+                            <td><code>hidden</code></td>
+                            <td>true</td>
+                            <td>切换标签/最小化</td>
+                        </tr>
+                        <tr>
+                            <td><code>prerender</code></td>
+                            <td>true</td>
+                            <td>页面预渲染中</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">使用示例</h3>
+                </div>
+                <div class="code-block">
+                    <span class="comment">// 基本用法</span>
+                    document.<span class="function">addEventListener</span>(<span
+                        class="string">'visibilitychange'</span>, () => {
+                    console.<span class="function">log</span>(document.<span class="property">visibilityState</span>);
+                    });
+
+                    <span class="comment">// 视频自动暂停</span>
+                    <span class="keyword">const</span> video = document.<span
+                        class="function">querySelector</span>(<span class="string">'video'</span>);
+                    document.<span class="function">addEventListener</span>(<span
+                        class="string">'visibilitychange'</span>, () => {
+                    document.<span class="property">hidden</span> ? video.<span class="function">pause</span>() : video.<span
+                        class="function">play</span>();
+                    });
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">浏览器兼容性</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table class="api-table">
+                        <thead>
+                        <tr>
+                            <th>浏览器</th>
+                            <th>版本</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>Chrome</td>
+                            <td>33+</td>
+                        </tr>
+                        <tr>
+                            <td>Firefox</td>
+                            <td>18+</td>
+                        </tr>
+                        <tr>
+                            <td>Safari</td>
+                            <td>7+</td>
+                        </tr>
+                        <tr>
+                            <td>Edge</td>
+                            <td>12+</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // ==================== Application State ====================
+    const AppState = {
+        theme: 'light',
+        isVisible: true,
+        hasFocus: true,
+        visibleStartTime: Date.now(),
+        hiddenStartTime: null,
+        totalVisibleTime: 0,
+        totalHiddenTime: 0,
+        visibilityCount: 0,
+        visibleCount: 0,
+        hiddenCount: 0,
+        hiddenDurations: [],
+        maxHiddenDuration: 0,
+        eventLog: [],
+        timeline: [],
+        videoPlaying: false,
+        animationRunning: true,
+        timerRunning: true,
+        timerSeconds: 0,
+        animationPosition: 10,
+        animationDirection: 1,
+        animationFrameId: null,
+        timerInterval: null
+    };
+
+    // ==================== Utility Functions ====================
+    const Utils = {
+        formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        },
+
+        formatShortTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        },
+
+        formatTimeShort() {
+            return new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        },
+
+        formatDuration(seconds) {
+            if (seconds < 60) return `${seconds}秒`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+            return `${Math.floor(seconds / 3600)}时${Math.floor((seconds % 3600) / 60)}分`;
+        }
+    };
+
+    // ==================== Theme Management ====================
+    const ThemeManager = {
+        init() {
+            const saved = localStorage.getItem('visibility-api-theme');
+            if (saved) AppState.theme = saved;
+            else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) AppState.theme = 'dark';
+            this.apply();
+        },
+
+        toggle() {
+            AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('visibility-api-theme', AppState.theme);
+            this.apply();
+        },
+
+        apply() {
+            document.documentElement.setAttribute('data-theme', AppState.theme);
+            document.getElementById('themeIconLight').style.display = AppState.theme === 'light' ? 'block' : 'none';
+            document.getElementById('themeIconDark').style.display = AppState.theme === 'dark' ? 'block' : 'none';
+        }
+    };
+
+    // ==================== Toast Notifications ====================
+    function showToast(type, title, message) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+
+        const icons = {
+            success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+            error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+        };
+
+        toast.innerHTML = `
+                ${icons[type]}
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+            `;
+
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    }
+
+    // ==================== Tab Navigation ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ==================== Page Visibility API ====================
+    const VisibilityAPI = {
+        init() {
+            this.updateUI();
+            this.setupListeners();
+        },
+
+        setupListeners() {
+            // Visibility change
+            document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
+
+            // Focus/blur
+            window.addEventListener('focus', () => this.handleFocusChange(true));
+            window.addEventListener('blur', () => this.handleFocusChange(false));
+        },
+
+        handleVisibilityChange() {
+            const isHidden = document.hidden;
+            const now = Date.now();
+
+            AppState.visibilityCount++;
+
+            if (isHidden) {
+                AppState.hiddenCount++;
+                AppState.hiddenStartTime = now;
+                if (AppState.visibleStartTime) {
+                    AppState.totalVisibleTime += Math.floor((now - AppState.visibleStartTime) / 1000);
+                }
+                AppState.isVisible = false;
+
+                this.logEvent('hidden', '页面隐藏');
+                this.addToTimeline('hidden');
+                DemoController.pauseAll();
+            } else {
+                AppState.visibleCount++;
+                AppState.visibleStartTime = now;
+                if (AppState.hiddenStartTime) {
+                    const hiddenDuration = Math.floor((now - AppState.hiddenStartTime) / 1000);
+                    AppState.totalHiddenTime += hiddenDuration;
+                    AppState.hiddenDurations.push(hiddenDuration);
+                    if (hiddenDuration > AppState.maxHiddenDuration) {
+                        AppState.maxHiddenDuration = hiddenDuration;
+                    }
+                }
+                AppState.isVisible = true;
+
+                this.logEvent('visible', '页面可见');
+                this.addToTimeline('visible');
+                DemoController.resumeAll();
+            }
+
+            this.updateUI();
+        },
+
+        handleFocusChange(hasFocus) {
+            AppState.hasFocus = hasFocus;
+            const dot = document.getElementById('focusDot');
+            const status = document.getElementById('focusStatus');
+            const info = document.getElementById('infoHasFocus');
+
+            dot.classList.toggle('blurred', !hasFocus);
+            status.textContent = hasFocus ? '聚焦' : '失焦';
+            info.textContent = hasFocus ? 'true' : 'false';
+        },
+
+        updateUI() {
+            const isHidden = document.hidden;
+            const state = document.visibilityState;
+
+            // Header status
+            const headerStatus = document.getElementById('headerStatus');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            headerStatus.classList.toggle('visible', !isHidden);
+            headerStatus.classList.toggle('hidden', isHidden);
+            statusIndicator.classList.toggle('hidden', isHidden);
+            statusText.textContent = isHidden ? '隐藏' : '可见';
+
+            // Visibility display
+            const display = document.getElementById('visibilityDisplay');
+            const icon = document.getElementById('visibilityIcon');
+            const stateEl = document.getElementById('visibilityState');
+            const descEl = document.getElementById('visibilityDescription');
+
+            display.classList.toggle('visible', !isHidden);
+            display.classList.toggle('hidden', isHidden);
+            icon.classList.toggle('visible', !isHidden);
+            icon.classList.toggle('hidden', isHidden);
+
+            if (isHidden) {
+                icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>`;
+                stateEl.textContent = '页面隐藏';
+                descEl.textContent = '用户已切换到其他标签页';
+            } else {
+                icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>`;
+                stateEl.textContent = '页面可见';
+                descEl.textContent = '用户正在查看此页面';
+            }
+
+            // Info
+            document.getElementById('infoVisibilityState').textContent = state;
+            document.getElementById('infoHidden').textContent = isHidden ? 'true' : 'false';
+            document.getElementById('infoLastChange').textContent = Utils.formatTimeShort();
+
+            // Stats
+            document.getElementById('visibilityCount').textContent = AppState.visibilityCount;
+            document.getElementById('visibleCount').textContent = AppState.visibleCount;
+            document.getElementById('hiddenCount').textContent = AppState.hiddenCount;
+
+            // Average hidden time
+            if (AppState.hiddenDurations.length > 0) {
+                const avg = Math.floor(AppState.hiddenDurations.reduce((a, b) => a + b, 0) / AppState.hiddenDurations.length);
+                document.getElementById('avgHiddenTime').textContent = Utils.formatDuration(avg);
+                document.getElementById('eventMaxHidden').textContent = Utils.formatDuration(AppState.maxHiddenDuration);
+            }
+        },
+
+        updateTimers() {
+            const now = Date.now();
+
+            let visibleTime = AppState.totalVisibleTime;
+            let hiddenTime = AppState.totalHiddenTime;
+
+            if (AppState.isVisible && AppState.visibleStartTime) {
+                visibleTime += Math.floor((now - AppState.visibleStartTime) / 1000);
+            } else if (!AppState.isVisible && AppState.hiddenStartTime) {
+                hiddenTime += Math.floor((now - AppState.hiddenStartTime) / 1000);
+            }
+
+            document.getElementById('visibleTime').textContent = Utils.formatTime(visibleTime);
+            document.getElementById('hiddenTime').textContent = Utils.formatTime(hiddenTime);
+
+            // Update progress
+            const total = visibleTime + hiddenTime;
+            const percent = total > 0 ? Math.round((visibleTime / total) * 100) : 100;
+            document.getElementById('activePercent').textContent = percent + '%';
+            document.getElementById('progressFill').style.width = percent + '%';
+        },
+
+        logEvent(type, detail) {
+            if (!document.getElementById('listenVisibility')?.checked) return;
+
+            const entry = {time: Utils.formatTimeShort(), type, detail};
+            AppState.eventLog.unshift(entry);
+
+            // Update counts
+            const visibleEl = document.getElementById('eventVisibleCount');
+            const hiddenEl = document.getElementById('eventHiddenCount');
+            if (type === 'visible') visibleEl.textContent = parseInt(visibleEl.textContent) + 1;
+            else hiddenEl.textContent = parseInt(hiddenEl.textContent) + 1;
+            document.getElementById('eventTotalCount').textContent = AppState.eventLog.length;
+
+            // Render log
+            const container = document.getElementById('eventLog');
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const item = document.createElement('div');
+            item.className = 'event-item';
+            item.innerHTML = `
+                    <span class="event-time">${entry.time}</span>
+                    <span class="event-type ${type}">${type}</span>
+                    <span class="event-detail">${detail}</span>
+                `;
+            container.insertBefore(item, container.firstChild);
+
+            while (container.children.length > 25) container.removeChild(container.lastChild);
+        },
+
+        addToTimeline(type) {
+            const entry = {type, time: Utils.formatTimeShort()};
+            AppState.timeline.push(entry);
+
+            const container = document.getElementById('timeline');
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const item = document.createElement('div');
+            item.className = `timeline-item ${type}`;
+            item.textContent = `${entry.time} - ${type === 'visible' ? '页面可见' : '页面隐藏'}`;
+            container.appendChild(item);
+
+            while (container.children.length > 10) container.removeChild(container.firstChild);
+        },
+
+        exportLog() {
+            const data = AppState.eventLog.map(e => `[${e.time}] ${e.type}: ${e.detail}`).join('\n');
+            const blob = new Blob([data], {type: 'text/plain'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `visibility-log-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('success', '导出成功', '事件日志已下载');
+        }
+    };
+
+    // ==================== Demo Controller ====================
+    const DemoController = {
+        init() {
+            this.startAnimation();
+            this.startTimer();
+        },
+
+        pauseAll() {
+            if (AppState.videoPlaying) {
+                document.getElementById('demoVideo').classList.remove('playing');
+                document.getElementById('videoStatus').textContent = '已暂停 (自动)';
+            }
+
+            AppState.animationRunning = false;
+            document.getElementById('animationStatus').textContent = '已暂停';
+            document.getElementById('animationBall').classList.add('paused');
+
+            AppState.timerRunning = false;
+            document.getElementById('timerStatus').textContent = '已暂停';
+        },
+
+        resumeAll() {
+            if (AppState.videoPlaying) {
+                document.getElementById('demoVideo').classList.add('playing');
+                document.getElementById('videoStatus').textContent = '播放中';
+            }
+
+            AppState.animationRunning = true;
+            document.getElementById('animationStatus').textContent = '运行中';
+            document.getElementById('animationBall').classList.remove('paused');
+
+            AppState.timerRunning = true;
+            document.getElementById('timerStatus').textContent = '运行中';
+        },
+
+        startAnimation() {
+            const ball = document.getElementById('animationBall');
+            const container = document.querySelector('.animation-demo');
+            const maxX = container.offsetWidth - 30;
+
+            const animate = () => {
+                if (AppState.animationRunning && AppState.isVisible) {
+                    AppState.animationPosition += AppState.animationDirection * 2;
+                    if (AppState.animationPosition >= maxX) AppState.animationDirection = -1;
+                    else if (AppState.animationPosition <= 10) AppState.animationDirection = 1;
+                    ball.style.left = AppState.animationPosition + 'px';
+                }
+                AppState.animationFrameId = requestAnimationFrame(animate);
+            };
+
+            animate();
+        },
+
+        startTimer() {
+            AppState.timerInterval = setInterval(() => {
+                if (AppState.timerRunning && AppState.isVisible) {
+                    AppState.timerSeconds++;
+                    document.getElementById('timerDisplay').textContent = Utils.formatShortTime(AppState.timerSeconds);
+                }
+            }, 1000);
+        }
+    };
+
+    // ==================== API Reference ====================
+    const APIReference = {
+        render() {
+            const apis = [
+                {
+                    name: 'document.visibilityState',
+                    type: '属性',
+                    desc: '页面可见性状态',
+                    supported: 'visibilityState' in document
+                },
+                {name: 'document.hidden', type: '属性', desc: '页面是否隐藏', supported: 'hidden' in document},
+                {
+                    name: 'visibilitychange 事件',
+                    type: '事件',
+                    desc: '可见性变化事件',
+                    supported: 'onvisibilitychange' in document
+                },
+                {
+                    name: 'document.hasFocus()',
+                    type: '方法',
+                    desc: '窗口是否聚焦',
+                    supported: typeof document.hasFocus === 'function'
+                },
+            ];
+
+            document.getElementById('apiSupportTable').innerHTML = apis.map(api => `
+                    <tr>
+                        <td><code>${api.name}</code></td>
+                        <td><span class="card-badge badge-info">${api.type}</span></td>
+                        <td>${api.desc}</td>
+                        <td><span class="api-status ${api.supported ? 'supported' : 'unsupported'}">${api.supported ? '✓ 支持' : '✗ 不支持'}</span></td>
+                    </tr>
+                `).join('');
+        }
+    };
+
+    // ==================== Keyboard Shortcuts ====================
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+        switch (e.key.toLowerCase()) {
+            case 'r':
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    VisibilityAPI.updateUI();
+                    showToast('success', '已刷新', '状态信息已更新');
+                }
+                break;
+            case 't':
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    ThemeManager.toggle();
+                }
+                break;
+            case 'p':
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    AppState.videoPlaying = !AppState.videoPlaying;
+                    document.getElementById('demoVideo').classList.toggle('playing', AppState.videoPlaying);
+                    document.getElementById('videoStatus').textContent = AppState.videoPlaying ? '播放中' : '已暂停';
+                }
+                break;
+            case 'e':
+                if (!e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    VisibilityAPI.exportLog();
+                }
+                break;
+        }
+    });
+
+    // ==================== UI Event Handlers ====================
+    document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+    document.getElementById('refreshInfo').addEventListener('click', () => {
+        VisibilityAPI.updateUI();
+        showToast('success', '已刷新', '');
+    });
+    document.getElementById('refreshApiCheck').addEventListener('click', () => {
+        APIReference.render();
+        showToast('success', '已刷新', '');
+    });
+    document.getElementById('clearEventLog').addEventListener('click', () => {
+        AppState.eventLog = [];
+        AppState.timeline = [];
+        AppState.hiddenDurations = [];
+        AppState.maxHiddenDuration = 0;
+        document.getElementById('eventLog').innerHTML = '<div class="empty-state"><h3>等待事件...</h3></div>';
+        document.getElementById('timeline').innerHTML = '<div class="empty-state"><h3>暂无记录</h3></div>';
+        document.getElementById('eventVisibleCount').textContent = '0';
+        document.getElementById('eventHiddenCount').textContent = '0';
+        document.getElementById('eventTotalCount').textContent = '0';
+        document.getElementById('avgHiddenTime').textContent = '--';
+        document.getElementById('eventMaxHidden').textContent = '--';
+    });
+    document.getElementById('exportEventLog').addEventListener('click', () => VisibilityAPI.exportLog());
+
+    // Demo controls
+    document.getElementById('playVideoBtn').addEventListener('click', () => {
+        AppState.videoPlaying = true;
+        document.getElementById('demoVideo').classList.add('playing');
+        document.getElementById('videoStatus').textContent = '播放中';
+    });
+    document.getElementById('pauseVideoBtn').addEventListener('click', () => {
+        AppState.videoPlaying = false;
+        document.getElementById('demoVideo').classList.remove('playing');
+        document.getElementById('videoStatus').textContent = '已暂停';
+    });
+    document.getElementById('startAnimationBtn').addEventListener('click', () => {
+        AppState.animationRunning = true;
+        document.getElementById('animationStatus').textContent = '运行中';
+        document.getElementById('animationBall').classList.remove('paused');
+    });
+    document.getElementById('stopAnimationBtn').addEventListener('click', () => {
+        AppState.animationRunning = false;
+        document.getElementById('animationStatus').textContent = '已停止';
+        document.getElementById('animationBall').classList.add('paused');
+    });
+    document.getElementById('startTimerBtn').addEventListener('click', () => {
+        AppState.timerRunning = true;
+        document.getElementById('timerStatus').textContent = '运行中';
+    });
+    document.getElementById('resetTimerBtn').addEventListener('click', () => {
+        AppState.timerSeconds = 0;
+        document.getElementById('timerDisplay').textContent = '00:00';
+    });
+
+    // ==================== Timer Update Interval ====================
+    setInterval(() => VisibilityAPI.updateTimers(), 1000);
+
+    // ==================== Initialize ====================
+    document.addEventListener('DOMContentLoaded', () => {
+        ThemeManager.init();
+        VisibilityAPI.init();
+        DemoController.init();
+        APIReference.render();
+    });
+</script>
+</body>
+</html>

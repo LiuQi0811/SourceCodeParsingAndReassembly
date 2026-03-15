@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级 文件系统 API · 完整演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, #f0f5fa, #e4ecf5);
+            padding: 24px;
+            color: #1e2f4a;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #1a3b5e;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 16px;
+            border-bottom: 2px solid rgba(26,115,232,0.2);
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            background: #1a73e8;
+            color: white;
+            padding: 4px 16px;
+            border-radius: 40px;
+        }
+
+        .subtitle {
+            color: #2c5778;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            background: #e8f0fe;
+            padding: 8px 20px;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        /* 选项卡样式 */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 8px;
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: #5a7b9c;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .tab-btn:hover {
+            background: #f0f7ff;
+            color: #1a73e8;
+        }
+
+        .tab-btn.active {
+            background: #1a73e8;
+            color: white;
+            box-shadow: 0 4px 8px rgba(26,115,232,0.3);
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+            padding: 24px;
+            border: 1px solid #c0d4f0;
+            min-height: 600px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* 面板内布局 */
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .panel-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #f8faff;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e0e9f5;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e0e9f5;
+            padding-bottom: 12px;
+        }
+
+        .panel-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a3b5e;
+        }
+
+        .badge {
+            background: #1a73e8;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #2c9b4a;
+        }
+
+        .badge-warning {
+            background: #ffb347;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px dashed #e0e9f5;
+        }
+        .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .label {
+            font-weight: 600;
+            color: #2c5778;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #c0d4f0;
+            border-radius: 40px;
+            font-size: 13px;
+            margin-bottom: 10px;
+            transition: all 0.1s;
+            background: white;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+
+        textarea {
+            border-radius: 16px;
+            font-family: monospace;
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 8px 0;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border-radius: 40px;
+            border: 1px solid #c0d4f0;
+            background: white;
+            color: #1a3b5e;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .btn:hover {
+            background: #e8f0fe;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4285f4;
+        }
+
+        .btn-success {
+            background: #2c9b4a;
+            border-color: #2c9b4a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #34b755;
+        }
+
+        .btn-warning {
+            background: #ffb347;
+            border-color: #e69138;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #ffc107;
+        }
+
+        .btn-danger {
+            background: #c94a4a;
+            border-color: #c94a4a;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d65f5f;
+        }
+
+        .result-box {
+            background: #0f233a;
+            color: #cbe4ff;
+            border-radius: 12px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #254f7a;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .file-info {
+            background: #f0f7ff;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 12px;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .file-info-row {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px solid #e0e9f5;
+        }
+
+        .file-info-label {
+            width: 100px;
+            font-weight: 600;
+            color: #2c5778;
+        }
+
+        .file-info-value {
+            flex: 1;
+            color: #1a3b5e;
+            word-break: break-all;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e9f5;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #4285f4);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .metrics-panel {
+            background: #f0f7ff;
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .metric-item {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: #5a7b9c;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .note {
+            font-size: 11px;
+            color: #5a7b9c;
+            background: #f0f7ff;
+            padding: 4px 10px;
+            border-radius: 40px;
+            margin-top: 6px;
+        }
+
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e0e9f5;
+            border-radius: 12px;
+            padding: 8px;
+            background: white;
+        }
+
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            padding: 6px;
+            border-bottom: 1px solid #e0e9f5;
+            font-size: 12px;
+        }
+
+        .file-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-icon {
+            width: 24px;
+            height: 24px;
+            background: #1a73e8;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e3f60;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            margin-top: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            border-left: 4px solid #1a73e8;
+            animation: slideIn 0.3s;
+            font-size: 13px;
+            max-width: 350px;
+        }
+
+        .toast.success { border-left-color: #2c9b4a; background: #1e4a3a; }
+        .toast.error { border-left-color: #c94a4a; background: #4a2f2f; }
+        .toast.warning { border-left-color: #ffb347; background: #4a3f2f; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e2f4a;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 13px;
+            z-index: 9998;
+            animation: fadeInOut 2s;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #5a7b9c;
+            font-size: 12px;
+        }
+
+        .env-card {
+            background: linear-gradient(145deg, #1a2f42, #0f233a);
+            color: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .env-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #2d5a80;
+        }
+
+        .env-label {
+            width: 100px;
+            font-weight: 600;
+            color: #4f9eff;
+        }
+
+        .env-value {
+            flex: 1;
+            color: #cbe4ff;
+        }
+
+        .drop-zone {
+            border: 2px dashed #1a73e8;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            background: #f0f7ff;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .drop-zone.drag-over {
+            background: #e8f0fe;
+            border-color: #2c9b4a;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <h1>
+        📁 文件系统 API · 企业级完整演示
+        <small>FileSystemHandle · 文件/目录选择器 · OPFS · 权限管理</small>
+    </h1>
+    <div class="subtitle">
+        <span>所有文件系统访问接口 + 源私有文件系统(OPFS) + 拖拽集成 + 权限管理</span>
+    </div>
+
+    <!-- 选项卡导航 -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab1">📂 文件/目录选择</button>
+        <button class="tab-btn" data-tab="tab2">📝 读写操作</button>
+        <button class="tab-btn" data-tab="tab3">🔒 源私有文件系统</button>
+        <button class="tab-btn" data-tab="tab4">🔄 权限 & 拖拽</button>
+        <button class="tab-btn" data-tab="tab5">📊 工具 & 监控</button>
+    </div>
+
+    <!-- 选项卡内容容器 -->
+    <div class="tab-content">
+        <!-- 选项卡1：文件/目录选择 -->
+        <div class="tab-pane active" id="tab1">
+            <div class="panel-grid">
+                <!-- 文件选择器 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📄 文件选择器</h3>
+                        <span class="badge">showOpenFilePicker</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">打开文件</div>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="openSingleFile">打开单个文件</button>
+                            <button class="btn" id="openMultipleFiles">打开多个文件</button>
+                            <button class="btn" id="openImageFile">打开图片文件</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">保存文件</div>
+                        <div class="button-group">
+                            <button class="btn btn-success" id="saveFile">保存文件</button>
+                            <button class="btn" id="saveAsFile">另存为</button>
+                        </div>
+                    </div>
+
+                    <div class="file-info" id="fileInfo">未选择文件</div>
+                </div>
+
+                <!-- 目录选择器 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📁 目录选择器</h3>
+                        <span class="badge">showDirectoryPicker</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">选择目录</div>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="openDirectory">选择目录</button>
+                            <button class="btn" id="listDirectory">列出目录内容</button>
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="directoryList">
+                        <div class="file-list-item">未选择目录</div>
+                    </div>
+
+                    <div class="result-box" id="directoryResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡2：读写操作 -->
+        <div class="tab-pane" id="tab2">
+            <div class="panel-grid">
+                <!-- 读取操作 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📖 读取文件</h3>
+                        <span class="badge">getFile()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">读取方式</div>
+                        <div class="button-group">
+                            <button class="btn" id="readAsText">读取为文本</button>
+                            <button class="btn" id="readAsArrayBuffer">读取为ArrayBuffer</button>
+                            <button class="btn" id="readMetadata">读取元数据</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="readResult">读取结果</div>
+                </div>
+
+                <!-- 写入操作 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>✍️ 写入文件</h3>
+                        <span class="badge">createWritable()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">写入内容</div>
+                        <textarea id="writeContent" placeholder="要写入的内容">Hello, File System API!</textarea>
+                        <div class="button-group">
+                            <button class="btn btn-success" id="writeFile">写入文件</button>
+                            <button class="btn" id="appendFile">追加内容</button>
+                            <button class="btn" id="truncateFile">截断文件</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="writeResult">写入结果</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡3：源私有文件系统 -->
+        <div class="tab-pane" id="tab3">
+            <div class="panel-grid">
+                <!-- OPFS 基础操作 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔒 OPFS 基础</h3>
+                        <span class="badge">navigator.storage.getDirectory()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">文件操作</div>
+                        <div class="button-group">
+                            <button class="btn" id="createOpfsFile">创建文件</button>
+                            <button class="btn" id="readOpfsFile">读取文件</button>
+                            <button class="btn" id="writeOpfsFile">写入文件</button>
+                            <button class="btn" id="deleteOpfsFile">删除文件</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">目录操作</div>
+                        <div class="button-group">
+                            <button class="btn" id="createOpfsDir">创建目录</button>
+                            <button class="btn" id="listOpfsDir">列出目录</button>
+                            <button class="btn" id="removeOpfsDir">删除目录</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="opfsResult">OPFS操作结果</div>
+                </div>
+
+                <!-- OPFS 同步访问 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>⚡ 同步访问</h3>
+                        <span class="badge">createSyncAccessHandle()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">高性能读写 (Worker)</div>
+                        <div class="button-group">
+                            <button class="btn" id="syncWrite">同步写入</button>
+                            <button class="btn" id="syncRead">同步读取</button>
+                            <button class="btn" id="syncGetSize">获取大小</button>
+                            <button class="btn" id="syncTruncate">截断</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="syncResult">同步操作结果</div>
+                    <div class="note">⚠️ 同步API只能在Web Worker中使用，这里模拟异步版本</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡4：权限 & 拖拽 -->
+        <div class="tab-pane" id="tab4">
+            <div class="panel-grid">
+                <!-- 权限管理 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔐 权限管理</h3>
+                        <span class="badge">queryPermission/requestPermission</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">检查权限</div>
+                        <div class="button-group">
+                            <button class="btn" id="queryReadPermission">查询读取权限</button>
+                            <button class="btn" id="queryWritePermission">查询写入权限</button>
+                            <button class="btn" id="requestWritePermission">请求写入权限</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="permissionResult">权限状态</div>
+                </div>
+
+                <!-- 拖拽集成 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🎯 拖拽集成</h3>
+                        <span class="badge">DataTransferItem.getAsFileSystemHandle()</span>
+                    </div>
+
+                    <div class="drop-zone" id="dropZone">
+                        将文件或文件夹拖放到此处
+                    </div>
+
+                    <div class="file-list" id="dropList"></div>
+                    <div class="result-box" id="dropResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡5：工具 & 监控 -->
+        <div class="tab-pane" id="tab5">
+            <div class="panel-grid">
+                <!-- 存储估计 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 存储估计</h3>
+                        <span class="badge">navigator.storage.estimate()</span>
+                    </div>
+
+                    <div class="metrics-panel">
+                        <div class="metric-item">
+                            <div class="metric-value" id="usage">0</div>
+                            <div class="metric-label">已用(MB)</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="quota">0</div>
+                            <div class="metric-label">配额(MB)</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="usagePercent">0%</div>
+                            <div class="metric-label">使用率</div>
+                        </div>
+                    </div>
+
+                    <button class="btn" id="refreshEstimate">刷新估计</button>
+                </div>
+
+                <!-- 工具 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔧 工具</h3>
+                        <span class="badge">兼容性/重置</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">兼容性检测</div>
+                        <div class="env-card">
+                            <div class="env-row">
+                                <span class="env-label">FileSystem</span>
+                                <span class="env-value" id="fsSupport">检测中...</span>
+                            </div>
+                            <div class="env-row">
+                                <span class="env-label">OPFS</span>
+                                <span class="env-value" id="opfsSupport">检测中...</span>
+                            </div>
+                            <div class="env-row">
+                                <span class="env-label">同步句柄</span>
+                                <span class="env-value" id="syncSupport">检测中...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn" id="clearOpfs">清空OPFS</button>
+                        <button class="btn" id="resetAll">重置所有</button>
+                        <button class="btn" id="testCompat">重新检测</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        ⚡ 企业级文件系统API · 所有核心接口 + OPFS + 权限管理 · 需要安全上下文(HTTPS/localhost)
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // ==================== 企业级文件系统 API 完整实现 ====================
+
+    // --- 工具函数 ---
+    function showToast(msg, type = 'info') {
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // --- 全局变量 ---
+    let currentFileHandle = null;
+    let currentDirectoryHandle = null;
+    let opfsRoot = null;
+
+    // --- 初始化OPFS根目录 ---
+    async function getOpfsRoot() {
+        if (!opfsRoot && navigator.storage?.getDirectory) {
+            opfsRoot = await navigator.storage.getDirectory();
+        }
+        return opfsRoot;
+    }
+
+    // --- 兼容性检测 ---
+    function updateSupportInfo() {
+        const fsSupport = 'showOpenFilePicker' in window;
+        const opfsSupport = !!navigator.storage?.getDirectory;
+        const syncSupport = opfsSupport && 'createSyncAccessHandle' in
+            (FileSystemFileHandle.prototype || {});
+
+        document.getElementById('fsSupport').innerHTML = fsSupport ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        document.getElementById('opfsSupport').innerHTML = opfsSupport ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        document.getElementById('syncSupport').innerHTML = syncSupport ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#ffb347;">⚠️ 部分支持</span>';
+    }
+
+    // --- 更新存储估计 ---
+    async function updateStorageEstimate() {
+        if (navigator.storage?.estimate) {
+            const estimate = await navigator.storage.estimate();
+            const usage = estimate.usage || 0;
+            const quota = estimate.quota || 0;
+            document.getElementById('usage').textContent = (usage / (1024*1024)).toFixed(2);
+            document.getElementById('quota').textContent = (quota / (1024*1024)).toFixed(2);
+            document.getElementById('usagePercent').textContent =
+                quota ? ((usage / quota) * 100).toFixed(1) + '%' : '0%';
+        }
+    }
+
+    // --- 选项卡切换逻辑 ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const tabId = btn.dataset.tab;
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    // ========== 选项卡1：文件/目录选择 ==========
+
+    // 打开单个文件
+    document.getElementById('openSingleFile').addEventListener('click', async () => {
+        try {
+            if (!window.showOpenFilePicker) {
+                throw new Error('当前浏览器不支持 File System API');
+            }
+            const [handle] = await window.showOpenFilePicker();
+            currentFileHandle = handle;
+            const file = await handle.getFile();
+
+            document.getElementById('fileInfo').innerHTML = `
+                    <div class="file-info-row"><span class="file-info-label">名称</span><span class="file-info-value">${file.name}</span></div>
+                    <div class="file-info-row"><span class="file-info-label">类型</span><span class="file-info-value">${file.type || '未知'}</span></div>
+                    <div class="file-info-row"><span class="file-info-label">大小</span><span class="file-info-value">${formatBytes(file.size)}</span></div>
+                    <div class="file-info-row"><span class="file-info-label">最后修改</span><span class="file-info-value">${new Date(file.lastModified).toLocaleString()}</span></div>
+                `;
+            showToast('文件已选择', 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                showToast('选择失败: ' + err.message, 'error');
+            }
+        }
+    });
+
+    // 打开多个文件
+    document.getElementById('openMultipleFiles').addEventListener('click', async () => {
+        try {
+            const handles = await window.showOpenFilePicker({ multiple: true });
+            const files = await Promise.all(handles.map(h => h.getFile()));
+            document.getElementById('fileInfo').innerHTML = files.map(f =>
+                `<div>📄 ${f.name} (${formatBytes(f.size)})</div>`
+            ).join('');
+            showToast(`已选择 ${files.length} 个文件`, 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') showToast(err.message, 'error');
+        }
+    });
+
+    // 打开图片文件
+    document.getElementById('openImageFile').addEventListener('click', async () => {
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [{
+                    description: 'Images',
+                    accept: { 'image/*': ['.png', '.gif', '.jpeg', '.jpg'] }
+                }]
+            });
+            currentFileHandle = handle;
+            const file = await handle.getFile();
+            document.getElementById('fileInfo').innerHTML = `🖼️ ${file.name} (${formatBytes(file.size)})`;
+            showToast('图片已选择', 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') showToast(err.message, 'error');
+        }
+    });
+
+    // 保存文件
+    document.getElementById('saveFile').addEventListener('click', async () => {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: 'example.txt',
+                types: [{
+                    description: 'Text Files',
+                    accept: { 'text/plain': ['.txt'] }
+                }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write('Hello, File System API!');
+            await writable.close();
+            currentFileHandle = handle;
+            showToast('文件保存成功', 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') showToast(err.message, 'error');
+        }
+    });
+
+    // 另存为
+    document.getElementById('saveAsFile').addEventListener('click', async () => {
+        try {
+            const handle = await window.showSaveFilePicker();
+            const writable = await handle.createWritable();
+            await writable.write('另存为示例内容');
+            await writable.close();
+            showToast('另存为成功', 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') showToast(err.message, 'error');
+        }
+    });
+
+    // 选择目录
+    document.getElementById('openDirectory').addEventListener('click', async () => {
+        try {
+            const handle = await window.showDirectoryPicker();
+            currentDirectoryHandle = handle;
+            document.getElementById('directoryResult').innerHTML = `📁 已选择: ${handle.name}`;
+            showToast('目录已选择', 'success');
+        } catch (err) {
+            if (err.name !== 'AbortError') showToast(err.message, 'error');
+        }
+    });
+
+    // 列出目录内容
+    document.getElementById('listDirectory').addEventListener('click', async () => {
+        if (!currentDirectoryHandle) {
+            showToast('请先选择目录', 'warning');
+            return;
+        }
+
+        try {
+            const entries = [];
+            for await (const entry of currentDirectoryHandle.values()) {
+                entries.push({
+                    name: entry.name,
+                    kind: entry.kind,
+                    size: entry.kind === 'file' ? await entry.getFile().then(f => f.size) : 0
+                });
+            }
+
+            const list = document.getElementById('directoryList');
+            list.innerHTML = entries.map(e =>
+                `<div class="file-list-item">
+                        <div class="file-icon">${e.kind === 'file' ? '📄' : '📁'}</div>
+                        <div>${e.name}</div>
+                        <div style="margin-left:auto; font-size:10px;">${e.kind === 'file' ? formatBytes(e.size) : ''}</div>
+                    </div>`
+            ).join('');
+
+            document.getElementById('directoryResult').innerHTML = `共 ${entries.length} 个条目`;
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // ========== 选项卡2：读写操作 ==========
+
+    // 读取为文本
+    document.getElementById('readAsText').addEventListener('click', async () => {
+        if (!currentFileHandle) {
+            showToast('请先选择文件', 'warning');
+            return;
+        }
+        try {
+            const file = await currentFileHandle.getFile();
+            const text = await file.text();
+            document.getElementById('readResult').innerHTML = text.substring(0, 500) +
+                (text.length > 500 ? '...' : '');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 读取为ArrayBuffer
+    document.getElementById('readAsArrayBuffer').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const file = await currentFileHandle.getFile();
+            const buffer = await file.arrayBuffer();
+            document.getElementById('readResult').innerHTML =
+                `ArrayBuffer: ${buffer.byteLength} 字节，前16字节: ` +
+                Array.from(new Uint8Array(buffer.slice(0, 16))).join(' ');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 读取元数据
+    document.getElementById('readMetadata').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const file = await currentFileHandle.getFile();
+            document.getElementById('readResult').innerHTML = JSON.stringify({
+                name: file.name,
+                size: formatBytes(file.size),
+                type: file.type || 'unknown',
+                lastModified: new Date(file.lastModified).toLocaleString(),
+                lastModifiedTimestamp: file.lastModified
+            }, null, 2);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 写入文件
+    document.getElementById('writeFile').addEventListener('click', async () => {
+        if (!currentFileHandle) {
+            showToast('请先选择文件', 'warning');
+            return;
+        }
+        try {
+            const writable = await currentFileHandle.createWritable();
+            await writable.write(document.getElementById('writeContent').value);
+            await writable.close();
+            document.getElementById('writeResult').innerHTML = '✅ 写入成功';
+            showToast('写入成功', 'success');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 追加内容
+    document.getElementById('appendFile').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const writable = await currentFileHandle.createWritable({ keepExistingData: true });
+            await writable.write({ type: 'seek', position: (await currentFileHandle.getFile()).size });
+            await writable.write(document.getElementById('writeContent').value);
+            await writable.close();
+            document.getElementById('writeResult').innerHTML = '✅ 追加成功';
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 截断文件
+    document.getElementById('truncateFile').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const writable = await currentFileHandle.createWritable({ keepExistingData: true });
+            await writable.write({ type: 'truncate', size: 0 });
+            await writable.close();
+            document.getElementById('writeResult').innerHTML = '✅ 文件已清空';
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // ========== 选项卡3：OPFS操作 ==========
+
+    // 创建文件
+    document.getElementById('createOpfsFile').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const handle = await root.getFileHandle('demo.txt', { create: true });
+            document.getElementById('opfsResult').innerHTML = `✅ 已创建文件: ${handle.name}`;
+            showToast('文件创建成功', 'success');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 读取文件
+    document.getElementById('readOpfsFile').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const handle = await root.getFileHandle('demo.txt');
+            const file = await handle.getFile();
+            const text = await file.text();
+            document.getElementById('opfsResult').innerHTML = `📄 文件内容: ${text || '(空)'}`;
+        } catch (err) {
+            if (err.name === 'NotFoundError') {
+                document.getElementById('opfsResult').innerHTML = '文件不存在，请先创建';
+            } else {
+                showToast(err.message, 'error');
+            }
+        }
+    });
+
+    // 写入文件
+    document.getElementById('writeOpfsFile').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const handle = await root.getFileHandle('demo.txt', { create: true });
+            const writable = await handle.createWritable();
+            await writable.write('OPFS 示例内容 ' + new Date().toLocaleString());
+            await writable.close();
+            document.getElementById('opfsResult').innerHTML = '✅ 写入成功';
+            showToast('写入成功', 'success');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 删除文件
+    document.getElementById('deleteOpfsFile').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            await root.removeEntry('demo.txt');
+            document.getElementById('opfsResult').innerHTML = '✅ 文件已删除';
+            showToast('文件已删除', 'success');
+        } catch (err) {
+            if (err.name === 'NotFoundError') {
+                document.getElementById('opfsResult').innerHTML = '文件不存在';
+            } else {
+                showToast(err.message, 'error');
+            }
+        }
+    });
+
+    // 创建目录
+    document.getElementById('createOpfsDir').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const dir = await root.getDirectoryHandle('demo-dir', { create: true });
+            document.getElementById('opfsResult').innerHTML = `✅ 已创建目录: ${dir.name}`;
+            showToast('目录创建成功', 'success');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 列出目录
+    document.getElementById('listOpfsDir').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const entries = [];
+            for await (const [name, handle] of root.entries()) {
+                entries.push(`${name} (${handle.kind})`);
+            }
+            document.getElementById('opfsResult').innerHTML = entries.join('\n') || '(空目录)';
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 删除目录
+    document.getElementById('removeOpfsDir').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            await root.removeEntry('demo-dir', { recursive: true });
+            document.getElementById('opfsResult').innerHTML = '✅ 目录已删除';
+            showToast('目录已删除', 'success');
+        } catch (err) {
+            if (err.name !== 'NotFoundError') {
+                showToast(err.message, 'error');
+            }
+        }
+    });
+
+    // 同步写入 (模拟)
+    document.getElementById('syncWrite').addEventListener('click', async () => {
+        try {
+            const root = await getOpfsRoot();
+            const handle = await root.getFileHandle('sync.txt', { create: true });
+
+            if ('createSyncAccessHandle' in handle) {
+                const accessHandle = await handle.createSyncAccessHandle();
+                const encoder = new TextEncoder();
+                const content = encoder.encode('同步写入示例');
+                accessHandle.write(content);
+                accessHandle.flush();
+                accessHandle.close();
+                document.getElementById('syncResult').innerHTML = '✅ 同步写入成功';
+            } else {
+                // 降级方案
+                const writable = await handle.createWritable();
+                await writable.write('同步写入示例 (降级)');
+                await writable.close();
+                document.getElementById('syncResult').innerHTML = '✅ 写入成功 (降级方案)';
+            }
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // ========== 选项卡4：权限 & 拖拽 ==========
+
+    // 查询读取权限
+    document.getElementById('queryReadPermission').addEventListener('click', async () => {
+        if (!currentFileHandle) {
+            showToast('请先选择文件', 'warning');
+            return;
+        }
+        try {
+            const status = await currentFileHandle.queryPermission({ mode: 'read' });
+            document.getElementById('permissionResult').innerHTML = `读取权限: ${status}`;
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 查询写入权限
+    document.getElementById('queryWritePermission').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const status = await currentFileHandle.queryPermission({ mode: 'readwrite' });
+            document.getElementById('permissionResult').innerHTML = `写入权限: ${status}`;
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 请求写入权限
+    document.getElementById('requestWritePermission').addEventListener('click', async () => {
+        if (!currentFileHandle) return showToast('请先选择文件', 'warning');
+        try {
+            const status = await currentFileHandle.requestPermission({ mode: 'readwrite' });
+            document.getElementById('permissionResult').innerHTML = `权限请求结果: ${status}`;
+            showToast(`权限状态: ${status}`, 'info');
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    // 拖拽集成
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        const items = Array.from(e.dataTransfer.items);
+        const results = [];
+
+        for (const item of items) {
+            if (item.kind === 'file') {
+                try {
+                    const handle = await item.getAsFileSystemHandle();
+                    if (handle) {
+                        if (handle.kind === 'file') {
+                            const file = await handle.getFile();
+                            results.push(`📄 ${file.name} (${formatBytes(file.size)})`);
+                        } else {
+                            results.push(`📁 ${handle.name}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('处理拖拽项失败:', err);
+                }
+            }
+        }
+
+        document.getElementById('dropList').innerHTML = results.map(r =>
+            `<div class="file-list-item">${r}</div>`
+        ).join('');
+        document.getElementById('dropResult').innerHTML = `共处理 ${results.length} 个项目`;
+    });
+
+    // ========== 选项卡5：工具 ==========
+
+    document.getElementById('refreshEstimate').addEventListener('click', updateStorageEstimate);
+
+    document.getElementById('clearOpfs').addEventListener('click', async () => {
+        if (confirm('确定清空OPFS吗？')) {
+            try {
+                const root = await getOpfsRoot();
+                for await (const [name] of root.entries()) {
+                    await root.removeEntry(name, { recursive: true });
+                }
+                showToast('OPFS已清空', 'success');
+                updateStorageEstimate();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+    });
+
+    document.getElementById('resetAll').addEventListener('click', () => {
+        if (confirm('确定重置所有状态吗？')) {
+            currentFileHandle = null;
+            currentDirectoryHandle = null;
+            document.getElementById('fileInfo').innerHTML = '未选择文件';
+            document.getElementById('directoryList').innerHTML = '<div class="file-list-item">未选择目录</div>';
+            document.getElementById('readResult').innerHTML = '读取结果';
+            document.getElementById('writeResult').innerHTML = '写入结果';
+            document.getElementById('opfsResult').innerHTML = 'OPFS操作结果';
+            document.getElementById('syncResult').innerHTML = '同步操作结果';
+            document.getElementById('permissionResult').innerHTML = '权限状态';
+            document.getElementById('dropList').innerHTML = '';
+            document.getElementById('dropResult').innerHTML = '';
+            showToast('状态已重置', 'info');
+        }
+    });
+
+    document.getElementById('testCompat').addEventListener('click', updateSupportInfo);
+
+    // --- 初始化 ---
+    updateSupportInfo();
+    updateStorageEstimate();
+    showToast('🚀 文件系统API演示已启动', 'success');
+</script>
+</body>
+</html>

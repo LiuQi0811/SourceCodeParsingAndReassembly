@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Playback API Pro - 企业级远程回放平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #f0fdf4;
+            --primary-200: #bbf7d0;
+            --primary-500: #22c55e;
+            --primary-600: #16a34a;
+            --primary-700: #15803d;
+            --primary-800: #166534;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #15803d 0%, #166534 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #166534 0%, #14532d 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(34, 197, 94, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.12rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.18rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.12rem 0.18rem; border-radius: var(--radius-lg); margin-bottom: 0.08rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.04rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.05rem; }
+        .header-title h1 { font-size: 0.35rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.5rem; } }
+        .header-icon { width: 0.55rem; height: 0.55rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.25rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.2rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.04rem; }
+        .header-status { display: flex; align-items: center; gap: 0.02rem; background: rgba(255, 255, 255, 0.1); padding: 0.02rem 0.05rem; border-radius: 99px; font-size: 0.16rem; }
+        .status-dot { width: 0.05rem; height: 0.05rem; border-radius: 50%; background: var(--gray-500); }
+        .status-dot.connected { background: var(--success-500); }
+        .status-dot.connecting { background: var(--warning-500); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.02rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.25rem; height: 0.25rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tab-btn { flex: 1; min-width: 16px; padding: 0.04rem 0.02rem; background: transparent; border: none; cursor: pointer; font-size: 0.16rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.01rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 22px; font-size: 0.2rem; padding: 0.05rem 0.1rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.2rem; height: 0.2rem; }
+        .tab-content { display: none; padding: 0.05rem; animation: fadeIn 0.1s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.1rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.06rem; margin-bottom: 0.05rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.03rem; padding-bottom: 0.02rem; border-bottom: 1px solid var(--border-color); }
+        .card-title { font-size: 0.2rem; font-weight: 600; color: var(--text-primary); }
+        .card-badge { font-size: 0.14rem; padding: 0.01rem 0.03rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.03rem; margin-bottom: 0.05rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.04rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.04rem; text-align: center; }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(34, 197, 94, 0.2); }
+        .stat-value { font-size: 0.25rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.14rem; color: var(--text-muted); text-transform: uppercase; }
+
+        /* Remote Display */
+        .remote-display { display: flex; align-items: center; justify-content: center; gap: 0.1rem; padding: 0.1rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.05rem; border: 1px solid var(--border-color); }
+        .remote-icon { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; }
+        .remote-icon svg { width: 0.3rem; height: 0.3rem; color: white; }
+        .remote-info { text-align: left; }
+        .remote-status { font-size: 0.22rem; font-weight: 700; color: var(--text-primary); }
+        .remote-desc { font-size: 0.16rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.01rem; padding: 0.02rem 0.05rem; border-radius: var(--radius); font-size: 0.16rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-danger { background: var(--error-500); color: white; }
+        .btn-sm { padding: 0.01rem 0.03rem; font-size: 0.14rem; }
+        .btn-lg { padding: 0.04rem 0.08rem; font-size: 0.18rem; }
+
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.03rem; margin-bottom: 0.05rem; }
+
+        /* Video Player */
+        .video-container { background: var(--gray-800); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.05rem; }
+        .video-placeholder { aspect-ratio: 16/9; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; gap: 0.06rem; }
+        .video-placeholder svg { width: 0.8rem; height: 0.8rem; opacity: 0.5; }
+        .video-placeholder span { font-size: 0.18rem; opacity: 0.7; }
+
+        /* Controls */
+        .controls-bar { display: flex; align-items: center; gap: 0.05rem; padding: 0.05rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.05rem; }
+        .control-btn { width: 0.32rem; height: 0.32rem; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all var(--transition); }
+        .control-btn:hover { background: var(--primary-50); border-color: var(--primary-500); }
+        .control-btn svg { width: 0.16rem; height: 0.16rem; color: var(--text-primary); }
+        .progress-bar { flex: 1; height: 0.05rem; background: var(--border-color); border-radius: 99px; cursor: pointer; }
+        .progress-fill { height: 100%; background: var(--primary-500); border-radius: 99px; width: 0%; transition: width 0.1s; }
+        .time-display { font-size: 0.14rem; color: var(--text-muted); font-family: monospace; min-width: 0.5rem; text-align: center; }
+
+        /* Device List */
+        .device-list { display: flex; flex-direction: column; gap: 0.02rem; }
+        .device-item { display: flex; align-items: center; gap: 0.05rem; padding: 0.05rem 0.06rem; background: var(--bg-tertiary); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); border: 1px solid transparent; }
+        .device-item:hover { background: var(--primary-50); border-color: var(--primary-200); }
+        .device-item.active { background: var(--primary-50); border-color: var(--primary-500); }
+        .device-icon { width: 0.28rem; height: 0.28rem; background: var(--card-bg); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.14rem; }
+        .device-name { flex: 1; font-size: 0.16rem; font-weight: 500; color: var(--text-primary); }
+        .device-status { font-size: 0.12rem; color: var(--text-muted); }
+
+        /* Connection Status */
+        .connection-card { display: flex; align-items: center; gap: 0.05rem; padding: 0.05rem 0.08rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.03rem; }
+        .connection-icon { width: 0.28rem; height: 0.28rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.14rem; }
+        .connection-icon.connected { background: var(--success-50); color: var(--success-500); }
+        .connection-icon.disconnected { background: var(--error-50); color: var(--error-500); }
+        .connection-icon.connecting { background: var(--warning-50); color: var(--warning-500); }
+        .connection-text { flex: 1; }
+        .connection-title { font-size: 0.16rem; font-weight: 600; color: var(--text-primary); }
+        .connection-desc { font-size: 0.12rem; color: var(--text-muted); }
+
+        /* Event Log */
+        .event-log { max-height: 50px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.12rem; }
+        .log-item { padding: 0.02rem 0.03rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.02rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-event { font-weight: 600; color: var(--primary-600); }
+        .log-detail { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.05rem; border-radius: var(--radius); font-family: monospace; font-size: 0.14rem; overflow-x: auto; line-height: 1.4; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.16rem; }
+        .api-table th, .api-table td { padding: 0.02rem 0.03rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); font-size: 0.14rem; }
+        .api-status { display: inline-flex; padding: 0.01rem 0.02rem; border-radius: 99px; font-size: 0.12rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.02rem; border-radius: 2px; font-family: monospace; font-size: 0.14em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.08rem; right: 0.08rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.02rem; max-width: calc(100vw - 0.16rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.1rem; right: 0.1rem; max-width: 70px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.03rem; padding: 0.04rem 0.05rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: toastIn 0.1s ease; border: 1px solid var(--border-color); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.16rem; height: 0.16rem; flex-shrink: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.16rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">📺</div>
+                        <h1>Remote Playback API</h1>
+                    </div>
+                    <p class="header-subtitle">远程回放 | 投屏到电视、音响等设备</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot" id="statusDot"></span><span id="statusText">未连接</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="devices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>设备</span></button>
+                <button class="tab-btn" data-tab="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>事件</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="remote-display">
+                    <div class="remote-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                    <div class="remote-info"><div class="remote-status">Remote Playback API</div><div class="remote-desc">将媒体投屏到远程设备播放</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="deviceAvailable">--</div><div class="stat-label">设备可用</div></div>
+                    <div class="stat-card"><div class="stat-value" id="connectionState">未连接</div><div class="stat-label">连接状态</div></div>
+                    <div class="stat-card"><div class="stat-value" id="playbackTime">0:00</div><div class="stat-label">播放时间</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">媒体播放器</h3></div>
+                    <div class="video-container">
+                        <div class="video-placeholder" id="videoPlaceholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            <span id="videoStatus">点击播放按钮开始</span>
+                        </div>
+                    </div>
+                    <div class="controls-bar">
+                        <button class="control-btn" id="playBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                        <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+                        <span class="time-display" id="timeDisplay">0:00 / 0:10</span>
+                        <button class="control-btn" id="remoteBtn" title="投屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">连接状态</h3></div>
+                    <div class="connection-card">
+                        <div class="connection-icon disconnected" id="connIcon">○</div>
+                        <div class="connection-text">
+                            <div class="connection-title" id="connTitle">未连接</div>
+                            <div class="connection-desc" id="connDesc">点击投屏按钮选择设备</div>
+                        </div>
+                    </div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" id="promptBtn">选择设备</button>
+                        <button class="btn btn-danger btn-lg" id="disconnectBtn" disabled>断开连接</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Devices Tab -->
+            <div class="tab-content" id="tab-devices">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">可用设备</h3><span class="card-badge badge-info" id="deviceCount">0 台</span></div>
+                    <div class="device-list" id="deviceList"><div style="padding: 0.1rem; text-align: center; color: var(--text-muted); font-size: 0.14rem;">正在搜索...</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">设备类型</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>类型</th><th>说明</th></tr></thead><tbody>
+                            <tr><td>📺 智能电视</td><td>DLNA/AirPlay/Chromecast</td></tr>
+                            <tr><td>🔊 音响设备</td><td>蓝牙/WiFi 音频</td></tr>
+                            <tr><td>🎮 游戏主机</td><td>PlayStation/Xbox</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-content" id="tab-events">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件日志</h3><button class="btn btn-secondary btn-sm" id="clearLogBtn">清除</button></div>
+                    <div class="event-log" id="eventLog"><div style="padding: 0.05rem; text-align: center; color: var(--text-muted); font-size: 0.12rem;">等待事件...</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件说明</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>事件</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>connecting</code></td><td>正在连接</td></tr>
+                            <tr><td><code>connect</code></td><td>已连接</td></tr>
+                            <tr><td><code>disconnect</code></td><td>已断开</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshApiBtn">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>watchAvailability()</code></td><td>监听可用性</td></tr>
+                            <tr><td><code>prompt()</code></td><td>显示选择器</td></tr>
+                            <tr><td><code>cancelWatchAvailability()</code></td><td>取消监听</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="comment">// 监听设备可用性</span>
+video.remotePlayback.<span class="function">watchAvailability</span>(available => {
+  console.<span class="function">log</span>(available ? <span class="string">'有设备'</span> : <span class="string">'无设备'</span>);
+});
+
+<span class="comment">// 显示设备选择器</span>
+<span class="keyword">await</span> video.remotePlayback.<span class="function">prompt</span>();
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody>
+                            <tr><td>Chrome</td><td>66+</td></tr>
+                            <tr><td>Edge</td><td>79+</td></tr>
+                            <tr><td>Safari</td><td>13+</td></tr>
+                            <tr><td>Firefox</td><td>不支持</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = { theme: 'light', playing: false, connected: false, time: 0, duration: 10, devices: [
+            { id: 1, name: '客厅电视', type: 'tv', status: '在线' },
+            { id: 2, name: '卧室电视', type: 'tv', status: '在线' },
+            { id: 3, name: '蓝牙音箱', type: 'speaker', status: '离线' }
+        ]};
+        const hasRemote = 'remotePlayback' in HTMLVideoElement.prototype;
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('remote-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('remote-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toasts'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-title">${title}</div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'toastIn 0.1s ease reverse'; setTimeout(() => t.remove(), 100); }, 500);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Remote Playback ====================
+        const R = {
+            init() {
+                document.getElementById('apiSupport').textContent = hasRemote ? '支持' : '不支持';
+                document.getElementById('apiSupport').style.color = hasRemote ? 'var(--success-500)' : 'var(--error-500)';
+                this.renderDevices();
+                this.bind();
+            },
+
+            renderDevices() {
+                const list = document.getElementById('deviceList');
+                list.innerHTML = S.devices.map(d => `<div class="device-item" data-id="${d.id}"><div class="device-icon">${d.type === 'tv' ? '📺' : '🔊'}</div><div class="device-name">${d.name}</div><div class="device-status">${d.status}</div></div>`).join('');
+                document.getElementById('deviceCount').textContent = S.devices.length + ' 台';
+                document.getElementById('deviceAvailable').textContent = S.devices.some(d => d.status === '在线') ? '是' : '否';
+            },
+
+            togglePlay() {
+                S.playing = !S.playing;
+                document.getElementById('playBtn').innerHTML = S.playing 
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+                document.getElementById('videoStatus').textContent = S.playing ? '正在播放...' : '已暂停';
+                if (S.playing) this.startProgress();
+                this.log(S.playing ? 'play' : 'pause', S.playing ? '开始播放' : '已暂停');
+            },
+
+            startProgress() {
+                const timer = setInterval(() => {
+                    if (!S.playing) { clearInterval(timer); return; }
+                    S.time += 0.1;
+                    if (S.time >= S.duration) { S.time = 0; S.playing = false; clearInterval(timer); this.log('ended', '播放结束'); }
+                    this.updateProgress();
+                }, 100);
+            },
+
+            updateProgress() {
+                document.getElementById('progressFill').style.width = (S.time / S.duration * 100) + '%';
+                document.getElementById('timeDisplay').textContent = this.fmt(S.time) + ' / ' + this.fmt(S.duration);
+                document.getElementById('playbackTime').textContent = this.fmt(S.time);
+            },
+
+            fmt(s) { const m = Math.floor(s / 60), sec = Math.floor(s % 60); return m + ':' + (sec < 10 ? '0' : '') + sec; },
+
+            async prompt() {
+                if (!hasRemote) { toast('error', '浏览器不支持'); return; }
+                this.log('prompt', '打开选择器');
+                this.updateConn('connecting', '连接中...', '正在连接');
+                document.getElementById('statusDot').classList.add('connecting');
+                await new Promise(r => setTimeout(r, 400));
+                S.connected = true;
+                this.updateConn('connected', '已连接', '客厅电视');
+                document.getElementById('statusDot').classList.remove('connecting');
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = '已连接';
+                document.getElementById('connectionState').textContent = '已连接';
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('promptBtn').disabled = true;
+                this.log('connect', '已连接');
+                toast('success', '已连接');
+            },
+
+            disconnect() {
+                S.connected = false;
+                this.updateConn('disconnected', '未连接', '点击投屏按钮选择设备');
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = '未连接';
+                document.getElementById('connectionState').textContent = '未连接';
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('promptBtn').disabled = false;
+                this.log('disconnect', '已断开');
+                toast('info', '已断开');
+            },
+
+            updateConn(state, title, desc) {
+                const icon = document.getElementById('connIcon');
+                icon.className = 'connection-icon ' + state;
+                icon.textContent = state === 'connected' ? '✓' : state === 'connecting' ? '⏳' : '○';
+                document.getElementById('connTitle').textContent = title;
+                document.getElementById('connDesc').textContent = desc;
+            },
+
+            log(event, detail) {
+                const log = document.getElementById('eventLog');
+                const p = log.querySelector('div[style]');
+                if (p) p.remove();
+                const t = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-time">${t}</span><span class="log-event">${event}</span><span class="log-detail">${detail}</span></div>`);
+                while (log.children.length > 5) log.lastChild.remove();
+            },
+
+            bind() {
+                document.getElementById('playBtn').onclick = () => this.togglePlay();
+                document.getElementById('remoteBtn').onclick = () => this.prompt();
+                document.getElementById('promptBtn').onclick = () => this.prompt();
+                document.getElementById('disconnectBtn').onclick = () => this.disconnect();
+                document.getElementById('clearLogBtn').onclick = () => { document.getElementById('eventLog').innerHTML = '<div style="padding: 0.05rem; text-align: center; color: var(--text-muted); font-size: 0.12rem;">等待事件...</div>'; };
+                document.getElementById('progressBar').onclick = (e) => {
+                    const rect = e.target.getBoundingClientRect();
+                    S.time = ((e.clientX - rect.left) / rect.width) * S.duration;
+                    this.updateProgress();
+                };
+            }
+        };
+
+        // ==================== API ====================
+        const A = {
+            render() {
+                const apis = [
+                    { name: 'remotePlayback', type: '属性', desc: '远程回放对象', ok: hasRemote },
+                    { name: 'watchAvailability()', type: '方法', desc: '监听可用性', ok: hasRemote },
+                    { name: 'prompt()', type: '方法', desc: '显示选择器', ok: hasRemote },
+                    { name: 'state', type: '属性', desc: '连接状态', ok: hasRemote },
+                ];
+                document.getElementById('apiTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); }
+            if (e.key === ' ' && !e.ctrlKey) { e.preventDefault(); R.togglePlay(); }
+        });
+
+        document.getElementById('themeToggle').onclick = () => T.toggle();
+        document.getElementById('refreshApiBtn').onclick = () => { A.render(); toast('success', '已刷新'); };
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); R.init(); A.render(); });
+    </script>
+</body>
+</html>

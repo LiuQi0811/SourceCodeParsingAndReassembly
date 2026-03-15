@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentation API Pro - 企业级演示平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #fdf4ff;
+            --primary-200: #f5d0fe;
+            --primary-500: #d946ef;
+            --primary-600: #c026d3;
+            --primary-700: #a21caf;
+            --primary-800: #86198f;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #a21caf 0%, #86198f 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #86198f 0%, #701a75 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(217, 70, 239, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; transition: background-color var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.18rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.25rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.22rem 0.28rem; border-radius: var(--radius-lg); margin-bottom: 0.15rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.08rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.1rem; }
+        .header-title h1 { font-size: 0.5rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.65rem; } }
+        .header-icon { width: 0.85rem; height: 0.85rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.4rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.28rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.08rem; }
+        .header-status { display: flex; align-items: center; gap: 0.04rem; background: rgba(255, 255, 255, 0.1); padding: 0.04rem 0.1rem; border-radius: 99px; font-size: 0.26rem; }
+        .status-dot { width: 0.1rem; height: 0.1rem; border-radius: 50%; background: var(--success-500); }
+        .status-dot.active { background: var(--warning-500); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.04rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.4rem; height: 0.4rem; }
+
+        /* Shortcuts */
+        .shortcuts-panel { position: fixed; bottom: 0.15rem; left: 0.15rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.04rem 0.08rem; font-size: 0.2rem; color: var(--text-muted); box-shadow: var(--shadow-lg); z-index: 100; display: none; }
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.1rem; } }
+        .shortcuts-panel kbd { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 2px; padding: 0.01rem 0.02rem; font-family: monospace; font-size: 0.18rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+        .tab-btn { flex: 1; min-width: 22px; padding: 0.08rem 0.04rem; background: transparent; border: none; cursor: pointer; font-size: 0.22rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.02rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 28px; font-size: 0.28rem; padding: 0.1rem 0.18rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.32rem; height: 0.32rem; }
+        .tab-content { display: none; padding: 0.1rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.18rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.12rem; margin-bottom: 0.1rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; padding-bottom: 0.05rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.03rem; }
+        .card-title { font-size: 0.32rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.04rem; }
+        .card-badge { font-size: 0.2rem; padding: 0.02rem 0.05rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.05rem; margin-bottom: 0.1rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.06rem; } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.08rem; text-align: center; transition: all var(--transition); }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(217, 70, 239, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(217, 70, 239, 0.2); }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.4rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.2rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.01rem; }
+
+        /* Presentation Display */
+        .presentation-display { display: flex; align-items: center; justify-content: center; gap: 0.18rem; padding: 0.2rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.1rem; border: 1px solid var(--border-color); }
+        .presentation-icon { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 4px rgba(217, 70, 239, 0.3); }
+        .presentation-icon svg { width: 0.55rem; height: 0.55rem; color: white; }
+        .presentation-info { text-align: left; }
+        .presentation-status { font-size: 0.35rem; font-weight: 700; color: var(--text-primary); }
+        .presentation-desc { font-size: 0.25rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.02rem; padding: 0.05rem 0.1rem; border-radius: var(--radius); font-size: 0.22rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn svg { width: 0.22rem; height: 0.22rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 0.03rem 0.06rem; font-size: 0.2rem; }
+        .btn-lg { padding: 0.08rem 0.16rem; font-size: 0.26rem; }
+
+        /* Demo Buttons */
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.08rem; margin-bottom: 0.1rem; }
+
+        /* Slide Preview */
+        .slide-preview { background: var(--gray-800); border-radius: var(--radius); padding: 0.15rem; margin-bottom: 0.1rem; min-height: 100px; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.3rem; text-align: center; position: relative; overflow: hidden; }
+        .slide-preview::before { content: ''; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.05) 50%, transparent 60%); }
+        .slide-number { position: absolute; bottom: 0.08rem; right: 0.08rem; background: rgba(0,0,0,0.5); padding: 0.03rem 0.08rem; border-radius: 2px; font-size: 0.18rem; }
+
+        /* Slide Thumbnails */
+        .slide-thumbnails { display: flex; gap: 0.06rem; overflow-x: auto; padding: 0.06rem 0; }
+        .slide-thumb { width: 50px; height: 35px; background: var(--bg-tertiary); border: 2px solid var(--border-color); border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.18rem; color: var(--text-muted); transition: all var(--transition); flex-shrink: 0; }
+        .slide-thumb:hover { border-color: var(--primary-500); }
+        .slide-thumb.active { border-color: var(--primary-600); background: var(--primary-50); color: var(--primary-600); }
+
+        /* Connection Status */
+        .connection-status { display: flex; align-items: center; gap: 0.06rem; padding: 0.08rem 0.12rem; background: var(--bg-tertiary); border-radius: var(--radius); margin-bottom: 0.1rem; }
+        .connection-dot { width: 0.18rem; height: 0.18rem; border-radius: 50%; background: var(--gray-500); }
+        .connection-dot.connected { background: var(--success-500); }
+        .connection-dot.connecting { background: var(--warning-500); animation: pulse 1s infinite; }
+        .connection-dot.disconnected { background: var(--error-500); }
+        .connection-text { font-size: 0.22rem; color: var(--text-secondary); }
+
+        /* Event Log */
+        .event-log { max-height: 80px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.18rem; }
+        .log-item { padding: 0.03rem 0.06rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.04rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-event { font-weight: 600; color: var(--primary-600); }
+        .log-detail { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.1rem; border-radius: var(--radius); font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2rem; overflow-x: auto; margin: 0.05rem 0; line-height: 1.5; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.22rem; }
+        .api-table th, .api-table td { padding: 0.05rem 0.06rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); white-space: nowrap; font-size: 0.2rem; }
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+        .api-status { display: inline-flex; padding: 0.01rem 0.05rem; border-radius: 99px; font-size: 0.18rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem 0.03rem; border-radius: 2px; font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; font-size: 0.2em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.15rem; right: 0.15rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.04rem; max-width: calc(100vw - 0.3rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.18rem; right: 0.18rem; max-width: 100px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.06rem; padding: 0.08rem 0.1rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: slideIn 0.2s ease; border: 1px solid var(--border-color); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-warning { border-left: 2px solid var(--warning-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.3rem; height: 0.3rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.26rem; }
+
+        /* Info List */
+        .info-list { display: flex; flex-direction: column; gap: 0.03rem; }
+        .info-item { display: flex; justify-content: space-between; align-items: center; padding: 0.04rem 0.06rem; background: var(--bg-tertiary); border-radius: var(--radius); font-size: 0.22rem; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.2rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">🖥️</div>
+                        <h1>Presentation API</h1>
+                    </div>
+                    <p class="header-subtitle">演示模式 | 控制外部显示器、投影仪</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot" id="statusDot"></span><span id="statusText">未连接</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>←</kbd><kbd>→</kbd> 翻页</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="slides"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><span>幻灯片</span></button>
+                <button class="tab-btn" data-tab="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>事件</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="presentation-display">
+                    <div class="presentation-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                    <div class="presentation-info"><div class="presentation-status">Presentation API</div><div class="presentation-desc">控制外部显示器和投影仪</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="connectionStatus">未连接</div><div class="stat-label">连接状态</div></div>
+                    <div class="stat-card"><div class="stat-value" id="currentSlide">1</div><div class="stat-label">当前页</div></div>
+                    <div class="stat-card"><div class="stat-value" id="totalSlides">5</div><div class="stat-label">总页数</div></div>
+                </div>
+
+                <div class="connection-status">
+                    <div class="connection-dot disconnected" id="connectionDot"></div>
+                    <span class="connection-text" id="connectionText">未连接到演示显示器</span>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">演示控制</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" id="startBtn">开始演示</button>
+                        <button class="btn btn-secondary btn-lg" id="stopBtn" disabled>停止演示</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">幻灯片预览</h3></div>
+                    <div class="slide-preview"><span id="slideContent">欢迎使用 Presentation API</span><span class="slide-number" id="slideNumber">1 / 5</span></div>
+                    <div class="slide-thumbnails" id="thumbs"></div>
+                    <div class="demo-buttons" style="justify-content: center;">
+                        <button class="btn btn-secondary" id="prevBtn">上一页</button>
+                        <button class="btn btn-secondary" id="nextBtn">下一页</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">演示信息</h3></div>
+                    <div class="info-list" id="info">
+                        <div class="info-item"><span class="info-label">display</span><span class="info-value">internal</span></div>
+                        <div class="info-item"><span class="info-label">状态</span><span class="info-value">未连接</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slides Tab -->
+            <div class="tab-content" id="tab-slides">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">幻灯片列表</h3></div>
+                    <div class="info-list" id="slidesList"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">快捷操作</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-secondary" id="firstBtn">首页</button>
+                        <button class="btn btn-secondary" id="lastBtn">末页</button>
+                        <button class="btn btn-secondary" id="gotoBtn">跳转</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-content" id="tab-events">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件日志</h3><button class="btn btn-secondary btn-sm" id="clearBtn">清除</button></div>
+                    <div class="event-log" id="log"><div style="padding: 0.12rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">等待事件...</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件说明</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>事件</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>connectionavailable</code></td><td>演示连接可用</td></tr>
+                            <tr><td><code>connectionclosed</code></td><td>演示连接关闭</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary btn-sm" id="refreshBtn">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>request.start()</code></td><td>开始演示</td></tr>
+                            <tr><td><code>connection.send()</code></td><td>发送消息</td></tr>
+                            <tr><td><code>connection.close()</code></td><td>关闭连接</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="keyword">const</span> request = <span class="keyword">new</span> PresentationRequest(<span class="string">'presentation.html'</span>);
+request.<span class="function">start</span>().<span class="function">then</span>(conn => {
+  conn.<span class="function">send</span>(<span class="string">'Hello!'</span>);
+});
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody>
+                            <tr><td>Chrome</td><td>66+</td></tr>
+                            <tr><td>Edge</td><td>79+</td></tr>
+                            <tr><td>Firefox</td><td>不支持</td></tr>
+                            <tr><td>Safari</td><td>不支持</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = {
+            theme: 'light',
+            slide: 1,
+            total: 5,
+            presenting: false,
+            slides: [
+                { t: '欢迎使用 Presentation API', d: '控制外部显示器和投影仪' },
+                { t: '核心功能', d: '请求连接、发送消息、控制幻灯片' },
+                { t: '使用场景', d: '演示文稿、视频播放、会议系统' },
+                { t: '浏览器支持', d: 'Chrome 66+、Edge 79+' },
+                { t: '谢谢观看', d: 'Presentation API 演示结束' }
+            ]
+        };
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('pres-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('pres-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toasts'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-content"><div class="toast-title">${title}</div></div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'slideIn 0.2s ease reverse'; setTimeout(() => t.remove(), 200); }, 800);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Presentation ====================
+        const P = {
+            init() {
+                this.check();
+                this.render();
+                this.update();
+            },
+
+            check() {
+                const ok = 'presentation' in navigator;
+                const el = document.getElementById('apiSupport');
+                el.textContent = ok ? '支持' : '不支持';
+                el.style.color = ok ? 'var(--success-500)' : 'var(--error-500)';
+                if (!ok) document.getElementById('startBtn').disabled = true;
+            },
+
+            render() {
+                // Thumbnails
+                document.getElementById('thumbs').innerHTML = S.slides.map((_, i) => 
+                    `<div class="slide-thumb ${i === S.slide - 1 ? 'active' : ''}" data-i="${i + 1}">${i + 1}</div>`
+                ).join('');
+                document.querySelectorAll('.slide-thumb').forEach(t => t.onclick = () => this.go(parseInt(t.dataset.i)));
+
+                // Slides list
+                document.getElementById('slidesList').innerHTML = S.slides.map((s, i) => 
+                    `<div class="info-item" style="cursor:pointer" onclick="P.go(${i + 1})"><span class="info-label">第 ${i + 1} 页</span><span class="info-value">${s.t}</span></div>`
+                ).join('');
+            },
+
+            update() {
+                const s = S.slides[S.slide - 1];
+                document.getElementById('slideContent').textContent = s.t;
+                document.getElementById('slideNumber').textContent = `${S.slide} / ${S.total}`;
+                document.getElementById('currentSlide').textContent = S.slide;
+                document.querySelectorAll('.slide-thumb').forEach((t, i) => t.classList.toggle('active', i === S.slide - 1));
+            },
+
+            start() {
+                if (!('presentation' in navigator)) { toast('error', '浏览器不支持'); return; }
+                S.presenting = true;
+                this.conn('connecting');
+                setTimeout(() => {
+                    this.conn('connected');
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('statusDot').classList.add('active');
+                    document.getElementById('statusText').textContent = '演示中';
+                    E.log('connectionavailable', '演示已连接');
+                    toast('success', '演示已开始');
+                    this.info();
+                }, 500);
+            },
+
+            stop() {
+                S.presenting = false;
+                this.conn('disconnected');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('statusDot').classList.remove('active');
+                document.getElementById('statusText').textContent = '未连接';
+                E.log('connectionclosed', '演示已关闭');
+                toast('info', '演示已停止');
+                this.info();
+            },
+
+            conn(state) {
+                const dot = document.getElementById('connectionDot');
+                const text = document.getElementById('connectionText');
+                const status = document.getElementById('connectionStatus');
+                dot.className = 'connection-dot ' + state;
+                const m = { connecting: ['正在连接...', '连接中'], connected: ['已连接到演示显示器', '已连接'], disconnected: ['未连接到演示显示器', '未连接'] };
+                text.textContent = m[state][0];
+                status.textContent = m[state][1];
+            },
+
+            info() {
+                document.getElementById('info').innerHTML = `
+                    <div class="info-item"><span class="info-label">display</span><span class="info-value">${S.presenting ? 'external' : 'internal'}</span></div>
+                    <div class="info-item"><span class="info-label">状态</span><span class="info-value">${S.presenting ? '已连接' : '未连接'}</span></div>
+                `;
+            },
+
+            prev() { if (S.slide > 1) { S.slide--; this.update(); E.log('slide', `第 ${S.slide} 页`); } },
+            next() { if (S.slide < S.total) { S.slide++; this.update(); E.log('slide', `第 ${S.slide} 页`); } },
+            go(n) { if (n >= 1 && n <= S.total) { S.slide = n; this.update(); E.log('slide', `跳转第 ${S.slide} 页`); toast('info', `第 ${S.slide} 页`); } },
+            first() { this.go(1); },
+            last() { this.go(S.total); }
+        };
+
+        // ==================== Events ====================
+        const E = {
+            log(e, d) {
+                const log = document.getElementById('log');
+                const p = log.querySelector('div[style]');
+                if (p) p.remove();
+                const t = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-time">${t}</span><span class="log-event">${e}</span><span class="log-detail">${d}</span></div>`);
+                while (log.children.length > 12) log.lastChild.remove();
+            },
+            clear() { document.getElementById('log').innerHTML = '<div style="padding: 0.12rem; text-align: center; color: var(--text-muted); font-size: 0.2rem;">等待事件...</div>'; }
+        };
+
+        // ==================== API ====================
+        const A = {
+            render() {
+                const apis = [
+                    { name: 'navigator.presentation', type: '对象', desc: '演示对象', ok: 'presentation' in navigator },
+                    { name: 'PresentationRequest', type: '构造函数', desc: '请求对象', ok: 'PresentationRequest' in window },
+                    { name: 'presentation.receiver', type: '属性', desc: '接收器', ok: 'presentation' in navigator && 'receiver' in navigator.presentation },
+                ];
+                document.getElementById('apiTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); }
+            if (e.key === 'ArrowLeft' && !e.ctrlKey) { e.preventDefault(); P.prev(); }
+            if (e.key === 'ArrowRight' && !e.ctrlKey) { e.preventDefault(); P.next(); }
+        });
+
+        document.getElementById('themeToggle').onclick = () => T.toggle();
+        document.getElementById('startBtn').onclick = () => P.start();
+        document.getElementById('stopBtn').onclick = () => P.stop();
+        document.getElementById('prevBtn').onclick = () => P.prev();
+        document.getElementById('nextBtn').onclick = () => P.next();
+        document.getElementById('firstBtn').onclick = () => P.first();
+        document.getElementById('lastBtn').onclick = () => P.last();
+        document.getElementById('gotoBtn').onclick = () => { const n = prompt('输入页码 (1-' + S.total + '):'); if (n) P.go(parseInt(n)); };
+        document.getElementById('clearBtn').onclick = () => { E.clear(); toast('info', '已清除'); };
+        document.getElementById('refreshBtn').onclick = () => { A.render(); toast('success', '已刷新'); };
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); P.init(); A.render(); });
+    </script>
+</body>
+</html>

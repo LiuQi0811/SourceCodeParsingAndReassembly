@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permissions API Pro - 企业级权限管理平台</title>
+    <style>
+        /* ==================== CSS Reset & Variables ==================== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            /* Primary Colors - Emerald Theme */
+            --primary-50: #ecfdf5;
+            --primary-100: #d1fae5;
+            --primary-200: #a7f3d0;
+            --primary-300: #6ee7b7;
+            --primary-400: #34d399;
+            --primary-500: #10b981;
+            --primary-600: #059669;
+            --primary-700: #047857;
+            --primary-800: #065f46;
+            --primary-900: #064e3b;
+
+            /* Neutral Colors */
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+
+            /* Status Colors */
+            --success-500: #22c55e;
+            --success-600: #16a34a;
+            --warning-500: #f59e0b;
+            --warning-600: #d97706;
+            --error-500: #ef4444;
+            --error-600: #dc2626;
+
+            /* Theme Variables */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #047857 0%, #064e3b 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 200ms ease;
+        }
+
+        /* Dark Mode */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --success-50: rgba(34, 197, 94, 0.15);
+            --warning-50: rgba(245, 158, 11, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+            --primary-50: rgba(16, 185, 129, 0.15);
+        }
+
+        /* ==================== Base Styles ==================== */
+        html { font-size: 16px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color var(--transition), color var(--transition);
+        }
+
+        /* ==================== Layout ==================== */
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 0.3rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.4rem; } }
+
+        /* ==================== Header ==================== */
+        .app-header {
+            background: var(--header-bg);
+            color: white;
+            padding: 0.4rem 0.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 0.3rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            .header-content { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+
+        .header-title { display: flex; align-items: center; gap: 0.25rem; }
+        .header-title h1 { font-size: 0.7rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.85rem; } }
+
+        .header-icon {
+            width: 1.2rem;
+            height: 1.2rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+        }
+
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.45rem; }
+
+        .header-actions { display: flex; align-items: center; gap: 0.2rem; }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 0.1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.1rem 0.25rem;
+            border-radius: 99px;
+            font-size: 0.45rem;
+        }
+
+        .status-dot {
+            width: 0.2rem;
+            height: 0.2rem;
+            border-radius: 50%;
+            background: var(--success-500);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error { background: var(--error-500); animation: none; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            cursor: pointer;
+            padding: 0.1rem;
+            border-radius: var(--radius);
+            color: white;
+            display: flex;
+        }
+
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.6rem; height: 0.6rem; }
+
+        /* ==================== Shortcuts Panel ==================== */
+        .shortcuts-panel {
+            position: fixed;
+            bottom: 0.3rem;
+            left: 0.3rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0.1rem 0.2rem;
+            font-size: 0.35rem;
+            color: var(--text-muted);
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            display: none;
+        }
+
+        @media (min-width: 768px) { .shortcuts-panel { display: flex; gap: 0.25rem; } }
+
+        .shortcuts-panel kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 0.02rem 0.05rem;
+            font-family: monospace;
+            font-size: 0.3rem;
+        }
+
+        /* ==================== Tabs ==================== */
+        .tabs-container {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .tabs-nav {
+            display: flex;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .tabs-nav::-webkit-scrollbar { height: 0; }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 35px;
+            padding: 0.2rem 0.1rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.35rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all var(--transition);
+            position: relative;
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.05rem;
+        }
+
+        @media (min-width: 640px) {
+            .tab-btn { flex-direction: row; min-width: 45px; font-size: 0.45rem; padding: 0.25rem 0.35rem; }
+        }
+
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary-600);
+        }
+
+        .tab-btn svg { width: 0.5rem; height: 0.5rem; }
+
+        .tab-content { display: none; padding: 0.25rem; animation: fadeIn 0.2s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.35rem; } }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ==================== Cards ==================== */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 0.3rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.2rem;
+            padding-bottom: 0.15rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 0.08rem;
+        }
+
+        .card-title { font-size: 0.5rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.1rem; }
+
+        .card-badge { font-size: 0.3rem; padding: 0.04rem 0.12rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-600); }
+        .badge-warning { background: var(--warning-50); color: var(--warning-600); }
+        .badge-error { background: var(--error-50); color: var(--error-600); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* ==================== Stats Grid ==================== */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.12rem; margin-bottom: 0.25rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 0.15rem; } }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%);
+            border: 1px solid var(--primary-100);
+            border-radius: var(--radius);
+            padding: 0.2rem;
+            text-align: center;
+            transition: all var(--transition);
+        }
+
+        [data-theme="dark"] .stat-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--card-bg) 100%);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .stat-value { font-size: 0.6rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.3rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-top: 0.02rem; }
+
+        /* ==================== Permission Status Display ==================== */
+        .perm-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.4rem;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%);
+            border-radius: var(--radius);
+            margin-bottom: 0.25rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .perm-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .perm-icon svg { width: 1rem; height: 1rem; color: white; }
+
+        .perm-info { text-align: left; }
+        .perm-status { font-size: 0.55rem; font-weight: 700; color: var(--text-primary); }
+        .perm-desc { font-size: 0.4rem; color: var(--text-muted); }
+
+        /* ==================== Buttons ==================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.06rem;
+            padding: 0.12rem 0.25rem;
+            border-radius: var(--radius);
+            font-size: 0.4rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: none;
+            white-space: nowrap;
+        }
+
+        .btn svg { width: 0.4rem; height: 0.4rem; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-success { background: var(--success-500); color: white; }
+        .btn-danger { background: var(--error-500); color: white; }
+        .btn-sm { padding: 0.08rem 0.15rem; font-size: 0.35rem; }
+        .btn-lg { padding: 0.2rem 0.4rem; font-size: 0.45rem; }
+
+        /* ==================== Permission List ==================== */
+        .perm-list { display: flex; flex-direction: column; gap: 0.1rem; }
+
+        .perm-item {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            padding: 0.15rem 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            transition: all var(--transition);
+        }
+
+        .perm-item:hover { border-color: var(--primary-300); }
+
+        .perm-item-icon {
+            width: 1rem;
+            height: 1rem;
+            border-radius: var(--radius);
+            background: var(--primary-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+        }
+
+        [data-theme="dark"] .perm-item-icon { background: rgba(16, 185, 129, 0.2); }
+
+        .perm-item-info { flex: 1; min-width: 0; }
+        .perm-item-name { font-size: 0.45rem; font-weight: 600; color: var(--text-primary); }
+        .perm-item-desc { font-size: 0.35rem; color: var(--text-muted); }
+
+        .perm-item-status {
+            font-size: 0.35rem;
+            padding: 0.04rem 0.12rem;
+            border-radius: 99px;
+            font-weight: 500;
+        }
+
+        .perm-item-status.granted { background: var(--success-50); color: var(--success-600); }
+        .perm-item-status.denied { background: var(--error-50); color: var(--error-600); }
+        .perm-item-status.prompt { background: var(--warning-50); color: var(--warning-600); }
+        .perm-item-status.unknown { background: var(--gray-200); color: var(--gray-600); }
+
+        .perm-item-actions { display: flex; gap: 0.08rem; }
+
+        /* ==================== Code Block ==================== */
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 0.25rem;
+            border-radius: var(--radius);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.35rem;
+            overflow-x: auto;
+            margin: 0.12rem 0;
+            line-height: 1.5;
+        }
+
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .number { color: #f78c6c; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+        .code-block .property { color: #ffcb6b; }
+
+        /* ==================== API Table ==================== */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.4rem; }
+
+        .api-table th, .api-table td {
+            padding: 0.12rem 0.15rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .api-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            font-size: 0.35rem;
+        }
+
+        .api-table tr:hover td { background: var(--bg-tertiary); }
+
+        .api-status {
+            display: inline-flex;
+            padding: 0.03rem 0.12rem;
+            border-radius: 99px;
+            font-size: 0.3rem;
+            font-weight: 500;
+        }
+
+        .api-status.supported { background: var(--success-50); color: var(--success-600); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-600); }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 0.02rem 0.08rem;
+            border-radius: 2px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.35em;
+            color: var(--primary-600);
+        }
+
+        /* ==================== Toast ==================== */
+        .toast-container {
+            position: fixed;
+            bottom: 0.3rem;
+            right: 0.3rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            max-width: calc(100vw - 0.6rem);
+        }
+
+        @media (min-width: 768px) { .toast-container { bottom: 0.35rem; right: 0.35rem; max-width: 180px; } }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.15rem;
+            padding: 0.2rem 0.25rem;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-warning { border-left: 2px solid var(--warning-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+
+        .toast-icon { width: 0.5rem; height: 0.5rem; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.45rem; }
+        .toast-message { font-size: 0.35rem; color: var(--text-secondary); }
+
+        /* ==================== Empty State ==================== */
+        .empty-state { text-align: center; padding: 0.4rem 0.25rem; color: var(--text-muted); }
+        .empty-state h3 { font-size: 0.45rem; font-weight: 600; color: var(--text-secondary); }
+
+        /* ==================== Info List ==================== */
+        .info-list { display: flex; flex-direction: column; gap: 0.08rem; }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.1rem 0.15rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.4rem;
+        }
+
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.35rem; }
+
+        /* ==================== Permission Log ==================== */
+        .perm-log {
+            max-height: 130px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .log-item {
+            padding: 0.1rem 0.15rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.35rem;
+            display: flex;
+            gap: 0.1rem;
+            align-items: flex-start;
+        }
+
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); font-family: monospace; font-size: 0.3rem; white-space: nowrap; }
+
+        .log-status {
+            font-weight: 600;
+            padding: 0.02rem 0.08rem;
+            border-radius: 2px;
+            font-size: 0.25rem;
+        }
+
+        .log-status.granted { background: var(--success-50); color: var(--success-600); }
+        .log-status.denied { background: var(--error-50); color: var(--error-600); }
+        .log-status.prompt { background: var(--warning-50); color: var(--warning-600); }
+
+        .log-detail { flex: 1; color: var(--text-secondary); }
+
+        /* ==================== Modal ==================== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition);
+            padding: 0.3rem;
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            max-width: 300px;
+            width: 100%;
+            transform: scale(0.95);
+            transition: transform var(--transition);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-overlay.active .modal { transform: scale(1); }
+
+        .modal-header {
+            padding: 0.3rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title { font-size: 0.55rem; font-weight: 600; color: var(--text-primary); }
+
+        .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.08rem;
+            color: var(--text-muted);
+        }
+
+        .modal-close:hover { color: var(--text-primary); }
+        .modal-close svg { width: 0.65rem; height: 0.65rem; }
+
+        .modal-body { padding: 0.3rem; }
+        .modal-footer { padding: 0.3rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.15rem; justify-content: flex-end; }
+
+        /* ==================== Permission Monitor ==================== */
+        .monitor-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            padding: 0.15rem 0.2rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            margin-bottom: 0.2rem;
+        }
+
+        .monitor-dot {
+            width: 0.4rem;
+            height: 0.4rem;
+            border-radius: 50%;
+            background: var(--success-500);
+            animation: pulse 1.5s infinite;
+        }
+
+        .monitor-dot.inactive { background: var(--gray-400); animation: none; }
+
+        .monitor-text { font-size: 0.4rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">🔐</div>
+                        <h1>Permissions API Pro</h1>
+                    </div>
+                    <p class="header-subtitle">权限管理 | 查询、请求、监控浏览器权限</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                        </svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </button>
+                    <div class="header-status">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">检测中</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Shortcuts Panel -->
+        <div class="shortcuts-panel">
+            <span><kbd>T</kbd> 主题</span>
+            <span><kbd>R</kbd> 刷新</span>
+            <span><kbd>A</kbd> 全部</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="overview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <span>概览</span>
+                </button>
+                <button class="tab-btn" data-tab="permissions">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <span>权限</span>
+                </button>
+                <button class="tab-btn" data-tab="history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>历史</span>
+                </button>
+                <button class="tab-btn" data-tab="api">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 18 22 12 16 6"/>
+                        <polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                    <span>API</span>
+                </button>
+            </nav>
+
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="tab-overview">
+                <div class="perm-display">
+                    <div class="perm-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                    <div class="perm-info">
+                        <div class="perm-status" id="permStatus">Permissions API</div>
+                        <div class="perm-desc" id="permDesc">正在检测浏览器支持...</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalPerms">0</div>
+                        <div class="stat-label">总权限</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="grantedPerms">0</div>
+                        <div class="stat-label">已授权</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="deniedPerms">0</div>
+                        <div class="stat-label">已拒绝</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="promptPerms">0</div>
+                        <div class="stat-label">待询问</div>
+                    </div>
+                </div>
+
+                <!-- Monitor Indicator -->
+                <div class="monitor-indicator">
+                    <div class="monitor-dot" id="monitorDot"></div>
+                    <span class="monitor-text" id="monitorText">权限状态监控中...</span>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">API 简介</h3>
+                    </div>
+                    <p style="font-size: 0.4rem; color: var(--text-secondary); margin-bottom: 0.12rem;">
+                        Permissions API 提供统一方式查询和监控浏览器权限状态。
+                    </p>
+                    <div class="code-block">
+<span class="keyword">const</span> result = <span class="keyword">await</span> navigator.permissions.<span class="function">query</span>({<span class="property">name</span>: <span class="string">'geolocation'</span>});
+console.<span class="function">log</span>(result.state); <span class="comment">// granted/denied/prompt</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">权限状态</h3>
+                    </div>
+                    <div class="info-list">
+                        <div class="info-item"><span class="info-label">granted</span><span class="info-value" style="color: var(--success-600);">已授权</span></div>
+                        <div class="info-item"><span class="info-label">denied</span><span class="info-value" style="color: var(--error-600);">已拒绝</span></div>
+                        <div class="info-item"><span class="info-label">prompt</span><span class="info-value" style="color: var(--warning-600);">待询问</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions Tab -->
+            <div class="tab-content" id="tab-permissions">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">权限列表</h3>
+                        <button class="btn btn-secondary btn-sm" id="refreshPerms">刷新</button>
+                    </div>
+                    <div class="perm-list" id="permList"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">批量操作</h3>
+                    </div>
+                    <div style="display: flex; gap: 0.12rem;">
+                        <button class="btn btn-primary btn-lg" id="queryAll" style="flex: 1;">查询全部</button>
+                        <button class="btn btn-secondary btn-lg" id="resetAll">重置</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="tab-history">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">变更历史</h3>
+                        <button class="btn btn-secondary btn-sm" id="clearHistory">清空</button>
+                    </div>
+                    <div class="perm-log" id="permLog">
+                        <div class="empty-state"><h3>暂无记录</h3></div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyTotal">0</div>
+                        <div class="stat-label">总变更</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyGranted">0</div>
+                        <div class="stat-label">授权</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyDenied">0</div>
+                        <div class="stat-label">拒绝</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="historyPrompt">0</div>
+                        <div class="stat-label">询问</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">API 支持</h3>
+                        <button class="btn btn-secondary btn-sm" id="refreshApiCheck">刷新</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead>
+                            <tbody id="apiSupportTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">权限类型</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>权限</th><th>说明</th><th>API</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>geolocation</code></td><td>位置</td><td>navigator.geolocation</td></tr>
+                                <tr><td><code>notifications</code></td><td>通知</td><td>Notification</td></tr>
+                                <tr><td><code>camera</code></td><td>摄像头</td><td>getUserMedia</td></tr>
+                                <tr><td><code>microphone</code></td><td>麦克风</td><td>getUserMedia</td></tr>
+                                <tr><td><code>clipboard-read</code></td><td>剪贴板读</td><td>navigator.clipboard</td></tr>
+                                <tr><td><code>clipboard-write</code></td><td>剪贴板写</td><td>navigator.clipboard</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">浏览器兼容</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="api-table">
+                            <thead><tr><th>浏览器</th><th>版本</th></tr></thead>
+                            <tbody>
+                                <tr><td>Chrome</td><td>43+</td></tr>
+                                <tr><td>Firefox</td><td>46+</td></tr>
+                                <tr><td>Safari</td><td>16+</td></tr>
+                                <tr><td>Edge</td><td>79+</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="permModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">权限详情</h3>
+                <button class="modal-close" id="closeModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="info-list" id="modalContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">关闭</button>
+                <button class="btn btn-primary" id="modalRequest">请求权限</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Application State ====================
+        const AppState = {
+            theme: 'light',
+            isSupported: false,
+            permissions: {},
+            history: [],
+            watchers: [],
+            permissionDefs: [
+                { name: 'geolocation', icon: '📍', desc: '地理位置', request: () => new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject)) },
+                { name: 'notifications', icon: '🔔', desc: '通知', request: () => Notification.requestPermission() },
+                { name: 'camera', icon: '📷', desc: '摄像头', request: () => navigator.mediaDevices.getUserMedia({ video: true }) },
+                { name: 'microphone', icon: '🎤', desc: '麦克风', request: () => navigator.mediaDevices.getUserMedia({ audio: true }) },
+                { name: 'clipboard-read', icon: '📋', desc: '剪贴板读取', request: () => navigator.clipboard.readText() },
+                { name: 'clipboard-write', icon: '✏️', desc: '剪贴板写入', request: () => navigator.clipboard.writeText('test') },
+                { name: 'midi', icon: '🎹', desc: 'MIDI', request: () => navigator.requestMIDIAccess() },
+                { name: 'push', icon: '📨', desc: '推送', request: null }
+            ]
+        };
+
+        // ==================== Utility Functions ====================
+        const Utils = {
+            formatTime(date = new Date()) {
+                return date.toLocaleTimeString('zh-CN', { hour12: false });
+            }
+        };
+
+        // ==================== Theme Management ====================
+        const ThemeManager = {
+            init() {
+                const saved = localStorage.getItem('perms-api-theme');
+                if (saved) AppState.theme = saved;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) AppState.theme = 'dark';
+                this.apply();
+            },
+            toggle() {
+                AppState.theme = AppState.theme === 'light' ? 'dark' : 'light';
+                localStorage.setItem('perms-api-theme', AppState.theme);
+                this.apply();
+            },
+            apply() {
+                document.documentElement.setAttribute('data-theme', AppState.theme);
+                document.getElementById('themeIconLight').style.display = AppState.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = AppState.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast Notifications ====================
+        function showToast(type, title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icons = {
+                success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+                error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+                warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
+                info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>'
+            };
+
+            toast.innerHTML = `${icons[type]}<div class="toast-content"><div class="toast-title">${title}</div>${message ? `<div class="toast-message">${message}</div>` : ''}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }, 1800);
+        }
+
+        // ==================== Tab Navigation ====================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ==================== Permissions API ====================
+        const PermsAPI = {
+            async checkSupport() {
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                const status = document.getElementById('permStatus');
+                const desc = document.getElementById('permDesc');
+
+                AppState.isSupported = 'permissions' in navigator;
+
+                if (AppState.isSupported) {
+                    dot.classList.remove('error');
+                    text.textContent = 'API 支持';
+                    status.textContent = 'Permissions API';
+                    desc.textContent = '浏览器支持权限查询 API';
+                } else {
+                    dot.classList.add('error');
+                    text.textContent = '不支持';
+                    status.textContent = 'API 不可用';
+                    desc.textContent = '浏览器不支持 Permissions API';
+                }
+
+                this.updateMonitor(AppState.isSupported);
+            },
+
+            updateMonitor(active) {
+                const dot = document.getElementById('monitorDot');
+                const text = document.getElementById('monitorText');
+                
+                if (active) {
+                    dot.classList.remove('inactive');
+                    text.textContent = '权限状态监控中...';
+                } else {
+                    dot.classList.add('inactive');
+                    text.textContent = '监控不可用';
+                }
+            },
+
+            async queryPermission(name) {
+                if (!AppState.isSupported) return 'unknown';
+
+                try {
+                    const result = await navigator.permissions.query({ name });
+                    
+                    // Setup change listener
+                    result.onchange = () => {
+                        const oldState = AppState.permissions[name];
+                        const newState = result.state;
+                        
+                        if (oldState && oldState !== newState) {
+                            this.addHistory(name, newState);
+                            showToast('info', '权限变更', `${name}: ${newState}`);
+                        }
+                        
+                        AppState.permissions[name] = newState;
+                        this.updateStats();
+                    };
+                    
+                    return result.state;
+                } catch (e) {
+                    return 'unknown';
+                }
+            },
+
+            async queryAll() {
+                const list = document.getElementById('permList');
+                list.innerHTML = '';
+
+                let granted = 0, denied = 0, prompt = 0;
+
+                for (const perm of AppState.permissionDefs) {
+                    const state = await this.queryPermission(perm.name);
+                    AppState.permissions[perm.name] = state;
+
+                    if (state === 'granted') granted++;
+                    else if (state === 'denied') denied++;
+                    else if (state === 'prompt') prompt++;
+
+                    const item = document.createElement('div');
+                    item.className = 'perm-item';
+                    item.innerHTML = `
+                        <div class="perm-item-icon">${perm.icon}</div>
+                        <div class="perm-item-info">
+                            <div class="perm-item-name">${perm.desc}</div>
+                            <div class="perm-item-desc">${perm.name}</div>
+                        </div>
+                        <span class="perm-item-status ${state}">${state === 'granted' ? '已授权' : state === 'denied' ? '已拒绝' : state === 'prompt' ? '待询问' : '未知'}</span>
+                        <div class="perm-item-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="PermsAPI.showDetail('${perm.name}')">详情</button>
+                            ${perm.request ? `<button class="btn btn-primary btn-sm" onclick="PermsAPI.requestPermission('${perm.name}')">请求</button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+
+                this.updateStats();
+            },
+
+            updateStats() {
+                const perms = Object.values(AppState.permissions);
+                const granted = perms.filter(s => s === 'granted').length;
+                const denied = perms.filter(s => s === 'denied').length;
+                const prompt = perms.filter(s => s === 'prompt').length;
+
+                document.getElementById('totalPerms').textContent = AppState.permissionDefs.length;
+                document.getElementById('grantedPerms').textContent = granted;
+                document.getElementById('deniedPerms').textContent = denied;
+                document.getElementById('promptPerms').textContent = prompt;
+            },
+
+            async requestPermission(name) {
+                const perm = AppState.permissionDefs.find(p => p.name === name);
+                if (!perm || !perm.request) {
+                    showToast('warning', '无法请求', '此权限不支持主动请求');
+                    return;
+                }
+
+                try {
+                    await perm.request();
+                    const newState = await this.queryPermission(name);
+                    
+                    if (AppState.permissions[name] !== newState) {
+                        this.addHistory(name, newState);
+                    }
+
+                    showToast('success', '权限已更新', `${perm.desc}: ${newState}`);
+                    await this.queryAll();
+                } catch (e) {
+                    showToast('error', '请求失败', e.message);
+                    this.addHistory(name, 'denied');
+                }
+            },
+
+            async showDetail(name) {
+                const perm = AppState.permissionDefs.find(p => p.name === name);
+                if (!perm) return;
+
+                const state = AppState.permissions[name] || await this.queryPermission(name);
+
+                document.getElementById('modalTitle').textContent = perm.desc;
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="info-item"><span class="info-label">权限名</span><span class="info-value">${name}</span></div>
+                    <div class="info-item"><span class="info-label">状态</span><span class="info-value">${state}</span></div>
+                    <div class="info-item"><span class="info-label">可请求</span><span class="info-value">${perm.request ? '是' : '否'}</span></div>
+                `;
+
+                document.getElementById('modalRequest').style.display = perm.request ? 'block' : 'none';
+                document.getElementById('modalRequest').onclick = () => {
+                    this.requestPermission(name);
+                    document.getElementById('permModal').classList.remove('active');
+                };
+
+                document.getElementById('permModal').classList.add('active');
+            },
+
+            addHistory(name, state) {
+                const perm = AppState.permissionDefs.find(p => p.name === name);
+                AppState.history.unshift({
+                    time: Utils.formatTime(),
+                    name,
+                    desc: perm?.desc || name,
+                    state
+                });
+
+                if (AppState.history.length > 25) AppState.history.pop();
+                this.renderHistory();
+            },
+
+            renderHistory() {
+                const container = document.getElementById('permLog');
+                if (AppState.history.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>暂无记录</h3></div>';
+                    return;
+                }
+
+                container.innerHTML = AppState.history.map(h => `
+                    <div class="log-item">
+                        <span class="log-time">${h.time}</span>
+                        <span class="log-status ${h.state}">${h.state}</span>
+                        <span class="log-detail">${h.desc}</span>
+                    </div>
+                `).join('');
+
+                const granted = AppState.history.filter(h => h.state === 'granted').length;
+                const denied = AppState.history.filter(h => h.state === 'denied').length;
+                const prompt = AppState.history.filter(h => h.state === 'prompt').length;
+
+                document.getElementById('historyTotal').textContent = AppState.history.length;
+                document.getElementById('historyGranted').textContent = granted;
+                document.getElementById('historyDenied').textContent = denied;
+                document.getElementById('historyPrompt').textContent = prompt;
+            },
+
+            clearHistory() {
+                AppState.history = [];
+                this.renderHistory();
+                showToast('info', '已清空', '');
+            },
+
+            resetAll() {
+                AppState.permissions = {};
+                this.queryAll();
+                showToast('info', '已重置', '');
+            }
+        };
+
+        // ==================== API Reference ====================
+        const APIReference = {
+            render() {
+                const apis = [
+                    { name: 'navigator.permissions', type: '对象', desc: '权限 API', supported: AppState.isSupported },
+                    { name: 'permissions.query()', type: '方法', desc: '查询权限', supported: AppState.isSupported },
+                    { name: 'PermissionStatus', type: '对象', desc: '权限状态', supported: AppState.isSupported },
+                    { name: 'PermissionStatus.state', type: '属性', desc: '状态值', supported: AppState.isSupported },
+                    { name: 'PermissionStatus.onchange', type: '事件', desc: '状态变更', supported: AppState.isSupported },
+                ];
+
+                document.getElementById('apiSupportTable').innerHTML = apis.map(api => `
+                    <tr>
+                        <td><code>${api.name}</code></td>
+                        <td><span class="card-badge badge-info">${api.type}</span></td>
+                        <td>${api.desc}</td>
+                        <td><span class="api-status ${api.supported ? 'supported' : 'unsupported'}">${api.supported ? '✓' : '✗'}</span></td>
+                    </tr>
+                `).join('');
+            }
+        };
+
+        // ==================== Keyboard Shortcuts ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            switch (e.key.toLowerCase()) {
+                case 't': if (!e.ctrlKey) { e.preventDefault(); ThemeManager.toggle(); } break;
+                case 'r': if (!e.ctrlKey) { e.preventDefault(); PermsAPI.queryAll(); showToast('success', '已刷新', ''); } break;
+                case 'a': if (!e.ctrlKey) { e.preventDefault(); PermsAPI.queryAll(); } break;
+            }
+        });
+
+        // ==================== UI Event Handlers ====================
+        document.getElementById('themeToggle').addEventListener('click', () => ThemeManager.toggle());
+        document.getElementById('refreshPerms').addEventListener('click', () => PermsAPI.queryAll());
+        document.getElementById('queryAll').addEventListener('click', () => PermsAPI.queryAll());
+        document.getElementById('resetAll').addEventListener('click', () => PermsAPI.resetAll());
+        document.getElementById('clearHistory').addEventListener('click', () => PermsAPI.clearHistory());
+        document.getElementById('refreshApiCheck').addEventListener('click', () => { APIReference.render(); showToast('success', '已刷新', ''); });
+
+        // Modal
+        document.getElementById('closeModal').addEventListener('click', () => document.getElementById('permModal').classList.remove('active'));
+        document.getElementById('modalCancel').addEventListener('click', () => document.getElementById('permModal').classList.remove('active'));
+        document.getElementById('permModal').addEventListener('click', (e) => {
+            if (e.target.id === 'permModal') e.target.classList.remove('active');
+        });
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+            PermsAPI.checkSupport();
+            PermsAPI.queryAll();
+            APIReference.render();
+            PermsAPI.renderHistory();
+        });
+    </script>
+</body>
+</html>

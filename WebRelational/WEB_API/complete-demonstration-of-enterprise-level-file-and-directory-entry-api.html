@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级 文件与目录条目 API · 完整演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, #f0f5fa, #e4ecf5);
+            padding: 24px;
+            color: #1e2f4a;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #1a3b5e;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 16px;
+            border-bottom: 2px solid rgba(26,115,232,0.2);
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            background: #1a73e8;
+            color: white;
+            padding: 4px 16px;
+            border-radius: 40px;
+        }
+
+        .subtitle {
+            color: #2c5778;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            background: #e8f0fe;
+            padding: 8px 20px;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 8px;
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: #5a7b9c;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .tab-btn:hover {
+            background: #f0f7ff;
+            color: #1a73e8;
+        }
+
+        .tab-btn.active {
+            background: #1a73e8;
+            color: white;
+            box-shadow: 0 4px 8px rgba(26,115,232,0.3);
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+            padding: 24px;
+            border: 1px solid #c0d4f0;
+            min-height: 650px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .panel-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #f8faff;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #e0e9f5;
+            transition: all 0.2s;
+        }
+
+        .panel:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e0e9f5;
+            padding-bottom: 12px;
+        }
+
+        .panel-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a3b5e;
+        }
+
+        .badge {
+            background: #1a73e8;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #2c9b4a;
+        }
+
+        .badge-warning {
+            background: #ffb347;
+        }
+
+        .badge-danger {
+            background: #c94a4a;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px dashed #e0e9f5;
+        }
+        .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .label {
+            font-weight: 600;
+            color: #2c5778;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #c0d4f0;
+            border-radius: 40px;
+            font-size: 13px;
+            margin-bottom: 10px;
+            transition: all 0.1s;
+            background: white;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+
+        textarea {
+            border-radius: 16px;
+            font-family: monospace;
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 8px 0;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border-radius: 40px;
+            border: 1px solid #c0d4f0;
+            background: white;
+            color: #1a3b5e;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .btn:hover {
+            background: #e8f0fe;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4285f4;
+        }
+
+        .btn-success {
+            background: #2c9b4a;
+            border-color: #2c9b4a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #34b755;
+        }
+
+        .btn-warning {
+            background: #ffb347;
+            border-color: #e69138;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #ffc107;
+        }
+
+        .btn-danger {
+            background: #c94a4a;
+            border-color: #c94a4a;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d65f5f;
+        }
+
+        .result-box {
+            background: #0f233a;
+            color: #cbe4ff;
+            border-radius: 12px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #254f7a;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .file-info {
+            background: #f0f7ff;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 12px;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .file-info-row {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px solid #e0e9f5;
+        }
+
+        .file-info-label {
+            width: 100px;
+            font-weight: 600;
+            color: #2c5778;
+        }
+
+        .file-info-value {
+            flex: 1;
+            color: #1a3b5e;
+            word-break: break-all;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e9f5;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1a73e8, #4285f4);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .metrics-panel {
+            background: #f0f7ff;
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .metric-item {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a73e8;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: #5a7b9c;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .note {
+            font-size: 11px;
+            color: #5a7b9c;
+            background: #f0f7ff;
+            padding: 4px 10px;
+            border-radius: 40px;
+            margin-top: 6px;
+        }
+
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e0e9f5;
+            border-radius: 12px;
+            padding: 8px;
+            background: white;
+        }
+
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            padding: 6px;
+            border-bottom: 1px solid #e0e9f5;
+            font-size: 12px;
+        }
+
+        .file-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-icon {
+            width: 24px;
+            height: 24px;
+            background: #1a73e8;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e3f60;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            margin-top: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            border-left: 4px solid #1a73e8;
+            animation: slideIn 0.3s;
+            font-size: 13px;
+            max-width: 350px;
+        }
+
+        .toast.success { border-left-color: #2c9b4a; background: #1e4a3a; }
+        .toast.error { border-left-color: #c94a4a; background: #4a2f2f; }
+        .toast.warning { border-left-color: #ffb347; background: #4a3f2f; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e2f4a;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 13px;
+            z-index: 9998;
+            animation: fadeInOut 2s;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #5a7b9c;
+            font-size: 12px;
+        }
+
+        .env-card {
+            background: linear-gradient(145deg, #1a2f42, #0f233a);
+            color: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .env-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #2d5a80;
+        }
+
+        .env-label {
+            width: 140px;
+            font-weight: 600;
+            color: #4f9eff;
+        }
+
+        .env-value {
+            flex: 1;
+            color: #cbe4ff;
+        }
+
+        .drop-zone {
+            border: 2px dashed #1a73e8;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            background: #f0f7ff;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .drop-zone.drag-over {
+            background: #e8f0fe;
+            border-color: #2c9b4a;
+            transform: scale(1.02);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .comparison-table th {
+            background: #1a73e8;
+            color: white;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .comparison-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e0e9f5;
+        }
+
+        .comparison-table tr:hover {
+            background: #f0f7ff;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <h1>
+        📁 文件与目录条目 API · 完整演示
+        <small>FileSystem · Entry · FileEntry · DirectoryEntry · FileWriter</small>
+    </h1>
+    <div class="subtitle">
+        <span>传统文件系统API + 现代File System Access API对比 · 沙箱文件系统 · 条目操作</span>
+    </div>
+
+    <!-- 选项卡导航 -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab1">📂 沙箱文件系统</button>
+        <button class="tab-btn" data-tab="tab2">📝 文件条目操作</button>
+        <button class="tab-btn" data-tab="tab3">📁 目录条目操作</button>
+        <button class="tab-btn" data-tab="tab4">✍️ FileWriter API</button>
+        <button class="tab-btn" data-tab="tab5">🔄 新旧API对比</button>
+    </div>
+
+    <!-- 选项卡内容容器 -->
+    <div class="tab-content">
+        <!-- 选项卡1：沙箱文件系统 -->
+        <div class="tab-pane active" id="tab1">
+            <div class="panel-grid">
+                <!-- 请求配额和文件系统 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🏝️ 沙箱文件系统</h3>
+                        <span class="badge">requestFileSystem</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">初始化文件系统</div>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="requestTempFS">请求临时存储</button>
+                            <button class="btn btn-primary" id="requestPersistentFS">请求持久存储</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">配额管理</div>
+                        <div class="button-group">
+                            <button class="btn" id="queryQuota">查询配额</button>
+                            <button class="btn" id="requestQuota">请求更多空间</button>
+                        </div>
+                    </div>
+
+                    <div class="file-info" id="fsInfo">
+                        <div class="file-info-row"><span class="file-info-label">状态</span><span class="file-info-value">未初始化</span></div>
+                    </div>
+                </div>
+
+                <!-- 根目录操作 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🌳 根目录操作</h3>
+                        <span class="badge">root</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">根目录信息</div>
+                        <div class="button-group">
+                            <button class="btn" id="getRoot">获取根目录</button>
+                            <button class="btn" id="readRoot">读取根目录</button>
+                        </div>
+                    </div>
+
+                    <div class="file-list" id="rootList"></div>
+                    <div class="result-box" id="fsResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡2：文件条目操作 -->
+        <div class="tab-pane" id="tab2">
+            <div class="panel-grid">
+                <!-- 文件创建和写入 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📄 文件条目操作</h3>
+                        <span class="badge">FileEntry</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">创建文件</div>
+                        <input type="text" id="createFileName" value="example.txt" placeholder="文件名">
+                        <div class="button-group">
+                            <button class="btn btn-success" id="createFile">创建文件</button>
+                            <button class="btn" id="createFileWithContent">创建并写入</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">文件操作</div>
+                        <div class="button-group">
+                            <button class="btn" id="getFileMetadata">获取元数据</button>
+                            <button class="btn" id="moveFile">移动文件</button>
+                            <button class="btn" id="copyFile">复制文件</button>
+                            <button class="btn btn-danger" id="removeFile">删除文件</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="fileResult"></div>
+                </div>
+
+                <!-- 文件读取 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📖 文件读取</h3>
+                        <span class="badge">FileEntry.file()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">读取方式</div>
+                        <div class="button-group">
+                            <button class="btn" id="readFileAsText">读取为文本</button>
+                            <button class="btn" id="readFileAsDataURL">读取为DataURL</button>
+                            <button class="btn" id="readFileAsArrayBuffer">读取为ArrayBuffer</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="readFileResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡3：目录条目操作 -->
+        <div class="tab-pane" id="tab3">
+            <div class="panel-grid">
+                <!-- 目录创建 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📁 目录条目操作</h3>
+                        <span class="badge">DirectoryEntry</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">创建目录</div>
+                        <input type="text" id="createDirName" value="subdir" placeholder="目录名">
+                        <div class="button-group">
+                            <button class="btn btn-success" id="createDirectory">创建目录</button>
+                            <button class="btn" id="createSubdir">创建子目录</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">目录操作</div>
+                        <div class="button-group">
+                            <button class="btn" id="readDirectory">读取目录</button>
+                            <button class="btn" id="listDirectoryRecursive">递归列出</button>
+                            <button class="btn" id="moveDirectory">移动目录</button>
+                            <button class="btn btn-danger" id="removeDirectory">删除目录</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="dirResult"></div>
+                </div>
+
+                <!-- 目录内容 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📋 目录内容</h3>
+                        <span class="badge">createReader()</span>
+                    </div>
+
+                    <div class="file-list" id="dirContentList"></div>
+                    <div class="result-box" id="dirContentResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡4：FileWriter API -->
+        <div class="tab-pane" id="tab4">
+            <div class="panel-grid">
+                <!-- FileWriter 操作 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>✍️ FileWriter API</h3>
+                        <span class="badge">createWriter()</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">写入内容</div>
+                        <textarea id="writerContent" placeholder="要写入的内容">Hello, FileWriter!</textarea>
+                        <div class="button-group">
+                            <button class="btn btn-success" id="createWriter">创建FileWriter</button>
+                            <button class="btn" id="writeWithWriter">写入文件</button>
+                            <button class="btn" id="appendWithWriter">追加内容</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">文件位置操作</div>
+                        <div class="flex-row">
+                            <input type="number" id="seekPosition" value="5" min="0" style="width:80px;">
+                            <button class="btn" id="seekAndWrite">定位写入</button>
+                            <button class="btn" id="truncateWithWriter">截断</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="writerResult"></div>
+                </div>
+
+                <!-- 进度和事件 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 进度监控</h3>
+                        <span class="badge">onwrite/onprogress</span>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="writerProgress" style="width: 0%;"></div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn" id="writeLargeFile">写入大文件(模拟)</button>
+                        <button class="btn btn-danger" id="abortWrite">中止写入</button>
+                    </div>
+
+                    <div class="result-box" id="progressResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡5：新旧API对比 -->
+        <div class="tab-pane" id="tab5">
+            <div class="panel-grid">
+                <!-- API对比表 -->
+                <div class="panel" style="grid-column: span 2;">
+                    <div class="panel-header">
+                        <h3>🔄 新旧文件系统API对比</h3>
+                        <span class="badge">Legacy vs Modern</span>
+                    </div>
+
+                    <table class="comparison-table">
+                        <thead>
+                        <tr>
+                            <th>功能</th>
+                            <th>传统API (File & Directory Entries)</th>
+                            <th>现代API (File System Access)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>获取文件系统</td>
+                            <td>requestFileSystem() / webkitRequestFileSystem</td>
+                            <td>navigator.storage.getDirectory() / showOpenFilePicker</td>
+                        </tr>
+                        <tr>
+                            <td>文件条目</td>
+                            <td>FileEntry</td>
+                            <td>FileSystemFileHandle</td>
+                        </tr>
+                        <tr>
+                            <td>目录条目</td>
+                            <td>DirectoryEntry</td>
+                            <td>FileSystemDirectoryHandle</td>
+                        </tr>
+                        <tr>
+                            <td>文件写入</td>
+                            <td>FileWriter (createWriter)</td>
+                            <td>FileSystemWritableFileStream (createWritable)</td>
+                        </tr>
+                        <tr>
+                            <td>存储类型</td>
+                            <td>沙箱文件系统 (临时/持久)</td>
+                            <td>源私有文件系统 + 用户可见文件</td>
+                        </tr>
+                        <tr>
+                            <td>权限模型</td>
+                            <td>基于配额，一次性请求</td>
+                            <td>基于用户手势，细粒度权限</td>
+                        </tr>
+                        <tr>
+                            <td>浏览器支持</td>
+                            <td>Chrome, Edge, 部分移动浏览器</td>
+                            <td>现代浏览器 (Chrome 86+, Edge 86+, 部分支持)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="note" style="margin-top:16px;">
+                        ⚡ 传统API主要工作在沙箱环境，现代API可以访问用户真实文件系统
+                    </div>
+                </div>
+
+                <!-- 兼容性检测 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔍 兼容性检测</h3>
+                        <span class="badge">API支持情况</span>
+                    </div>
+
+                    <div class="env-card">
+                        <div class="env-row">
+                            <span class="env-label">requestFileSystem</span>
+                            <span class="env-value" id="supportReqFS">检测中...</span>
+                        </div>
+                        <div class="env-row">
+                            <span class="env-label">FileEntry</span>
+                            <span class="env-value" id="supportFileEntry">检测中...</span>
+                        </div>
+                        <div class="env-row">
+                            <span class="env-label">DirectoryEntry</span>
+                            <span class="env-value" id="supportDirEntry">检测中...</span>
+                        </div>
+                        <div class="env-row">
+                            <span class="env-label">FileWriter</span>
+                            <span class="env-value" id="supportFileWriter">检测中...</span>
+                        </div>
+                        <div class="env-row">
+                            <span class="env-label">现代FileSystem</span>
+                            <span class="env-value" id="supportModernFS">检测中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 示例代码 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📝 示例代码</h3>
+                        <span class="badge">快速上手</span>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">传统API示例</div>
+                        <textarea readonly rows="5" style="background:#f0f7ff;">window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+requestFileSystem(window.TEMPORARY, 5*1024*1024, function(fs) {
+  fs.root.getFile('log.txt', {create: true}, function(fileEntry) {
+    fileEntry.createWriter(function(writer) {
+      writer.write(new Blob(['Hello']));
+    });
+  });
+});</textarea>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">现代API示例</div>
+                        <textarea readonly rows="5" style="background:#f0f7ff;">const root = await navigator.storage.getDirectory();
+const handle = await root.getFileHandle('log.txt', {create: true});
+const writable = await handle.createWritable();
+await writable.write('Hello');
+await writable.close();</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        ⚡ 企业级文件与目录条目API完整演示 · 传统沙箱文件系统 + 现代File System Access API对比
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // ==================== 企业级文件与目录条目 API 完整实现 ====================
+
+    // --- 工具函数 ---
+    function showToast(msg, type = 'info') {
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // --- 全局变量 ---
+    let fileSystem = null;
+    let currentFileEntry = null;
+    let currentDirectoryEntry = null;
+    let currentFileWriter = null;
+
+    // --- 初始化requestFileSystem (兼容前缀) ---
+    window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+    window.resolveLocalFileSystemURL = window.resolveLocalFileSystemURL || window.webkitResolveLocalFileSystemURL;
+
+    // --- 选项卡切换逻辑 ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const tabId = btn.dataset.tab;
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    // --- 兼容性检测 ---
+    function updateSupportInfo() {
+        const hasReqFS = 'requestFileSystem' in window || 'webkitRequestFileSystem' in window;
+        const hasFileEntry = 'FileEntry' in window || window.FileEntry !== undefined;
+        const hasDirEntry = 'DirectoryEntry' in window || window.DirectoryEntry !== undefined;
+        const hasFileWriter = 'FileWriter' in window || window.FileWriter !== undefined;
+        const hasModernFS = 'showOpenFilePicker' in window;
+
+        document.getElementById('supportReqFS').innerHTML = hasReqFS ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        document.getElementById('supportFileEntry').innerHTML = hasFileEntry ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#ffb347;">⚠️ 部分支持</span>';
+
+        document.getElementById('supportDirEntry').innerHTML = hasDirEntry ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#ffb347;">⚠️ 部分支持</span>';
+
+        document.getElementById('supportFileWriter').innerHTML = hasFileWriter ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#ffb347;">⚠️ 模拟实现</span>';
+
+        document.getElementById('supportModernFS').innerHTML = hasModernFS ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+    }
+
+    // ========== 选项卡1：沙箱文件系统 ==========
+
+    // 请求临时存储
+    document.getElementById('requestTempFS').addEventListener('click', () => {
+        if (!window.requestFileSystem) {
+            showToast('当前浏览器不支持FileSystem API', 'error');
+            return;
+        }
+
+        window.requestFileSystem(window.TEMPORARY, 5 * 1024 * 1024, (fs) => {
+            fileSystem = fs;
+            document.getElementById('fsInfo').innerHTML = `
+                    <div class="file-info-row"><span class="file-info-label">类型</span><span class="file-info-value">临时存储</span></div>
+                    <div class="file-info-row"><span class="file-info-label">名称</span><span class="file-info-value">${fs.name}</span></div>
+                    <div class="file-info-row"><span class="file-info-label">根目录</span><span class="file-info-value">${fs.root.fullPath}</span></div>
+                `;
+            showToast('临时文件系统已初始化', 'success');
+        }, (err) => {
+            showToast('请求失败: ' + err.message, 'error');
+        });
+    });
+
+    // 请求持久存储
+    document.getElementById('requestPersistentFS').addEventListener('click', () => {
+        if (!window.requestFileSystem) {
+            showToast('当前浏览器不支持FileSystem API', 'error');
+            return;
+        }
+
+        // 首先请求配额
+        if (navigator.webkitPersistentStorage) {
+            navigator.webkitPersistentStorage.requestQuota(10 * 1024 * 1024, (granted) => {
+                window.requestFileSystem(window.PERSISTENT, granted, (fs) => {
+                    fileSystem = fs;
+                    document.getElementById('fsInfo').innerHTML = `
+                            <div class="file-info-row"><span class="file-info-label">类型</span><span class="file-info-value">持久存储</span></div>
+                            <div class="file-info-row"><span class="file-info-label">配额</span><span class="file-info-value">${formatBytes(granted)}</span></div>
+                            <div class="file-info-row"><span class="file-info-label">根目录</span><span class="file-info-value">${fs.root.fullPath}</span></div>
+                        `;
+                    showToast('持久文件系统已初始化', 'success');
+                }, (err) => {
+                    showToast('请求失败: ' + err.message, 'error');
+                });
+            }, (err) => {
+                showToast('配额请求失败: ' + err.message, 'error');
+            });
+        } else {
+            showToast('不支持持久存储', 'warning');
+        }
+    });
+
+    // 查询配额
+    document.getElementById('queryQuota').addEventListener('click', () => {
+        if (navigator.webkitTemporaryStorage) {
+            navigator.webkitTemporaryStorage.queryUsageAndQuota((used, quota) => {
+                document.getElementById('fsResult').innerHTML = `
+                        临时存储 - 已用: ${formatBytes(used)}, 配额: ${formatBytes(quota)}
+                    `;
+            }, (err) => {
+                showToast(err.message, 'error');
+            });
+        }
+
+        if (navigator.webkitPersistentStorage) {
+            navigator.webkitPersistentStorage.queryUsageAndQuota((used, quota) => {
+                document.getElementById('fsResult').innerHTML += `
+                        持久存储 - 已用: ${formatBytes(used)}, 配额: ${formatBytes(quota)}
+                    `;
+            }, (err) => {
+                showToast(err.message, 'error');
+            });
+        }
+    });
+
+    // 请求更多空间
+    document.getElementById('requestQuota').addEventListener('click', () => {
+        if (navigator.webkitPersistentStorage) {
+            navigator.webkitPersistentStorage.requestQuota(20 * 1024 * 1024, (granted) => {
+                showToast(`已获得 ${formatBytes(granted)} 空间`, 'success');
+            }, (err) => {
+                showToast(err.message, 'error');
+            });
+        }
+    });
+
+    // 获取根目录
+    document.getElementById('getRoot').addEventListener('click', () => {
+        if (!fileSystem) {
+            showToast('请先初始化文件系统', 'warning');
+            return;
+        }
+        currentDirectoryEntry = fileSystem.root;
+        document.getElementById('fsResult').innerHTML = `根目录: ${fileSystem.root.fullPath}`;
+    });
+
+    // 读取根目录
+    document.getElementById('readRoot').addEventListener('click', () => {
+        if (!fileSystem) {
+            showToast('请先初始化文件系统', 'warning');
+            return;
+        }
+
+        const reader = fileSystem.root.createReader();
+        const entries = [];
+
+        reader.readEntries((results) => {
+            if (results.length) {
+                entries.push(...results);
+                // 继续读取直到全部获取
+                reader.readEntries((more) => {
+                    if (more.length) {
+                        entries.push(...more);
+                    }
+                    displayRootEntries(entries);
+                });
+            } else {
+                displayRootEntries(entries);
+            }
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+
+        function displayRootEntries(entries) {
+            const list = document.getElementById('rootList');
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="file-list-item">根目录为空</div>';
+            } else {
+                list.innerHTML = entries.map(e =>
+                    `<div class="file-list-item">
+                            <div class="file-icon">${e.isFile ? '📄' : '📁'}</div>
+                            <div>${e.name}</div>
+                        </div>`
+                ).join('');
+            }
+        }
+    });
+
+    // ========== 选项卡2：文件条目操作 ==========
+
+    // 创建文件
+    document.getElementById('createFile').addEventListener('click', () => {
+        if (!fileSystem) {
+            showToast('请先初始化文件系统', 'warning');
+            return;
+        }
+
+        const fileName = document.getElementById('createFileName').value;
+        fileSystem.root.getFile(fileName, { create: true, exclusive: false }, (fileEntry) => {
+            currentFileEntry = fileEntry;
+            document.getElementById('fileResult').innerHTML = `✅ 已创建文件: ${fileEntry.fullPath}`;
+            showToast('文件创建成功', 'success');
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 创建并写入
+    document.getElementById('createFileWithContent').addEventListener('click', () => {
+        if (!fileSystem) {
+            showToast('请先初始化文件系统', 'warning');
+            return;
+        }
+
+        const fileName = document.getElementById('createFileName').value;
+        fileSystem.root.getFile(fileName, { create: true }, (fileEntry) => {
+            currentFileEntry = fileEntry;
+            fileEntry.createWriter((writer) => {
+                writer.write(new Blob(['初始内容 ' + new Date().toLocaleString()], { type: 'text/plain' }));
+                writer.onwriteend = () => {
+                    document.getElementById('fileResult').innerHTML = `✅ 已创建并写入文件: ${fileEntry.fullPath}`;
+                    showToast('文件写入成功', 'success');
+                };
+            }, (err) => {
+                showToast(err.message, 'error');
+            });
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 获取元数据
+    document.getElementById('getFileMetadata').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        currentFileEntry.getMetadata((metadata) => {
+            document.getElementById('fileResult').innerHTML = JSON.stringify({
+                name: currentFileEntry.name,
+                fullPath: currentFileEntry.fullPath,
+                size: formatBytes(metadata.size),
+                modificationTime: new Date(metadata.modificationTime).toLocaleString(),
+                isFile: currentFileEntry.isFile,
+                isDirectory: currentFileEntry.isDirectory
+            }, null, 2);
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 移动文件
+    document.getElementById('moveFile').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        const newName = 'moved_' + currentFileEntry.name;
+        currentFileEntry.moveTo(fileSystem.root, newName, (movedEntry) => {
+            currentFileEntry = movedEntry;
+            document.getElementById('fileResult').innerHTML = `✅ 文件已移动到: ${movedEntry.fullPath}`;
+            showToast('文件移动成功', 'success');
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 复制文件
+    document.getElementById('copyFile').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        const copyName = 'copy_' + currentFileEntry.name;
+        currentFileEntry.copyTo(fileSystem.root, copyName, (copiedEntry) => {
+            document.getElementById('fileResult').innerHTML = `✅ 文件已复制到: ${copiedEntry.fullPath}`;
+            showToast('文件复制成功', 'success');
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 删除文件
+    document.getElementById('removeFile').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        currentFileEntry.remove(() => {
+            document.getElementById('fileResult').innerHTML = '✅ 文件已删除';
+            currentFileEntry = null;
+            showToast('文件删除成功', 'success');
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 读取为文本
+    document.getElementById('readFileAsText').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        currentFileEntry.file((file) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('readFileResult').innerHTML = reader.result;
+            };
+            reader.readAsText(file);
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 读取为DataURL
+    document.getElementById('readFileAsDataURL').addEventListener('click', () => {
+        if (!currentFileEntry) return showToast('请先创建或选择文件', 'warning');
+
+        currentFileEntry.file((file) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('readFileResult').innerHTML = reader.result.substring(0, 100) + '...';
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // 读取为ArrayBuffer
+    document.getElementById('readFileAsArrayBuffer').addEventListener('click', () => {
+        if (!currentFileEntry) return showToast('请先创建或选择文件', 'warning');
+
+        currentFileEntry.file((file) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const buffer = reader.result;
+                document.getElementById('readFileResult').innerHTML = `ArrayBuffer: ${buffer.byteLength} 字节`;
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    });
+
+    // ========== 选项卡3：目录条目操作 ==========
+
+    // 创建目录
+    document.getElementById('createDirectory').addEventListener('click', () => {
+        if (!fileSystem) {
+            showToast('请先初始化文件系统', 'warning');
+            return;
+        }
+
+        const dirName = document.getElementById('createDirName').value;
+        fileSystem.root.getDirectory(dirName, { create: true }, (dirEntry) => {
+            currentDirectoryEntry = dirEntry;
+            document.getElementById('dirResult').innerHTML = `✅ 已创建目录: ${dirEntry.fullPath}`;
+            showToast('目录创建成功', 'success');
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 创建子目录
+    document.getElementById('createSubdir').addEventListener('click', () => {
+        if (!fileSystem) return showToast('请先初始化文件系统', 'warning');
+
+        const dirName = document.getElementById('createDirName').value;
+        fileSystem.root.getDirectory(dirName, { create: true }, (parentDir) => {
+            parentDir.getDirectory('subdir', { create: true }, (subDir) => {
+                document.getElementById('dirResult').innerHTML = `✅ 已创建子目录: ${subDir.fullPath}`;
+                showToast('子目录创建成功', 'success');
+            }, (err) => showToast(err.message, 'error'));
+        }, (err) => showToast(err.message, 'error'));
+    });
+
+    // 读取目录
+    document.getElementById('readDirectory').addEventListener('click', () => {
+        if (!currentDirectoryEntry) {
+            showToast('请先创建或选择目录', 'warning');
+            return;
+        }
+
+        const reader = currentDirectoryEntry.createReader();
+        const entries = [];
+
+        const readAllEntries = () => {
+            reader.readEntries((results) => {
+                if (results.length) {
+                    entries.push(...results);
+                    readAllEntries(); // 继续读取
+                } else {
+                    displayDirEntries(entries);
+                }
+            }, (err) => {
+                showToast(err.message, 'error');
+            });
+        };
+
+        function displayDirEntries(entries) {
+            const list = document.getElementById('dirContentList');
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="file-list-item">目录为空</div>';
+            } else {
+                list.innerHTML = entries.map(e =>
+                    `<div class="file-list-item">
+                            <div class="file-icon">${e.isFile ? '📄' : '📁'}</div>
+                            <div>${e.name}</div>
+                        </div>`
+                ).join('');
+            }
+            document.getElementById('dirContentResult').innerHTML = `共 ${entries.length} 个条目`;
+        }
+
+        readAllEntries();
+    });
+
+    // 递归列出
+    document.getElementById('listDirectoryRecursive').addEventListener('click', () => {
+        if (!currentDirectoryEntry) return showToast('请先创建或选择目录', 'warning');
+
+        const results = [];
+
+        function listEntries(dirEntry, path = '') {
+            const reader = dirEntry.createReader();
+            return new Promise((resolve) => {
+                reader.readEntries((entries) => {
+                    if (entries.length === 0) {
+                        resolve();
+                    } else {
+                        const promises = entries.map(entry => {
+                            results.push({ path: path + '/' + entry.name, isFile: entry.isFile });
+                            if (entry.isDirectory) {
+                                return listEntries(entry, path + '/' + entry.name);
+                            }
+                        });
+                        Promise.all(promises).then(() => resolve());
+                    }
+                });
+            });
+        }
+
+        listEntries(currentDirectoryEntry, currentDirectoryEntry.fullPath).then(() => {
+            document.getElementById('dirResult').innerHTML = JSON.stringify(results, null, 2);
+        });
+    });
+
+    // 移动目录
+    document.getElementById('moveDirectory').addEventListener('click', () => {
+        if (!currentDirectoryEntry) return showToast('请先创建或选择目录', 'warning');
+
+        const newName = 'moved_' + currentDirectoryEntry.name;
+        currentDirectoryEntry.moveTo(fileSystem.root, newName, (movedEntry) => {
+            currentDirectoryEntry = movedEntry;
+            document.getElementById('dirResult').innerHTML = `✅ 目录已移动到: ${movedEntry.fullPath}`;
+            showToast('目录移动成功', 'success');
+        }, (err) => showToast(err.message, 'error'));
+    });
+
+    // 删除目录
+    document.getElementById('removeDirectory').addEventListener('click', () => {
+        if (!currentDirectoryEntry) return showToast('请先创建或选择目录', 'warning');
+
+        currentDirectoryEntry.removeRecursively(() => {
+            document.getElementById('dirResult').innerHTML = '✅ 目录已删除';
+            currentDirectoryEntry = null;
+            showToast('目录删除成功', 'success');
+        }, (err) => showToast(err.message, 'error'));
+    });
+
+    // ========== 选项卡4：FileWriter API ==========
+
+    // 创建FileWriter
+    document.getElementById('createWriter').addEventListener('click', () => {
+        if (!currentFileEntry) {
+            showToast('请先创建或选择文件', 'warning');
+            return;
+        }
+
+        currentFileEntry.createWriter((writer) => {
+            currentFileWriter = writer;
+            document.getElementById('writerResult').innerHTML = '✅ FileWriter 已创建';
+
+            // 设置事件监听
+            writer.onwrite = () => {
+                console.log('写入完成');
+            };
+            writer.onerror = (err) => {
+                showToast('写入错误: ' + err.message, 'error');
+            };
+        }, (err) => {
+            showToast(err.message, 'error');
+        });
+    });
+
+    // 写入文件
+    document.getElementById('writeWithWriter').addEventListener('click', () => {
+        if (!currentFileWriter) {
+            showToast('请先创建FileWriter', 'warning');
+            return;
+        }
+
+        const content = document.getElementById('writerContent').value;
+        const blob = new Blob([content], { type: 'text/plain' });
+
+        // 从开始位置写入
+        currentFileWriter.onwriteend = () => {
+            document.getElementById('writerResult').innerHTML = '✅ 写入完成';
+            document.getElementById('writerProgress').style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('writerProgress').style.width = '0%';
+            }, 1000);
+        };
+
+        currentFileWriter.write(blob);
+    });
+
+    // 追加内容
+    document.getElementById('appendWithWriter').addEventListener('click', () => {
+        if (!currentFileWriter) return showToast('请先创建FileWriter', 'warning');
+
+        currentFileWriter.seek(currentFileWriter.length); // 移动到末尾
+        const content = '\n' + document.getElementById('writerContent').value;
+        const blob = new Blob([content], { type: 'text/plain' });
+
+        currentFileWriter.onwriteend = () => {
+            document.getElementById('writerResult').innerHTML = '✅ 追加完成';
+        };
+
+        currentFileWriter.write(blob);
+    });
+
+    // 定位写入
+    document.getElementById('seekAndWrite').addEventListener('click', () => {
+        if (!currentFileWriter) return showToast('请先创建FileWriter', 'warning');
+
+        const position = parseInt(document.getElementById('seekPosition').value);
+        currentFileWriter.seek(position);
+
+        const content = '[插入内容]';
+        const blob = new Blob([content], { type: 'text/plain' });
+
+        currentFileWriter.onwriteend = () => {
+            document.getElementById('writerResult').innerHTML = `✅ 已在位置 ${position} 写入`;
+        };
+
+        currentFileWriter.write(blob);
+    });
+
+    // 截断
+    document.getElementById('truncateWithWriter').addEventListener('click', () => {
+        if (!currentFileWriter) return showToast('请先创建FileWriter', 'warning');
+
+        currentFileWriter.truncate(10); // 保留前10字节
+
+        currentFileWriter.onwriteend = () => {
+            document.getElementById('writerResult').innerHTML = '✅ 文件已截断为10字节';
+        };
+    });
+
+    // 写入大文件(模拟)
+    document.getElementById('writeLargeFile').addEventListener('click', () => {
+        if (!currentFileWriter) return showToast('请先创建FileWriter', 'warning');
+
+        const totalSize = 1024 * 1024; // 1MB
+        const chunkSize = 64 * 1024; // 64KB
+        let written = 0;
+        const progress = document.getElementById('writerProgress');
+
+        function writeChunk() {
+            const chunk = new Blob([new Uint8Array(chunkSize).map(() => Math.floor(Math.random() * 256))]);
+            currentFileWriter.onwriteend = () => {
+                written += chunkSize;
+                const percent = (written / totalSize) * 100;
+                progress.style.width = percent + '%';
+
+                if (written < totalSize) {
+                    writeChunk();
+                } else {
+                    document.getElementById('writerResult').innerHTML = '✅ 大文件写入完成';
+                    showToast('大文件写入完成', 'success');
+                }
+            };
+            currentFileWriter.write(chunk);
+        }
+
+        writeChunk();
+    });
+
+    // 中止写入
+    document.getElementById('abortWrite').addEventListener('click', () => {
+        if (currentFileWriter && currentFileWriter.readyState === 1) { // WRITING
+            currentFileWriter.abort();
+            showToast('写入已中止', 'warning');
+            document.getElementById('writerResult').innerHTML = '⏹️ 写入已中止';
+        }
+    });
+
+    // --- 初始化 ---
+    updateSupportInfo();
+    showToast('🚀 文件与目录条目API演示已启动', 'success');
+</script>
+</body>
+</html>

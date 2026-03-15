@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级安全沙箱 · HTML Sanitizer API 演示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-light: #dbeafe;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 20px;
+            --radius-full: 9999px;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 1400px;
+            height: 90vh;
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 16px 24px;
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            background: var(--gray-100);
+            color: var(--gray-600);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--gray-200);
+        }
+
+        .tab.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .tab-close {
+            width: 20px;
+            height: 20px;
+            border-radius: var(--radius-full);
+            background: var(--gray-300);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .tab-close:hover {
+            background: var(--danger);
+        }
+
+        .new-tab-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            background: white;
+            border: 1px solid var(--gray-200);
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .new-tab-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .workspace {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: var(--gray-50);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+
+        .badge.primary {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius-full);
+            border: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--gray-200);
+        }
+
+        .btn.primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn.warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .result-box {
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .result-content {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            min-height: 60px;
+            font-family: monospace;
+            border: 1px solid var(--gray-200);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .preview {
+            margin-top: 16px;
+            padding: 16px;
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gray-200);
+        }
+
+        .status-bar {
+            padding: 12px 24px;
+            background: white;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--gray-600);
+        }
+
+        .event-log {
+            background: var(--gray-100);
+            padding: 6px 16px;
+            border-radius: var(--radius-full);
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .config-item {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--gray-100);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div class="logo">
+            <span class="logo-icon">🛡️</span>
+            <span>Sanitizer Security Lab</span>
+        </div>
+        <div class="tab-bar" id="tabContainer"></div>
+        <button class="new-tab-btn" id="addTabBtn">+</button>
+    </div>
+
+    <div class="workspace" id="tabContentContainer"></div>
+
+    <div class="status-bar">
+        <div>
+            <span>🔧 浏览器支持: </span>
+            <span id="browserSupport">检测中...</span>
+        </div>
+        <div class="event-log" id="eventLog">⚡ 就绪</div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        'use strict';
+
+        // ========== 检测浏览器支持 ==========
+        const support = {
+            sanitizer: typeof window.Sanitizer !== 'undefined',
+            setHTML: typeof Element.prototype.setHTML === 'function'
+        };
+
+        // ========== 状态管理 ==========
+        const state = {
+            tabs: [
+                { id: 'tab_1', label: '基础演示', closeable: false, created: Date.now() },
+                { id: 'tab_2', label: '配置演示', closeable: true, created: Date.now() },
+                { id: 'tab_3', label: '兼容方案', closeable: true, created: Date.now() }
+            ],
+            activeTabId: 'tab_1'
+        };
+
+        // ========== DOM 元素 ==========
+        const elements = {
+            tabContainer: document.getElementById('tabContainer'),
+            contentContainer: document.getElementById('tabContentContainer'),
+            eventLog: document.getElementById('eventLog'),
+            browserSupport: document.getElementById('browserSupport'),
+            addTabBtn: document.getElementById('addTabBtn')
+        };
+
+        // ========== 工具函数 ==========
+        const utils = {
+            generateId: (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+
+            formatTime: () => {
+                return new Date().toLocaleTimeString('zh-CN', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            },
+
+            escapeHtml: (unsafe) => {
+                if (!unsafe) return '';
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            },
+
+            log: (message, data = '') => {
+                const time = utils.formatTime();
+                const logEntry = `[${time}] ${message}${data ? ' · ' + data : ''}`;
+                if (elements.eventLog) {
+                    elements.eventLog.textContent = logEntry;
+                }
+                console.log(`%c${logEntry}`, 'color: #3b82f6;');
+            },
+
+            updateSupportInfo: () => {
+                if (elements.browserSupport) {
+                    elements.browserSupport.textContent = support.sanitizer ? '✅ 支持' : '❌ 不支持';
+                }
+                if (!support.sanitizer) {
+                    utils.log('⚠️ 警告', '浏览器不支持 Sanitizer API，使用 DOMPurify 模拟');
+                }
+            },
+
+            // DOMPurify 模拟实现
+            sanitizeWithDOMPurify: (html, config = {}) => {
+                if (window.DOMPurify) {
+                    return window.DOMPurify.sanitize(html, config);
+                }
+
+                // 简单的模拟实现
+                let cleaned = html
+                    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+                    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+                    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+                    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+                    .replace(/javascript:/gi, '')
+                    .replace(/on\w+=/gi, 'on-disabled=')
+                    .replace(/data:/gi, 'data-disabled:');
+
+                return cleaned;
+            },
+
+            // 主清理函数
+            sanitize: (html, config = null) => {
+                if (support.sanitizer) {
+                    try {
+                        const sanitizer = config ? new Sanitizer(config) : new Sanitizer();
+                        const temp = document.createElement('div');
+
+                        if (support.setHTML) {
+                            temp.setHTML(html, { sanitizer });
+                            return temp.innerHTML;
+                        } else {
+                            temp.innerHTML = html;
+                            const scripts = temp.getElementsByTagName('script');
+                            while (scripts.length > 0) {
+                                scripts[0].parentNode.removeChild(scripts[0]);
+                            }
+                            return temp.innerHTML;
+                        }
+                    } catch (e) {
+                        utils.log('Sanitizer 错误', e.message);
+                        return utils.sanitizeWithDOMPurify(html);
+                    }
+                }
+                return utils.sanitizeWithDOMPurify(html);
+            },
+
+            // 加载 DOMPurify
+            loadDOMPurify: () => {
+                if (!window.DOMPurify && !support.sanitizer) {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js';
+                    document.head.appendChild(script);
+                    script.onload = () => utils.log('DOMPurify 加载完成');
+                }
+            }
+        };
+
+        // ========== 渲染函数 ==========
+        function renderTabs() {
+            if (!elements.tabContainer) return;
+
+            elements.tabContainer.innerHTML = '';
+
+            state.tabs.forEach(tab => {
+                const tabEl = document.createElement('div');
+                tabEl.className = `tab ${state.activeTabId === tab.id ? 'active' : ''}`;
+                tabEl.dataset.tabId = tab.id;
+
+                const textSpan = document.createElement('span');
+                textSpan.textContent = tab.label;
+                tabEl.appendChild(textSpan);
+
+                if (tab.closeable) {
+                    const closeBtn = document.createElement('span');
+                    closeBtn.className = 'tab-close';
+                    closeBtn.innerHTML = '✕';
+                    closeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                    });
+                    tabEl.appendChild(closeBtn);
+                }
+
+                tabEl.addEventListener('click', () => setActiveTab(tab.id));
+                elements.tabContainer.appendChild(tabEl);
+            });
+
+            renderContent();
+        }
+
+        function renderContent() {
+            if (!elements.contentContainer) return;
+
+            elements.contentContainer.innerHTML = '';
+
+            state.tabs.forEach(tab => {
+                const pane = document.createElement('div');
+                pane.className = `tab-pane ${state.activeTabId === tab.id ? 'active' : ''}`;
+                pane.dataset.tabId = tab.id;
+
+                if (tab.id === 'tab_1') {
+                    pane.innerHTML = renderBasicTab();
+                } else if (tab.id === 'tab_2') {
+                    pane.innerHTML = renderConfigTab();
+                } else {
+                    pane.innerHTML = renderCompatTab();
+                }
+
+                elements.contentContainer.appendChild(pane);
+            });
+
+            bindEvents();
+        }
+
+        function renderBasicTab() {
+            return `
+                    <div class="card">
+                        <div class="card-title">
+                            <span>🧪 Sanitizer API 基础演示</span>
+                            <span class="badge primary">XSS 防护</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">输入不安全的 HTML：</label>
+                            <textarea class="input-field" id="dirtyInput" rows="4">&lt;div&gt;Hello &lt;script&gt;alert("XSS")&lt;/script&gt; World &lt;img src=x onerror=alert(1)&gt;&lt;/div&gt; &lt;p&gt;Safe text&lt;/p&gt;</textarea>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn primary" id="sanitizeBtn">🔒 清理 HTML</button>
+                            <button class="btn warning" id="unsafeBtn">⚠️ 直接注入</button>
+                            <button class="btn" id="resetBtn">↺ 重置</button>
+                        </div>
+
+                        <div class="result-box">
+                            <div style="margin-bottom: 8px;">📋 清理结果</div>
+                            <div class="result-content" id="resultOutput"></div>
+
+                            <div style="margin: 16px 0 8px;">👁️ 预览效果</div>
+                            <div class="preview" id="previewOutput"></div>
+                        </div>
+
+                        <div style="margin-top: 16px; font-size: 0.85rem;">
+                            <span class="badge">当前使用: ${support.sanitizer ? '原生 Sanitizer' : 'DOMPurify'}</span>
+                        </div>
+                    </div>
+                `;
+        }
+
+        function renderConfigTab() {
+            return `
+                    <div class="card">
+                        <div class="card-title">
+                            <span>⚙️ Sanitizer 配置演示</span>
+                            <span class="badge primary">白名单控制</span>
+                        </div>
+
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <h4>默认配置</h4>
+                                <div>
+                                    <span class="tag">允许标准元素</span>
+                                    <span class="tag">移除脚本</span>
+                                    <span class="tag">移除事件</span>
+                                </div>
+                                <button class="btn" id="applyDefaultConfig" style="margin-top: 12px;">应用</button>
+                            </div>
+
+                            <div class="config-item">
+                                <h4>宽松配置</h4>
+                                <div>
+                                    <span class="tag">允许 iframe</span>
+                                    <span class="tag">保留格式</span>
+                                </div>
+                                <button class="btn" id="applyLaxConfig" style="margin-top: 12px;">应用</button>
+                            </div>
+
+                            <div class="config-item">
+                                <h4>严格配置</h4>
+                                <div>
+                                    <span class="tag">仅文本</span>
+                                    <span class="tag">移除所有标签</span>
+                                </div>
+                                <button class="btn" id="applyStrictConfig" style="margin-top: 12px;">应用</button>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">测试 HTML：</label>
+                            <textarea class="input-field" id="configInput" rows="3">&lt;div onclick="alert(1)"&gt;点击有风险&lt;/div&gt; &lt;script&gt;evil()&lt;/script&gt; &lt;iframe src="bad.html"&gt;&lt;/iframe&gt; &lt;p&gt;安全段落&lt;/p&gt;</textarea>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn primary" id="applyConfigBtn">🔧 应用配置清理</button>
+                        </div>
+
+                        <div class="result-box">
+                            <div>📋 清理结果</div>
+                            <div class="result-content" id="configResult"></div>
+                        </div>
+                    </div>
+                `;
+        }
+
+        function renderCompatTab() {
+            return `
+                    <div class="card">
+                        <div class="card-title">
+                            <span>🔄 兼容性方案</span>
+                            <span class="badge primary">降级策略</span>
+                        </div>
+
+                        <div class="config-item" style="margin-bottom: 20px;">
+                            <h4>浏览器支持状态</h4>
+                            <div style="margin: 12px 0;">
+                                <div>Sanitizer API: ${support.sanitizer ? '✅ 支持' : '❌ 不支持'}</div>
+                                <div>setHTML 方法: ${support.setHTML ? '✅ 支持' : '❌ 不支持'}</div>
+                            </div>
+                            <p style="color: #666;">
+                                ${!support.sanitizer ? '当前浏览器不支持原生 Sanitizer API，使用 DOMPurify 降级方案。' : '浏览器支持原生 API。'}
+                            </p>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">测试 HTML：</label>
+                            <textarea class="input-field" id="compatInput" rows="3">&lt;img src=x onerror=alert("XSS")&gt; &lt;b&gt;粗体&lt;/b&gt; &lt;script&gt;alert("恶意代码")&lt;/script&gt;</textarea>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn primary" id="testNativeBtn">🔧 测试原生方案</button>
+                            <button class="btn success" id="testDOMPurifyBtn">📦 测试 DOMPurify</button>
+                        </div>
+
+                        <div class="result-box">
+                            <div>📋 清理结果对比</div>
+                            <div class="result-content" id="compatResult"></div>
+                        </div>
+                    </div>
+                `;
+        }
+
+        // ========== 事件绑定 ==========
+        function bindEvents() {
+            // 基础演示
+            const dirtyInput = document.getElementById('dirtyInput');
+            const resultOutput = document.getElementById('resultOutput');
+            const previewOutput = document.getElementById('previewOutput');
+
+            if (dirtyInput && resultOutput && previewOutput) {
+                document.getElementById('sanitizeBtn')?.addEventListener('click', () => {
+                    const cleaned = utils.sanitize(dirtyInput.value);
+                    resultOutput.textContent = cleaned;
+                    previewOutput.innerHTML = cleaned;
+                    utils.log('HTML 已清理');
+                });
+
+                document.getElementById('unsafeBtn')?.addEventListener('click', () => {
+                    previewOutput.innerHTML = dirtyInput.value;
+                    resultOutput.textContent = dirtyInput.value;
+                    utils.log('⚠️ 直接注入');
+                });
+
+                document.getElementById('resetBtn')?.addEventListener('click', () => {
+                    resultOutput.textContent = '';
+                    previewOutput.innerHTML = '';
+                });
+            }
+
+            // 配置演示
+            const configInput = document.getElementById('configInput');
+            const configResult = document.getElementById('configResult');
+
+            if (configInput && configResult) {
+                document.getElementById('applyDefaultConfig')?.addEventListener('click', () => {
+                    configResult.textContent = utils.sanitize(configInput.value);
+                });
+
+                document.getElementById('applyLaxConfig')?.addEventListener('click', () => {
+                    const config = {
+                        ALLOWED_TAGS: ['div', 'p', 'span', 'iframe', 'a', 'b', 'i'],
+                        ALLOWED_ATTR: ['href', 'src', 'title']
+                    };
+                    configResult.textContent = utils.sanitizeWithDOMPurify(configInput.value, config);
+                });
+
+                document.getElementById('applyStrictConfig')?.addEventListener('click', () => {
+                    configResult.textContent = utils.sanitizeWithDOMPurify(configInput.value, { ALLOWED_TAGS: [] });
+                });
+
+                document.getElementById('applyConfigBtn')?.addEventListener('click', () => {
+                    configResult.textContent = utils.sanitize(configInput.value);
+                });
+            }
+
+            // 兼容方案
+            const compatInput = document.getElementById('compatInput');
+            const compatResult = document.getElementById('compatResult');
+
+            if (compatInput && compatResult) {
+                document.getElementById('testNativeBtn')?.addEventListener('click', () => {
+                    compatResult.textContent = `原生方案结果：\n${utils.sanitize(compatInput.value)}`;
+                });
+
+                document.getElementById('testDOMPurifyBtn')?.addEventListener('click', () => {
+                    compatResult.textContent = `DOMPurify 结果：\n${utils.sanitizeWithDOMPurify(compatInput.value)}`;
+                });
+            }
+        }
+
+        // ========== 标签页操作 ==========
+        function setActiveTab(tabId) {
+            if (state.activeTabId !== tabId) {
+                state.activeTabId = tabId;
+                renderTabs();
+                utils.log('切换标签页', tabId);
+            }
+        }
+
+        function handleCloseTab(tabId) {
+            const index = state.tabs.findIndex(t => t.id === tabId);
+            if (index === -1 || !state.tabs[index].closeable) return;
+
+            state.tabs.splice(index, 1);
+
+            if (state.activeTabId === tabId && state.tabs.length > 0) {
+                state.activeTabId = state.tabs[0].id;
+            }
+
+            renderTabs();
+            utils.log('关闭标签页', tabId);
+        }
+
+        function addNewTab() {
+            const newTab = {
+                id: utils.generateId('tab'),
+                label: `演示 ${state.tabs.length + 1}`,
+                closeable: true,
+                created: Date.now()
+            };
+
+            state.tabs.push(newTab);
+            state.activeTabId = newTab.id;
+            renderTabs();
+            utils.log('新建标签页', newTab.label);
+        }
+
+        // ========== 初始化 ==========
+        function init() {
+            utils.updateSupportInfo();
+            utils.loadDOMPurify();
+            renderTabs();
+
+            if (elements.addTabBtn) {
+                elements.addTabBtn.addEventListener('click', addNewTab);
+            }
+
+            utils.log('系统初始化完成', support.sanitizer ? '原生 API' : '降级模式');
+        }
+
+        init();
+    })();
+</script>
+</body>
+
+</html>

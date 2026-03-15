@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Launch Handler API - 开发调试台</title>
+    <meta name="theme-color" content="#0c1017"/>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.sim {
+            background: var(--accent-orange);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧配置面板 */
+        .config-panel {
+            width: 380px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        pre {
+            background: var(--bg-deep);
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            border: 1px solid var(--border);
+        }
+
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .config-label {
+            color: var(--text-muted);
+        }
+
+        .config-val {
+            color: var(--accent-blue);
+            font-family: var(--font-mono);
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        button:hover {
+            background: var(--bg-hover);
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 12px;
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+        }
+
+        /* 右侧应用视图 */
+        .app-viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+            position: relative;
+        }
+
+        .view-container {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            gap: 24px;
+            flex-direction: column;
+        }
+
+        /* 路由视图 */
+        .page-view {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 24px;
+            flex: 1;
+            display: none;
+            flex-direction: column;
+        }
+
+        .page-view.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .view-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .view-icon {
+            font-size: 24px;
+        }
+
+        /* JSON Inspector */
+        .json-inspector {
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            overflow: auto;
+            max-height: 400px;
+        }
+
+        .json-key {
+            color: var(--accent-purple);
+        }
+
+        .json-string {
+            color: var(--accent-green);
+        }
+
+        .json-bracket {
+            color: var(--text-muted);
+        }
+
+        /* 历史记录 */
+        .history-panel {
+            height: 200px;
+            background: var(--bg-main);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-header {
+            padding: 8px 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+        }
+
+        .history-item {
+            padding: 6px 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .history-item:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .history-time {
+            color: var(--accent-blue);
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">LH</div>
+        <span>Launch Handler 开发调试台</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测环境...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧配置 -->
+    <aside class="config-panel">
+        <div class="panel-header">
+            <div class="section-title">API 配置与状态</div>
+            <div class="config-row">
+                <span class="config-label">API Support</span>
+                <span class="config-val" id="api-support-text">-</span>
+            </div>
+            <div class="config-row">
+                <span class="config-label">Environment</span>
+                <span class="config-val" id="env-text">Browser Tab</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Manifest 配置指南</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+                在 manifest.json 中配置 launch_handler 以控制启动行为。
+            </p>
+            <pre>
+{
+  "launch_handler": {
+    "client_mode": [
+      "navigate-existing",
+      "auto"
+    ]
+  },
+  "protocol_handlers": [{
+    "protocol": "web+demo",
+    "url": "/?from=%s"
+  }]
+}</pre>
+        </div>
+
+        <div class="card">
+            <div class="section-title">交互式模拟器</div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                模拟 PWA 启动事件，测试路由处理逻辑。
+            </p>
+
+            <label style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px; display: block;">模拟场景</label>
+            <select id="sim-scenario">
+                <option value="normal">常规启动</option>
+                <option value="url">URL 参数启动</option>
+                <option value="protocol">自定义协议</option>
+                <option value="file">文件处理</option>
+            </select>
+
+            <div id="sim-options" style="margin-bottom: 12px;">
+                <!-- 动态内容 -->
+            </div>
+
+            <button id="btn-trigger" class="primary">触发 Launch Event</button>
+        </div>
+    </aside>
+
+    <!-- 右侧视图 -->
+    <section class="app-viewport">
+        <div class="view-container">
+            <!-- 启动参数详情 -->
+            <div class="page-view active" id="view-inspector">
+                <div class="view-header">
+                    <span class="view-title">Launch Params Inspector</span>
+                    <span class="view-icon">🔍</span>
+                </div>
+                <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
+                    等待接收 launchParams 对象。请在左侧触发模拟事件或通过 PWA 协议启动。
+                </div>
+                <div class="json-inspector" id="json-viewer">
+                    <span class="json-key">status</span>: <span class="json-string">"waiting..."</span>
+                </div>
+            </div>
+
+            <!-- 目标路由视图 -->
+            <div class="page-view" id="view-route">
+                <div class="view-header">
+                    <span class="view-title">路由目标: <span id="route-name">Dashboard</span></span>
+                    <span class="view-icon">🚀</span>
+                </div>
+                <div style="color: var(--text-secondary); font-size: 13px;">
+                    应用已根据 Launch Params 自动导航至目标页面。
+                    <div style="margin-top: 16px; padding: 12px; background: var(--bg-deep); border-radius: 4px;">
+                        <p style="font-size: 11px; margin-bottom: 4px;">提取的参数:</p>
+                        <code id="route-params" style="color: var(--accent-green); font-size: 11px;">-</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="history-panel">
+            <div class="history-header">
+                <span>Launch History (Session Storage)</span>
+                <span style="cursor: pointer; color: var(--accent-blue);" onclick="clearHistory()">清空</span>
+            </div>
+            <div class="history-list" id="history-list">
+                <div style="color: var(--text-muted); padding: 8px;">暂无历史记录</div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Launch Handler API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'launchQueue' in window,
+        history: []
+    };
+
+    // 初始化
+    function init() {
+        updateStatus();
+        renderSimOptions();
+        setupListener();
+        restoreHistory();
+    }
+
+    function updateStatus() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+        const supportText = $('api-support-text');
+
+        // 检测是否在 PWA 模式
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+            supportText.textContent = 'Native Support';
+        } else {
+            dot.classList.add('sim');
+            text.textContent = '模拟模式';
+            supportText.textContent = 'No Support (Simulated)';
+        }
+
+        if (isStandalone) {
+            $('env-text').textContent = 'PWA Mode';
+            $('env-text').style.color = 'var(--accent-green)';
+        }
+    }
+
+    // ========================================
+    // 核心：Launch Handler 逻辑
+    // ========================================
+
+    function setupListener() {
+        if (state.supported) {
+            // 原生 API 消费者
+            window.launchQueue.setConsumer(launchParams => {
+                processLaunch(launchParams, 'Native Event');
+            });
+        }
+
+        // 监听模拟器触发
+        $('btn-trigger').addEventListener('click', triggerSim);
+        $('sim-scenario').addEventListener('change', renderSimOptions);
+    }
+
+    function processLaunch(params, source) {
+        console.log('Launch Event:', params);
+
+        // 1. 记录历史
+        addHistory(params, source);
+
+        // 2. 更新 Inspector 视图
+        renderJSON(params);
+
+        // 3. 处理路由逻辑
+        handleRouting(params);
+    }
+
+    // ========================================
+    // 路由处理逻辑
+    // ========================================
+
+    function handleRouting(params) {
+        let routeFound = false;
+        let routeName = 'Home';
+        let extractedData = {};
+
+        // 逻辑 1: 检查 files
+        if (params.files && params.files.length > 0) {
+            routeName = 'File Editor';
+            extractedData = {filename: params.files[0].name};
+            routeFound = true;
+        }
+
+        // 逻辑 2: 检查 targetURL
+        if (params.targetURL) {
+            const url = new URL(params.targetURL, window.location.origin);
+
+            if (url.searchParams.has('route')) {
+                routeName = url.searchParams.get('route').toUpperCase();
+                extractedData = {route: routeName};
+                routeFound = true;
+            } else if (url.searchParams.has('from')) {
+                routeName = 'Protocol Handler';
+                extractedData = {source: url.searchParams.get('from')};
+                routeFound = true;
+            }
+        }
+
+        // 更新 UI
+        $('view-inspector').classList.remove('active');
+        $('view-route').classList.add('active');
+        $('route-name').textContent = routeName;
+        $('route-params').textContent = JSON.stringify(extractedData, null, 2);
+    }
+
+    // ========================================
+    // 模拟器逻辑
+    // ========================================
+
+    function renderSimOptions() {
+        const scenario = $('sim-scenario').value;
+        const container = $('sim-options');
+        container.innerHTML = '';
+
+        if (scenario === 'url') {
+            container.innerHTML = `
+          <label style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px; display: block;">URL 参数</label>
+          <input type="text" id="input-url" value="?route=dashboard" placeholder="?route=dashboard">
+        `;
+        } else if (scenario === 'protocol') {
+            container.innerHTML = `
+          <label style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px; display: block;">协议 URL</label>
+          <input type="text" id="input-protocol" value="web+demo://view/123" placeholder="web+demo://...">
+        `;
+        } else if (scenario === 'file') {
+            container.innerHTML = `
+          <label style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px; display: block;">文件名</label>
+          <input type="text" id="input-filename" value="document.json" placeholder="filename.txt">
+        `;
+        }
+    }
+
+    function triggerSim() {
+        const scenario = $('sim-scenario').value;
+        let params = {};
+
+        if (scenario === 'normal') {
+            params = {targetURL: window.location.href};
+        } else if (scenario === 'url') {
+            const val = $('input-url').value;
+            params = {targetURL: window.location.origin + window.location.pathname + val};
+        } else if (scenario === 'protocol') {
+            const val = $('input-protocol').value;
+            // 模拟协议 URL 映射到应用内的参数
+            params = {targetURL: window.location.origin + "?from=" + encodeURIComponent(val)};
+        } else if (scenario === 'file') {
+            const name = $('input-filename').value;
+            params = {
+                files: [{name: name, type: 'application/json', handle: 'FileSystemHandle'}]
+            };
+        }
+
+        processLaunch(params, 'Simulated Event');
+    }
+
+    // ========================================
+    // UI 渲染工具
+    // ========================================
+
+    function renderJSON(obj) {
+        const viewer = $('json-viewer');
+        const str = JSON.stringify(obj, null, 2);
+
+        // 简单的语法高亮
+        const highlighted = str
+            .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+            .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+            .replace(/[{}\[\]]/g, '<span class="json-bracket">$&</span>');
+
+        viewer.innerHTML = highlighted;
+    }
+
+    function addHistory(params, source) {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const entry = {time, source, params};
+        state.history.unshift(entry);
+
+        // 更新列表
+        const list = $('history-list');
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `<span class="history-time">${time}</span> [${source}]`;
+        item.onclick = () => renderJSON(entry.params);
+
+        list.insertBefore(item, list.firstChild);
+
+        if (list.children.length > 10) list.lastChild.remove();
+    }
+
+    function restoreHistory() {
+        // 实际应用可从 sessionStorage 恢复
+    }
+
+    function clearHistory() {
+        state.history = [];
+        $('history-list').innerHTML = '<div style="color: var(--text-muted); padding: 8px;">暂无历史记录</div>';
+    }
+
+    init();
+</script>
+</body>
+</html>

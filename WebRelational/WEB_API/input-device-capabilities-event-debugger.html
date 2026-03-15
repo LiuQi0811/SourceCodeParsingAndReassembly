@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>InputDeviceCapabilities 事件调试器</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部栏 */
+        header {
+            height: 60px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* 主布局 */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧交互区 */
+        .canvas-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+        }
+
+        .canvas-header {
+            padding: 12px 20px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, rgba(59, 130, 246, 0.03) 0%, transparent 70%),
+            repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255, 255, 255, 0.02) 40px, rgba(255, 255, 255, 0.02) 41px),
+            repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255, 255, 255, 0.02) 40px, rgba(255, 255, 255, 0.02) 41px);
+            background-color: var(--bg-main);
+            overflow: hidden;
+        }
+
+        #interaction-canvas {
+            position: absolute;
+            inset: 0;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* 涟漪动画效果 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-effect 0.6s linear;
+            pointer-events: none;
+            border: 2px solid;
+        }
+
+        @keyframes ripple-effect {
+            to {
+                transform: scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* 坐标标记 */
+        .coord-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: marker-fadein 0.2s ease-out;
+        }
+
+        .marker-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 3px currentColor;
+            opacity: 0.3;
+        }
+
+        .marker-label {
+            position: absolute;
+            left: 12px;
+            top: -6px;
+            font-size: 10px;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            color: currentColor;
+            white-space: nowrap;
+            background: var(--bg-deep);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid currentColor;
+        }
+
+        @keyframes marker-fadein {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+        }
+
+        /* 右侧信息面板 */
+        .info-panel {
+            width: 400px;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-icon {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .stat-card.mouse .stat-value {
+            color: var(--accent-blue);
+        }
+
+        .stat-card.touch .stat-value {
+            color: var(--accent-orange);
+        }
+
+        .stat-card.pen .stat-value {
+            color: var(--accent-purple);
+        }
+
+        /* 事件日志 */
+        .log-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            background: var(--bg-card);
+            animation: log-slide 0.2s ease-out;
+        }
+
+        @keyframes log-slide {
+            from {
+                opacity: 0;
+                transform: translateX(10px);
+            }
+        }
+
+        .log-entry.mouse {
+            border-left-color: var(--accent-blue);
+        }
+
+        .log-entry.touch {
+            border-left-color: var(--accent-orange);
+        }
+
+        .log-entry.pen {
+            border-left-color: var(--accent-purple);
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+        }
+
+        .log-type {
+            font-weight: 600;
+        }
+
+        .log-detail {
+            color: var(--text-secondary);
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2px 8px;
+        }
+
+        .log-key {
+            color: var(--text-muted);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .empty-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .info-panel {
+                width: 100%;
+                height: 50%;
+            }
+
+            .canvas-section {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="logo">
+        <div class="logo-icon">In</div>
+        <span>InputDeviceCapabilities 调试器</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="api-status-dot"></span>
+        <span id="api-status-text">检测中...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧交互区 -->
+    <section class="canvas-section">
+        <div class="canvas-header">
+            <span>在此区域点击或触摸进行测试</span>
+            <span id="canvas-size-info">-</span>
+        </div>
+        <div class="canvas-wrapper" id="canvas-wrapper">
+            <div id="interaction-canvas"></div>
+        </div>
+    </section>
+
+    <!-- 右侧信息面板 -->
+    <aside class="info-panel">
+        <div class="panel-section">
+            <div class="section-title">设备统计</div>
+            <div class="stats-grid">
+                <div class="stat-card mouse">
+                    <div class="stat-icon">🖱️</div>
+                    <div class="stat-value" id="stat-mouse">0</div>
+                    <div class="stat-label">鼠标事件</div>
+                </div>
+                <div class="stat-card touch">
+                    <div class="stat-icon">👆</div>
+                    <div class="stat-value" id="stat-touch">0</div>
+                    <div class="stat-label">触摸事件</div>
+                </div>
+                <div class="stat-card pen">
+                    <div class="stat-icon">🖊️</div>
+                    <div class="stat-value" id="stat-pen">0</div>
+                    <div class="stat-label">手写笔事件</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-section log-section">
+            <div class="section-title">事件流日志</div>
+            <div class="log-container" id="log-container">
+                <div class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <div>等待输入事件...</div>
+                    <div style="font-size: 10px; margin-top: 8px;">支持鼠标、触摸、手写笔</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<script>
+    // ========================================
+    // InputDeviceCapabilities 事件调试器
+    // ========================================
+
+    const state = {
+        counts: {mouse: 0, touch: 0, pen: 0},
+        apiSupported: false,
+        lastEventTime: 0
+    };
+
+    const $ = id => document.getElementById(id);
+    const dom = {
+        canvas: $('interaction-canvas'),
+        wrapper: $('canvas-wrapper'),
+        logContainer: $('log-container'),
+        statusDot: $('api-status-dot'),
+        statusText: $('api-status-text'),
+        canvasSize: $('canvas-size-info'),
+        statMouse: $('stat-mouse'),
+        statTouch: $('stat-touch'),
+        statPen: $('stat-pen')
+    };
+
+    // 初始化
+    function init() {
+        checkAPISupport();
+        setupEventListeners();
+        updateCanvasSize();
+        window.addEventListener('resize', updateCanvasSize);
+    }
+
+    // 检测 API 支持
+    function checkAPISupport() {
+        state.apiSupported = 'InputDeviceCapabilities' in window;
+        dom.statusDot.classList.toggle('active', state.apiSupported);
+        dom.statusText.textContent = state.apiSupported
+            ? 'API 支持'
+            : 'API 不支持 (降级模式)';
+        logMessage('system', `初始化: ${state.apiSupported ? '支持 InputDeviceCapabilities' : '不支持，将使用 pointerType 判断'}`);
+    }
+
+    // 更新画布尺寸显示
+    function updateCanvasSize() {
+        const rect = dom.wrapper.getBoundingClientRect();
+        dom.canvasSize.textContent = `${Math.round(rect.width)} x ${Math.round(rect.height)}`;
+    }
+
+    // 设置事件监听
+    function setupEventListeners() {
+        // 监听指针事件 (现代标准)
+        dom.wrapper.addEventListener('pointerdown', handlePointerEvent);
+
+        // 监听鼠标事件 (演示 InputDeviceCapabilities 的作用)
+        dom.wrapper.addEventListener('mousedown', handleMouseEvent);
+
+        // 阻止默认触摸行为，避免滚动干扰
+        dom.wrapper.addEventListener('touchstart', e => e.preventDefault(), {passive: false});
+    }
+
+    // 处理 PointerEvent (主要判断逻辑)
+    function handlePointerEvent(e) {
+        const type = e.pointerType || 'unknown';
+        const isPrimary = e.isPrimary;
+
+        // 更新统计
+        if (type === 'mouse') state.counts.mouse++;
+        else if (type === 'touch') state.counts.touch++;
+        else if (type === 'pen') state.counts.pen++;
+        else state.counts.mouse++; // 降级处理
+
+        updateStats();
+
+        // 视觉反馈
+        createRipple(e.offsetX, e.offsetY, type);
+        createMarker(e.offsetX, e.offsetY, type, e.pressure);
+
+        // 日志记录
+        logMessage(type, {
+            event: 'pointerdown',
+            pointerType: type,
+            isPrimary,
+            pressure: e.pressure.toFixed(2),
+            x: e.offsetX,
+            y: e.offsetY
+        });
+    }
+
+    // 处理 MouseEvent (演示过滤模拟事件)
+    function handleMouseEvent(e) {
+        // 核心 API 调用: 判断是否来自触摸设备
+        const capabilities = e.sourceCapabilities;
+        const firesTouch = capabilities ? capabilities.firesTouchEvents : false;
+        const type = firesTouch ? 'touch' : 'mouse';
+
+        // 日志对比
+        logMessage(type, {
+            event: 'mousedown',
+            firesTouchEvents: firesTouch,
+            note: firesTouch ? '由触摸触发的模拟鼠标事件' : '真实鼠标事件'
+        }, true);
+    }
+
+    // 创建涟漪动画
+    function createRipple(x, y, type) {
+        const ripple = document.createElement('div');
+        ripple.className = 'ripple';
+
+        const size = 100;
+        ripple.style.width = ripple.style.height = `${size}px`;
+        ripple.style.left = `${x - size / 2}px`;
+        ripple.style.top = `${y - size / 2}px`;
+
+        // 根据类型设置颜色
+        const colors = {
+            mouse: 'rgba(59, 130, 246, 0.5)',  // 蓝
+            touch: 'rgba(245, 158, 11, 0.5)',  // 橙
+            pen: 'rgba(139, 92, 246, 0.5)'     // 紫
+        };
+        ripple.style.borderColor = colors[type] || colors.mouse;
+
+        dom.canvas.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+    }
+
+    // 创建坐标标记
+    function createMarker(x, y, type, pressure) {
+        const marker = document.createElement('div');
+        marker.className = 'coord-marker';
+        marker.style.left = `${x}px`;
+        marker.style.top = `${y}px`;
+
+        const colors = {
+            mouse: 'var(--accent-blue)',
+            touch: 'var(--accent-orange)',
+            pen: 'var(--accent-purple)'
+        };
+        const color = colors[type] || colors.mouse;
+        marker.style.color = color;
+
+        const label = type === 'pen' ? `${type} (${(pressure * 100).toFixed(0)}%)` : type;
+
+        marker.innerHTML = `
+        <div class="marker-dot"></div>
+        <div class="marker-label">${label}</div>
+      `;
+
+        dom.canvas.appendChild(marker);
+
+        // 5秒后淡出
+        setTimeout(() => {
+            marker.style.transition = 'opacity 1s';
+            marker.style.opacity = '0';
+            setTimeout(() => marker.remove(), 1000);
+        }, 4000);
+    }
+
+    // 更新统计显示
+    function updateStats() {
+        dom.statMouse.textContent = state.counts.mouse;
+        dom.statTouch.textContent = state.counts.touch;
+        dom.statPen.textContent = state.counts.pen;
+    }
+
+    // 日志系统
+    function logMessage(type, details = {}, isSecondary = false) {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+
+        // 清除空状态提示
+        if (dom.logContainer.querySelector('.empty-state')) {
+            dom.logContainer.innerHTML = '';
+        }
+
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+
+        // 生成详情 HTML
+        let detailsHtml = '';
+        for (const [key, val] of Object.entries(details)) {
+            detailsHtml += `<span class="log-key">${key}:</span> <span>${val}</span>`;
+        }
+
+        entry.innerHTML = `
+        <div class="log-header">
+          <span class="log-time">${time}</span>
+          <span class="log-type">${details.event || type.toUpperCase()}</span>
+        </div>
+        <div class="log-detail">
+          ${detailsHtml}
+        </div>
+      `;
+
+        // 如果是次要事件（如 mousedown），稍微透明一点
+        if (isSecondary) {
+            entry.style.opacity = '0.6';
+        }
+
+        dom.logContainer.insertBefore(entry, dom.logContainer.firstChild);
+
+        // 限制日志数量
+        while (dom.logContainer.children.length > 20) {
+            dom.logContainer.removeChild(dom.logContainer.lastChild);
+        }
+    }
+
+    // 启动
+    init();
+</script>
+</body>
+</html>

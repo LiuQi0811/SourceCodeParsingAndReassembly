@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Invoker Commands API 开发工作台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧内容区 */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-content: start;
+        }
+
+        @media (max-width: 1100px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .demo-zone {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 16px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 1px dashed var(--border);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #2a3142;
+            border-color: var(--text-muted);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        /* 命令按钮样式 */
+        button[commandfor] {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+        }
+
+        button[commandfor]:hover {
+            background: rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+
+        /* 右侧 Inspector 面板 */
+        .inspector-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .prop-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .prop-label {
+            color: var(--text-secondary);
+        }
+
+        .prop-value {
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: var(--accent-purple);
+            background: rgba(139, 92, 246, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 12px;
+            font-family: inherit;
+            outline: none;
+            margin-top: 6px;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 200px;
+        }
+
+        .log-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            padding: 6px 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            border-left: 2px solid var(--border);
+            opacity: 0;
+            transform: translateX(5px);
+            animation: logSlide 0.2s forwards;
+        }
+
+        @keyframes logSlide {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry.native {
+            border-left-color: var(--accent-green);
+        }
+
+        .log-entry.custom {
+            border-left-color: var(--accent-orange);
+        }
+
+        .log-time {
+            color: var(--accent-blue);
+            margin-right: 4px;
+        }
+
+        /* 特定演示样式 */
+        #canvas-demo {
+            width: 100%;
+            height: 150px;
+            background: #000;
+            border-radius: var(--radius);
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .list-container {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: itemFadeIn 0.3s ease;
+        }
+
+        @keyframes itemFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        dialog {
+            padding: 20px;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: 1px solid var(--accent-blue);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">IC</div>
+        <span>Invoker Commands 工作台</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<div class="main-container">
+    <!-- 左侧演示区 -->
+    <div class="content-area">
+
+        <!-- 演示1: 原生命令 -->
+        <section class="section-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">原生内置命令</div>
+                    <div class="card-desc">无需 JavaScript，浏览器自动处理 popover 和 dialog。</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button commandfor="native-popover" command="toggle-popover">切换 Popover</button>
+                <button commandfor="native-dialog" command="show-modal">显示 Dialog</button>
+            </div>
+            <div class="demo-zone">
+                <div id="native-popover" popover>
+                    <p>这是一个通过 <code>toggle-popover</code> 命令控制的弹出层。</p>
+                </div>
+                <dialog id="native-dialog">
+                    <h3 style="margin-bottom: 10px;">原生 Dialog 控制</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                        此对话框由 <code>command="show-modal"</code> 打开。
+                    </p>
+                    <button commandfor="native-dialog" command="close">关闭 Dialog</button>
+                </dialog>
+                <span style="color: var(--text-muted); font-size: 12px;">点击按钮查看效果</span>
+            </div>
+        </section>
+
+        <!-- 演示2: 画布控制器 -->
+        <section class="section-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">复杂交互：画布控制器</div>
+                    <div class="card-desc">通过自定义命令控制缩放、滤镜等复杂状态。</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button commandfor="canvas-demo" command="--zoom-in">放大</button>
+                <button commandfor="canvas-demo" command="--zoom-out">缩小</button>
+                <button commandfor="canvas-demo" command="--filter-gray">灰度</button>
+                <button commandfor="canvas-demo" command="--filter-reset">重置</button>
+            </div>
+            <div class="demo-zone">
+                <canvas id="canvas-demo"></canvas>
+            </div>
+        </section>
+
+        <!-- 演示3: 动态列表 -->
+        <section class="section-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">动态元素管理</div>
+                    <div class="card-desc">演示对动态生成元素的控制。</div>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="add-item-btn" commandfor="item-list" command="--add-item">添加列表项</button>
+            </div>
+            <div class="demo-zone">
+                <div class="list-container" id="item-list">
+                    <div class="list-item">
+                        <span>初始列表项 1</span>
+                        <button commandfor="item-list" command="--clear-all" style="font-size:10px; padding: 2px 6px;">
+                            清空
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 右侧 Inspector 面板 -->
+    <aside class="inspector-panel">
+        <div class="panel-section">
+            <div class="section-title">事件源 Inspector</div>
+            <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
+                点击任意命令按钮，在此查看其属性。
+            </div>
+            <div class="prop-row">
+                <span class="prop-label">触发元素</span>
+                <span class="prop-value" id="inspector-source">-</span>
+            </div>
+            <div class="prop-row">
+                <span class="prop-label">commandFor</span>
+                <span class="prop-value" id="inspector-target">-</span>
+            </div>
+            <div class="prop-row">
+                <span class="prop-label">command</span>
+                <span class="prop-value" id="inspector-cmd">-</span>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <label class="prop-label" style="display: block; margin-bottom: 6px;">动态修改 command:</label>
+                <input type="text" id="cmd-modifier" placeholder="输入新命令，如 --zoom-in"/>
+            </div>
+        </div>
+
+        <div class="panel-section" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="section-title">执行日志</div>
+            <div class="log-panel">
+                <div class="log-header">
+                    <span>Console</span>
+                    <span style="cursor: pointer;" onclick="clearLog()">清空</span>
+                </div>
+                <div class="log-content" id="log-box"></div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    // ========================================
+    // Invoker Commands API 开发工作台
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    // 状态管理
+    const state = {
+        scale: 1,
+        filter: 'none',
+        itemCount: 1,
+        lastClickedBtn: null,
+        supported: 'commandForElement' in HTMLButtonElement.prototype
+    };
+
+    // 初始化
+    function init() {
+        // 更新支持状态
+        $('status-dot').classList.toggle('active', state.supported);
+        $('status-text').textContent = state.supported
+            ? 'API 支持'
+            : 'API 不支持，降级中';
+
+        setupCanvas();
+        setupGlobalListener();
+        setupModifier();
+
+        // 如果不支持，注入降级脚本
+        if (!state.supported) {
+            injectPolyfill();
+            log('warn', '当前浏览器不支持 Invoker Commands，已启用降级模式');
+        }
+    }
+
+    // ========================================
+    // 画布演示设置
+    // ========================================
+    function setupCanvas() {
+        const canvas = $('canvas-demo');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+
+            ctx.save();
+            ctx.translate(w / 2, h / 2);
+            ctx.scale(state.scale, state.scale);
+            ctx.filter = state.filter;
+
+            // 绘制一个简单的图案
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(-30, 0, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#8b5cf6';
+            ctx.beginPath();
+            ctx.arc(30, 0, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // 响应式调整
+        new ResizeObserver(draw).observe(canvas);
+        draw();
+
+        // 监听画布的自定义命令
+        canvas.addEventListener('command', (e) => {
+            switch (e.command) {
+                case '--zoom-in':
+                    state.scale = Math.min(3, state.scale + 0.2);
+                    break;
+                case '--zoom-out':
+                    state.scale = Math.max(0.5, state.scale - 0.2);
+                    break;
+                case '--filter-gray':
+                    state.filter = 'grayscale(100%)';
+                    break;
+                case '--filter-reset':
+                    state.scale = 1;
+                    state.filter = 'none';
+                    break;
+            }
+            draw();
+            log('custom', `执行画布命令: ${e.command}`);
+        });
+    }
+
+    // ========================================
+    // 动态列表演示
+    // ========================================
+    const listCommands = {
+        '--add-item': (target) => {
+            state.itemCount++;
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+          <span>动态列表项 ${state.itemCount}</span>
+          <button commandfor="item-list" command="--remove-item" style="font-size:10px; padding: 2px 6px; color: var(--accent-red); border-color: var(--accent-red);">删除</button>
+        `;
+            target.appendChild(item);
+            log('custom', '添加了新的列表项');
+        },
+        '--remove-item': (target, source) => {
+            source.closest('.list-item').remove();
+            log('custom', '删除了一个列表项');
+        },
+        '--clear-all': (target) => {
+            target.innerHTML = '';
+            state.itemCount = 0;
+            log('custom', '清空了列表');
+        }
+    };
+
+    // 列表命令监听
+    $('item-list').addEventListener('command', (e) => {
+        if (listCommands[e.command]) {
+            listCommands[e.command](e.target, e.source);
+            e.stopPropagation(); // 阻止冒泡到全局
+        }
+    });
+
+    // ========================================
+    // 全局监听与日志
+    // ========================================
+    function setupGlobalListener() {
+        document.addEventListener('command', (e) => {
+            updateInspector(e.source);
+
+            // 区分原生命令和自定义命令
+            const isNative = ['toggle-popover', 'show-modal', 'close', 'show-popover', 'hide-popover'].includes(e.command);
+            log(isNative ? 'native' : 'custom', `${isNative ? '[原生]' : '[自定义]'} "${e.command}" -> ${e.target.id || e.target.tagName}`);
+        });
+    }
+
+    function updateInspector(btn) {
+        if (!btn || !btn.commandForElement) return;
+
+        state.lastClickedBtn = btn;
+        $('inspector-source').textContent = btn.textContent.trim();
+        $('inspector-target').textContent = btn.commandForElement.id || btn.commandForElement.tagName;
+        $('inspector-cmd').textContent = btn.command;
+        $('cmd-modifier').value = btn.command;
+    }
+
+    // 动态修改命令功能
+    function setupModifier() {
+        const input = $('cmd-modifier');
+        input.addEventListener('change', () => {
+            if (state.lastClickedBtn) {
+                state.lastClickedBtn.command = input.value;
+                log('warn', `已将按钮命令修改为: ${input.value}`);
+            }
+        });
+    }
+
+    // 日志工具
+    function log(type, msg) {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const box = $('log-box');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `<span class="log-time">${time}</span>${msg}`;
+        box.insertBefore(entry, box.firstChild);
+        if (box.children.length > 30) box.lastChild.remove();
+    }
+
+    function clearLog() {
+        $('log-box').innerHTML = '';
+    }
+
+    // ========================================
+    // 降级处理
+    // ========================================
+    function injectPolyfill() {
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[commandfor]');
+            if (!btn) return;
+
+            const targetId = btn.getAttribute('commandfor');
+            const target = document.getElementById(targetId);
+            const cmd = btn.getAttribute('command');
+
+            if (!target) return;
+
+            // 模拟事件触发
+            const event = new CustomEvent('command', {
+                bubbles: true,
+                detail: {command: cmd, source: btn}
+            });
+            target.dispatchEvent(event);
+
+            // 模拟原生行为
+            if (cmd === 'toggle-popover') target.togglePopover();
+            if (cmd === 'show-modal') target.showModal();
+            if (cmd === 'close') target.close();
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>

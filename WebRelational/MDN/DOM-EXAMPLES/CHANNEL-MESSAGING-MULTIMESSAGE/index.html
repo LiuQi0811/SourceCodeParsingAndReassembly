@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>channel Messaging multiMessage INDEX.</title>
+    <!-- 引入 Google Fonts 字体：Open Sans Condensed 和 Lobster Two -->
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans+Condensed:300|Lobster+Two" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <h1>Channel messaging 通信演示</h1>
+    <!-- 用于显示从 iframe 接收到的消息 -->
+    <p id="message-output">尚未发送消息</p>
+    <!-- 消息发送表单 -->
+    <form>
+        <label for="messag-input">发送的消息：</label>
+        <input type="text" id="message-input" placeholder="请输入要发送的消息" />
+        <!-- 初始禁用发送按钮，只有输入非空内容后才启用 -->
+        <button disabled>发送消息</button>
+    </form>
+    <!-- 嵌入另一个页面（other.html），将通过 Channel Messaging 与之通信 -->
+    <iframe src="other.html" width="480" height="320"></iframe>
+</body>
+<script>
+    // 获取 DOM 元素引用
+    const messageInput = document.getElementById("message-input"); // 输入框
+    const messageOutput = document.getElementById("message-output"); // 消息状态显示区
+    const sendButton = document.querySelector("button"); // 发送按钮
+    const iframe = document.querySelector("iframe"); // iframe 元素
+
+    // 创建一个新的 MessageChannel 实例
+    // 它包含两个端口（port1 和 port2），用于双向通信
+    const channel = new MessageChannel();
+
+    // 当 iframe 页面加载完成后执行初始化
+    iframe.addEventListener("load", () => {
+        // 监听输入框内容变化：如果输入非空，则启用发送按钮；否则禁用发送按钮
+        // 同时更新消息状态显示区的文本内容
+        messageInput.addEventListener("input", () => {
+            messageInput.value.trim() ? messageOutput.textContent = "正在发送消息" : messageOutput.textContent = "尚未发送消息";
+            messageInput.value.trim() ? sendButton.disabled = false : sendButton.disabled = true
+        });
+
+        // 点击“发送消息”按钮时触发
+        sendButton.addEventListener("click", (e) => {
+            e.preventDefault(); // 阻止表单默认提交行为
+            // 通过 port1 向 iframe 发送消息（实际是发给 port2）
+            channel.port1.postMessage(messageInput.value);
+        });
+
+        // 监听从 iframe 通过 port1 发回的消息
+        channel.port1.onmessage = (e) => {
+            // 将接收到的消息内容显示在页面上
+            messageOutput.innerHTML = e.data;
+            // 清空输入框
+            messageInput.value = "";
+            // 自动禁用按钮（因为输入框已清空）
+            sendButton.disabled = true;
+        };
+
+        // 向 iframe 发送初始化消息，并转移 port2 的所有权给 iframe
+        // 这样 iframe 就可以通过 port2 与主页面的 port1 通信
+        iframe.contentWindow.postMessage({
+                type: "init" // 消息内容（可自定义）
+            }, "*", // 目标源（此处为任意源，生产环境应指定具体域名）
+            [channel.port2] // 转移 port2 的所有权（必须作为数组传递）
+        );
+    });
+</script>
+
+</html>

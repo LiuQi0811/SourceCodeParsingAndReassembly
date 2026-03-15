@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #ec4899;
+            --primary-dark: #db2777;
+            --secondary: #f472b6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fdf2f8;
+            --bg-card: #ffffff;
+            --border: #fbcfe8;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fdf2f8;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #4a1942;
+                --bg-card: #701a63;
+                --border: #86198f;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(236, 72, 153, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(236, 72, 153, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(236, 72, 153, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Visualizer */
+        .visualizer-container {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .visualizer-canvas {
+            width: 100%;
+            height: 150px;
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+        }
+        
+        /* Knob */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+        
+        .knob {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+        }
+        
+        .knob::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 16px;
+            background: white;
+            border-radius: 2px;
+        }
+        
+        .knob-label {
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .knob-value {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 700;
+        }
+        
+        /* Piano */
+        .piano-container {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        
+        .piano-key {
+            width: 40px;
+            height: 120px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 0 0 6px 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.1s;
+        }
+        
+        .piano-key:hover { background: #fce7f3; }
+        .piano-key:active, .piano-key.active { background: var(--primary); color: white; }
+        
+        .piano-key.black {
+            width: 30px;
+            height: 80px;
+            background: #1e293b;
+            color: white;
+            margin: 0 -15px;
+            z-index: 1;
+        }
+        
+        .piano-key.black:hover { background: #374151; }
+        .piano-key.black:active, .piano-key.black.active { background: var(--primary-dark); }
+        
+        /* Waveform Selector */
+        .waveform-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+        
+        .waveform-btn {
+            padding: 12px 20px;
+            background: var(--bg-main);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .waveform-btn:hover { border-color: var(--primary); }
+        .waveform-btn.active { border-color: var(--primary); background: rgba(236, 72, 153, 0.1); color: var(--primary); }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(236, 72, 153, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.audio { background: rgba(236, 72, 153, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(236, 72, 153, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Slider */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .slider {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--bg-main);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎵</div>
+            <div class="logo-text">Web Audio <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">音频功能</div>
+                    <div class="nav-item" data-tab="oscillator" onclick="switchTab('oscillator')">
+                        <span class="nav-icon">〰️</span><span>振荡器</span>
+                    </div>
+                    <div class="nav-item" data-tab="gain-filter" onclick="switchTab('gain-filter')">
+                        <span class="nav-icon">🎛️</span><span>增益与滤波</span>
+                    </div>
+                    <div class="nav-item" data-tab="analyser" onclick="switchTab('analyser')">
+                        <span class="nav-icon">📊</span><span>音频分析</span>
+                    </div>
+                    <div class="nav-item" data-tab="audio-buffer" onclick="switchTab('audio-buffer')">
+                        <span class="nav-icon">💾</span><span>音频缓冲</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web Audio API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎵</div>
+                        <div class="stat-value" id="context-state">-</div>
+                        <div class="stat-label">上下文状态</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔊</div>
+                        <div class="stat-value" id="sample-rate">-</div>
+                        <div class="stat-label">采样率</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="current-time">0</div>
+                        <div class="stat-label">当前时间(s)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>AudioContext</span>
+                                        <span id="api-audioContext" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>OscillatorNode</span>
+                                        <span id="api-oscillator" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>GainNode</span>
+                                        <span id="api-gain" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>AnalyserNode</span>
+                                        <span id="api-analyser" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>BiquadFilterNode</span>
+                                        <span id="api-filter" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">音频可视化</label>
+                                <div class="visualizer-container">
+                                    <canvas class="visualizer-canvas" id="dashboard-canvas"></canvas>
+                                </div>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="btn btn-primary" onclick="startDemoAudio()">▶️ 开始</button>
+                                    <button class="btn btn-danger" onclick="stopDemoAudio()">⏹️ 停止</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            点击下方钢琴键播放音符，体验 Web Audio API
+                        </div>
+                        <div class="piano-container" id="piano">
+                            <div class="piano-key" data-note="C4" data-freq="261.63">C</div>
+                            <div class="piano-key black" data-note="C#4" data-freq="277.18">C#</div>
+                            <div class="piano-key" data-note="D4" data-freq="293.66">D</div>
+                            <div class="piano-key black" data-note="D#4" data-freq="311.13">D#</div>
+                            <div class="piano-key" data-note="E4" data-freq="329.63">E</div>
+                            <div class="piano-key" data-note="F4" data-freq="349.23">F</div>
+                            <div class="piano-key black" data-note="F#4" data-freq="369.99">F#</div>
+                            <div class="piano-key" data-note="G4" data-freq="392.00">G</div>
+                            <div class="piano-key black" data-note="G#4" data-freq="415.30">G#</div>
+                            <div class="piano-key" data-note="A4" data-freq="440.00">A</div>
+                            <div class="piano-key black" data-note="A#4" data-freq="466.16">A#</div>
+                            <div class="piano-key" data-note="B4" data-freq="493.88">B</div>
+                            <div class="piano-key" data-note="C5" data-freq="523.25">C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 振荡器 -->
+            <div id="panel-oscillator" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>振荡器</h1>
+                        <p>OscillatorNode 创建音频信号</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>OscillatorNode</strong> 生成周期性波形信号，支持多种波形类型。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">波形类型</label>
+                        <div class="waveform-selector">
+                            <button class="waveform-btn active" onclick="selectWaveform('sine')" id="wave-sine">正弦波 sine</button>
+                            <button class="waveform-btn" onclick="selectWaveform('square')" id="wave-square">方波 square</button>
+                            <button class="waveform-btn" onclick="selectWaveform('sawtooth')" id="wave-sawtooth">锯齿波 sawtooth</button>
+                            <button class="waveform-btn" onclick="selectWaveform('triangle')" id="wave-triangle">三角波 triangle</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">频率 (Hz)</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="osc-frequency" min="20" max="2000" value="440" oninput="updateOscFrequency()">
+                                <span class="slider-value" id="freq-value">440 Hz</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">音量</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="osc-volume" min="0" max="100" value="50" oninput="updateOscVolume()">
+                                <span class="slider-value" id="vol-value">50%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="visualizer-container">
+                        <canvas class="visualizer-canvas" id="osc-canvas"></canvas>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="startOscillator()">▶️ 播放</button>
+                        <button class="btn btn-danger" onclick="stopOscillator()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 20px;">
+                        <div class="result-title">振荡器信息</div>
+                        <div class="result-grid" id="osc-info">
+                            <div class="result-item"><div class="result-label">类型</div><div class="result-value" id="osc-type-info">sine</div></div>
+                            <div class="result-item"><div class="result-label">频率</div><div class="result-value" id="osc-freq-info">440 Hz</div></div>
+                            <div class="result-item"><div class="result-label">状态</div><div class="result-value" id="osc-state-info">停止</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 增益与滤波 -->
+            <div id="panel-gain-filter" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>增益与滤波</h1>
+                        <p>GainNode 和 BiquadFilterNode 控制</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GainNode</strong> 控制音量，<strong>BiquadFilterNode</strong> 提供多种滤波器类型。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">滤波器类型</label>
+                        <select class="form-select" id="filter-type" onchange="updateFilter()">
+                            <option value="lowpass">低通滤波器 (lowpass)</option>
+                            <option value="highpass">高通滤波器 (highpass)</option>
+                            <option value="bandpass">带通滤波器 (bandpass)</option>
+                            <option value="lowshelf">低频搁架 (lowshelf)</option>
+                            <option value="highshelf">高频搁架 (highshelf)</option>
+                            <option value="peaking">峰值滤波 (peaking)</option>
+                            <option value="notch">陷波滤波器 (notch)</option>
+                            <option value="allpass">全通滤波器 (allpass)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">主音量</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="master-gain" min="0" max="100" value="50" oninput="updateMasterGain()">
+                                <span class="slider-value" id="master-gain-value">50%</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">截止频率 (Hz)</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="filter-frequency" min="20" max="20000" value="1000" oninput="updateFilter()">
+                                <span class="slider-value" id="filter-freq-value">1000 Hz</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Q 值</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="filter-q" min="0.1" max="20" step="0.1" value="1" oninput="updateFilter()">
+                                <span class="slider-value" id="filter-q-value">1</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">增益 (dB)</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="filter-gain" min="-40" max="40" value="0" oninput="updateFilter()">
+                                <span class="slider-value" id="filter-gain-value">0 dB</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="visualizer-container">
+                        <canvas class="visualizer-canvas" id="filter-canvas"></canvas>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="startFilterDemo()">▶️ 播放</button>
+                        <button class="btn btn-danger" onclick="stopFilterDemo()">⏹️ 停止</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音频分析 -->
+            <div id="panel-analyser" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>音频分析</h1>
+                        <p>AnalyserNode 实时频谱分析</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>AnalyserNode</strong> 提供实时频谱数据和波形数据，用于音频可视化。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">FFT 大小</label>
+                            <select class="form-select" id="fft-size" onchange="updateAnalyser()">
+                                <option value="256">256</option>
+                                <option value="512">512</option>
+                                <option value="1024">1024</option>
+                                <option value="2048" selected>2048</option>
+                                <option value="4096">4096</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">平滑度</label>
+                            <div class="slider-container">
+                                <input type="range" class="slider" id="smoothing" min="0" max="99" value="80" oninput="updateAnalyser()">
+                                <span class="slider-value" id="smoothing-value">0.8</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="visualizer-container">
+                        <div style="margin-bottom: 10px; font-weight: 600;">波形显示</div>
+                        <canvas class="visualizer-canvas" id="waveform-canvas"></canvas>
+                    </div>
+                    
+                    <div class="visualizer-container">
+                        <div style="margin-bottom: 10px; font-weight: 600;">频谱显示</div>
+                        <canvas class="visualizer-canvas" id="spectrum-canvas"></canvas>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="startAnalyserDemo()">▶️ 开始分析</button>
+                        <button class="btn btn-danger" onclick="stopAnalyserDemo()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 20px;">
+                        <div class="result-title">分析器信息</div>
+                        <div class="result-grid">
+                            <div class="result-item"><div class="result-label">频率分辨率</div><div class="result-value" id="freq-resolution">-</div></div>
+                            <div class="result-item"><div class="result-label">频率数据长度</div><div class="result-value" id="freq-bin-count">-</div></div>
+                            <div class="result-item"><div class="result-label">时间域数据</div><div class="result-value" id="time-bin-count">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音频缓冲 -->
+            <div id="panel-audio-buffer" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>音频缓冲</h1>
+                        <p>AudioBuffer 和 AudioBufferSourceNode</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>AudioBuffer</strong> 用于存储音频数据，<strong>AudioBufferSourceNode</strong> 用于播放缓冲区内容。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">创建音频缓冲</label>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">时长 (秒)</label>
+                                <input type="number" class="form-input" id="buffer-duration" value="2" min="0.1" max="10" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">采样率</label>
+                                <select class="form-select" id="buffer-sample-rate">
+                                    <option value="44100" selected>44100 Hz</option>
+                                    <option value="48000">48000 Hz</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createSineBuffer()">创建正弦波</button>
+                        <button class="btn btn-primary" onclick="createNoiseBuffer()">创建白噪声</button>
+                        <button class="btn btn-primary" onclick="createChordBuffer()">创建和弦</button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="playBuffer()">▶️ 播放缓冲</button>
+                        <button class="btn btn-danger" onclick="stopBuffer()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div id="buffer-info" style="display: none; margin-top: 20px;">
+                        <div class="result-box">
+                            <div class="result-title">缓冲区信息</div>
+                            <div class="result-grid" id="buffer-info-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web Audio API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心对象</h3>
+                    <div class="api-block">
+                        <span class="api-method">CONTEXT</span>
+                        <span class="api-signature">new AudioContext()</span>
+                        <p class="api-description">创建音频上下文，所有音频操作的入口点。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">音频节点</h3>
+                    <table>
+                        <thead>
+                            <tr><th>节点</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>OscillatorNode</code></td><td>生成周期性波形信号</td></tr>
+                            <tr><td><code>GainNode</code></td><td>控制音量/增益</td></tr>
+                            <tr><td><code>BiquadFilterNode</code></td><td>双二阶滤波器</td></tr>
+                            <tr><td><code>AnalyserNode</code></td><td>频谱分析</td></tr>
+                            <tr><td><code>AudioBufferSourceNode</code></td><td>播放音频缓冲</td></tr>
+                            <tr><td><code>DelayNode</code></td><td>延迟效果</td></tr>
+                            <tr><td><code>DynamicsCompressorNode</code></td><td>动态压缩</td></tr>
+                            <tr><td><code>PannerNode</code></td><td>空间音频定位</td></tr>
+                            <tr><td><code>StereoPannerNode</code></td><td>立体声声像</td></tr>
+                            <tr><td><code>ConvolverNode</code></td><td>卷积混响</td></tr>
+                            <tr><td><code>WaveShaperNode</code></td><td>波形整形</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">AudioContext 属性</h3>
+                    <table>
+                        <thead><tr><th>属性</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>currentTime</code></td><td>当前时间（秒）</td></tr>
+                            <tr><td><code>sampleRate</code></td><td>采样率</td></tr>
+                            <tr><td><code>state</code></td><td>状态 (running/suspended/closed)</td></tr>
+                            <tr><td><code>destination</code></td><td>音频输出目标</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 创建音频上下文
+const audioContext = new AudioContext();
+
+// 创建振荡器
+const oscillator = audioContext.createOscillator();
+oscillator.type = 'sine';
+oscillator.frequency.value = 440;
+
+// 创建增益节点
+const gainNode = audioContext.createGain();
+gainNode.gain.value = 0.5;
+
+// 连接节点
+oscillator.connect(gainNode);
+gainNode.connect(audioContext.destination);
+
+// 播放
+oscillator.start();
+oscillator.stop(audioContext.currentTime + 1);
+
+// 创建分析器
+const analyser = audioContext.createAnalyser();
+analyser.fftSize = 2048;
+const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+// 获取频谱数据
+analyser.getByteFrequencyData(dataArray);</div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var audioContext = null;
+        var currentOscillator = null;
+        var currentGain = null;
+        var currentFilter = null;
+        var currentAnalyser = null;
+        var currentBuffer = null;
+        var currentBufferSource = null;
+        var animationId = null;
+        var selectedWaveform = 'sine';
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            setupPiano();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var audioContextSupported = typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined';
+            
+            document.getElementById('api-audioContext').textContent = audioContextSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-audioContext').style.color = audioContextSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = audioContextSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = audioContextSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (audioContextSupported) {
+                var AC = AudioContext || webkitAudioContext;
+                var ctx = new AC();
+                
+                var oscillatorSupported = typeof ctx.createOscillator === 'function';
+                var gainSupported = typeof ctx.createGain === 'function';
+                var analyserSupported = typeof ctx.createAnalyser === 'function';
+                var filterSupported = typeof ctx.createBiquadFilter === 'function';
+                
+                document.getElementById('api-oscillator').textContent = oscillatorSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-oscillator').style.color = oscillatorSupported ? 'var(--success)' : 'var(--danger)';
+                
+                document.getElementById('api-gain').textContent = gainSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-gain').style.color = gainSupported ? 'var(--success)' : 'var(--danger)';
+                
+                document.getElementById('api-analyser').textContent = analyserSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-analyser').style.color = analyserSupported ? 'var(--success)' : 'var(--danger)';
+                
+                document.getElementById('api-filter').textContent = filterSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('api-filter').style.color = filterSupported ? 'var(--success)' : 'var(--danger)';
+                
+                document.getElementById('sample-rate').textContent = ctx.sampleRate + ' Hz';
+                document.getElementById('context-state').textContent = ctx.state;
+                
+                ctx.close();
+            }
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 音频上下文 ====================
+        function getAudioContext() {
+            if (!audioContext) {
+                var AC = AudioContext || webkitAudioContext;
+                audioContext = new AC();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
+        }
+
+        // ==================== 演示音频 ====================
+        function startDemoAudio() {
+            var ctx = getAudioContext();
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            var analyser = ctx.createAnalyser();
+            
+            osc.type = 'sine';
+            osc.frequency.value = 440;
+            gain.gain.value = 0.3;
+            
+            osc.connect(gain);
+            gain.connect(analyser);
+            analyser.connect(ctx.destination);
+            
+            osc.start();
+            
+            currentOscillator = osc;
+            currentGain = gain;
+            currentAnalyser = analyser;
+            
+            startVisualization('dashboard-canvas', analyser);
+            
+            addLog('audio', '开始演示音频');
+            showToast('音频已开始', 'success');
+        }
+
+        function stopDemoAudio() {
+            if (currentOscillator) {
+                currentOscillator.stop();
+                currentOscillator = null;
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            addLog('audio', '停止演示音频');
+            showToast('音频已停止', 'success');
+        }
+
+        // ==================== 钢琴 ====================
+        function setupPiano() {
+            var keys = document.querySelectorAll('.piano-key');
+            keys.forEach(function(key) {
+                key.addEventListener('mousedown', function() {
+                    playNote(parseFloat(this.dataset.freq));
+                    this.classList.add('active');
+                });
+                key.addEventListener('mouseup', function() {
+                    this.classList.remove('active');
+                    stopNote();
+                });
+                key.addEventListener('mouseleave', function() {
+                    this.classList.remove('active');
+                });
+            });
+        }
+
+        function playNote(frequency) {
+            var ctx = getAudioContext();
+            
+            if (currentOscillator) {
+                currentOscillator.stop();
+            }
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            
+            osc.type = selectedWaveform;
+            osc.frequency.value = frequency;
+            gain.gain.value = 0.5;
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            
+            currentOscillator = osc;
+            currentGain = gain;
+            
+            addLog('audio', '播放音符: ' + frequency + ' Hz');
+        }
+
+        function stopNote() {
+            if (currentGain && currentOscillator) {
+                var ctx = getAudioContext();
+                currentGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+                currentOscillator.stop(ctx.currentTime + 0.1);
+            }
+        }
+
+        // ==================== 振荡器 ====================
+        function selectWaveform(type) {
+            selectedWaveform = type;
+            document.querySelectorAll('.waveform-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('wave-' + type).classList.add('active');
+            
+            if (currentOscillator) {
+                currentOscillator.type = type;
+            }
+            
+            document.getElementById('osc-type-info').textContent = type;
+            addLog('audio', '选择波形: ' + type);
+        }
+
+        function updateOscFrequency() {
+            var freq = document.getElementById('osc-frequency').value;
+            document.getElementById('freq-value').textContent = freq + ' Hz';
+            document.getElementById('osc-freq-info').textContent = freq + ' Hz';
+            
+            if (currentOscillator) {
+                currentOscillator.frequency.value = parseFloat(freq);
+            }
+        }
+
+        function updateOscVolume() {
+            var vol = document.getElementById('osc-volume').value;
+            document.getElementById('vol-value').textContent = vol + '%';
+            
+            if (currentGain) {
+                currentGain.gain.value = vol / 100;
+            }
+        }
+
+        function startOscillator() {
+            var ctx = getAudioContext();
+            
+            if (currentOscillator) {
+                currentOscillator.stop();
+            }
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            var analyser = ctx.createAnalyser();
+            
+            osc.type = selectedWaveform;
+            osc.frequency.value = parseFloat(document.getElementById('osc-frequency').value);
+            gain.gain.value = parseFloat(document.getElementById('osc-volume').value) / 100;
+            
+            osc.connect(gain);
+            gain.connect(analyser);
+            analyser.connect(ctx.destination);
+            
+            osc.start();
+            
+            currentOscillator = osc;
+            currentGain = gain;
+            currentAnalyser = analyser;
+            
+            document.getElementById('osc-state-info').textContent = '播放中';
+            
+            startVisualization('osc-canvas', analyser);
+            
+            addLog('audio', '启动振荡器');
+            showToast('振荡器已启动', 'success');
+        }
+
+        function stopOscillator() {
+            if (currentOscillator) {
+                currentOscillator.stop();
+                currentOscillator = null;
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            document.getElementById('osc-state-info').textContent = '停止';
+            
+            addLog('audio', '停止振荡器');
+            showToast('振荡器已停止', 'success');
+        }
+
+        // ==================== 增益与滤波 ====================
+        function updateMasterGain() {
+            var value = document.getElementById('master-gain').value;
+            document.getElementById('master-gain-value').textContent = value + '%';
+            
+            if (currentGain) {
+                currentGain.gain.value = value / 100;
+            }
+        }
+
+        function updateFilter() {
+            var freq = document.getElementById('filter-frequency').value;
+            var q = document.getElementById('filter-q').value;
+            var gain = document.getElementById('filter-gain').value;
+            var type = document.getElementById('filter-type').value;
+            
+            document.getElementById('filter-freq-value').textContent = freq + ' Hz';
+            document.getElementById('filter-q-value').textContent = q;
+            document.getElementById('filter-gain-value').textContent = gain + ' dB';
+            
+            if (currentFilter) {
+                currentFilter.type = type;
+                currentFilter.frequency.value = parseFloat(freq);
+                currentFilter.Q.value = parseFloat(q);
+                currentFilter.gain.value = parseFloat(gain);
+            }
+        }
+
+        function startFilterDemo() {
+            var ctx = getAudioContext();
+            
+            if (currentOscillator) {
+                currentOscillator.stop();
+            }
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            var filter = ctx.createBiquadFilter();
+            var analyser = ctx.createAnalyser();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.value = 220;
+            gain.gain.value = parseFloat(document.getElementById('master-gain').value) / 100;
+            
+            filter.type = document.getElementById('filter-type').value;
+            filter.frequency.value = parseFloat(document.getElementById('filter-frequency').value);
+            filter.Q.value = parseFloat(document.getElementById('filter-q').value);
+            filter.gain.value = parseFloat(document.getElementById('filter-gain').value);
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(analyser);
+            analyser.connect(ctx.destination);
+            
+            osc.start();
+            
+            currentOscillator = osc;
+            currentGain = gain;
+            currentFilter = filter;
+            currentAnalyser = analyser;
+            
+            startVisualization('filter-canvas', analyser);
+            
+            addLog('audio', '启动滤波器演示');
+            showToast('滤波器演示已启动', 'success');
+        }
+
+        function stopFilterDemo() {
+            if (currentOscillator) {
+                currentOscillator.stop();
+                currentOscillator = null;
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            addLog('audio', '停止滤波器演示');
+            showToast('已停止', 'success');
+        }
+
+        // ==================== 音频分析 ====================
+        function updateAnalyser() {
+            var smoothing = document.getElementById('smoothing').value;
+            document.getElementById('smoothing-value').textContent = (smoothing / 100).toFixed(2);
+            
+            if (currentAnalyser) {
+                currentAnalyser.fftSize = parseInt(document.getElementById('fft-size').value);
+                currentAnalyser.smoothingTimeConstant = smoothing / 100;
+                
+                updateAnalyserInfo();
+            }
+        }
+
+        function updateAnalyserInfo() {
+            if (currentAnalyser) {
+                document.getElementById('freq-resolution').textContent = (audioContext.sampleRate / currentAnalyser.fftSize).toFixed(2) + ' Hz';
+                document.getElementById('freq-bin-count').textContent = currentAnalyser.frequencyBinCount;
+                document.getElementById('time-bin-count').textContent = currentAnalyser.fftSize;
+            }
+        }
+
+        function startAnalyserDemo() {
+            var ctx = getAudioContext();
+            
+            if (currentOscillator) {
+                currentOscillator.stop();
+            }
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            var analyser = ctx.createAnalyser();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.value = 440;
+            gain.gain.value = 0.3;
+            
+            analyser.fftSize = parseInt(document.getElementById('fft-size').value);
+            analyser.smoothingTimeConstant = parseFloat(document.getElementById('smoothing').value) / 100;
+            
+            osc.connect(gain);
+            gain.connect(analyser);
+            analyser.connect(ctx.destination);
+            
+            osc.start();
+            
+            currentOscillator = osc;
+            currentGain = gain;
+            currentAnalyser = analyser;
+            
+            updateAnalyserInfo();
+            startDualVisualization();
+            
+            addLog('audio', '启动分析器演示');
+            showToast('分析器演示已启动', 'success');
+        }
+
+        function stopAnalyserDemo() {
+            if (currentOscillator) {
+                currentOscillator.stop();
+                currentOscillator = null;
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            addLog('audio', '停止分析器演示');
+            showToast('已停止', 'success');
+        }
+
+        // ==================== 音频缓冲 ====================
+        function createSineBuffer() {
+            var ctx = getAudioContext();
+            var duration = parseFloat(document.getElementById('buffer-duration').value);
+            var sampleRate = parseInt(document.getElementById('buffer-sample-rate').value);
+            
+            var buffer = ctx.createBuffer(1, sampleRate * duration, sampleRate);
+            var data = buffer.getChannelData(0);
+            
+            for (var i = 0; i < data.length; i++) {
+                data[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate);
+            }
+            
+            currentBuffer = buffer;
+            showBufferInfo(buffer, '正弦波');
+            addLog('audio', '创建正弦波缓冲');
+        }
+
+        function createNoiseBuffer() {
+            var ctx = getAudioContext();
+            var duration = parseFloat(document.getElementById('buffer-duration').value);
+            var sampleRate = parseInt(document.getElementById('buffer-sample-rate').value);
+            
+            var buffer = ctx.createBuffer(1, sampleRate * duration, sampleRate);
+            var data = buffer.getChannelData(0);
+            
+            for (var i = 0; i < data.length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            
+            currentBuffer = buffer;
+            showBufferInfo(buffer, '白噪声');
+            addLog('audio', '创建白噪声缓冲');
+        }
+
+        function createChordBuffer() {
+            var ctx = getAudioContext();
+            var duration = parseFloat(document.getElementById('buffer-duration').value);
+            var sampleRate = parseInt(document.getElementById('buffer-sample-rate').value);
+            
+            var buffer = ctx.createBuffer(1, sampleRate * duration, sampleRate);
+            var data = buffer.getChannelData(0);
+            
+            var frequencies = [261.63, 329.63, 392.00]; // C E G
+            
+            for (var i = 0; i < data.length; i++) {
+                var sample = 0;
+                for (var j = 0; j < frequencies.length; j++) {
+                    sample += Math.sin(2 * Math.PI * frequencies[j] * i / sampleRate) / frequencies.length;
+                }
+                data[i] = sample;
+            }
+            
+            currentBuffer = buffer;
+            showBufferInfo(buffer, '和弦 (C-E-G)');
+            addLog('audio', '创建和弦缓冲');
+        }
+
+        function showBufferInfo(buffer, name) {
+            document.getElementById('buffer-info').style.display = 'block';
+            document.getElementById('buffer-info-grid').innerHTML = 
+                '<div class="result-item"><div class="result-label">名称</div><div class="result-value">' + name + '</div></div>' +
+                '<div class="result-item"><div class="result-label">时长</div><div class="result-value">' + buffer.duration.toFixed(2) + 's</div></div>' +
+                '<div class="result-item"><div class="result-label">采样率</div><div class="result-value">' + buffer.sampleRate + ' Hz</div></div>' +
+                '<div class="result-item"><div class="result-label">采样数</div><div class="result-value">' + buffer.length + '</div></div>' +
+                '<div class="result-item"><div class="result-label">声道数</div><div class="result-value">' + buffer.numberOfChannels + '</div></div>';
+        }
+
+        function playBuffer() {
+            if (!currentBuffer) {
+                showToast('请先创建音频缓冲', 'warning');
+                return;
+            }
+            
+            var ctx = getAudioContext();
+            
+            if (currentBufferSource) {
+                currentBufferSource.stop();
+            }
+            
+            var source = ctx.createBufferSource();
+            var gain = ctx.createGain();
+            
+            source.buffer = currentBuffer;
+            gain.gain.value = 0.5;
+            
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            
+            source.start();
+            
+            currentBufferSource = source;
+            
+            addLog('audio', '播放音频缓冲');
+            showToast('播放中', 'success');
+        }
+
+        function stopBuffer() {
+            if (currentBufferSource) {
+                currentBufferSource.stop();
+                currentBufferSource = null;
+            }
+            addLog('audio', '停止缓冲播放');
+            showToast('已停止', 'success');
+        }
+
+        // ==================== 可视化 ====================
+        function startVisualization(canvasId, analyser) {
+            var canvas = document.getElementById(canvasId);
+            var ctx = canvas.getContext('2d');
+            
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                
+                var width = canvas.width = canvas.offsetWidth;
+                var height = canvas.height = canvas.offsetHeight;
+                
+                var bufferLength = analyser.frequencyBinCount;
+                var dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ec4899';
+                ctx.beginPath();
+                
+                var sliceWidth = width / bufferLength;
+                var x = 0;
+                
+                for (var i = 0; i < bufferLength; i++) {
+                    var v = dataArray[i] / 128.0;
+                    var y = v * height / 2;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+            }
+            
+            draw();
+        }
+
+        function startDualVisualization() {
+            var waveformCanvas = document.getElementById('waveform-canvas');
+            var spectrumCanvas = document.getElementById('spectrum-canvas');
+            var waveformCtx = waveformCanvas.getContext('2d');
+            var spectrumCtx = spectrumCanvas.getContext('2d');
+            
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                
+                // 波形
+                var wWidth = waveformCanvas.width = waveformCanvas.offsetWidth;
+                var wHeight = waveformCanvas.height = waveformCanvas.offsetHeight;
+                
+                var bufferLength = currentAnalyser.frequencyBinCount;
+                var dataArray = new Uint8Array(bufferLength);
+                currentAnalyser.getByteTimeDomainData(dataArray);
+                
+                waveformCtx.fillStyle = '#1e293b';
+                waveformCtx.fillRect(0, 0, wWidth, wHeight);
+                
+                waveformCtx.lineWidth = 2;
+                waveformCtx.strokeStyle = '#ec4899';
+                waveformCtx.beginPath();
+                
+                var sliceWidth = wWidth / bufferLength;
+                var x = 0;
+                
+                for (var i = 0; i < bufferLength; i++) {
+                    var v = dataArray[i] / 128.0;
+                    var y = v * wHeight / 2;
+                    
+                    if (i === 0) waveformCtx.moveTo(x, y);
+                    else waveformCtx.lineTo(x, y);
+                    
+                    x += sliceWidth;
+                }
+                
+                waveformCtx.lineTo(wWidth, wHeight / 2);
+                waveformCtx.stroke();
+                
+                // 频谱
+                var sWidth = spectrumCanvas.width = spectrumCanvas.offsetWidth;
+                var sHeight = spectrumCanvas.height = spectrumCanvas.offsetHeight;
+                
+                var freqData = new Uint8Array(bufferLength);
+                currentAnalyser.getByteFrequencyData(freqData);
+                
+                spectrumCtx.fillStyle = '#1e293b';
+                spectrumCtx.fillRect(0, 0, sWidth, sHeight);
+                
+                var barWidth = (sWidth / bufferLength) * 2.5;
+                var barX = 0;
+                
+                for (var i = 0; i < bufferLength; i++) {
+                    var barHeight = (freqData[i] / 255) * sHeight;
+                    
+                    var hue = (i / bufferLength) * 360;
+                    spectrumCtx.fillStyle = 'hsl(' + hue + ', 80%, 60%)';
+                    spectrumCtx.fillRect(barX, sHeight - barHeight, barWidth, barHeight);
+                    
+                    barX += barWidth + 1;
+                }
+            }
+            
+            draw();
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+
+        // 更新时间显示
+        setInterval(function() {
+            if (audioContext) {
+                document.getElementById('current-time').textContent = audioContext.currentTime.toFixed(1);
+            }
+        }, 100);
+    </script>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <title>调用者命令 API（Invoker Commands）演示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+        :root {
+            --bg: #020617;
+            --bg-card: #0f172a;
+            --border: #1e293b;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-soft: rgba(59, 130, 246, 0.15);
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #1e293b, #020617);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        .status-dot.supported {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 800px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        button {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        button:hover {
+            background: #1e293b;
+        }
+
+        button[commandfor] {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .controls-row {
+            margin-bottom: 10px;
+        }
+
+        [popover] {
+            padding: 12px 14px;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            margin-top: 8px;
+        }
+
+        dialog {
+            padding: 16px 18px;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            margin-top: 8px;
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .demo-image {
+            width: 100%;
+            max-width: 320px;
+            margin-top: 8px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .log-panel {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: var(--radius);
+            padding: 10px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            max-height: 160px;
+            overflow: auto;
+            color: var(--muted);
+        }
+
+        .log-entry {
+            margin-bottom: 3px;
+        }
+
+        .log-time {
+            color: var(--accent);
+            margin-right: 6px;
+        }
+
+        .log-msg {
+            color: var(--muted);
+        }
+
+        .log-msg.cmd {
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>调用者命令 API（Invoker Commands）演示</h1>
+    <p class="subtitle">使用 commandfor / command 属性声明式控制 popover、dialog 与自定义命令</p>
+    <div class="badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<main>
+    <!-- 弹出框示例 -->
+    <section class="card">
+        <div class="card-title">示例 1：声明式弹出框（Popover）</div>
+        <div class="card-desc">
+            使用 <code>command="toggle-popover"</code> 切换弹出框显示/隐藏。
+        </div>
+        <div class="controls-row">
+            <button commandfor="demo-popover" command="toggle-popover">
+                切换弹出框
+            </button>
+            <button commandfor="demo-popover" command="hide-popover">
+                隐藏弹出框
+            </button>
+        </div>
+        <div id="demo-popover" popover>
+            这是一个通过 <code>command</code> 属性控制的弹出框。
+            <div style="margin-top:6px; font-size:11px; color:var(--muted);">
+                点击按钮或通过键盘激活按钮均可触发。
+            </div>
+        </div>
+    </section>
+
+    <!-- 对话框示例 -->
+    <section class="card">
+        <div class="card-title">示例 2：声明式对话框（Dialog）</div>
+        <div class="card-desc">
+            使用 <code>command="show-modal"</code> / <code>command="close"</code> 控制模态对话框。
+        </div>
+        <div class="controls-row">
+            <button commandfor="demo-dialog" command="show-modal">
+                显示模态对话框
+            </button>
+        </div>
+        <dialog id="demo-dialog">
+            <p>这是一个通过 <code>command</code> 控制的 <code>&lt;dialog&gt;</code>。</p>
+            <div class="controls-row">
+                <button commandfor="demo-dialog" command="close">
+                    关闭对话框
+                </button>
+            </div>
+        </dialog>
+    </section>
+
+    <!-- 自定义命令示例 -->
+    <section class="card" style="grid-column: 1 / -1;">
+        <div class="card-title">示例 3：自定义命令（旋转图片）</div>
+        <div class="card-desc">
+            使用自定义 <code>command="--rotate-left"</code> / <code>"--rotate-right"</code>，在 JS 中通过
+            <code>command</code> 事件处理。
+        </div>
+        <div class="controls-row">
+            <button commandfor="demo-image" command="--rotate-left">
+                左旋转 90°
+            </button>
+            <button commandfor="demo-image" command="--rotate-right">
+                右旋转 90°
+            </button>
+            <button commandfor="demo-image" command="--reset">
+                重置
+            </button>
+        </div>
+        <img
+                id="demo-image"
+                class="demo-image"
+                src="https://picsum.photos/id/237/400/200.jpg"
+                alt="演示图片：狗"
+        />
+    </section>
+
+    <!-- 日志 -->
+    <div class="log-panel" id="log-panel"></div>
+</main>
+
+<script>
+    // ========================
+    // 调用者命令 API 演示
+    // ========================
+
+    const logPanel = document.getElementById('log-panel');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    // 检测 API 支持
+    const supported = 'commandForElement' in HTMLButtonElement.prototype;
+    statusDot.classList.toggle('supported', supported);
+    statusText.textContent = supported
+        ? 'API 支持（commandForElement / CommandEvent）'
+        : 'API 不支持，降级为传统事件';
+
+    // 日志
+    function log(message, type = 'info') {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `
+        <span class="log-time">${time}</span>
+        <span class="log-msg ${type}">${message}</span>
+      `;
+        logPanel.appendChild(entry);
+        logPanel.scrollTop = logPanel.scrollHeight;
+        console.log(`[InvokerCommands][${time}] ${message}`);
+    }
+
+    // 如果浏览器不支持，给按钮降级处理
+    if (!supported) {
+        document.querySelectorAll('button[commandfor]').forEach(btn => {
+            const targetId = btn.getAttribute('commandfor');
+            const command = btn.getAttribute('command');
+            const target = document.getElementById(targetId);
+
+            if (!target) return;
+
+            if (command === 'show-modal') {
+                btn.addEventListener('click', () => target.showModal());
+            } else if (command === 'close') {
+                btn.addEventListener('click', () => target.close());
+            } else if (command === 'toggle-popover') {
+                btn.addEventListener('click', () => target.togglePopover());
+            } else if (command === 'hide-popover') {
+                btn.addEventListener('click', () => target.hidePopover());
+            }
+        });
+        log('当前浏览器不支持 Invoker Commands，已降级为传统事件监听');
+    }
+
+    // 自定义命令示例：旋转图片
+    const demoImage = document.getElementById('demo-image');
+
+    demoImage.addEventListener('command', (event) => {
+        // event.command 就是按钮上的 command 属性值
+        const cmd = event.command;
+        log(`收到自定义命令：${cmd}`, 'cmd');
+
+        let rotate = parseInt(demoImage.style.rotate || '0', 10);
+
+        if (cmd === '--rotate-left') {
+            rotate = rotate - 90;
+        } else if (cmd === '--rotate-right') {
+            rotate = rotate + 90;
+        } else if (cmd === '--reset') {
+            rotate = 0;
+        }
+
+        demoImage.style.rotate = `${rotate}deg`;
+        demoImage.alt = `演示图片：旋转角度 ${rotate}°`;
+    });
+
+    // 也监听一下 popover / dialog 的 command 事件（仅支持时）
+    if (supported) {
+        const demoPopover = document.getElementById('demo-popover');
+        const demoDialog = document.getElementById('demo-dialog');
+
+        demoPopover.addEventListener('command', (event) => {
+            log(`[popover] command 事件：${event.command}`, 'cmd');
+        });
+
+        demoDialog.addEventListener('command', (event) => {
+            log(`[dialog] command 事件：${event.command}`, 'cmd');
+        });
+    }
+
+    log('页面加载完成，尝试点击按钮查看 command 行为');
+</script>
+</body>
+</html>

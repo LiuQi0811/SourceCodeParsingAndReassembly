@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Preferences API - 修复版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* 默认浅色主题 */
+        :root {
+            --primary: #8b5cf6;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+        }
+        
+        /* 深色主题 - 通过类名控制 */
+        .dark-mode {
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --border: #334155;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 { color: white; font-size: 24px; }
+        
+        .content { padding: 32px; max-width: 1200px; margin: 0 auto; }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.3s;
+        }
+        
+        .card h2 { margin-bottom: 16px; font-size: 20px; }
+        
+        .status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: var(--bg-main);
+            border-radius: 12px;
+            margin: 12px 0;
+        }
+        
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status-badge.active { background: #10b981; color: white; }
+        .status-badge.inactive { background: #e5e7eb; color: #6b7280; }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #8b5cf6; color: white; }
+        .btn-primary:hover { background: #7c3aed; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: #8b5cf6; }
+        
+        .mode-switch {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        .mode-btn {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-card);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover { border-color: #8b5cf6; }
+        .mode-btn.selected { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+        .mode-btn .icon { font-size: 32px; margin-bottom: 8px; }
+        .mode-btn .label { font-weight: 600; }
+        
+        .info-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+        }
+        
+        .success-box {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 16px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+        }
+        
+        .log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 12px;
+            font-family: monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        
+        .nav {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .nav-btn {
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { border-color: #8b5cf6; }
+        .nav-btn.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        .pref-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        
+        .pref-item {
+            background: var(--bg-main);
+            padding: 16px;
+            border-radius: 12px;
+        }
+        .pref-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+        .pref-value { font-size: 18px; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>⚙️ User Preferences API</h1>
+        <div>
+            <button class="btn btn-primary" onclick="forceDarkMode()">🌙 强制深色</button>
+            <button class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.3);" onclick="forceLightMode()">☀️ 强制浅色</button>
+        </div>
+    </header>
+    
+    <div class="content">
+        <!-- 导航 -->
+        <div class="nav">
+            <button class="nav-btn active" onclick="showPanel('dashboard')">📊 控制台</button>
+            <button class="nav-btn" onclick="showPanel('color-scheme')">🎨 颜色方案</button>
+            <button class="nav-btn" onclick="showPanel('motion')">🎬 减少动画</button>
+            <button class="nav-btn" onclick="showPanel('contrast')">👁️ 对比度</button>
+            <button class="nav-btn" onclick="showPanel('logs')">📜 日志</button>
+        </div>
+        
+        <!-- 控制台 -->
+        <div id="panel-dashboard" class="panel active">
+            <div class="card">
+                <h2>当前状态</h2>
+                <div class="pref-grid">
+                    <div class="pref-item">
+                        <div class="pref-label">颜色方案</div>
+                        <div class="pref-value" id="stat-color">-</div>
+                    </div>
+                    <div class="pref-item">
+                        <div class="pref-label">减少动画</div>
+                        <div class="pref-value" id="stat-motion">-</div>
+                    </div>
+                    <div class="pref-item">
+                        <div class="pref-label">对比度</div>
+                        <div class="pref-value" id="stat-contrast">-</div>
+                    </div>
+                    <div class="pref-item">
+                        <div class="pref-label">当前模式</div>
+                        <div class="pref-value" id="stat-mode">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>🎨 手动切换颜色模式</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    如果自动检测不工作，请使用下面的按钮手动切换：
+                </p>
+                <div class="mode-switch">
+                    <div class="mode-btn" id="btn-light" onclick="setMode('light')">
+                        <div class="icon">☀️</div>
+                        <div class="label">浅色模式</div>
+                    </div>
+                    <div class="mode-btn" id="btn-dark" onclick="setMode('dark')">
+                        <div class="icon">🌙</div>
+                        <div class="label">深色模式</div>
+                    </div>
+                    <div class="mode-btn" id="btn-auto" onclick="setMode('auto')">
+                        <div class="icon">🔄</div>
+                        <div class="label">自动检测</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>检测结果</h2>
+                <div id="detect-results"></div>
+            </div>
+        </div>
+        
+        <!-- 颜色方案 -->
+        <div id="panel-color-scheme" class="panel">
+            <div class="card">
+                <h2>🎨 颜色方案检测</h2>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-color-scheme: dark</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">用户偏好深色模式</div>
+                    </div>
+                    <span class="status-badge" id="status-dark">检测中...</span>
+                </div>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-color-scheme: light</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">用户偏好浅色模式</div>
+                    </div>
+                    <span class="status-badge" id="status-light">检测中...</span>
+                </div>
+                
+                <div class="info-box">
+                    <strong>注意：</strong> 如果自动检测不正确，请使用顶部的"强制深色"或"强制浅色"按钮。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 减少动画 -->
+        <div id="panel-motion" class="panel">
+            <div class="card">
+                <h2>🎬 减少动画检测</h2>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-reduced-motion: reduce</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">用户偏好减少动画</div>
+                    </div>
+                    <span class="status-badge" id="status-motion-reduce">检测中...</span>
+                </div>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-reduced-motion: no-preference</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">用户无特殊偏好</div>
+                    </div>
+                    <span class="status-badge" id="status-motion-nopref">检测中...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 对比度 -->
+        <div id="panel-contrast" class="panel">
+            <div class="card">
+                <h2>👁️ 对比度检测</h2>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-contrast: more</div>
+                    </div>
+                    <span class="status-badge" id="status-contrast-more">检测中...</span>
+                </div>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-contrast: less</div>
+                    </div>
+                    <span class="status-badge" id="status-contrast-less">检测中...</span>
+                </div>
+                
+                <div class="status-row">
+                    <div>
+                        <div style="font-weight: 600;">prefers-contrast: no-preference</div>
+                    </div>
+                    <span class="status-badge" id="status-contrast-nopref">检测中...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 日志 -->
+        <div id="panel-logs" class="panel">
+            <div class="card">
+                <h2>📜 操作日志</h2>
+                <div class="log" id="log-container">
+                    <div class="log-entry">等待操作...</div>
+                </div>
+                <button class="btn btn-outline" onclick="clearLogs()" style="margin-top: 16px;">清空日志</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 状态
+        var currentMode = 'auto';
+        var logs = [];
+        var preferences = {
+            colorScheme: 'unknown',
+            reducedMotion: 'unknown',
+            contrast: 'unknown'
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('页面加载完成');
+            detect();
+            updateUI();
+        });
+
+        // 面板切换
+        function showPanel(name) {
+            var btns = document.querySelectorAll('.nav-btn');
+            var panels = document.querySelectorAll('.panel');
+            
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('active');
+                if (btns[i].textContent.includes(getPanelTitle(name))) {
+                    btns[i].classList.add('active');
+                }
+            }
+            
+            for (var j = 0; j < panels.length; j++) {
+                panels[j].classList.remove('active');
+            }
+            
+            var panel = document.getElementById('panel-' + name);
+            if (panel) panel.classList.add('active');
+        }
+
+        function getPanelTitle(name) {
+            var titles = {
+                'dashboard': '控制台',
+                'color-scheme': '颜色方案',
+                'motion': '减少动画',
+                'contrast': '对比度',
+                'logs': '日志'
+            };
+            return titles[name] || name;
+        }
+
+        // 检测
+        function detect() {
+            log('开始检测偏好...');
+            
+            // 检测颜色方案
+            var darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            var lightQuery = window.matchMedia('(prefers-color-scheme: light)');
+            
+            log('dark.matches = ' + (darkQuery ? darkQuery.matches : 'N/A'));
+            log('light.matches = ' + (lightQuery ? lightQuery.matches : 'N/A'));
+            
+            if (darkQuery && darkQuery.matches) {
+                preferences.colorScheme = 'dark';
+            } else if (lightQuery && lightQuery.matches) {
+                preferences.colorScheme = 'light';
+            } else {
+                preferences.colorScheme = 'unknown';
+            }
+            
+            // 检测减少动画
+            var motionReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+            var motionNoPref = window.matchMedia('(prefers-reduced-motion: no-preference)');
+            
+            if (motionReduce && motionReduce.matches) {
+                preferences.reducedMotion = 'reduce';
+            } else if (motionNoPref && motionNoPref.matches) {
+                preferences.reducedMotion = 'no-preference';
+            } else {
+                preferences.reducedMotion = 'unknown';
+            }
+            
+            // 检测对比度
+            var contrastMore = window.matchMedia('(prefers-contrast: more)');
+            var contrastLess = window.matchMedia('(prefers-contrast: less)');
+            var contrastNoPref = window.matchMedia('(prefers-contrast: no-preference)');
+            
+            if (contrastMore && contrastMore.matches) {
+                preferences.contrast = 'more';
+            } else if (contrastLess && contrastLess.matches) {
+                preferences.contrast = 'less';
+            } else if (contrastNoPref && contrastNoPref.matches) {
+                preferences.contrast = 'no-preference';
+            } else {
+                preferences.contrast = 'unknown';
+            }
+            
+            log('检测完成: color=' + preferences.colorScheme + ', motion=' + preferences.reducedMotion);
+            
+            // 如果是自动模式，应用检测到的颜色方案
+            if (currentMode === 'auto') {
+                applyColorScheme(preferences.colorScheme);
+            }
+        }
+
+        // 更新UI
+        function updateUI() {
+            // 更新统计
+            document.getElementById('stat-color').textContent = preferences.colorScheme;
+            document.getElementById('stat-motion').textContent = preferences.reducedMotion;
+            document.getElementById('stat-contrast').textContent = preferences.contrast;
+            document.getElementById('stat-mode').textContent = currentMode === 'auto' ? '自动' : (currentMode === 'dark' ? '深色' : '浅色');
+            
+            // 更新颜色方案状态
+            var darkStatus = document.getElementById('status-dark');
+            var lightStatus = document.getElementById('status-light');
+            
+            if (preferences.colorScheme === 'dark') {
+                darkStatus.textContent = '✓ 激活';
+                darkStatus.className = 'status-badge active';
+                lightStatus.textContent = '未激活';
+                lightStatus.className = 'status-badge inactive';
+            } else if (preferences.colorScheme === 'light') {
+                darkStatus.textContent = '未激活';
+                darkStatus.className = 'status-badge inactive';
+                lightStatus.textContent = '✓ 激活';
+                lightStatus.className = 'status-badge active';
+            } else {
+                darkStatus.textContent = '未知';
+                darkStatus.className = 'status-badge inactive';
+                lightStatus.textContent = '未知';
+                lightStatus.className = 'status-badge inactive';
+            }
+            
+            // 更新减少动画状态
+            var motionReduce = document.getElementById('status-motion-reduce');
+            var motionNoPref = document.getElementById('status-motion-nopref');
+            
+            if (preferences.reducedMotion === 'reduce') {
+                motionReduce.textContent = '✓ 激活';
+                motionReduce.className = 'status-badge active';
+                motionNoPref.textContent = '未激活';
+                motionNoPref.className = 'status-badge inactive';
+            } else {
+                motionReduce.textContent = '未激活';
+                motionReduce.className = 'status-badge inactive';
+                motionNoPref.textContent = '✓ 激活';
+                motionNoPref.className = 'status-badge active';
+            }
+            
+            // 更新对比度状态
+            var contrastMore = document.getElementById('status-contrast-more');
+            var contrastLess = document.getElementById('status-contrast-less');
+            var contrastNoPref = document.getElementById('status-contrast-nopref');
+            
+            if (preferences.contrast === 'more') {
+                contrastMore.textContent = '✓ 激活';
+                contrastMore.className = 'status-badge active';
+                contrastLess.textContent = '未激活';
+                contrastLess.className = 'status-badge inactive';
+                contrastNoPref.textContent = '未激活';
+                contrastNoPref.className = 'status-badge inactive';
+            } else if (preferences.contrast === 'less') {
+                contrastMore.textContent = '未激活';
+                contrastMore.className = 'status-badge inactive';
+                contrastLess.textContent = '✓ 激活';
+                contrastLess.className = 'status-badge active';
+                contrastNoPref.textContent = '未激活';
+                contrastNoPref.className = 'status-badge inactive';
+            } else {
+                contrastMore.textContent = '未激活';
+                contrastMore.className = 'status-badge inactive';
+                contrastLess.textContent = '未激活';
+                contrastLess.className = 'status-badge inactive';
+                contrastNoPref.textContent = '✓ 激活';
+                contrastNoPref.className = 'status-badge active';
+            }
+            
+            // 更新模式按钮
+            document.getElementById('btn-light').classList.remove('selected');
+            document.getElementById('btn-dark').classList.remove('selected');
+            document.getElementById('btn-auto').classList.remove('selected');
+            
+            if (currentMode === 'light') {
+                document.getElementById('btn-light').classList.add('selected');
+            } else if (currentMode === 'dark') {
+                document.getElementById('btn-dark').classList.add('selected');
+            } else {
+                document.getElementById('btn-auto').classList.add('selected');
+            }
+            
+            // 更新检测结果
+            var results = document.getElementById('detect-results');
+            results.innerHTML = 
+                '<div class="pref-grid">' +
+                '<div class="pref-item"><div class="pref-label">matchMedia API</div><div class="pref-value" style="color:#10b981;">✓ 支持</div></div>' +
+                '<div class="pref-item"><div class="pref-label">prefers-color-scheme</div><div class="pref-value">' + (preferences.colorScheme !== 'unknown' ? '✓ 支持' : '⚠️ 可能不支持') + '</div></div>' +
+                '<div class="pref-item"><div class="pref-label">检测到的方案</div><div class="pref-value">' + preferences.colorScheme + '</div></div>' +
+                '<div class="pref-item"><div class="pref-label">当前应用的模式</div><div class="pref-value">' + (document.body.classList.contains('dark-mode') ? 'dark' : 'light') + '</div></div>' +
+                '</div>';
+        }
+
+        // 设置模式
+        function setMode(mode) {
+            currentMode = mode;
+            log('切换模式: ' + mode);
+            
+            if (mode === 'dark') {
+                applyColorScheme('dark');
+            } else if (mode === 'light') {
+                applyColorScheme('light');
+            } else {
+                detect();
+            }
+            
+            updateUI();
+        }
+
+        // 应用颜色方案
+        function applyColorScheme(scheme) {
+            if (scheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                log('应用深色模式');
+            } else {
+                document.body.classList.remove('dark-mode');
+                log('应用浅色模式');
+            }
+        }
+
+        // 强制深色
+        function forceDarkMode() {
+            currentMode = 'dark';
+            applyColorScheme('dark');
+            updateUI();
+            log('强制深色模式');
+        }
+
+        // 强制浅色
+        function forceLightMode() {
+            currentMode = 'light';
+            applyColorScheme('light');
+            updateUI();
+            log('强制浅色模式');
+        }
+
+        // 日志
+        function log(msg) {
+            var now = new Date();
+            var time = now.toTimeString().split(' ')[0];
+            
+            logs.unshift({ time: time, msg: msg });
+            if (logs.length > 50) logs.pop();
+            
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            var html = '';
+            
+            for (var i = 0; i < logs.length; i++) {
+                html += '<div class="log-entry"><span class="log-time">' + logs[i].time + '</span>' + logs[i].msg + '</div>';
+            }
+            
+            container.innerHTML = html || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+        }
+    </script>
+</body>
+</html>

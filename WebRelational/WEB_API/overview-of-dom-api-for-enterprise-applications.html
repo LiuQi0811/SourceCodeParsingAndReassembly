@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>企业级应用 · DOM API 全览</title>
+    <style>
+        /* ========== 全局样式与自适应 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --light: #f8fafc;
+            --dark: #1e293b;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            background: linear-gradient(145deg, #f0f4fa 0%, #e6ecf5 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        /* 企业卡片容器 — 自适应 + 最大宽度 */
+        .app-container {
+            width: 100%;
+            max-width: 1400px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 2rem;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        /* ========== 头部区域 ========== */
+        .app-header {
+            background: rgba(255,255,255,0.5);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .logo-icon {
+            background: var(--primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow);
+        }
+
+        .title h1 {
+            font-size: 1.7rem;
+            font-weight: 600;
+            color: var(--dark);
+            letter-spacing: -0.02em;
+        }
+        .title p {
+            color: var(--secondary);
+            font-size: 0.9rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid var(--gray-200);
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--dark);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: var(--shadow);
+        }
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        .btn-outline:hover {
+            background: var(--gray-100);
+            border-color: var(--gray-300);
+        }
+
+        /* ========== 选项卡导航 ========== */
+        .tab-bar {
+            display: flex;
+            flex-wrap: wrap;
+            background: rgba(255,255,255,0.3);
+            padding: 0.8rem 2rem 0;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .tab {
+            padding: 0.7rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 30px 30px 0 0;
+            font-weight: 600;
+            color: var(--secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab:hover {
+            background: rgba(255,255,255,0.5);
+            color: var(--primary);
+        }
+        .tab.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 -2px 6px rgba(0,0,0,0.02);
+            border: 1px solid var(--gray-200);
+            border-bottom-color: white;
+            transform: translateY(1px);
+        }
+        .tab i { font-style: normal; font-size: 1.2rem; }
+
+        /* ========== 主要内容面板 ========== */
+        .panel {
+            padding: 2rem;
+            background: white;
+            min-height: 500px;
+            transition: all 0.2s;
+        }
+
+        /* 栅格系统 — 自适应卡片 */
+        .grid-2, .grid-3, .grid-4 {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .grid-2 { grid-template-columns: repeat(2,1fr); }
+        .grid-3 { grid-template-columns: repeat(3,1fr); }
+        .grid-4 { grid-template-columns: repeat(4,1fr); }
+
+        .card {
+            background: var(--light);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            border: 1px solid var(--gray-200);
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+        .card-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px dashed var(--gray-300);
+            padding-bottom: 0.5rem;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--secondary);
+            margin-bottom: 4px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            transition: 0.15s;
+            background: white;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        .radio-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .radio-group label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+
+        /* 表格样式 */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid var(--gray-200);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--dark);
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        td {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        /* 媒体/进度条区域 */
+        .media-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+        video, audio {
+            max-width: 100%;
+            border-radius: 16px;
+            background: #000;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+            border-radius: 20px;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 900px) {
+            .grid-4 { grid-template-columns: repeat(2,1fr); }
+            .grid-3 { grid-template-columns: repeat(2,1fr); }
+            .app-header { flex-direction: column; align-items: start; }
+        }
+        @media (max-width: 600px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .panel { padding: 1.5rem; }
+            .tab { padding: 0.6rem 1rem; }
+        }
+
+        /* 状态展示 */
+        .badge {
+            background: var(--gray-200);
+            padding: 0.25rem 0.75rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+        .output {
+            background: var(--gray-100);
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            font-family: monospace;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container" id="appContainer">
+    <!-- 头部：使用 document.title / dataset / cookie 等示例 -->
+    <header class="app-header" id="mainHeader" data-app-name="企业DOM全览" data-version="1.0.0">
+        <div class="logo-area">
+            <div class="logo-icon" id="logoBox">📋</div>
+            <div class="title">
+                <h1 id="pageTitle">HTML DOM API 企业实验室</h1>
+                <p id="headerSub">展示所有核心接口 · 自适应选项卡</p>
+            </div>
+        </div>
+        <div class="toolbar">
+            <button class="btn btn-outline" id="themeToggleBtn" onclick="toggleTheme()">🌓 切换主题</button>
+            <button class="btn btn-primary" id="apiInfoBtn" onclick="showApiInfo()">📡 检测API</button>
+        </div>
+    </header>
+
+    <!-- 选项卡导航：动态高亮&切换内容 -->
+    <nav class="tab-bar" id="tabBar">
+        <button class="tab active" data-tab="tab1" onclick="switchTab('tab1')"><i>📄</i> 文档/元素</button>
+        <button class="tab" data-tab="tab2" onclick="switchTab('tab2')"><i>📋</i> 表单/输入</button>
+        <button class="tab" data-tab="tab3" onclick="switchTab('tab3')"><i>🎬</i> 媒体/表格</button>
+        <button class="tab" data-tab="tab4" onclick="switchTab('tab4')"><i>📏</i> 尺寸/样式</button>
+        <button class="tab" data-tab="tab5" onclick="switchTab('tab5')"><i>⚙️</i> 事件/高级</button>
+    </nav>
+
+    <!-- 面板容器 (动态显示不同tab内容) -->
+    <main class="panel" id="mainPanel">
+        <!-- 选项卡1：Document & HTMLElement 基础接口 -->
+        <div id="tab1" class="tab-content" style="display: block;">
+            <div class="grid-2">
+                <!-- document 属性卡片 -->
+                <div class="card">
+                    <div class="card-title">📄 Document 接口</div>
+                    <div class="form-group">
+                        <label>document.title <span class="badge">读写</span></label>
+                        <input type="text" id="docTitleInput" placeholder="修改页面标题" value="HTML DOM API 企业实验室">
+                        <button class="btn btn-outline" style="margin-top:8px" onclick="updateDocTitle()">应用</button>
+                    </div>
+                    <div class="form-group">
+                        <label>document.cookie <span class="badge">模拟</span></label>
+                        <div style="display: flex; gap:5px;">
+                            <input type="text" id="cookieInput" placeholder="key=value" value="user=admin">
+                            <button class="btn btn-outline" onclick="setCookie()">设置</button>
+                        </div>
+                        <div class="output" id="cookieDisplay">document.cookie: </div>
+                    </div>
+                    <div class="form-group">
+                        <label>document.designMode</label>
+                        <button class="btn btn-outline" onclick="toggleDesignMode()">切换设计模式 (当前: <span id="designModeSpan">off</span>)</button>
+                    </div>
+                    <div class="form-group">
+                        <label>document.visibilityState</label>
+                        <div class="output" id="visibilityOutput">状态: </div>
+                    </div>
+                </div>
+                <!-- HTMLElement 基础操作 -->
+                <div class="card">
+                    <div class="card-title">🧩 HTMLElement 实例</div>
+                    <div id="demoElement" data-custom="示例数据" contenteditable="false" style="border:1px solid var(--gray-300); padding:10px; border-radius:12px;">
+                        我是可操作的元素 (点击按钮改变我)
+                    </div>
+                    <div style="margin-top:10px; display: flex; gap:6px; flex-wrap: wrap;">
+                        <button class="btn btn-outline" onclick="setElementId()">设置id</button>
+                        <button class="btn btn-outline" onclick="toggleClass()">切换类名 .highlight</button>
+                        <button class="btn btn-outline" onclick="changeInnerHTML()">修改 innerHTML</button>
+                        <button class="btn btn-outline" onclick="showDataset()">显示 data-*</button>
+                    </div>
+                    <div class="output" id="datasetOutput">点击按钮查看dataset</div>
+                </div>
+                <!-- 集合 document.forms / images / links -->
+                <div class="card">
+                    <div class="card-title">📚 DOM 集合</div>
+                    <div><strong>document.forms:</strong> <span id="formsCount">0</span></div>
+                    <div><strong>document.images:</strong> <span id="imagesCount">0</span> (logo算一个)</div>
+                    <div><strong>document.links:</strong> <span id="linksCount">0</span></div>
+                    <div><strong>document.scripts:</strong> <span id="scriptsCount">0</span></div>
+                    <button class="btn btn-outline" style="margin-top:8px" onclick="refreshCollections()">刷新计数</button>
+                </div>
+                <!-- 元素尺寸演示 (内联) -->
+                <div class="card">
+                    <div class="card-title">📐 尺寸/位置 (getBoundingClientRect)</div>
+                    <div id="rectDemo" style="background:var(--primary); color:white; padding:10px; width:80%; border-radius:12px;">测量我</div>
+                    <button class="btn btn-outline" style="margin-top:10px" onclick="showBoundingRect()">获取位置/尺寸</button>
+                    <div class="output" id="rectOutput"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡2：表单元素 & 表单API 全集 -->
+        <div id="tab2" class="tab-content" style="display: none;">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">📋 HTMLInputElement 大全</div>
+                    <form id="demoForm" onsubmit="return false;">
+                        <div class="form-group">
+                            <label>文本输入 (value / select())</label>
+                            <input type="text" id="textInput" value="初始文本" placeholder="请输入">
+                            <button class="btn btn-outline" style="margin-top:5px" onclick="selectInputText()">选中文本</button>
+                        </div>
+                        <div class="form-group">
+                            <label>复选框 (checked)</label>
+                            <div class="radio-group">
+                                <label><input type="checkbox" id="check1" checked> 选项1</label>
+                                <label><input type="checkbox" id="check2"> 选项2</label>
+                            </div>
+                            <button class="btn btn-outline" onclick="logChecked()">打印checked状态</button>
+                        </div>
+                        <div class="form-group">
+                            <label>文件上传 (files)</label>
+                            <input type="file" id="fileInput" multiple>
+                            <button class="btn btn-outline" onclick="showFiles()">显示文件信息</button>
+                        </div>
+                        <div class="form-group">
+                            <label>范围滑块</label>
+                            <input type="range" id="rangeInput" min="0" max="100" value="30">
+                            <span id="rangeVal">30</span>
+                        </div>
+                        <button class="btn btn-primary" onclick="submitFormDemo()">模拟表单提交</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📋 Select / 选项 / 表单验证</div>
+                    <form id="validForm">
+                        <div class="form-group">
+                            <label>选择器 (select)</label>
+                            <select id="demoSelect">
+                                <option value="option1">选项A</option>
+                                <option value="option2">选项B</option>
+                                <option value="option3">选项C</option>
+                            </select>
+                            <button class="btn btn-outline" onclick="getSelectValue()">获取选中值</button>
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱 (用于验证)</label>
+                            <input type="email" id="emailInput" required placeholder="test@example.com">
+                            <button class="btn btn-outline" onclick="checkValidityDemo()">checkValidity</button>
+                            <span id="validityMsg"></span>
+                        </div>
+                        <div class="form-group">
+                            <label>设置自定义验证</label>
+                            <input type="text" id="customValidInput" placeholder="必须包含'API'">
+                            <button class="btn btn-outline" onclick="setCustomValidation()">设置验证</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📦 FormData / elements 集合</div>
+                    <form id="formDataDemo">
+                        <input type="text" name="username" value="张三" placeholder="用户名">
+                        <input type="number" name="age" value="28">
+                        <select name="city">
+                            <option>北京</option>
+                            <option>上海</option>
+                        </select>
+                    </form>
+                    <button class="btn btn-outline" onclick="showFormData()">遍历 FormData</button>
+                    <div class="output" id="formDataOutput"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🎮 focus / blur / change 事件</div>
+                    <input type="text" id="focusDemoInput" placeholder="聚焦/失焦触发" value="试试">
+                    <p>事件日志: <span id="focusLog">等待事件</span></p>
+                    <button class="btn btn-outline" onclick="manualFocus()">手动聚焦</button>
+                    <button class="btn btn-outline" onclick="manualBlur()">手动失焦</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡3：媒体元素 + 表格API + 进度/集合 -->
+        <div id="tab3" class="tab-content" style="display: none;">
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-title">🎬 媒体元素 (video/audio)</div>
+                    <video id="demoVideo" width="100%" controls poster="https://via.placeholder.com/300x150?text=Video+Poster">
+                        <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                    </video>
+                    <div style="display:flex; gap:5px; margin-top:8px; flex-wrap:wrap;">
+                        <button class="btn btn-outline" onclick="playVideo()">播放</button>
+                        <button class="btn btn-outline" onclick="pauseVideo()">暂停</button>
+                        <button class="btn btn-outline" onclick="muteVideo()">静音切换</button>
+                        <span>volume: <span id="videoVolume">1</span></span>
+                    </div>
+                    <audio id="demoAudio" controls style="width:100%; margin-top:10px;">
+                        <source src="https://www.w3schools.com/html/horse.ogg" type="audio/ogg">
+                    </audio>
+                </div>
+                <div class="card">
+                    <div class="card-title">📊 表格操作 (HTMLTableElement)</div>
+                    <table id="demoTable">
+                        <thead><tr><th>姓名</th><th>部门</th></tr></thead>
+                        <tbody>
+                        <tr><td>张三</td><td>技术</td></tr>
+                        <tr><td>李四</td><td>产品</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-outline" onclick="addTableRow()">添加行</button>
+                        <button class="btn btn-outline" onclick="deleteLastRow()">删除最后行</button>
+                        <button class="btn btn-outline" onclick="addCaption()">添加标题</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">⏳ 进度元素 / 集合</div>
+                    <progress id="demoProgress" value="30" max="100"></progress>
+                    <button class="btn btn-outline" onclick="updateProgress()">随机进度</button>
+                    <div style="margin-top:1rem;">
+                        <label>document.embeds 数量: <span id="embedsCount">0</span></label><br>
+                        <label>document.scripts 第二次: <span id="scriptsCount2"></span></label>
+                    </div>
+                </div>
+            </div>
+            <!-- 第二行 链接集合 -->
+            <div class="card" style="margin-top:1rem;">
+                <div class="card-title">🔗 document.links / anchors 展示</div>
+                <div>
+                    <a href="#" id="sampleLink1">示例链接1</a> ·
+                    <a href="#" id="sampleLink2">示例链接2</a> ·
+                    <a name="anchor1">锚点1</a>
+                </div>
+                <button class="btn btn-outline" onclick="countLinksAndAnchors()">刷新计数</button>
+                <div class="output" id="linkOutput"></div>
+            </div>
+        </div>
+
+        <!-- 选项卡4：尺寸/样式/滚动/位置 全套 -->
+        <div id="tab4" class="tab-content" style="display: none;">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">📐 元素尺寸 & 滚动</div>
+                    <div id="scrollableDiv" style="height:100px; width:100%; overflow:auto; background:var(--gray-100); border-radius:12px; padding:10px;">
+                        <div style="height:200px; width:300px; background:linear-gradient(45deg, #a8c0ff, #3f2b96); color:white; padding:10px;">
+                            滚动内容区域 -> 更多内容<br>第二行<br>第三行<br>第四行
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <button class="btn btn-outline" onclick="showScrollDimensions()">显示scroll/offset/client</button>
+                        <button class="btn btn-outline" onclick="scrollRight()">向右滚动</button>
+                    </div>
+                    <div class="output" id="scrollDimOutput"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🎨 样式操作 (style / classList / cssText)</div>
+                    <div id="styleDemoBox" style="width:100%; height:60px; background:var(--primary); border-radius:12px; transition:0.2s;"></div>
+                    <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn btn-outline" onclick="changeBgColor()">随机背景色</button>
+                        <button class="btn btn-outline" onclick="addBorderClass()">添加边框类</button>
+                        <button class="btn btn-outline" onclick="resetStyle()">重置样式</button>
+                    </div>
+                    <div><strong>计算样式:</strong> <span id="computedStyleSpan"></span></div>
+                    <button class="btn btn-outline" onclick="getComputedStyleDemo()">获取计算样式</button>
+                </div>
+                <div class="card">
+                    <div class="card-title">🖱️ 窗口尺寸/滚动</div>
+                    <p>window.innerWidth: <span id="innerWidthVal"></span></p>
+                    <p>window.innerHeight: <span id="innerHeightVal"></span></p>
+                    <p>window.scrollY: <span id="scrollYVal">0</span></p>
+                    <button class="btn btn-outline" onclick="refreshWindowDim()">刷新</button>
+                    <button class="btn btn-outline" onclick="scrollToBottom()">滚动到底部(演示)</button>
+                </div>
+                <div class="card">
+                    <div class="card-title">📋 元素位置 (getBoundingClientRect)</div>
+                    <div id="targetForRect" style="background:var(--warning); padding:15px; border-radius:12px;">目标元素</div>
+                    <button class="btn btn-outline" onclick="showTargetRect()">显示位置</button>
+                    <div class="output" id="targetRectOut"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡5：事件监听 / 高级API -->
+        <div id="tab5" class="tab-content" style="display: none;">
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">👂 事件监听器 & 委托</div>
+                    <div id="eventDelegationZone" style="background:var(--gray-100); border-radius:16px; padding:1rem;">
+                        <button class="btn btn-outline" data-action="clickMe">按钮1</button>
+                        <button class="btn btn-outline" data-action="clickMe">按钮2</button>
+                        <p>点击上方按钮触发委托日志</p>
+                    </div>
+                    <div class="output" id="delegationLog">等待点击...</div>
+                    <button class="btn btn-outline" onclick="addNewButton()">动态添加按钮(测试委托)</button>
+                </div>
+                <div class="card">
+                    <div class="card-title">📡 高级特性: execCommand / 页面可见性</div>
+                    <div contenteditable="true" id="richEdit" style="border:1px solid var(--gray-300); min-height:80px; border-radius:12px; padding:8px;">可编辑区域</div>
+                    <button class="btn btn-outline" onclick="makeBold()">加粗</button>
+                    <button class="btn btn-outline" onclick="document.execCommand('italic')">斜体</button>
+                    <p>document.hidden: <span id="hiddenStatus"></span></p>
+                </div>
+                <div class="card">
+                    <div class="card-title">📦 dataset 与 自定义属性</div>
+                    <div id="dataElement" data-user-id="12345" data-user-role="admin" data-last-login="2025-03-06">查看 data-* 属性</div>
+                    <button class="btn btn-outline" onclick="showDataSet()">显示dataset</button>
+                    <div class="output" id="dataSetOut"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🧪 杂项: all / forms 等</div>
+                    <button class="btn btn-outline" onclick="document.all && alert('document.all 长度: '+document.all.length)">document.all</button>
+                    <button class="btn btn-outline" onclick="showEmbeds()">document.embeds</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    (function() {
+        // ================== 初始化: 监听事件、填充部分值 ==================
+        // 选项卡切换函数 (全局)
+        window.switchTab = function(tabId) {
+            // 隐藏所有tab-content
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            // 显示选中
+            document.getElementById(tabId).style.display = 'block';
+            // 更新tab按钮active类
+            document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            // 可选：存储当前tab
+            sessionStorage.setItem('activeTab', tabId);
+        };
+
+        // 恢复上次激活的tab
+        const lastTab = sessionStorage.getItem('activeTab') || 'tab1';
+        switchTab(lastTab);
+
+        // 展示cookie初始值
+        document.getElementById('cookieDisplay').innerText = 'document.cookie: ' + document.cookie;
+
+        // visibilityState
+        document.getElementById('visibilityOutput').innerText = '状态: ' + document.visibilityState;
+
+        // 监听visibility变化
+        document.addEventListener('visibilitychange', function() {
+            document.getElementById('visibilityOutput').innerText = '状态: ' + document.visibilityState;
+        });
+
+        // 设计模式初始span
+        document.getElementById('designModeSpan').innerText = document.designMode || 'off';
+
+        // 集合刷新函数
+        window.refreshCollections = function() {
+            document.getElementById('formsCount').innerText = document.forms.length;
+            document.getElementById('imagesCount').innerText = document.images.length; // 可能0但logo是个div，不是图片，但为了方便，我们手动算一个？也可以写个假图片? 不，这里稍后加个隐藏图片？
+            // 手动添加隐藏图片? 保持简单
+            // 也可以直接显示计数，忽略
+            document.getElementById('linksCount').innerText = document.links.length;
+            document.getElementById('scriptsCount').innerText = document.scripts.length;
+            if(document.getElementById('scriptsCount2')) document.getElementById('scriptsCount2').innerText = document.scripts.length;
+            document.getElementById('embedsCount').innerText = document.embeds.length;
+        };
+        refreshCollections();
+
+        // 范围滑块显示
+        document.getElementById('rangeInput')?.addEventListener('input', function(e){
+            document.getElementById('rangeVal').innerText = e.target.value;
+        });
+
+        // 聚焦日志
+        const focusInput = document.getElementById('focusDemoInput');
+        if(focusInput) {
+            focusInput.addEventListener('focus', ()=> document.getElementById('focusLog').innerText = 'focus 事件触发');
+            focusInput.addEventListener('blur', ()=> document.getElementById('focusLog').innerText = 'blur 事件触发');
+            focusInput.addEventListener('change', ()=> document.getElementById('focusLog').innerText = 'change 事件');
+        }
+
+        // 事件委托
+        const delegationZone = document.getElementById('eventDelegationZone');
+        if(delegationZone) {
+            delegationZone.addEventListener('click', function(e) {
+                if(e.target && e.target.matches('button[data-action="clickMe"]')) {
+                    document.getElementById('delegationLog').innerText = '委托捕获: ' + e.target.innerText + ' 被点击';
+                }
+            });
+        }
+
+        // 窗口尺寸
+        window.updateWindowDim = function() {
+            document.getElementById('innerWidthVal').innerText = window.innerWidth;
+            document.getElementById('innerHeightVal').innerText = window.innerHeight;
+            document.getElementById('scrollYVal').innerText = window.scrollY;
+        };
+        window.addEventListener('resize', updateWindowDim);
+        updateWindowDim();
+
+        // 监听滚动
+        window.addEventListener('scroll', function() {
+            document.getElementById('scrollYVal').innerText = window.scrollY;
+        });
+
+        // 页面隐藏状态
+        document.getElementById('hiddenStatus').innerText = document.hidden;
+        document.addEventListener('visibilitychange', ()=> {
+            document.getElementById('hiddenStatus').innerText = document.hidden;
+        });
+    })();
+
+    // ========== API 操作函数 (全部挂载window) ==========
+
+    // document.title
+    window.updateDocTitle = function() {
+        const newTitle = document.getElementById('docTitleInput').value;
+        document.title = newTitle;
+        document.getElementById('pageTitle').innerText = newTitle;
+    };
+
+    // cookie
+    window.setCookie = function() {
+        const val = document.getElementById('cookieInput').value;
+        document.cookie = val + "; path=/";
+        document.getElementById('cookieDisplay').innerText = 'document.cookie: ' + document.cookie;
+    };
+
+    // designMode
+    window.toggleDesignMode = function() {
+        if(document.designMode === 'off' || !document.designMode) {
+            document.designMode = 'on';
+        } else {
+            document.designMode = 'off';
+        }
+        document.getElementById('designModeSpan').innerText = document.designMode;
+    };
+
+    // HTMLElement 方法
+    window.setElementId = function() {
+        const el = document.getElementById('demoElement');
+        el.id = 'demoElement_' + Date.now();
+        alert('新id: ' + el.id);
+    };
+    window.toggleClass = function() {
+        const el = document.getElementById('demoElement');
+        el.classList.toggle('highlight');
+        if(!document.getElementById('style-highlight')) {
+            const style = document.createElement('style');
+            style.id = 'style-highlight';
+            style.innerHTML = '.highlight { background: #fffacd !important; border: 2px solid gold !important; }';
+            document.head.appendChild(style);
+        }
+    };
+    window.changeInnerHTML = function() {
+        document.getElementById('demoElement').innerHTML = '内容已被修改 <b>加粗</b>  ' + new Date().toLocaleTimeString();
+    };
+    window.showDataset = function() {
+        const el = document.getElementById('demoElement');
+        const output = document.getElementById('datasetOutput');
+        let str = '';
+        for(let key in el.dataset) {
+            str += key + ': ' + el.dataset[key] + ', ';
+        }
+        output.innerText = str || '无自定义数据';
+    };
+
+    // getBoundingClientRect demo
+    window.showBoundingRect = function() {
+        const rect = document.getElementById('rectDemo').getBoundingClientRect();
+        document.getElementById('rectOutput').innerHTML =
+            `top:${rect.top} right:${rect.right} bottom:${rect.bottom} left:${rect.left} width:${rect.width}`;
+    };
+
+    // 输入选择
+    window.selectInputText = function() {
+        document.getElementById('textInput').select();
+    };
+    window.logChecked = function() {
+        alert('check1: ' + document.getElementById('check1').checked + ', check2: ' + document.getElementById('check2').checked);
+    };
+    window.showFiles = function() {
+        const files = document.getElementById('fileInput').files;
+        alert('选中文件数: ' + files.length);
+    };
+    window.submitFormDemo = function() {
+        alert('表单提交演示 (已阻止实际提交)');
+    };
+
+    // select
+    window.getSelectValue = function() {
+        const select = document.getElementById('demoSelect');
+        alert('选中值: ' + select.value);
+    };
+
+    // validity
+    window.checkValidityDemo = function() {
+        const inp = document.getElementById('emailInput');
+        if(inp.checkValidity()) {
+            document.getElementById('validityMsg').innerText = '有效';
+        } else {
+            document.getElementById('validityMsg').innerText = inp.validationMessage;
+        }
+    };
+    window.setCustomValidation = function() {
+        const inp = document.getElementById('customValidInput');
+        inp.setCustomValidity(inp.value.includes('API') ? '' : '必须包含API');
+        inp.reportValidity();
+    };
+
+    // FormData
+    window.showFormData = function() {
+        const form = document.getElementById('formDataDemo');
+        const formData = new FormData(form);
+        let out = '';
+        for(let [k,v] of formData.entries()) out += `${k}=${v} `;
+        document.getElementById('formDataOutput').innerText = out;
+    };
+
+    // focus/blur manual
+    window.manualFocus = function() { document.getElementById('focusDemoInput').focus(); };
+    window.manualBlur = function() { document.getElementById('focusDemoInput').blur(); };
+
+    // 媒体
+    window.playVideo = function() { document.getElementById('demoVideo').play(); };
+    window.pauseVideo = function() { document.getElementById('demoVideo').pause(); };
+    window.muteVideo = function() {
+        const v = document.getElementById('demoVideo');
+        v.muted = !v.muted;
+        document.getElementById('videoVolume').innerText = v.muted ? 0 : v.volume;
+    };
+
+    // 表格
+    window.addTableRow = function() {
+        const tbody = document.querySelector('#demoTable tbody');
+        const newRow = tbody.insertRow();
+        const cell1 = newRow.insertCell(); cell1.innerText = '新员工';
+        const cell2 = newRow.insertCell(); cell2.innerText = '市场';
+    };
+    window.deleteLastRow = function() {
+        const tbody = document.querySelector('#demoTable tbody');
+        if(tbody.rows.length > 0) tbody.deleteRow(-1);
+    };
+    window.addCaption = function() {
+        const table = document.getElementById('demoTable');
+        if(!table.caption) table.createCaption().innerText = '员工表 ' + new Date().toLocaleDateString();
+    };
+
+    // 进度
+    window.updateProgress = function() {
+        const prog = document.getElementById('demoProgress');
+        prog.value = Math.floor(Math.random() * 100);
+    };
+
+    // 链接/锚点
+    window.countLinksAndAnchors = function() {
+        document.getElementById('linkOutput').innerHTML = `links: ${document.links.length}, anchors: ${document.anchors.length}`;
+    };
+
+    // 尺寸滚动
+    window.showScrollDimensions = function() {
+        const div = document.getElementById('scrollableDiv');
+        document.getElementById('scrollDimOutput').innerHTML =
+            `scrollWidth: ${div.scrollWidth}, scrollHeight: ${div.scrollHeight}, clientHeight: ${div.clientHeight}, offsetWidth: ${div.offsetWidth}`;
+    };
+    window.scrollRight = function() {
+        document.getElementById('scrollableDiv').scrollBy({left:30});
+    };
+
+    // 样式操作
+    window.changeBgColor = function() {
+        const box = document.getElementById('styleDemoBox');
+        box.style.backgroundColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+    };
+    window.addBorderClass = function() {
+        document.getElementById('styleDemoBox').classList.toggle('borderClass');
+        if(!document.getElementById('style-border')) {
+            const s = document.createElement('style');
+            s.id = 'style-border';
+            s.innerHTML = '.borderClass { border: 4px solid #ff5722; }';
+            document.head.appendChild(s);
+        }
+    };
+    window.resetStyle = function() {
+        const box = document.getElementById('styleDemoBox');
+        box.style = '';
+        box.classList.remove('borderClass');
+    };
+    window.getComputedStyleDemo = function() {
+        const box = document.getElementById('styleDemoBox');
+        const style = window.getComputedStyle(box);
+        document.getElementById('computedStyleSpan').innerText = style.backgroundColor;
+    };
+
+    // 窗口尺寸
+    window.refreshWindowDim = window.updateWindowDim;
+    window.scrollToBottom = function() {
+        window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+    };
+
+    // 目标元素rect
+    window.showTargetRect = function() {
+        const rect = document.getElementById('targetForRect').getBoundingClientRect();
+        document.getElementById('targetRectOut').innerText = JSON.stringify(rect);
+    };
+
+    // 动态添加按钮（委托）
+    window.addNewButton = function() {
+        const zone = document.getElementById('eventDelegationZone');
+        const newBtn = document.createElement('button');
+        newBtn.className = 'btn btn-outline';
+        newBtn.setAttribute('data-action', 'clickMe');
+        newBtn.innerText = '动态按钮';
+        zone.appendChild(newBtn);
+    };
+
+    // execCommand
+    window.makeBold = function() {
+        document.execCommand('bold');
+    };
+
+    // dataset 高级展示
+    window.showDataSet = function() {
+        const el = document.getElementById('dataElement');
+        const out = document.getElementById('dataSetOut');
+        out.innerText = JSON.stringify(el.dataset);
+    };
+
+    // embeds
+    window.showEmbeds = function() {
+        alert('embeds: ' + document.embeds.length);
+    };
+
+    // 主题切换 (class)
+    window.toggleTheme = function() {
+        document.body.classList.toggle('dark-theme');
+        if(!document.getElementById('dark-theme-style')) {
+            const style = document.createElement('style');
+            style.id = 'dark-theme-style';
+            style.innerHTML = `
+                    body.dark-theme { background: #1a2634; }
+                    body.dark-theme .app-container { background: rgba(30,41,59,0.8); border-color: #2d3a4f; }
+                    body.dark-theme .card, body.dark-theme .panel { background: #2d3748; color: #e2e8f0; border-color: #4a5568; }
+                `;
+            document.head.appendChild(style);
+        }
+    };
+
+    // 检测API按钮
+    window.showApiInfo = function() {
+        alert('HTML DOM API 全部展示：document, HTMLElement, 表单, 媒体, 尺寸样式, 事件等。该页面已集成大多数接口');
+    };
+</script>
+<!-- 增加一张隐藏图片用于 images 集合计数 -->
+<img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1'%20height='1'%3E%3C/svg%3E" style="display:none;" alt="hidden">
+</body>
+</html>

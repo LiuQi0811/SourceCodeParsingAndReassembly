@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Storage API - 企业级演示应用</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --code-bg: #1e293b;
+            --code-text: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: clamp(0.875rem, 2vw, 1.125rem);
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-color);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error-color);
+        }
+
+        .status-dot.supported {
+            background: var(--success-color);
+        }
+
+        /* Tabs Navigation */
+        .tabs-container {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .tabs-nav {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-color);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: var(--card-bg);
+        }
+
+        .tab-btn .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 1.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title .icon {
+            width: 24px;
+            height: 24px;
+            color: var(--primary-color);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .card-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-method {
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary-color);
+        }
+
+        .badge-property {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .badge-async {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .code-block .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: var(--code-text);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: background 0.2s;
+        }
+
+        .code-block .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .code-keyword { color: #c792ea; }
+        .code-string { color: #c3e88d; }
+        .code-function { color: #82aaff; }
+        .code-comment { color: #676e95; }
+        .code-number { color: #f78c6c; }
+        .code-property { color: #ffcb6b; }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 0.9375rem;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        /* Result Display */
+        .result-box {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-box.success {
+            border-color: var(--success-color);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .result-box.error {
+            border-color: var(--error-color);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-color);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        tr:hover {
+            background: var(--bg-color);
+        }
+
+        /* API Reference */
+        .api-method {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: var(--bg-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 0.5rem;
+            font-family: monospace;
+        }
+
+        .api-method code {
+            color: var(--primary-color);
+        }
+
+        /* Console Output */
+        .console {
+            background: var(--code-bg);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .console-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .console-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .console-dot.red { background: #ff5f56; }
+        .console-dot.yellow { background: #ffbd2e; }
+        .console-dot.green { background: #27c93f; }
+
+        .console-body {
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: var(--code-text);
+        }
+
+        .console-line {
+            margin-bottom: 0.25rem;
+        }
+
+        .console-line.log { color: #e2e8f0; }
+        .console-line.error { color: #f87171; }
+        .console-line.warn { color: #fbbf24; }
+        .console-line.info { color: #60a5fa; }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: transform 0.2s;
+            z-index: 1000;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1.5rem 1rem;
+            }
+
+            .tab-btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+            }
+
+            .tab-content {
+                padding: 1rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn-group .btn {
+                width: 100%;
+            }
+
+            .status-bar {
+                flex-direction: column;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--secondary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Info Box */
+        .info-box {
+            display: flex;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: rgba(37, 99, 235, 0.1);
+            border-left: 4px solid var(--primary-color);
+            border-radius: var(--radius-md);
+            margin: 1rem 0;
+        }
+
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left-color: var(--warning-color);
+        }
+
+        .info-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left-color: var(--success-color);
+        }
+
+        .info-box-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Storage Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            color: var(--success-color);
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>Shared Storage API</h1>
+        <p>企业级演示应用 - 跨站点安全存储解决方案</p>
+        <div class="header-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Privacy Sandbox API
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot" id="apiStatus"></span>
+                <span id="apiStatusText">检测 API 支持状态...</span>
+            </div>
+            <div class="status-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="9" y1="21" x2="9" y2="9"/>
+                </svg>
+                <span>浏览器: <span id="browserName">检测中...</span></span>
+            </div>
+            <div class="status-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                </svg>
+                <span>更新时间: <span id="updateTime"></span></span>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <!-- Tabs Navigation -->
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="overview">
+                    📖 概述
+                </button>
+                <button class="tab-btn" data-tab="interfaces">
+                    🔌 接口参考
+                    <span class="badge">8</span>
+                </button>
+                <button class="tab-btn" data-tab="methods">
+                    ⚡ 方法演示
+                    <span class="badge">7</span>
+                </button>
+                <button class="tab-btn" data-tab="worklet">
+                    🔧 Worklet
+                </button>
+                <button class="tab-btn" data-tab="operations">
+                    🎯 操作类型
+                    <span class="badge">2</span>
+                </button>
+                <button class="tab-btn" data-tab="examples">
+                    💡 实战示例
+                </button>
+                <button class="tab-btn" data-tab="playground">
+                    🎮 交互演示
+                </button>
+            </nav>
+
+            <!-- Tab Contents -->
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="overview">
+                <div class="section">
+                    <h2 class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        什么是 Shared Storage API？
+                    </h2>
+                    <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                        Shared Storage API 是一种客户端存储机制，它允许在跨站点上下文中进行未分区的数据访问，同时保护用户隐私。这是 Privacy Sandbox 计划的一部分，旨在替代第三方 Cookie，提供更隐私友好的广告和个性化解决方案。
+                    </p>
+                    
+                    <div class="info-box">
+                        <svg class="info-box-icon" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        <div>
+                            <strong>核心特性：</strong>Shared Storage API 提供了一种安全的方式来存储和访问跨站点数据，而不会泄露用户的具体浏览历史或个人信息。所有数据读取操作都在隔离的 Worklet 环境中执行。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                        </svg>
+                        主要优势
+                    </h2>
+                    <ul class="feature-list">
+                        <li>
+                            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20,6 9,17 4,12"/>
+                            </svg>
+                            <div>
+                                <strong>隐私保护</strong>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">数据读取在隔离的 Worklet 中进行，无法直接访问原始数据，防止跨站点追踪</p>
+                            </div>
+                        </li>
+                        <li>
+                            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20,6 9,17 4,12"/>
+                            </svg>
+                            <div>
+                                <strong>跨站点共享</strong>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">同一来源的数据可以在多个站点间安全共享，支持广告频次控制等用例</p>
+                            </div>
+                        </li>
+                        <li>
+                            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20,6 9,17 4,12"/>
+                            </svg>
+                            <div>
+                                <strong>灵活的操作类型</strong>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">支持 run() 和 selectURL() 两种操作类型，满足不同的业务需求</p>
+                            </div>
+                        </li>
+                        <li>
+                            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20,6 9,17 4,12"/>
+                            </svg>
+                            <div>
+                                <strong>Private Aggregation 集成</strong>
+                                <p style="color: var(--text-secondary); font-size: 0.875rem;">可与 Private Aggregation API 配合使用，进行隐私安全的聚合报告</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">典型应用场景</h2>
+                    <div class="grid grid-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">广告频次控制</div>
+                                    <div class="card-subtitle">Frequency Capping</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                限制用户看到特定广告的次数，避免过度曝光影响用户体验。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">A/B 测试</div>
+                                    <div class="card-subtitle">Cross-site A/B Testing</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                在跨站点环境中进行受控实验，评估不同内容变体的效果。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">创意轮换</div>
+                                    <div class="card-subtitle">Creative Rotation</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                根据用户已看过的内容，智能选择下一个要展示的创意版本。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">已知客户检测</div>
+                                    <div class="card-subtitle">Known Customer Detection</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                检测用户是否为已知客户，提供个性化的内容或优惠。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">用户偏好存储</div>
+                                    <div class="card-subtitle">User Preferences</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                安全存储用户的偏好设置，在多个合作站点间同步。
+                            </p>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">聚合报告</div>
+                                    <div class="card-subtitle">Aggregated Reporting</div>
+                                </div>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem;">
+                                生成隐私安全的聚合数据报告，用于分析和优化。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interfaces Tab -->
+            <div class="tab-content" id="interfaces">
+                <div class="section">
+                    <h2 class="section-title">核心接口</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">window.sharedStorage</div>
+                                <div class="card-subtitle">主入口点 - 访问当前源的共享存储</div>
+                            </div>
+                            <span class="card-badge badge-property">Property</span>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 检查 API 是否可用</span>
+<span class="code-keyword">if</span> (<span class="code-string">'sharedStorage'</span> <span class="code-keyword">in</span> window) {
+  <span class="code-keyword">const</span> storage = window.<span class="code-property">sharedStorage</span>;
+  console.<span class="code-function">log</span>(<span class="code-string">'Shared Storage API 可用'</span>);
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorage</div>
+                                <div class="card-subtitle">表示特定源的共享存储，定义写入数据的方法</div>
+                            </div>
+                            <span class="card-badge badge-method">Interface</span>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>方法/属性</th>
+                                        <th>类型</th>
+                                        <th>描述</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>set(key, value)</code></td>
+                                        <td>异步方法</td>
+                                        <td>设置键值对，覆盖已有值</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>append(key, value)</code></td>
+                                        <td>异步方法</td>
+                                        <td>追加值到指定键</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>delete(key)</code></td>
+                                        <td>异步方法</td>
+                                        <td>删除指定键</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>clear()</code></td>
+                                        <td>异步方法</td>
+                                        <td>清空所有存储</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>worklet</code></td>
+                                        <td>属性</td>
+                                        <td>返回 SharedStorageWorklet 实例</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageWorklet</div>
+                                <div class="card-subtitle">Worklet 接口 - 用于添加模块和执行操作</div>
+                            </div>
+                            <span class="card-badge badge-method">Interface</span>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>方法</th>
+                                        <th>参数</th>
+                                        <th>描述</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>addModule(url)</code></td>
+                                        <td>模块 URL</td>
+                                        <td>添加 Worklet 模块</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>selectURL(name, urls, options)</code></td>
+                                        <td>操作名, URL数组, 选项</td>
+                                        <td>执行 URL 选择操作</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>run(name, options)</code></td>
+                                        <td>操作名, 选项</td>
+                                        <td>执行运行操作</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageOperation</div>
+                                <div class="card-subtitle">操作基类 - 所有 Worklet 操作的父类</div>
+                            </div>
+                            <span class="card-badge badge-method">Interface</span>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 在 Worklet 模块中定义操作</span>
+<span class="code-keyword">class</span> <span class="code-function">MyOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-comment">// 操作逻辑</span>
+    <span class="code-keyword">return</span> result;
+  }
+}
+
+<span class="code-comment">// 注册操作</span>
+register(<span class="code-string">'my-operation'</span>, MyOperation);</pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageRunOperation</div>
+                                <div class="card-subtitle">运行操作 - 用于执行通用逻辑并返回结果</div>
+                            </div>
+                            <span class="card-badge badge-async">Async</span>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 定义运行操作</span>
+<span class="code-keyword">class</span> <span class="code-function">FrequencyCapOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { key, maxViews } = data;
+    <span class="code-keyword">const</span> views = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">const</span> count = views ? <span class="code-function">parseInt</span>(views) : <span class="code-number">0</span>;
+    
+    <span class="code-keyword">if</span> (count >= maxViews) {
+      <span class="code-keyword">return</span> { showAd: <span class="code-keyword">false</span> };
+    }
+    
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(count + <span class="code-number">1</span>));
+    <span class="code-keyword">return</span> { showAd: <span class="code-keyword">true</span> };
+  }
+}
+
+register(<span class="code-string">'frequency-cap'</span>, FrequencyCapOperation);</pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageSelectURLOperation</div>
+                                <div class="card-subtitle">URL选择操作 - 从候选URL中选择一个返回</div>
+                            </div>
+                            <span class="card-badge badge-async">Async</span>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 定义 URL 选择操作</span>
+<span class="code-keyword">class</span> <span class="code-function">SelectCreativeOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageSelectURLOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { creatives } = data;
+    
+    <span class="code-comment">// 获取已展示的创意索引</span>
+    <span class="code-keyword">const</span> lastIndex = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(<span class="code-string">'last-creative'</span>);
+    <span class="code-keyword">const</span> nextIndex = lastIndex 
+      ? (<span class="code-function">parseInt</span>(lastIndex) + <span class="code-number">1</span>) % creatives.length 
+      : <span class="code-number">0</span>;
+    
+    <span class="code-comment">// 保存新索引</span>
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(<span class="code-string">'last-creative'</span>, String(nextIndex));
+    
+    <span class="code-keyword">return</span> nextIndex;
+  }
+}
+
+register(<span class="code-string">'select-creative'</span>, SelectCreativeOperation);</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">Worklet 内部可用方法</h2>
+                    <div class="info-box warning">
+                        <svg class="info-box-icon" viewBox="0 0 24 24" fill="none" stroke="var(--warning-color)" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <div>
+                            <strong>重要提示：</strong>以下方法仅在 Worklet 环境中可用，不能在主线程中直接调用。这是为了保护用户隐私，防止直接读取跨站点数据。
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>方法/属性</th>
+                                    <th>返回类型</th>
+                                    <th>描述</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>get(key)</code></td>
+                                    <td>Promise&lt;string&gt;</td>
+                                    <td>获取指定键的值</td>
+                                </tr>
+                                <tr>
+                                    <td><code>keys()</code></td>
+                                    <td>Promise&lt;string[]&gt;</td>
+                                    <td>获取所有键名</td>
+                                </tr>
+                                <tr>
+                                    <td><code>entries()</code></td>
+                                    <td>Promise&lt;[key, value][]&gt;</td>
+                                    <td>获取所有键值对</td>
+                                </tr>
+                                <tr>
+                                    <td><code>length</code></td>
+                                    <td>Promise&lt;number&gt;</td>
+                                    <td>获取存储条目数量</td>
+                                </tr>
+                                <tr>
+                                    <td><code>remainingBudget</code></td>
+                                    <td>Promise&lt;number&gt;</td>
+                                    <td>获取剩余操作预算</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Methods Tab -->
+            <div class="tab-content" id="methods">
+                <div class="section">
+                    <h2 class="section-title">写入方法演示</h2>
+                    
+                    <div class="grid grid-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">set(key, value, options)</div>
+                                    <div class="card-subtitle">设置键值对</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                                将键值对写入共享存储。如果键已存在，将覆盖原有值。支持设置忽略时间。
+                            </p>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 基本用法</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">set</span>(
+  <span class="code-string">'user-preference'</span>, 
+  <span class="code-string">'dark-mode'</span>
+);
+
+<span class="code-comment">// 带选项</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">set</span>(
+  <span class="code-string">'ad-view-count'</span>, 
+  <span class="code-string">'5'</span>,
+  { 
+    ignoreIfPresent: <span class="code-keyword">true</span> <span class="code-comment">// 如果键已存在则忽略</span>
+  }
+);</pre>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">键名</label>
+                                <input type="text" class="form-input" id="setKey" value="demo-key" placeholder="输入键名">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">值</label>
+                                <input type="text" class="form-input" id="setValue" value="demo-value" placeholder="输入值">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="demoSet()">
+                                    执行 set()
+                                </button>
+                            </div>
+                            <div class="result-box" id="setResult"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">append(key, value)</div>
+                                    <div class="card-subtitle">追加值</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                                将值追加到指定键。如果键不存在，行为类似于 set()。常用于累积计数或追加列表。
+                            </p>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 追加计数</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">append</span>(
+  <span class="code-string">'visit-count'</span>, 
+  <span class="code-string">'1'</span>
+);
+
+<span class="code-comment">// 追加到列表（需要自行处理分隔符）</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">append</span>(
+  <span class="code-string">'viewed-products'</span>, 
+  <span class="code-string">',product-123'</span>
+);</pre>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">键名</label>
+                                <input type="text" class="form-input" id="appendKey" value="counter" placeholder="输入键名">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">追加值</label>
+                                <input type="text" class="form-input" id="appendValue" value="1" placeholder="输入要追加的值">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="demoAppend()">
+                                    执行 append()
+                                </button>
+                            </div>
+                            <div class="result-box" id="appendResult"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">delete(key)</div>
+                                    <div class="card-subtitle">删除键</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                                删除指定键及其关联的值。如果键不存在，操作会静默完成。
+                            </p>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 删除单个键</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">delete</span>(<span class="code-string">'user-preference'</span>);
+
+<span class="code-comment">// 条件删除示例</span>
+<span class="code-keyword">const</span> keyToDelete = <span class="code-string">'temp-data'</span>;
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">delete</span>(keyToDelete);
+console.<span class="code-function">log</span>(<span class="code-string">`已删除: </span>${keyToDelete}<span class="code-string">`</span>);</pre>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">要删除的键</label>
+                                <input type="text" class="form-input" id="deleteKey" value="demo-key" placeholder="输入要删除的键名">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-danger" onclick="demoDelete()">
+                                    执行 delete()
+                                </button>
+                            </div>
+                            <div class="result-box" id="deleteResult"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">clear()</div>
+                                    <div class="card-subtitle">清空存储</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                                清空当前源的所有共享存储数据。这是一个破坏性操作，请谨慎使用。
+                            </p>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 清空所有数据</span>
+<span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">clear</span>();
+
+console.<span class="code-function">log</span>(<span class="code-string">'共享存储已清空'</span>);</pre>
+                            </div>
+                            <div class="info-box warning">
+                                <svg class="info-box-icon" viewBox="0 0 24 24" fill="none" stroke="var(--warning-color)" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                                <div>
+                                    <strong>警告：</strong>此操作将删除所有存储的数据，无法恢复！
+                                </div>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-danger" onclick="demoClear()">
+                                    执行 clear()
+                                </button>
+                            </div>
+                            <div class="result-box" id="clearResult"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">Worklet 方法</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">worklet.addModule(url)</div>
+                                <div class="card-subtitle">添加 Worklet 模块</div>
+                            </div>
+                            <span class="card-badge badge-async">Async</span>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                            加载并注册一个 Worklet 模块。模块中定义的操作可以在后续的 run() 或 selectURL() 调用中使用。
+                        </p>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 添加 Worklet 模块</span>
+<span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">addModule</span>(
+  <span class="code-string">'./worklet-module.js'</span>
+);
+
+<span class="code-comment">// worklet-module.js 内容示例:</span>
+<span class="code-keyword">class</span> <span class="code-function">MyOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-comment">// 操作逻辑</span>
+    <span class="code-keyword">return</span> result;
+  }
+}
+register(<span class="code-string">'my-operation'</span>, MyOperation);</pre>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-2">
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">worklet.run(name, options)</div>
+                                    <div class="card-subtitle">执行运行操作</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 执行运行操作</span>
+<span class="code-keyword">const</span> result = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+  <span class="code-string">'frequency-cap'</span>,
+  {
+    data: { 
+      adId: <span class="code-string">'ad-123'</span>,
+      maxViews: <span class="code-number">3</span>
+    },
+    resolveToConfig: <span class="code-keyword">true</span>
+  }
+);
+
+console.<span class="code-function">log</span>(result); <span class="code-comment">// { showAd: true/false }</span></pre>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">worklet.selectURL(name, urls, options)</div>
+                                    <div class="card-subtitle">执行URL选择操作</div>
+                                </div>
+                                <span class="card-badge badge-async">Async</span>
+                            </div>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                                <pre><span class="code-comment">// 执行 URL 选择操作</span>
+<span class="code-keyword">const</span> urls = [
+  { url: <span class="code-string">'https://example.com/ad1'</span> },
+  { url: <span class="code-string">'https://example.com/ad2'</span> },
+  { url: <span class="code-string">'https://example.com/ad3'</span> }
+];
+
+<span class="code-keyword">const</span> fencedFrameConfig = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">selectURL</span>(
+  <span class="code-string">'select-creative'</span>,
+  urls,
+  { data: { campaignId: <span class="code-string">'camp-001'</span> } }
+);
+
+<span class="code-comment">// 在 Fenced Frame 中显示选中的 URL</span>
+document.<span class="code-function">getElementById</span>(<span class="code-string">'ad-frame'</span>).config = fencedFrameConfig;</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Worklet Tab -->
+            <div class="tab-content" id="worklet">
+                <div class="section">
+                    <h2 class="section-title">Worklet 架构</h2>
+                    <div class="info-box">
+                        <svg class="info-box-icon" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        <div>
+                            <strong>什么是 Worklet？</strong><br>
+                            Worklet 是一个独立的 JavaScript 执行环境，与主线程隔离。所有对共享存储数据的读取操作都必须在 Worklet 中进行，这样可以防止网站直接访问用户的跨站点数据，保护用户隐私。
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-title" style="margin-bottom: 1rem;">架构图</div>
+                        <div class="code-block" style="background: var(--bg-color); color: var(--text-primary);">
+                            <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                        主线程 (Main Thread)                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              window.sharedStorage                    │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │   │
+│  │  │    set()    │  │  append()   │  │  delete()   │  │   │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  │   │
+│  │  ┌─────────────┐  ┌─────────────┐                   │   │
+│  │  │   clear()   │  │  worklet    │◄─────────────────┼───┼──┐
+│  │  └─────────────┘  └─────────────┘                   │   │  │
+│  └─────────────────────────────────────────────────────┘   │  │
+└─────────────────────────────────────────────────────────────┘  │
+                                                                 │
+┌─────────────────────────────────────────────────────────────┐  │
+│                    Worklet 线程 (隔离环境)                    │  │
+│  ┌─────────────────────────────────────────────────────┐   │  │
+│  │           SharedStorageWorklet                       │   │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │   │  │
+│  │  │    get()    │  │   keys()    │  │ entries()   │  │   │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  │   │  │
+│  │  ┌─────────────┐  ┌─────────────┐                   │   │  │
+│  │  │   length    │  │   run()     │                   │   │  │
+│  │  └─────────────┘  └─────────────┘                   │   │  │
+│  │  ┌─────────────┐  ┌─────────────────┐               │   │  │
+│  │  │ selectURL() │  │ addModule()     │───────────────┼───┘
+│  │  └─────────────┘  └─────────────────┘               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              注册的操作 (Operations)                  │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐           │   │
+│  │  │ RunOperation    │  │ SelectURLOp     │           │   │
+│  │  │ - run()         │  │ - run()         │           │   │
+│  │  └─────────────────┘  └─────────────────┘           │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">创建 Worklet 模块</h2>
+                    
+                    <div class="card">
+                        <div class="card-title">完整 Worklet 模块示例</div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// worklet-module.js - Worklet 模块文件</span>
+
+<span class="code-comment">// 频次控制操作</span>
+<span class="code-keyword">class</span> <span class="code-function">FrequencyCapOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { adId, maxViews } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`ad-views-</span>${adId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 读取当前观看次数</span>
+    <span class="code-keyword">const</span> currentViews = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">const</span> views = currentViews ? <span class="code-function">parseInt</span>(currentViews) : <span class="code-number">0</span>;
+    
+    <span class="code-comment">// 检查是否超过限制</span>
+    <span class="code-keyword">if</span> (views >= maxViews) {
+      <span class="code-keyword">return</span> { 
+        canShow: <span class="code-keyword">false</span>, 
+        reason: <span class="code-string">'frequency-cap-exceeded'</span> 
+      };
+    }
+    
+    <span class="code-comment">// 增加计数</span>
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(views + <span class="code-number">1</span>));
+    
+    <span class="code-keyword">return</span> { 
+      canShow: <span class="code-keyword">true</span>, 
+      currentViews: views + <span class="code-number">1</span>,
+      maxViews 
+    };
+  }
+}
+
+<span class="code-comment">// 创意选择操作</span>
+<span class="code-keyword">class</span> <span class="code-function">CreativeRotationOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageSelectURLOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { campaignId } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`rotation-</span>${campaignId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 获取当前索引</span>
+    <span class="code-keyword">const</span> lastIndex = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">const</span> currentIndex = lastIndex ? <span class="code-function">parseInt</span>(lastIndex) : <span class="code-number">0</span>;
+    
+    <span class="code-comment">// 计算下一个索引（轮询）</span>
+    <span class="code-keyword">const</span> nextIndex = (currentIndex + <span class="code-number">1</span>) % <span class="code-keyword">this</span>.urls.length;
+    
+    <span class="code-comment">// 保存新索引</span>
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(nextIndex));
+    
+    <span class="code-keyword">return</span> currentIndex;
+  }
+}
+
+<span class="code-comment">// A/B 测试操作</span>
+<span class="code-keyword">class</span> <span class="code-function">ABTestOperation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageSelectURLOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { experimentId } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`experiment-</span>${experimentId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 检查是否已分配组</span>
+    <span class="code-keyword">let</span> groupIndex = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    
+    <span class="code-keyword">if</span> (groupIndex === <span class="code-keyword">undefined</span>) {
+      <span class="code-comment">// 首次访问，随机分配</span>
+      groupIndex = Math.<span class="code-function">floor</span>(Math.<span class="code-function">random</span>() * <span class="code-keyword">this</span>.urls.length);
+      <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(groupIndex));
+    }
+    
+    <span class="code-keyword">return</span> <span class="code-function">parseInt</span>(groupIndex);
+  }
+}
+
+<span class="code-comment">// 注册所有操作</span>
+register(<span class="code-string">'frequency-cap'</span>, FrequencyCapOperation);
+register(<span class="code-string">'creative-rotation'</span>, CreativeRotationOperation);
+register(<span class="code-string">'ab-test'</span>, ABTestOperation);</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">在主线程中使用 Worklet</h2>
+                    <div class="card">
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// main.js - 主线程代码</span>
+
+<span class="code-comment">// 1. 添加 Worklet 模块</span>
+<span class="code-keyword">async function</span> <span class="code-function">initializeWorklet</span>() {
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">addModule</span>(
+      <span class="code-string">'./worklet-module.js'</span>
+    );
+    console.<span class="code-function">log</span>(<span class="code-string">'Worklet 模块加载成功'</span>);
+  } <span class="code-keyword">catch</span> (error) {
+    console.<span class="code-function">error</span>(<span class="code-string">'Worklet 模块加载失败:'</span>, error);
+  }
+}
+
+<span class="code-comment">// 2. 使用 run() 操作</span>
+<span class="code-keyword">async function</span> <span class="code-function">checkFrequencyCap</span>(adId, maxViews) {
+  <span class="code-keyword">const</span> result = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+    <span class="code-string">'frequency-cap'</span>,
+    {
+      data: { adId, maxViews }
+    }
+  );
+  
+  <span class="code-keyword">return</span> result.canShow;
+}
+
+<span class="code-comment">// 3. 使用 selectURL() 操作</span>
+<span class="code-keyword">async function</span> <span class="code-function">selectCreative</span>(campaignId, creatives) {
+  <span class="code-keyword">const</span> urls = creatives.<span class="code-function">map</span>(c => ({ url: c.url }));
+  
+  <span class="code-keyword">const</span> config = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">selectURL</span>(
+    <span class="code-string">'creative-rotation'</span>,
+    urls,
+    {
+      data: { campaignId },
+      resolveToConfig: <span class="code-keyword">true</span>
+    }
+  );
+  
+  <span class="code-keyword">return</span> config;
+}
+
+<span class="code-comment">// 4. 初始化并使用</span>
+<span class="code-function">initializeWorklet</span>().<span class="code-function">then</span>(<span class="code-keyword">async</span> () => {
+  <span class="code-comment">// 检查频次</span>
+  <span class="code-keyword">const</span> canShow = <span class="code-keyword">await</span> <span class="code-function">checkFrequencyCap</span>(<span class="code-string">'ad-001'</span>, <span class="code-number">3</span>);
+  
+  <span class="code-keyword">if</span> (canShow) {
+    <span class="code-comment">// 选择创意</span>
+    <span class="code-keyword">const</span> creatives = [
+      { url: <span class="code-string">'https://ads.example.com/creative1'</span> },
+      { url: <span class="code-string">'https://ads.example.com/creative2'</span> }
+    ];
+    <span class="code-keyword">const</span> config = <span class="code-keyword">await</span> <span class="code-function">selectCreative</span>(<span class="code-string">'camp-001'</span>, creatives);
+    
+    <span class="code-comment">// 在 Fenced Frame 中显示</span>
+    <span class="code-keyword">const</span> frame = document.<span class="code-function">getElementById</span>(<span class="code-string">'ad-frame'</span>);
+    frame.config = config;
+  }
+});</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operations Tab -->
+            <div class="tab-content" id="operations">
+                <div class="section">
+                    <h2 class="section-title">操作类型对比</h2>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>特性</th>
+                                    <th>run()</th>
+                                    <th>selectURL()</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>返回类型</strong></td>
+                                    <td>任意 JavaScript 值</td>
+                                    <td>URL 索引或 FencedFrameConfig</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>主要用途</strong></td>
+                                    <td>执行逻辑、返回结果</td>
+                                    <td>选择并加载 URL</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>输出方式</strong></td>
+                                    <td>直接返回给调用者</td>
+                                    <td>在 Fenced Frame 中显示</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>隐私保护</strong></td>
+                                    <td>结果仅调用者可见</td>
+                                    <td>URL 内容隔离显示</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>典型场景</strong></td>
+                                    <td>频次控制、已知客户检测</td>
+                                    <td>创意轮换、A/B 测试</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">run() 操作详解</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageRunOperation</div>
+                                <div class="card-subtitle">通用运行操作 - 返回任意结果</div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 1rem 0 0.5rem;">语法</h4>
+                        <div class="api-method">
+                            <code>await sharedStorage.worklet.run(operationName, options)</code>
+                        </div>
+                        
+                        <h4 style="margin: 1rem 0 0.5rem;">参数说明</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>参数</th>
+                                        <th>类型</th>
+                                        <th>描述</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>operationName</code></td>
+                                        <td>string</td>
+                                        <td>注册的操作名称</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>options.data</code></td>
+                                        <td>object</td>
+                                        <td>传递给操作的数据</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>options.resolveToConfig</code></td>
+                                        <td>boolean</td>
+                                        <td>是否返回 FencedFrameConfig</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>options.keepAlive</code></td>
+                                        <td>boolean</td>
+                                        <td>操作完成后是否保持 Worklet 活跃</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h4 style="margin: 1rem 0 0.5rem;">完整示例</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// Worklet 模块</span>
+<span class="code-keyword">class</span> <span class="code-function">CheckKnownCustomer</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { userId } = data;
+    
+    <span class="code-comment">// 检查用户是否为已知客户</span>
+    <span class="code-keyword">const</span> knownCustomer = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(<span class="code-string">`user-</span>${userId}<span class="code-string">`</span>);
+    
+    <span class="code-keyword">if</span> (knownCustomer) {
+      <span class="code-keyword">const</span> userData = JSON.<span class="code-function">parse</span>(knownCustomer);
+      <span class="code-keyword">return</span> {
+        isKnown: <span class="code-keyword">true</span>,
+        tier: userData.tier,
+        lastVisit: userData.lastVisit
+      };
+    }
+    
+    <span class="code-keyword">return</span> { isKnown: <span class="code-keyword">false</span> };
+  }
+}
+
+register(<span class="code-string">'check-known-customer'</span>, CheckKnownCustomer);
+
+<span class="code-comment">// 主线程调用</span>
+<span class="code-keyword">const</span> result = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+  <span class="code-string">'check-known-customer'</span>,
+  { data: { userId: <span class="code-string">'user-123'</span> } }
+);
+
+<span class="code-keyword">if</span> (result.isKnown) {
+  console.<span class="code-function">log</span>(<span class="code-string">`欢迎回来，</span>${result.tier}<span class="code-string"> 会员！`</span>);
+} <span class="code-keyword">else</span> {
+  console.<span class="code-function">log</span>(<span class="code-string">'欢迎新用户！'</span>);
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2 class="section-title">selectURL() 操作详解</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">SharedStorageSelectURLOperation</div>
+                                <div class="card-subtitle">URL选择操作 - 返回选中的URL索引</div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 1rem 0 0.5rem;">语法</h4>
+                        <div class="api-method">
+                            <code>await sharedStorage.worklet.selectURL(operationName, urls, options)</code>
+                        </div>
+                        
+                        <h4 style="margin: 1rem 0 0.5rem;">参数说明</h4>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>参数</th>
+                                        <th>类型</th>
+                                        <th>描述</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>operationName</code></td>
+                                        <td>string</td>
+                                        <td>注册的操作名称</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>urls</code></td>
+                                        <td>Array&lt;{url: string}&gt;</td>
+                                        <td>候选 URL 数组</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>options.data</code></td>
+                                        <td>object</td>
+                                        <td>传递给操作的数据</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>options.resolveToConfig</code></td>
+                                        <td>boolean</td>
+                                        <td>返回 FencedFrameConfig 而非 URL</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h4 style="margin: 1rem 0 0.5rem;">完整示例</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// Worklet 模块</span>
+<span class="code-keyword">class</span> <span class="code-function">ABTestSelection</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageSelectURLOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { experimentId, forceVariant } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`ab-test-</span>${experimentId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 如果强制指定变体</span>
+    <span class="code-keyword">if</span> (forceVariant !== <span class="code-keyword">undefined</span>) {
+      <span class="code-keyword">return</span> forceVariant;
+    }
+    
+    <span class="code-comment">// 检查是否已分配</span>
+    <span class="code-keyword">let</span> variant = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    
+    <span class="code-keyword">if</span> (variant === <span class="code-keyword">undefined</span>) {
+      <span class="code-comment">// 首次访问，随机分配（50/50）</span>
+      variant = Math.<span class="code-function">random</span>() < <span class="code-number">0.5</span> ? <span class="code-number">0</span> : <span class="code-number">1</span>;
+      <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(variant));
+    }
+    
+    <span class="code-keyword">return</span> <span class="code-function">parseInt</span>(variant);
+  }
+}
+
+register(<span class="code-string">'ab-test-selection'</span>, ABTestSelection);
+
+<span class="code-comment">// 主线程调用</span>
+<span class="code-keyword">const</span> variants = [
+  { url: <span class="code-string">'https://example.com/variant-a'</span> },
+  { url: <span class="code-string">'https://example.com/variant-b'</span> }
+];
+
+<span class="code-keyword">const</span> config = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">selectURL</span>(
+  <span class="code-string">'ab-test-selection'</span>,
+  variants,
+  {
+    data: { experimentId: <span class="code-string">'homepage-test'</span> },
+    resolveToConfig: <span class="code-keyword">true</span>
+  }
+);
+
+<span class="code-comment">// 在 Fenced Frame 中显示选中的变体</span>
+<span class="code-keyword">const</span> frame = document.<span class="code-function">createElement</span>(<span class="code-string">'fencedframe'</span>);
+frame.config = config;
+document.body.<span class="code-function">appendChild</span>(frame);</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Examples Tab -->
+            <div class="tab-content" id="examples">
+                <div class="section">
+                    <h2 class="section-title">实战示例</h2>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">示例 1: 广告频次控制</div>
+                                <div class="card-subtitle">限制用户看到特定广告的次数</div>
+                            </div>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// frequency-cap-worklet.js</span>
+<span class="code-keyword">class</span> <span class="code-function">FrequencyCap</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { adId, maxImpressions, timeWindow } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`freq-</span>${adId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 获取当前展示记录</span>
+    <span class="code-keyword">const</span> stored = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">let</span> impressions = stored ? JSON.<span class="code-function">parse</span>(stored) : [];
+    
+    <span class="code-comment">// 过滤掉过期的记录</span>
+    <span class="code-keyword">const</span> now = Date.<span class="code-function">now</span>();
+    <span class="code-keyword">const</span> windowStart = now - timeWindow;
+    impressions = impressions.<span class="code-function">filter</span>(t => t > windowStart);
+    
+    <span class="code-comment">// 检查是否超过限制</span>
+    <span class="code-keyword">if</span> (impressions.length >= maxImpressions) {
+      <span class="code-keyword">return</span> { 
+        allowed: <span class="code-keyword">false</span>, 
+        reason: <span class="code-string">'frequency-cap-reached'</span>,
+        currentCount: impressions.length 
+      };
+    }
+    
+    <span class="code-comment">// 记录新的展示</span>
+    impressions.<span class="code-function">push</span>(now);
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, JSON.<span class="code-function">stringify</span>(impressions));
+    
+    <span class="code-keyword">return</span> { 
+      allowed: <span class="code-keyword">true</span>, 
+      currentCount: impressions.length,
+      maxImpressions 
+    };
+  }
+}
+register(<span class="code-string">'frequency-cap'</span>, FrequencyCap);
+
+<span class="code-comment">// 主线程使用</span>
+<span class="code-keyword">async function</span> <span class="code-function">showAdIfAllowed</span>(adId) {
+  <span class="code-keyword">const</span> result = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+    <span class="code-string">'frequency-cap'</span>,
+    {
+      data: {
+        adId: adId,
+        maxImpressions: <span class="code-number">3</span>,
+        timeWindow: <span class="code-number">24</span> * <span class="code-number">60</span> * <span class="code-number">60</span> * <span class="code-number">1000</span> <span class="code-comment">// 24小时</span>
+      }
+    }
+  );
+  
+  <span class="code-keyword">if</span> (result.allowed) {
+    console.<span class="code-function">log</span>(<span class="code-string">`展示广告 (</span>${result.currentCount}/${result.maxImpressions}<span class="code-string">)`</span>);
+    <span class="code-comment">// 展示广告逻辑...</span>
+  } <span class="code-keyword">else</span> {
+    console.<span class="code-function">log</span>(<span class="code-string">'广告已达到频次上限'</span>);
+  }
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">示例 2: 创意轮换</div>
+                                <div class="card-subtitle">按顺序展示不同的广告创意</div>
+                            </div>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// creative-rotation-worklet.js</span>
+<span class="code-keyword">class</span> <span class="code-function">CreativeRotation</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageSelectURLOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { campaignId } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`rotation-</span>${campaignId}<span class="code-string">`</span>;
+    
+    <span class="code-comment">// 获取当前索引</span>
+    <span class="code-keyword">const</span> stored = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">let</span> currentIndex = stored ? <span class="code-function">parseInt</span>(stored) : <span class="code-number">0</span>;
+    
+    <span class="code-comment">// 获取要返回的索引</span>
+    <span class="code-keyword">const</span> returnIndex = currentIndex;
+    
+    <span class="code-comment">// 更新为下一个索引</span>
+    <span class="code-keyword">const</span> nextIndex = (currentIndex + <span class="code-number">1</span>) % <span class="code-keyword">this</span>.urls.length;
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(nextIndex));
+    
+    <span class="code-keyword">return</span> returnIndex;
+  }
+}
+register(<span class="code-string">'creative-rotation'</span>, CreativeRotation);
+
+<span class="code-comment">// 主线程使用</span>
+<span class="code-keyword">async function</span> <span class="code-function">displayRotatingCreative</span>(campaignId) {
+  <span class="code-keyword">const</span> creatives = [
+    { url: <span class="code-string">'https://ads.example.com/creative-1.html'</span> },
+    { url: <span class="code-string">'https://ads.example.com/creative-2.html'</span> },
+    { url: <span class="code-string">'https://ads.example.com/creative-3.html'</span> }
+  ];
+  
+  <span class="code-keyword">const</span> config = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">selectURL</span>(
+    <span class="code-string">'creative-rotation'</span>,
+    creatives,
+    {
+      data: { campaignId },
+      resolveToConfig: <span class="code-keyword">true</span>
+    }
+  );
+  
+  <span class="code-comment">// 在 Fenced Frame 中显示</span>
+  <span class="code-keyword">const</span> adFrame = document.<span class="code-function">getElementById</span>(<span class="code-string">'ad-container'</span>);
+  adFrame.config = config;
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">示例 3: 跨站点用户偏好</div>
+                                <div class="card-subtitle">在多个合作站点间同步用户偏好</div>
+                            </div>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// 设置用户偏好（在任意合作站点）</span>
+<span class="code-keyword">async function</span> <span class="code-function">setUserPreference</span>(preference, value) {
+  <span class="code-keyword">await</span> window.sharedStorage.<span class="code-function">set</span>(
+    <span class="code-string">`pref-</span>${preference}<span class="code-string">`</span>,
+    JSON.<span class="code-function">stringify</span>({
+      value: value,
+      updatedAt: Date.<span class="code-function">now</span>()
+    })
+  );
+}
+
+<span class="code-comment">// preference-worklet.js</span>
+<span class="code-keyword">class</span> <span class="code-function">GetPreference</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { preference, defaultValue } = data;
+    <span class="code-keyword">const</span> key = <span class="code-string">`pref-</span>${preference}<span class="code-string">`</span>;
+    
+    <span class="code-keyword">const</span> stored = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    
+    <span class="code-keyword">if</span> (stored) {
+      <span class="code-keyword">const</span> parsed = JSON.<span class="code-function">parse</span>(stored);
+      <span class="code-keyword">return</span> { 
+        found: <span class="code-keyword">true</span>, 
+        value: parsed.value,
+        updatedAt: parsed.updatedAt
+      };
+    }
+    
+    <span class="code-keyword">return</span> { found: <span class="code-keyword">false</span>, value: defaultValue };
+  }
+}
+register(<span class="code-string">'get-preference'</span>, GetPreference);
+
+<span class="code-comment">// 读取用户偏好（在任意合作站点）</span>
+<span class="code-keyword">async function</span> <span class="code-function">getUserPreference</span>(preference, defaultValue) {
+  <span class="code-keyword">const</span> result = <span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+    <span class="code-string">'get-preference'</span>,
+    { data: { preference, defaultValue } }
+  );
+  
+  <span class="code-keyword">return</span> result.value;
+}
+
+<span class="code-comment">// 使用示例</span>
+<span class="code-keyword">await</span> <span class="code-function">setUserPreference</span>(<span class="code-string">'theme'</span>, <span class="code-string">'dark'</span>);
+<span class="code-keyword">await</span> <span class="code-function">setUserPreference</span>(<span class="code-string">'language'</span>, <span class="code-string">'zh-CN'</span>);
+
+<span class="code-keyword">const</span> theme = <span class="code-keyword">await</span> <span class="code-function">getUserPreference</span>(<span class="code-string">'theme'</span>, <span class="code-string">'light'</span>);
+console.<span class="code-function">log</span>(<span class="code-string">`用户主题偏好: </span>${theme}<span class="code-string">`</span>); <span class="code-comment">// 'dark'</span></pre>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">示例 4: 与 Private Aggregation 集成</div>
+                                <div class="card-subtitle">生成隐私安全的聚合报告</div>
+                            </div>
+                        </div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                            <pre><span class="code-comment">// aggregation-worklet.js</span>
+<span class="code-keyword">class</span> <span class="code-function">ReportConversion</span> <span class="code-keyword">extends</span> <span class="code-function">SharedStorageRunOperation</span> {
+  <span class="code-keyword">async</span> <span class="code-function">run</span>(data) {
+    <span class="code-keyword">const</span> { campaignId, conversionType, value } = data;
+    
+    <span class="code-comment">// 发送聚合报告</span>
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.privateAggregation.<span class="code-function">sendHistogramReport</span>({
+      bucket: <span class="code-function">hashString</span>(<span class="code-string">`</span>${campaignId}<span class="code-string">-</span>${conversionType}<span class="code-string">`</span>),
+      value: value
+    });
+    
+    <span class="code-comment">// 记录转化</span>
+    <span class="code-keyword">const</span> key = <span class="code-string">`conversions-</span>${campaignId}<span class="code-string">`</span>;
+    <span class="code-keyword">const</span> stored = <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">get</span>(key);
+    <span class="code-keyword">const</span> conversions = stored ? <span class="code-function">parseInt</span>(stored) : <span class="code-number">0</span>;
+    <span class="code-keyword">await</span> <span class="code-keyword">this</span>.sharedStorage.<span class="code-function">set</span>(key, String(conversions + <span class="code-number">1</span>));
+    
+    <span class="code-keyword">return</span> { reported: <span class="code-keyword">true</span>, totalConversions: conversions + <span class="code-number">1</span> };
+  }
+}
+
+<span class="code-comment">// 辅助函数：将字符串转换为桶值</span>
+<span class="code-keyword">function</span> <span class="code-function">hashString</span>(str) {
+  <span class="code-keyword">let</span> hash = <span class="code-number">0</span>;
+  <span class="code-keyword">for</span> (<span class="code-keyword">let</span> i = <span class="code-number">0</span>; i < str.length; i++) {
+    <span class="code-keyword">const</span> char = str.<span class="code-function">charCodeAt</span>(i);
+    hash = ((hash << <span class="code-number">5</span>) - hash) + char;
+    hash = hash & hash;
+  }
+  <span class="code-keyword">return</span> Math.<span class="code-function">abs</span>(hash);
+}
+
+register(<span class="code-string">'report-conversion'</span>, ReportConversion);
+
+<span class="code-comment">// 主线程使用</span>
+<span class="code-keyword">await</span> window.sharedStorage.worklet.<span class="code-function">run</span>(
+  <span class="code-string">'report-conversion'</span>,
+  {
+    data: {
+      campaignId: <span class="code-string">'camp-001'</span>,
+      conversionType: <span class="code-string">'purchase'</span>,
+      value: <span class="code-number">100</span>
+    }
+  }
+);</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playground Tab -->
+            <div class="tab-content" id="playground">
+                <div class="section">
+                    <h2 class="section-title">交互式演示</h2>
+                    
+                    <div class="info-box warning">
+                        <svg class="info-box-icon" viewBox="0 0 24 24" fill="none" stroke="var(--warning-color)" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <div>
+                            <strong>注意：</strong>Shared Storage API 需要在支持的浏览器中运行，并且需要启用相关标志。当前演示将模拟 API 行为以便学习。
+                        </div>
+                    </div>
+
+                    <!-- Storage Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statKeys">0</div>
+                            <div class="stat-label">存储键数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statOps">0</div>
+                            <div class="stat-label">操作次数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statBudget">∞</div>
+                            <div class="stat-label">剩余预算</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statSupport">检测中</div>
+                            <div class="stat-label">API 状态</div>
+                        </div>
+                    </div>
+
+                    <!-- Console -->
+                    <div class="console">
+                        <div class="console-header">
+                            <span class="console-dot red"></span>
+                            <span class="console-dot yellow"></span>
+                            <span class="console-dot green"></span>
+                            <span style="margin-left: auto; font-size: 0.75rem; color: var(--text-secondary);">控制台输出</span>
+                        </div>
+                        <div class="console-body" id="consoleOutput">
+                            <div class="console-line info">> Shared Storage API 演示已就绪</div>
+                        </div>
+                    </div>
+
+                    <!-- Playground Controls -->
+                    <div class="grid grid-2" style="margin-top: 1.5rem;">
+                        <div class="card">
+                            <div class="card-title">写入数据</div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label class="form-label">键名</label>
+                                <input type="text" class="form-input" id="playKey" placeholder="例如: user-preference">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">值</label>
+                                <textarea class="form-input form-textarea" id="playValue" placeholder="例如: dark-mode"></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="playSet()">set()</button>
+                                <button class="btn btn-secondary" onclick="playAppend()">append()</button>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">管理数据</div>
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label class="form-label">要删除的键</label>
+                                <input type="text" class="form-input" id="playDeleteKey" placeholder="输入要删除的键名">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-danger" onclick="playDelete()">delete()</button>
+                                <button class="btn btn-danger" onclick="playClear()">clear()</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stored Data Display -->
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-header">
+                            <div class="card-title">当前存储数据</div>
+                            <button class="btn btn-sm btn-secondary" onclick="refreshStorage()">刷新</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>键</th>
+                                        <th>值</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="storageTable">
+                                    <tr>
+                                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">
+                                            暂无数据
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- API Test -->
+                    <div class="card" style="margin-top: 1rem;">
+                        <div class="card-title">API 功能测试</div>
+                        <div class="btn-group" style="margin-top: 1rem;">
+                            <button class="btn btn-primary" onclick="testAPISupport()">检测 API 支持</button>
+                            <button class="btn btn-secondary" onclick="testWorklet()">测试 Worklet</button>
+                            <button class="btn btn-secondary" onclick="runBenchmark()">性能测试</button>
+                        </div>
+                        <div class="result-box" id="testResult" style="margin-top: 1rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+        <span id="themeIcon">🌙</span>
+    </button>
+
+    <script>
+        // ============================================
+        // Shared Storage API 演示应用
+        // ============================================
+
+        // 模拟存储（用于演示）
+        const mockStorage = new Map();
+        let operationCount = 0;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            checkAPISupport();
+            updateTime();
+            refreshStorage();
+        });
+
+        // 初始化应用
+        function initApp() {
+            // Tab 切换
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+
+            // 检测浏览器
+            detectBrowser();
+        }
+
+        // 切换 Tab
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabId);
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === tabId);
+            });
+        }
+
+        // 检测 API 支持
+        function checkAPISupport() {
+            const supported = 'sharedStorage' in window;
+            const statusDot = document.getElementById('apiStatus');
+            const statusText = document.getElementById('apiStatusText');
+            const statSupport = document.getElementById('statSupport');
+
+            if (supported) {
+                statusDot.classList.add('supported');
+                statusText.textContent = 'Shared Storage API 已支持';
+                statSupport.textContent = '支持';
+                statSupport.style.color = 'var(--success-color)';
+            } else {
+                statusDot.classList.remove('supported');
+                statusText.textContent = 'API 未支持 (使用模拟模式)';
+                statSupport.textContent = '模拟';
+                statSupport.style.color = 'var(--warning-color)';
+            }
+        }
+
+        // 检测浏览器
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            let browser = '未知浏览器';
+            
+            if (ua.includes('Chrome') && !ua.includes('Edg')) {
+                browser = 'Chrome';
+            } else if (ua.includes('Firefox')) {
+                browser = 'Firefox';
+            } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+                browser = 'Safari';
+            } else if (ua.includes('Edg')) {
+                browser = 'Edge';
+            }
+            
+            document.getElementById('browserName').textContent = browser;
+        }
+
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('updateTime').textContent = 
+                now.toLocaleString('zh-CN');
+        }
+
+        // 控制台日志
+        function logToConsole(message, type = 'log') {
+            const console = document.getElementById('consoleOutput');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            line.textContent = `> ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('statKeys').textContent = mockStorage.size;
+            document.getElementById('statOps').textContent = operationCount;
+        }
+
+        // ============================================
+        // 方法演示
+        // ============================================
+
+        async function demoSet() {
+            const key = document.getElementById('setKey').value;
+            const value = document.getElementById('setValue').value;
+            const resultEl = document.getElementById('setResult');
+
+            if (!key || !value) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = '错误: 请输入键和值';
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.set(key, value);
+                } else {
+                    mockStorage.set(key, value);
+                }
+                operationCount++;
+                
+                resultEl.className = 'result-box success';
+                resultEl.textContent = `成功设置: ${key} = ${value}`;
+                logToConsole(`set("${key}", "${value}") - 成功`, 'info');
+            } catch (error) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = `错误: ${error.message}`;
+                logToConsole(`set() 失败: ${error.message}`, 'error');
+            }
+
+            updateStats();
+        }
+
+        async function demoAppend() {
+            const key = document.getElementById('appendKey').value;
+            const value = document.getElementById('appendValue').value;
+            const resultEl = document.getElementById('appendResult');
+
+            if (!key || !value) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = '错误: 请输入键和值';
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.append(key, value);
+                } else {
+                    const existing = mockStorage.get(key) || '';
+                    mockStorage.set(key, existing + value);
+                }
+                operationCount++;
+                
+                resultEl.className = 'result-box success';
+                resultEl.textContent = `成功追加: ${key} 现在值为 "${mockStorage.get(key) || value}"`;
+                logToConsole(`append("${key}", "${value}") - 成功`, 'info');
+            } catch (error) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = `错误: ${error.message}`;
+                logToConsole(`append() 失败: ${error.message}`, 'error');
+            }
+
+            updateStats();
+        }
+
+        async function demoDelete() {
+            const key = document.getElementById('deleteKey').value;
+            const resultEl = document.getElementById('deleteResult');
+
+            if (!key) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = '错误: 请输入要删除的键';
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.delete(key);
+                } else {
+                    mockStorage.delete(key);
+                }
+                operationCount++;
+                
+                resultEl.className = 'result-box success';
+                resultEl.textContent = `成功删除键: ${key}`;
+                logToConsole(`delete("${key}") - 成功`, 'info');
+            } catch (error) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = `错误: ${error.message}`;
+                logToConsole(`delete() 失败: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        async function demoClear() {
+            const resultEl = document.getElementById('clearResult');
+
+            if (!confirm('确定要清空所有存储数据吗？此操作不可恢复！')) {
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.clear();
+                } else {
+                    mockStorage.clear();
+                }
+                operationCount++;
+                
+                resultEl.className = 'result-box success';
+                resultEl.textContent = '存储已清空';
+                logToConsole('clear() - 存储已清空', 'warn');
+            } catch (error) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = `错误: ${error.message}`;
+                logToConsole(`clear() 失败: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        // ============================================
+        // Playground 功能
+        // ============================================
+
+        async function playSet() {
+            const key = document.getElementById('playKey').value;
+            const value = document.getElementById('playValue').value;
+
+            if (!key || !value) {
+                logToConsole('请输入键和值', 'warn');
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.set(key, value);
+                } else {
+                    mockStorage.set(key, value);
+                }
+                operationCount++;
+                logToConsole(`set("${key}", "${value}")`, 'info');
+            } catch (error) {
+                logToConsole(`错误: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        async function playAppend() {
+            const key = document.getElementById('playKey').value;
+            const value = document.getElementById('playValue').value;
+
+            if (!key || !value) {
+                logToConsole('请输入键和值', 'warn');
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.append(key, value);
+                } else {
+                    const existing = mockStorage.get(key) || '';
+                    mockStorage.set(key, existing + value);
+                }
+                operationCount++;
+                logToConsole(`append("${key}", "${value}")`, 'info');
+            } catch (error) {
+                logToConsole(`错误: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        async function playDelete() {
+            const key = document.getElementById('playDeleteKey').value;
+
+            if (!key) {
+                logToConsole('请输入要删除的键', 'warn');
+                return;
+            }
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.delete(key);
+                } else {
+                    mockStorage.delete(key);
+                }
+                operationCount++;
+                logToConsole(`delete("${key}")`, 'info');
+            } catch (error) {
+                logToConsole(`错误: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        async function playClear() {
+            if (!confirm('确定要清空所有数据吗？')) return;
+
+            try {
+                if ('sharedStorage' in window) {
+                    await window.sharedStorage.clear();
+                } else {
+                    mockStorage.clear();
+                }
+                operationCount++;
+                logToConsole('存储已清空', 'warn');
+            } catch (error) {
+                logToConsole(`错误: ${error.message}`, 'error');
+            }
+
+            updateStats();
+            refreshStorage();
+        }
+
+        function refreshStorage() {
+            const tbody = document.getElementById('storageTable');
+            
+            if (mockStorage.size === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">
+                            暂无数据
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            mockStorage.forEach((value, key) => {
+                html += `
+                    <tr>
+                        <td><code>${escapeHtml(key)}</code></td>
+                        <td>${escapeHtml(value)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteKey('${escapeHtml(key)}')">删除</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function deleteKey(key) {
+            mockStorage.delete(key);
+            operationCount++;
+            logToConsole(`已删除: ${key}`, 'info');
+            updateStats();
+            refreshStorage();
+        }
+
+        // ============================================
+        // API 测试
+        // ============================================
+
+        function testAPISupport() {
+            const resultEl = document.getElementById('testResult');
+            const tests = [];
+
+            // 测试 sharedStorage
+            tests.push({
+                name: 'window.sharedStorage',
+                supported: 'sharedStorage' in window
+            });
+
+            // 测试 worklet
+            tests.push({
+                name: 'sharedStorage.worklet',
+                supported: 'sharedStorage' in window && 'worklet' in window.sharedStorage
+            });
+
+            // 测试方法
+            if ('sharedStorage' in window) {
+                tests.push({
+                    name: 'set() 方法',
+                    supported: typeof window.sharedStorage.set === 'function'
+                });
+                tests.push({
+                    name: 'append() 方法',
+                    supported: typeof window.sharedStorage.append === 'function'
+                });
+                tests.push({
+                    name: 'delete() 方法',
+                    supported: typeof window.sharedStorage.delete === 'function'
+                });
+                tests.push({
+                    name: 'clear() 方法',
+                    supported: typeof window.sharedStorage.clear === 'function'
+                });
+            }
+
+            let html = '<strong>API 支持测试结果:</strong>\n\n';
+            tests.forEach(test => {
+                const status = test.supported ? '✅' : '❌';
+                html += `${status} ${test.name}: ${test.supported ? '支持' : '不支持'}\n`;
+            });
+
+            resultEl.className = 'result-box';
+            resultEl.textContent = html;
+            logToConsole('API 支持测试完成', 'info');
+        }
+
+        async function testWorklet() {
+            const resultEl = document.getElementById('testResult');
+            
+            if (!('sharedStorage' in window)) {
+                resultEl.className = 'result-box error';
+                resultEl.textContent = 'Shared Storage API 不支持，无法测试 Worklet';
+                return;
+            }
+
+            resultEl.className = 'result-box';
+            resultEl.textContent = 'Worklet 测试需要实际的 Worklet 模块文件。\n\n在真实环境中，您需要:\n1. 创建 Worklet 模块文件\n2. 使用 addModule() 加载\n3. 调用 run() 或 selectURL()';
+            logToConsole('Worklet 测试信息已显示', 'info');
+        }
+
+        async function runBenchmark() {
+            const resultEl = document.getElementById('testResult');
+            const iterations = 100;
+            const start = performance.now();
+
+            for (let i = 0; i < iterations; i++) {
+                mockStorage.set(`bench-${i}`, `value-${i}`);
+            }
+
+            const writeTime = performance.now() - start;
+
+            const readStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+                mockStorage.get(`bench-${i}`);
+            }
+            const readTime = performance.now() - readStart;
+
+            // 清理
+            for (let i = 0; i < iterations; i++) {
+                mockStorage.delete(`bench-${i}`);
+            }
+
+            resultEl.className = 'result-box success';
+            resultEl.textContent = `性能测试结果 (${iterations} 次操作):\n\n写入时间: ${writeTime.toFixed(2)}ms\n读取时间: ${readTime.toFixed(2)}ms\n平均写入: ${(writeTime/iterations).toFixed(3)}ms/op\n平均读取: ${(readTime/iterations).toFixed(3)}ms/op`;
+            
+            logToConsole(`性能测试完成: 写入 ${writeTime.toFixed(2)}ms, 读取 ${readTime.toFixed(2)}ms`, 'info');
+        }
+
+        // ============================================
+        // 工具函数
+        // ============================================
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function copyCode(btn) {
+            const code = btn.parentElement.querySelector('pre').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 1500);
+            });
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            
+            if (html.dataset.theme === 'dark') {
+                html.dataset.theme = 'light';
+                icon.textContent = '🌙';
+            } else {
+                html.dataset.theme = 'dark';
+                icon.textContent = '☀️';
+            }
+        }
+
+        // 检测系统主题偏好
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.dataset.theme = 'dark';
+            document.getElementById('themeIcon').textContent = '☀️';
+        }
+    </script>
+</body>
+</html>

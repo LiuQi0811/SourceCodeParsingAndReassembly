@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataCore Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --void: #010509;
+            --space: #0a1018;
+            --surface: #0f1820;
+            --elevated: #162028;
+            --panel: #1a2832;
+            --border-dim: #1e3040;
+            --border: #284050;
+            --border-bright: #385868;
+            --text-dim: #4a6270;
+            --text-muted: #688090;
+            --text-secondary: #88a0b0;
+            --text-primary: #c8dce8;
+            --text-bright: #e8f4ff;
+            --cyan: #00d4ff;
+            --cyan-dim: rgba(0, 212, 255, 0.1);
+            --cyan-glow: rgba(0, 212, 255, 0.3);
+            --amber: #ffaa00;
+            --amber-dim: rgba(255, 170, 0, 0.1);
+            --rose: #ff4488;
+            --green: #00ff88;
+            --sidebar-width: 240px;
+            --sidebar-collapsed-width: 72px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--void);
+            color: var(--text-primary);
+        }
+
+        .font-tech { font-family: 'Orbitron', monospace; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+        .app-shell {
+            position: relative;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-shell::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 212, 255, 0.08) 0%, transparent 60%),
+                    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 170, 0, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0.3;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        /* 布局控制 */
+        .layout {
+            display: grid;
+            /* 关键：默认宽度变量 */
+            grid-template-columns: var(--sidebar-width) 1fr;
+            grid-template-rows: 1fr;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+            transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 桌面端折叠状态 */
+        .layout.collapsed {
+            grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+        }
+
+        /* 侧边栏基础样式 */
+        .sidebar {
+            background: linear-gradient(180deg, var(--space) 0%, var(--void) 100%);
+            border-right: 1px solid var(--border-dim);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            width: var(--sidebar-width); /* 固定宽度，配合 grid */
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 桌面端折叠时的侧边栏样式 */
+        .layout.collapsed .sidebar {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .layout.collapsed .sidebar .nav-text,
+        .layout.collapsed .sidebar .logo-text,
+        .layout.collapsed .sidebar .section-title {
+            opacity: 0;
+            width: 0;
+            visibility: hidden;
+        }
+
+        .layout.collapsed .sidebar .nav-item {
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .sidebar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--cyan), transparent 30%, transparent 70%, var(--cyan));
+            opacity: 0.3;
+        }
+
+        /* 移动端样式 */
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr !important; /* 移动端强制单列 */
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -280px; /* 默认隐藏 */
+                top: 0;
+                bottom: 0;
+                width: 280px !important;
+                z-index: 100;
+                box-shadow: none;
+                transition: left 0.3s ease, box-shadow 0.3s ease;
+            }
+
+            /* 移动端展开状态 */
+            .sidebar.open {
+                left: 0;
+                box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+            }
+
+            /* 移动端折叠按钮提示 */
+            .collapse-tip { display: none; }
+        }
+
+        /* 导航项 */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            text-decoration: none;
+            overflow: hidden;
+            margin: 2px 8px;
+            white-space: nowrap; /* 防止文字换行 */
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--cyan);
+            transform: scaleY(0);
+            transition: transform 0.2s;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 212, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1), transparent);
+            color: var(--cyan);
+        }
+
+        .nav-item.active::before {
+            transform: scaleY(1);
+        }
+
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid var(--cyan);
+            border-radius: 6px;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .nav-text {
+            transition: opacity 0.2s, width 0.2s;
+        }
+
+        /* 顶栏 */
+        .topbar {
+            height: 56px;
+            background: var(--space);
+            border-bottom: 1px solid var(--border-dim);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 16px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 路由进度条 */
+        .route-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--surface);
+            z-index: 2000;
+        }
+
+        .route-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--amber));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* 选项卡栏 */
+        .tabs-container {
+            height: 44px;
+            background: var(--space);
+            border-bottom: 1px solid var(--border-dim);
+            display: flex;
+            align-items: flex-end;
+            padding: 0 16px;
+            gap: 2px;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 20px;
+            height: 38px;
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 16px;
+            right: 16px;
+            height: 2px;
+            background: var(--cyan);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--elevated);
+            color: var(--text-secondary);
+        }
+
+        .tab.active {
+            background: var(--panel);
+            color: var(--text-bright);
+            border-color: var(--border);
+        }
+
+        .tab.active::before {
+            opacity: 1;
+        }
+
+        .tab-close {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            margin-left: 4px;
+            transition: all 0.15s;
+        }
+
+        .tab:hover .tab-close { opacity: 0.6; }
+        .tab-close:hover { opacity: 1 !important; background: rgba(255, 68, 136, 0.2); color: var(--rose); }
+
+        /* 页面视口 */
+        .page-viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 路由切换动画 */
+        .route-transition-container {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        .page-wrapper {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--void);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(100%);
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .page-wrapper.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .page-wrapper.exit {
+            opacity: 0;
+            transform: translateX(-20%);
+        }
+
+        .page-header { margin-bottom: 24px; }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-bright);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--cyan);
+            border-radius: 2px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            padding-left: 16px;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0.3;
+        }
+
+        .card-body { padding: 20px; }
+
+        /* 统计卡片 */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+        }
+
+        .stat-card.cyan::before { background: var(--cyan); }
+        .stat-card.amber::before { background: var(--amber); }
+        .stat-card.rose::before { background: var(--rose); }
+        .stat-card.green::before { background: var(--green); }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 8px;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-change.up { color: var(--green); }
+        .stat-change.down { color: var(--rose); }
+
+        /* 按钮 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan), #0099cc);
+            color: var(--void);
+        }
+
+        .btn-primary:hover { box-shadow: 0 0 24px var(--cyan-glow); }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            background: var(--cyan-dim);
+        }
+
+        /* 输入框 */
+        .input {
+            background: var(--elevated);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px var(--cyan-dim);
+        }
+
+        /* 表格 */
+        .table-wrapper { overflow-x: auto; }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border-dim);
+            background: var(--elevated);
+        }
+
+        .data-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-dim);
+            color: var(--text-secondary);
+        }
+
+        .data-table tbody tr { transition: background 0.15s; }
+        .data-table tbody tr:hover { background: var(--elevated); }
+        .data-table tbody tr:hover td { color: var(--text-primary); }
+
+        /* 标签 */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .tag-cyan { background: var(--cyan-dim); color: var(--cyan); }
+        .tag-amber { background: var(--amber-dim); color: var(--amber); }
+        .tag-rose { background: rgba(255, 68, 136, 0.15); color: var(--rose); }
+        .tag-green { background: rgba(0, 255, 136, 0.1); color: var(--green); }
+
+        /* 路由指示器 */
+        .route-indicator {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Orbitron', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            z-index: 100;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+
+        .route-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .route-indicator code { color: var(--cyan); }
+
+        /* 遮罩层 */
+        .mobile-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 90;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .mobile-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+<div class="route-progress">
+    <div class="route-progress-bar" id="progress-bar"></div>
+</div>
+<div class="route-indicator" id="route-indicator">
+    ROUTE: <code id="route-path">/</code>
+</div>
+
+<div id="app"></div>
+
+<script>
+    // ============================================================
+    // API & Icons (保持不变)
+    // ============================================================
+    const API = {
+        async get(endpoint) {
+            await new Promise(r => setTimeout(r, 100 + Math.random() * 100));
+            const data = {
+                '/stats': {
+                    revenue: { value: 2847560, change: 12.5 },
+                    orders: { value: 1842, change: 8.2 },
+                    users: { value: 567, change: 23.1 },
+                    conversion: { value: 3.24, change: -0.3 }
+                },
+                '/users': {
+                    items: [
+                        { id: 1, name: 'Alex Chen', email: 'alex@datacore.io', role: 'admin', status: 'active', department: 'Engineering' },
+                        { id: 2, name: 'Sarah Kim', email: 'sarah@datacore.io', role: 'editor', status: 'active', department: 'Design' },
+                        { id: 3, name: 'Marcus Webb', email: 'marcus@datacore.io', role: 'viewer', status: 'pending', department: 'Marketing' },
+                    ]
+                }
+            };
+            return { success: true, data: data[endpoint] || {} };
+        }
+    };
+
+    const Icons = {
+        dashboard: '<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>',
+        users: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
+        orders: '<path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>',
+        settings: '<path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>',
+        menu: '<path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>',
+        close: '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>',
+        search: '<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>',
+        arrowUp: '<path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/>',
+        arrowDown: '<path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z"/>',
+        plus: '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>',
+        box: '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>'
+    };
+
+    function icon(name, size = 'w-5 h-5') {
+        return `<svg class="${size}" fill="currentColor" viewBox="0 0 24 24">${Icons[name] || ''}</svg>`;
+    }
+
+    // ============================================================
+    // Hash Router
+    // ============================================================
+    const Router = {
+        routes: [],
+        currentPath: '/',
+        listeners: new Set(),
+
+        init(routes) {
+            this.routes = routes;
+            window.addEventListener('hashchange', () => this.resolve());
+            this.resolve();
+        },
+
+        resolve() {
+            let path = window.location.hash.slice(1);
+            if (!path || path === '') path = '/';
+
+            const route = this.match(path);
+            if (route) {
+                this.currentPath = path;
+                this.notify(route, path);
+            }
+        },
+
+        match(path) {
+            let route = this.routes.find(r => r.path === path);
+            if (route) return route;
+            route = this.routes.find(r => {
+                if (!r.path.includes(':')) return false;
+                const base = r.path.split('/:')[0];
+                return path.startsWith(base);
+            });
+            return route || this.routes.find(r => r.path === '*');
+        },
+
+        navigate(path) {
+            window.location.hash = path;
+        },
+
+        subscribe(listener) {
+            this.listeners.add(listener);
+        },
+
+        notify(route, path) {
+            this.listeners.forEach(l => l(route, path));
+        }
+    };
+
+    // ============================================================
+    // Tab Manager
+    // ============================================================
+    const TabManager = {
+        tabs: [],
+        activePath: null,
+        listeners: new Set(),
+
+        init() {
+            try {
+                const saved = localStorage.getItem('dc_tabs');
+                if (saved) this.tabs = JSON.parse(saved);
+            } catch(e) {}
+        },
+
+        save() {
+            localStorage.setItem('dc_tabs', JSON.stringify(this.tabs));
+        },
+
+        open(route, path) {
+            if (this.tabs.find(t => t.path === path)) {
+                this.activePath = path;
+                this.notify();
+                return;
+            }
+
+            if (this.tabs.length >= 8) this.tabs.shift();
+
+            this.tabs.push({
+                path: path,
+                title: route.meta?.title || 'Unnamed',
+                icon: route.meta?.icon
+            });
+
+            this.activePath = path;
+            this.save();
+            this.notify();
+        },
+
+        close(path, e) {
+            if (e) e.stopPropagation();
+            const idx = this.tabs.findIndex(t => t.path === path);
+            if (idx === -1) return;
+
+            this.tabs.splice(idx, 1);
+
+            if (this.activePath === path && this.tabs.length > 0) {
+                Router.navigate(this.tabs[this.tabs.length - 1].path);
+            } else if (this.tabs.length === 0) {
+                Router.navigate('/dashboard');
+            }
+
+            this.save();
+            this.notify();
+        },
+
+        subscribe(l) { this.listeners.add(l); },
+        notify() { this.listeners.forEach(l => l(this.tabs, this.activePath)); }
+    };
+
+    // ============================================================
+    // 页面组件
+    // ============================================================
+    const DashboardPage = async () => {
+        const res = await API.get('/stats');
+        const d = res.data;
+        return `
+        <div class="page-header">
+          <h1 class="page-title">Command Center</h1>
+          <p class="page-subtitle">Real-time system metrics</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card cyan">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-value" style="color: var(--cyan)">¥${d.revenue.value.toLocaleString()}</div>
+            <div class="stat-change up">${icon('arrowUp', 'w-3 h-3')} +${d.revenue.change}%</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Orders</div>
+            <div class="stat-value" style="color: var(--amber)">${d.orders.value.toLocaleString()}</div>
+            <div class="stat-change up">${icon('arrowUp', 'w-3 h-3')} +${d.orders.change}%</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Users</div>
+            <div class="stat-value" style="color: var(--green)">${d.users.value.toLocaleString()}</div>
+            <div class="stat-change up">${icon('arrowUp', 'w-3 h-3')} +${d.users.change}%</div>
+          </div>
+          <div class="stat-card rose">
+            <div class="stat-label">Conversion</div>
+            <div class="stat-value" style="color: var(--rose)">${d.conversion.value}%</div>
+            <div class="stat-change down">${icon('arrowDown', 'w-3 h-3')} ${d.conversion.change}%</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3 style="margin-bottom: 16px; color: var(--text-bright);">Quick Actions</h3>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn btn-primary">${icon('plus', 'w-4 h-4')} New Task</button>
+              <button class="btn btn-ghost">${icon('search', 'w-4 h-4')} Search</button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const UsersPage = async () => {
+        const res = await API.get('/users');
+        const users = res.data.items;
+        return `
+        <div class="page-header">
+          <h1 class="page-title">User Management</h1>
+          <p class="page-subtitle">System access control</p>
+        </div>
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>User</th><th>Role</th><th>Status</th></tr></thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td>
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg, var(--cyan-dim), var(--amber-dim)); display:flex; align-items:center; justify-content:center;">
+                          ${u.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div style="color:var(--text-bright)">${u.name}</div>
+                          <div style="font-size:12px; color:var(--text-dim)">${u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="tag ${u.role === 'admin' ? 'tag-rose' : 'tag-cyan'}">${u.role}</span></td>
+                    <td><span class="tag ${u.status === 'active' ? 'tag-green' : 'tag-amber'}">${u.status}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    };
+
+    const OrdersPage = async () => `
+      <div class="page-header">
+        <h1 class="page-title">Orders</h1>
+        <p class="page-subtitle">Transaction history</p>
+      </div>
+      <div class="card" style="padding: 40px; text-align: center; color: var(--text-muted);">
+        Order list placeholder
+      </div>
+    `;
+
+    const SettingsPage = async () => `
+      <div class="page-header">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">System configuration</p>
+      </div>
+      <div class="card" style="padding: 20px;">
+        <div style="margin-bottom: 16px;">
+          <label class="stat-label">Site Name</label>
+          <input class="input" value="DataCore Terminal" style="margin-top: 8px;">
+        </div>
+        <button class="btn btn-primary">Save Changes</button>
+      </div>
+    `;
+
+    // ============================================================
+    // Application Core
+    // ============================================================
+    const App = {
+        isMobile: false,
+        sidebarCollapsed: false, // 桌面端状态
+
+        checkMobile() {
+            this.isMobile = window.innerWidth <= 900;
+        },
+
+        async init() {
+            this.checkMobile();
+            window.addEventListener('resize', () => this.checkMobile());
+
+            TabManager.init();
+            this.renderShell();
+
+            Router.subscribe((route, path) => this.handleRouteChange(route, path));
+            TabManager.subscribe((tabs, active) => this.renderTabs());
+
+            Router.init([
+                { path: '/', redirect: '/dashboard' },
+                { path: '/dashboard', element: DashboardPage, meta: { title: 'Dashboard', icon: 'dashboard' } },
+                { path: '/users', element: UsersPage, meta: { title: 'Users', icon: 'users' } },
+                { path: '/orders', element: OrdersPage, meta: { title: 'Orders', icon: 'orders' } },
+                { path: '/settings', element: SettingsPage, meta: { title: 'Settings', icon: 'settings' } },
+                { path: '*', element: () => '<div class="page-header"><h1 class="page-title">404</h1><p class="page-subtitle">Page not found</p></div>' }
+            ]);
+        },
+
+        renderShell() {
+            document.getElementById('app').innerHTML = `
+          <div class="app-shell">
+            <div class="layout" id="layout">
+              <aside class="sidebar" id="sidebar">
+                <div style="height: 64px; padding: 16px 20px; border-bottom: 1px solid var(--border-dim); display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 36px; height: 36px; background: var(--cyan); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    ${icon('box', 'w-5 h-5')}
+                  </div>
+                  <div class="logo-text" style="transition: opacity 0.2s;">
+                    <div class="font-tech" style="font-size: 14px; font-weight: 700; color: var(--text-bright);">DATACORE</div>
+                    <div style="font-size: 10px; color: var(--text-dim); letter-spacing: 2px;">TERMINAL</div>
+                  </div>
+                </div>
+                <nav id="nav" style="padding: 16px 0;"></nav>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; border-top: 1px solid var(--border-dim);">
+            <button class="btn btn-ghost" style="width: 100%;" onclick="App.toggleSidebar()">
+            ${icon('menu', 'w-5 h-5')}
+            <span class="nav-text collapse-tip" style="margin-left: 8px;">Collapse</span>
+            </button>
+            </div>
+            </aside>
+
+            <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+            <header class="topbar">
+            <button class="btn btn-ghost" style="padding: 8px;" onclick="App.toggleSidebar()">
+            ${icon('menu')}
+            </button>
+            </header>
+            <div class="tabs-container" id="tabs"></div>
+            <div class="page-viewport">
+            <div class="route-transition-container" id="container"></div>
+            </div>
+            </div>
+            </div>
+            <div class="mobile-overlay" id="overlay" onclick="App.toggleSidebar()"></div>
+            </div>
+            `;
+      },
+
+      renderNav() {
+        const nav = document.getElementById('nav');
+        if(!nav) return;
+        const items = Router.routes.filter(r => r.meta);
+
+        nav.innerHTML = `
+            <div class="section-title" style="padding: 0 16px; margin-bottom: 8px;">
+            <span style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Navigation</span>
+            </div>
+            ${items.map(r => `
+            <a href="#${r.path}"
+               class="nav-item ${Router.currentPath === r.path ? 'active' : ''}"
+               onclick="App.handleNavClick()">
+               ${r.meta.icon ? icon(r.meta.icon, 'w-5 h-5') : ''}
+               <span class="nav-text" style="font-size: 14px;">${r.meta.title}</span>
+            </a>
+          `).join('')}
+            `;
+      },
+
+      renderTabs() {
+        const el = document.getElementById('tabs');
+        if(!el) return;
+        el.innerHTML = TabManager.tabs.map(t => `
+            <div class="tab ${t.path === TabManager.activePath ? 'active' : ''}" onclick="Router.navigate('${t.path}')">
+            ${t.icon ? icon(t.icon, 'w-3.5 h-3.5') : ''}
+            <span>${t.title}</span>
+            <span class="tab-close" onclick="TabManager.close('${t.path}', event)">${icon('close', 'w-3 h-3')}</span>
+            </div>
+            `).join('');
+      },
+
+      handleNavClick() {
+        // 移动端点击导航后关闭侧边栏
+        if (this.isMobile) {
+          this.toggleSidebar(true);
+        }
+      },
+
+      toggleSidebar(forceClose = false) {
+        const layout = document.getElementById('layout');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        if (this.isMobile) {
+          // 移动端逻辑：滑出侧边栏
+          if (forceClose) {
+             sidebar.classList.remove('open');
+             overlay.classList.remove('visible');
+          } else {
+             sidebar.classList.toggle('open');
+             overlay.classList.toggle('visible');
+          }
+        } else {
+          // 桌面端逻辑：折叠侧边栏
+          this.sidebarCollapsed = !this.sidebarCollapsed;
+          if (this.sidebarCollapsed) {
+            layout.classList.add('collapsed');
+          } else {
+            layout.classList.remove('collapsed');
+          }
+        }
+      },
+
+      async handleRouteChange(route, path) {
+        if (route.redirect) {
+          Router.navigate(route.redirect);
+          return;
+        }
+
+        this.renderNav();
+        TabManager.open(route, path);
+
+        const progress = document.getElementById('progress-bar');
+        const indicator = document.getElementById('route-indicator');
+        const routePathEl = document.getElementById('route-path');
+
+        if(progress) { progress.style.width = '50%'; progress.classList.add('loading'); }
+        if(indicator && routePathEl) {
+          routePathEl.innerText = path;
+          indicator.classList.add('visible');
+        }
+
+        const container = document.getElementById('container');
+        if (!container) return;
+
+        const oldPage = container.querySelector('.page-wrapper.active');
+        const newPage = document.createElement('div');
+        newPage.className = 'page-wrapper';
+
+        const content = typeof route.element === 'function' ? await route.element() : route.element;
+        newPage.innerHTML = content;
+
+        container.appendChild(newPage);
+        void newPage.offsetWidth;
+
+        requestAnimationFrame(() => {
+          if (oldPage) oldPage.classList.add('exit');
+          newPage.classList.add('active');
+        });
+
+        setTimeout(() => {
+          if (oldPage && oldPage.parentNode) oldPage.parentNode.removeChild(oldPage);
+          if(progress) { progress.style.width = '100%'; progress.classList.remove('loading'); }
+
+          setTimeout(() => {
+            if(progress) progress.style.width = '0%';
+            if(indicator) indicator.classList.remove('visible');
+          }, 300);
+        }, 350);
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>

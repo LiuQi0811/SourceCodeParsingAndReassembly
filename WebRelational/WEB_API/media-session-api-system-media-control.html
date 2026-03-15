@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Session API - 系统媒体控制</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;`
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .status-dot.active { background: var(--accent-green); box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧日志面板 */
+        .log-panel {
+            width: 320px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .log-area {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column-reverse; /* 最新在下 */
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            padding: 6px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .log-entry.action { border-left-color: var(--accent-green); }
+        .log-entry.system { border-left-color: var(--accent-purple); }
+        .log-time { color: var(--text-muted); margin-right: 6px; font-size: 10px; }
+
+        /* 右侧主内容 */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+            overflow-y: auto;
+        }
+
+        /* 播放器卡片 */
+        .player-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .player-card:hover { transform: translateY(-4px); }
+
+        .artwork-container {
+            position: relative;
+            width: 100%;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            background: #000;
+            overflow: hidden;
+        }
+
+        .artwork-img {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 10s linear; /* Ken Burns effect */
+        }
+        .playing .artwork-img { transform: scale(1.1); }
+
+        .player-info {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .player-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .player-artist {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .player-album {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            padding: 0 20px 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-blue);
+            border-radius: 2px;
+            width: 0%;
+            position: relative;
+        }
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -4px; top: -2px;
+            width: 8px; height: 8px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .progress-bar:hover .progress-fill::after { opacity: 1; }
+
+        .time-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-family: var(--font-mono);
+        }
+
+        /* 控制栏 */
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 0 20px 24px;
+        }
+
+        .ctrl-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ctrl-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .ctrl-btn svg { width: 20px; height: 20px; }
+
+        .ctrl-btn.main-btn {
+            width: 56px;
+            height: 56px;
+            background: var(--accent-blue);
+            color: white;
+        }
+        .ctrl-btn.main-btn:hover { background: #2563eb; transform: scale(1.05); }
+        .ctrl-btn.main-btn svg { width: 28px; height: 28px; }
+
+        /* 状态指示器 */
+        .system-indicator {
+            margin-top: 24px;
+            padding: 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: var(--radius);
+            font-size: 12px;
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 800px) {
+            .main-container { flex-direction: column-reverse; }
+            .log-panel { width: 100%; height: 200px; border-right: none; border-top: 1px solid var(--border); }
+            .content-area { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">MS</div>
+        <span>Media Session API</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测环境...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧日志 -->
+    <aside class="log-panel">
+        <div class="log-header">事件监视器</div>
+        <div class="log-area" id="log-area">
+            <div class="log-entry system"><span class="log-time">[Init]</span> 等待用户交互...</div>
+        </div>
+    </aside>
+
+    <!-- 右侧内容 -->
+    <section class="content-area">
+
+        <div class="player-card" id="player-card">
+            <div class="artwork-container">
+                <!-- 使用占位图作为封面 -->
+                <img src="https://picsum.photos/seed/music-demo/512/512" alt="Album Art" class="artwork-img" id="artwork">
+            </div>
+
+            <div class="player-info">
+                <div class="player-title" id="title">Neon Horizon</div>
+                <div class="player-artist" id="artist">Synthwave Dreams</div>
+                <div class="player-album" id="album">Digital Odyssey Vol.3</div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="time-row">
+                    <span id="time-current">0:00</span>
+                    <span id="time-total">3:45</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="ctrl-btn" id="btn-prev" title="上一曲">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+
+                <button class="ctrl-btn" id="btn-rw" title="快退">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                </button>
+
+                <button class="ctrl-btn main-btn" id="btn-play" title="播放">
+                    <svg viewBox="0 0 24 24" fill="currentColor" id="icon-play"><path d="M8 5v14l11-7z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" id="icon-pause" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+
+                <button class="ctrl-btn" id="btn-ff" title="快进">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+                </button>
+
+                <button class="ctrl-btn" id="btn-next" title="下一曲">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="system-indicator" id="sys-indicator" style="display:none;">
+            📡 系统媒体控制已激活：查看通知栏或任务栏
+        </div>
+
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Media Session API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'mediaSession' in navigator,
+        isPlaying: false,
+        duration: 225, // 3:45
+        currentTime: 0,
+        timer: null,
+        trackIndex: 0
+    };
+
+    const playlist = [
+        {
+            title: 'Neon Horizon',
+            artist: 'Synthwave Dreams',
+            album: 'Digital Odyssey Vol.3',
+            artwork: 'music-demo'
+        },
+        {
+            title: 'Stellar Dreams',
+            artist: 'Cosmic Waves',
+            album: 'Space Journey',
+            artwork: 'space-music'
+        },
+        {
+            title: 'Electric Pulse',
+            artist: 'Cyber Orchestra',
+            album: 'Future Beats',
+            artwork: 'neon-city'
+        }
+    ];
+
+    // 初始化
+    function init() {
+        updateStatus();
+        setupListeners();
+        loadTrack(0);
+    }
+
+    function updateStatus() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+        } else {
+            text.textContent = 'API 不支持';
+        }
+    }
+
+    // ========================================
+    // 核心逻辑：Media Session 配置
+    // ========================================
+
+    function loadTrack(index) {
+        state.trackIndex = index;
+        const track = playlist[index];
+
+        // 更新 UI
+        $('title').textContent = track.title;
+        $('artist').textContent = track.artist;
+        $('album').textContent = track.album;
+        $('artwork').src = `https://picsum.photos/seed/${track.artwork}/512/512`;
+
+        // 重置时间
+        state.currentTime = 0;
+        updateTimeUI();
+
+        // 核心配置：Media Metadata
+        if (state.supported) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                artwork: [
+                    { sizes: '96x96', src: `https://picsum.photos/seed/${track.artwork}/96/96`, type: 'image/jpeg' },
+                    { sizes: '128x128', src: `https://picsum.photos/seed/${track.artwork}/128/128`, type: 'image/jpeg' },
+                    { sizes: '192x192', src: `https://picsum.photos/seed/${track.artwork}/192/192`, type: 'image/jpeg' },
+                    { sizes: '256x256', src: `https://picsum.photos/seed/${track.artwork}/256/256`, type: 'image/jpeg' },
+                    { sizes: '384x384', src: `https://picsum.photos/seed/${track.artwork}/384/384`, type: 'image/jpeg' },
+                    { sizes: '512x512', src: `https://picsum.photos/seed/${track.artwork}/512/512`, type: 'image/jpeg' },
+                ]
+            });
+            log('system', `加载媒体元数据: ${track.title}`);
+        }
+    }
+
+    function setupMediaSessionHandlers() {
+        if (!state.supported) return;
+
+        // 播放处理器
+        navigator.mediaSession.setActionHandler('play', () => {
+            log('action', '事件触发: Play (系统/耳机)');
+            togglePlay(true);
+        });
+
+        // 暂停处理器
+        navigator.mediaSession.setActionHandler('pause', () => {
+            log('action', '事件触发: Pause (系统/耳机)');
+            togglePlay(false);
+        });
+
+        // 上一曲
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+            log('action', '事件触发: Previous Track');
+            const nextIdx = (state.trackIndex - 1 + playlist.length) % playlist.length;
+            loadTrack(nextIdx);
+            if(state.isPlaying) startTimer();
+        });
+
+        // 下一曲
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            log('action', '事件触发: Next Track');
+            const nextIdx = (state.trackIndex + 1) % playlist.length;
+            loadTrack(nextIdx);
+            if(state.isPlaying) startTimer();
+        });
+
+        // 快退 (Seek Backward)
+        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+            const skip = details.seekOffset || 10;
+            log('action', `事件触发: Seek Backward -${skip}s`);
+            state.currentTime = Math.max(state.currentTime - skip, 0);
+            updateTimeUI();
+        });
+
+        // 快进
+        navigator.mediaSession.setActionHandler('seekforward', (details) => {
+            const skip = details.seekOffset || 10;
+            log('action', `事件触发: Seek Forward +${skip}s`);
+            state.currentTime = Math.min(state.currentTime + skip, state.duration);
+            updateTimeUI();
+        });
+
+        // 进度条拖动 (部分浏览器支持)
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (details.seekTime !== undefined) {
+                log('action', `事件触发: Seek To ${details.seekTime}s`);
+                state.currentTime = details.seekTime;
+                updateTimeUI();
+            }
+        });
+
+        log('system', 'Media Session Handlers 已注册');
+    }
+
+    // ========================================
+    // 播放逻辑与UI控制
+    // ========================================
+
+    function togglePlay(forceState) {
+        const newState = forceState !== undefined ? forceState : !state.isPlaying;
+        state.isPlaying = newState;
+
+        const playIcon = $('icon-play');
+        const pauseIcon = $('icon-pause');
+        const card = $('player-card');
+
+        if (state.isPlaying) {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            card.classList.add('playing');
+            startTimer();
+            $('sys-indicator').style.display = 'flex';
+        } else {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+            card.classList.remove('playing');
+            stopTimer();
+        }
+
+        // 更新系统状态
+        if (state.supported) {
+            navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
+        }
+    }
+
+    function startTimer() {
+        stopTimer();
+        state.timer = setInterval(() => {
+            state.currentTime++;
+            if (state.currentTime >= state.duration) {
+                // 模拟播放完毕，自动下一曲
+                const nextIdx = (state.trackIndex + 1) % playlist.length;
+                loadTrack(nextIdx);
+                if(!state.isPlaying) togglePlay(true);
+            }
+            updateTimeUI();
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (state.timer) clearInterval(state.timer);
+        state.timer = null;
+    }
+
+    function updateTimeUI() {
+        const percent = (state.currentTime / state.duration) * 100;
+        $('progress-fill').style.width = `${percent}%`;
+        $('time-current').textContent = formatTime(state.currentTime);
+    }
+
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // ========================================
+    // UI 事件监听
+    // ========================================
+
+    function setupListeners() {
+        // 播放按钮
+        $('btn-play').addEventListener('click', () => {
+            // 首次点击时注册 Media Session Handlers (需要用户手势)
+            if (state.supported && !navigator.mediaSession.metadata) {
+                setupMediaSessionHandlers();
+            }
+            togglePlay();
+        });
+
+        // 其他按钮
+        $('btn-prev').addEventListener('click', () => {
+            loadTrack((state.trackIndex - 1 + playlist.length) % playlist.length);
+            if(state.isPlaying) startTimer();
+        });
+
+        $('btn-next').addEventListener('click', () => {
+            loadTrack((state.trackIndex + 1) % playlist.length);
+            if(state.isPlaying) startTimer();
+        });
+
+        $('btn-rw').addEventListener('click', () => {
+            state.currentTime = Math.max(state.currentTime - 10, 0);
+            updateTimeUI();
+        });
+
+        $('btn-ff').addEventListener('click', () => {
+            state.currentTime = Math.min(state.currentTime + 10, state.duration);
+            updateTimeUI();
+        });
+
+        // 进度条点击
+        $('progress-bar').addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            state.currentTime = Math.floor(state.duration * percent);
+            updateTimeUI();
+        });
+    }
+
+    // 日志
+    function log(type, msg) {
+        const area = $('log-area');
+        const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+        const div = document.createElement('div');
+        div.className = `log-entry ${type}`;
+        div.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+
+        // flex-direction: column-reverse 实现了最新在底部的视觉效果，
+        // 但 DOM 结构上需要 appendChild 才能保持正确顺序
+        area.insertBefore(div, area.firstChild);
+    }
+
+    init();
+</script>
+</body>
+</html>

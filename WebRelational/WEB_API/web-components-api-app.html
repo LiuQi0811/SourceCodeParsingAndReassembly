@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Components API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --secondary: #fb923c;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fff7ed;
+            --bg-card: #ffffff;
+            --border: #fed7aa;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fff7ed;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #431407;
+                --bg-card: #7c2d12;
+                --border: #9a3412;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(249, 115, 22, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(249, 115, 22, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Component Demo */
+        .component-demo {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .component-preview {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            min-height: 100px;
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(249, 115, 22, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(249, 115, 22, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.comp { background: rgba(249, 115, 22, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(249, 115, 22, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Registered Components List */
+        .component-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .component-item {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .component-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--primary);
+        }
+        
+        .component-tag {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🧩</div>
+            <div class="logo-text">Web Components <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">核心功能</div>
+                    <div class="nav-item" data-tab="custom-elements" onclick="switchTab('custom-elements')">
+                        <span class="nav-icon">🏷️</span><span>自定义元素</span>
+                    </div>
+                    <div class="nav-item" data-tab="shadow-dom" onclick="switchTab('shadow-dom')">
+                        <span class="nav-icon">🌑</span><span>Shadow DOM</span>
+                    </div>
+                    <div class="nav-item" data-tab="templates" onclick="switchTab('templates')">
+                        <span class="nav-icon">📋</span><span>模板与插槽</span>
+                    </div>
+                    <div class="nav-item" data-tab="lifecycle" onclick="switchTab('lifecycle')">
+                        <span class="nav-icon">🔄</span><span>生命周期</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web Components API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🧩</div>
+                        <div class="stat-value" id="component-count">0</div>
+                        <div class="stat-label">已注册组件</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏷️</div>
+                        <div class="stat-value" id="custom-element-support">-</div>
+                        <div class="stat-label">Custom Elements</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🌑</div>
+                        <div class="stat-value" id="shadow-dom-support">-</div>
+                        <div class="stat-label">Shadow DOM</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>CustomElementRegistry</span>
+                                        <span id="api-customElements" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>ShadowRoot</span>
+                                        <span id="api-shadowRoot" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>HTMLTemplateElement</span>
+                                        <span id="api-template" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>HTMLSlotElement</span>
+                                        <span id="api-slot" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>attachShadow()</span>
+                                        <span id="api-attachShadow" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">已注册组件</label>
+                                <div class="component-list" id="registered-components">
+                                    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                        暂无已注册组件
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            下方是使用 Web Components 创建的自定义元素演示
+                        </div>
+                        
+                        <div class="component-preview" id="demo-preview">
+                            <!-- 自定义组件将在这里渲染 -->
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="createDemoComponent()">🧩 创建组件</button>
+                            <button class="btn btn-outline" onclick="clearDemoPreview()">🗑️ 清空</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自定义元素 -->
+            <div id="panel-custom-elements" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>自定义元素</h1>
+                        <p>Custom Elements API 创建自定义 HTML 元素</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>customElements.define()</strong> 用于注册新的自定义元素。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">组件名称 (必须包含连字符)</label>
+                        <input type="text" class="form-input" id="element-name" placeholder="my-component" value="my-button">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">继承自</label>
+                            <select class="form-select" id="element-extends">
+                                <option value="HTMLElement">HTMLElement</option>
+                                <option value="HTMLButtonElement">HTMLButtonElement</option>
+                                <option value="HTMLDivElement">HTMLDivElement</option>
+                                <option value="HTMLInputElement">HTMLInputElement</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">组件文本</label>
+                            <input type="text" class="form-input" id="element-text" value="点击我">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="registerCustomElement()">📝 注册组件</button>
+                        <button class="btn btn-success" onclick="createElementInstance()">➕ 创建实例</button>
+                        <button class="btn btn-outline" onclick="getCustomElement()">🔍 获取定义</button>
+                    </div>
+                    
+                    <div class="component-preview" id="custom-element-preview">
+                        <!-- 自定义元素实例将在这里渲染 -->
+                    </div>
+                    
+                    <div id="custom-element-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">操作结果</div>
+                            <div class="result-grid" id="custom-element-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shadow DOM -->
+            <div id="panel-shadow-dom" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>Shadow DOM</h1>
+                        <p>创建封装的 DOM 树</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>element.attachShadow()</strong> 创建一个 Shadow DOM 树，实现样式和结构的封装。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Shadow DOM 模式</label>
+                            <select class="form-select" id="shadow-mode">
+                                <option value="open">open - 可通过 shadowRoot 访问</option>
+                                <option value="closed">closed - 外部无法访问</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">插槽分配</label>
+                            <select class="form-select" id="shadow-slot">
+                                <option value="true">启用插槽</option>
+                                <option value="false">禁用插槽</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createShadowElement()">🌑 创建 Shadow DOM</button>
+                        <button class="btn btn-outline" onclick="inspectShadowRoot()">🔍 检查 Shadow Root</button>
+                    </div>
+                    
+                    <div class="component-preview" id="shadow-preview">
+                        <div id="shadow-host" style="padding: 20px; border: 2px dashed var(--border); border-radius: var(--radius-sm);">
+                            <div style="text-align: center; color: var(--text-muted);">Shadow DOM 将在这里创建</div>
+                        </div>
+                    </div>
+                    
+                    <div id="shadow-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">Shadow DOM 信息</div>
+                            <div class="result-grid" id="shadow-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模板与插槽 -->
+            <div id="panel-templates" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>模板与插槽</h1>
+                        <p>HTML Template 和 Slot API</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>&lt;template&gt;</strong> 定义可复用的 HTML 模板，<strong>&lt;slot&gt;</strong> 定义内容插入点。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">模板内容</label>
+                        <textarea class="form-input" id="template-content" rows="5" placeholder="输入模板 HTML" style="font-family: monospace;">
+<div class="card">
+    <h3><slot name="title">默认标题</slot></h3>
+    <p><slot name="content">默认内容</slot></p>
+    <slot>默认插槽</slot>
+</div></textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createTemplateComponent()">📋 创建模板组件</button>
+                        <button class="btn btn-success" onclick="cloneTemplate()">📄 克隆模板</button>
+                    </div>
+                    
+                    <div class="component-preview" id="template-preview">
+                        <!-- 模板组件将在这里渲染 -->
+                    </div>
+                    
+                    <div id="template-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">模板信息</div>
+                            <div class="result-grid" id="template-result-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 生命周期 -->
+            <div id="panel-lifecycle" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>生命周期</h1>
+                        <p>自定义元素的生命周期回调</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        Web Components 提供多个生命周期回调：connectedCallback、disconnectedCallback、attributeChangedCallback、adoptedCallback
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">生命周期演示</label>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="createLifecycleComponent()">🧩 创建组件</button>
+                            <button class="btn btn-outline" onclick="addLifecycleElement()">➕ 添加到 DOM</button>
+                            <button class="btn btn-danger" onclick="removeLifecycleElement()">➖ 从 DOM 移除</button>
+                            <button class="btn btn-outline" onclick="changeLifecycleAttribute()">🔄 改变属性</button>
+                        </div>
+                    </div>
+                    
+                    <div class="component-preview" id="lifecycle-preview">
+                        <div id="lifecycle-container" style="min-height: 60px;"></div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">生命周期日志</div>
+                        <div id="lifecycle-log" style="background: #1e293b; border-radius: var(--radius-sm); padding: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #e2e8f0;">
+                            <div style="color: var(--text-muted);">等待操作...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web Components API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">CustomElementRegistry</h3>
+                    <div class="api-block">
+                        <span class="api-method">METHOD</span>
+                        <span class="api-signature">customElements.define(name, constructor, options)</span>
+                        <p class="api-description">注册一个新的自定义元素。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">METHOD</span>
+                        <span class="api-signature">customElements.get(name)</span>
+                        <p class="api-description">获取已注册的自定义元素构造函数。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">METHOD</span>
+                        <span class="api-signature">customElements.whenDefined(name)</span>
+                        <p class="api-description">返回一个 Promise，在元素定义时解析。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">生命周期回调</h3>
+                    <table>
+                        <thead>
+                            <tr><th>回调</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>connectedCallback()</code></td><td>元素插入 DOM 时调用</td></tr>
+                            <tr><td><code>disconnectedCallback()</code></td><td>元素从 DOM 移除时调用</td></tr>
+                            <tr><td><code>attributeChangedCallback()</code></td><td>属性变化时调用</td></tr>
+                            <tr><td><code>adoptedCallback()</code></td><td>元素移动到新文档时调用</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">Shadow DOM</h3>
+                    <table>
+                        <thead><tr><th>方法/属性</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>attachShadow(options)</code></td><td>创建 Shadow DOM</td></tr>
+                            <tr><td><code>shadowRoot</code></td><td>访问 Shadow Root</td></tr>
+                            <tr><td><code>mode: open/closed</code></td><td>Shadow DOM 模式</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 定义自定义元素
+class MyComponent extends HTMLElement {
+    constructor() {
+        super();
+        // 创建 Shadow DOM
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = `
+            <style>
+                :host { display: block; padding: 10px; }
+                .content { color: blue; }
+            </style>
+            <div class="content">
+                <slot name="title">默认标题</slot>
+                <slot>默认内容</slot>
+            </div>
+        `;
+    }
+    
+    // 监听的属性
+    static get observedAttributes() {
+        return ['data-value'];
+    }
+    
+    // 生命周期回调
+    connectedCallback() {
+        console.log('元素已连接');
+    }
+    
+    disconnectedCallback() {
+        console.log('元素已断开');
+    }
+    
+    attributeChangedCallback(name, oldVal, newVal) {
+        console.log(`属性 ${name} 从 ${oldVal} 变为 ${newVal}`);
+    }
+}
+
+// 注册组件
+customElements.define('my-component', MyComponent);
+
+// 使用组件
+// <my-component data-value="test">
+//   <span slot="title">标题</span>
+//   内容
+// </my-component></div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- 模板定义 -->
+    <template id="demo-button-template">
+        <style>
+            :host {
+                display: inline-block;
+            }
+            .btn {
+                padding: 10px 20px;
+                background: linear-gradient(135deg, #f97316, #ea580c);
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+            }
+        </style>
+        <button class="btn"><slot></slot></button>
+    </template>
+
+    <template id="card-template">
+        <style>
+            :host {
+                display: block;
+                margin: 10px 0;
+            }
+            .card {
+                background: white;
+                border-radius: 12px;
+                padding: 16px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                border: 1px solid #fed7aa;
+            }
+            .card h3 {
+                margin: 0 0 8px 0;
+                color: #f97316;
+            }
+            .card p {
+                margin: 0;
+                color: #64748b;
+            }
+        </style>
+        <div class="card">
+            <h3><slot name="title">标题</slot></h3>
+            <p><slot name="content">内容</slot></p>
+            <slot></slot>
+        </div>
+    </template>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var registeredComponents = [];
+        var lifecycleElement = null;
+        var lifecycleLogs = [];
+        var componentCounter = 0;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            registerDemoComponents();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var customElementsSupported = 'customElements' in window;
+            var shadowRootSupported = 'ShadowRoot' in window;
+            var templateSupported = 'content' in document.createElement('template');
+            var slotSupported = 'HTMLSlotElement' in window;
+            var attachShadowSupported = 'attachShadow' in Element.prototype;
+            
+            document.getElementById('api-customElements').textContent = customElementsSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-customElements').style.color = customElementsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-shadowRoot').textContent = shadowRootSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-shadowRoot').style.color = shadowRootSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-template').textContent = templateSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-template').style.color = templateSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-slot').textContent = slotSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-slot').style.color = slotSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-attachShadow').textContent = attachShadowSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-attachShadow').style.color = attachShadowSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('custom-element-support').textContent = customElementsSupported ? '✓' : '✗';
+            document.getElementById('custom-element-support').style.color = customElementsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('shadow-dom-support').textContent = shadowRootSupported ? '✓' : '✗';
+            document.getElementById('shadow-dom-support').style.color = shadowRootSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = customElementsSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = customElementsSupported ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 注册演示组件 ====================
+        function registerDemoComponents() {
+            // 注册演示按钮组件
+            if (!customElements.get('demo-button')) {
+                class DemoButton extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: 'open' });
+                        var template = document.getElementById('demo-button-template');
+                        this.shadowRoot.appendChild(template.content.cloneNode(true));
+                    }
+                    
+                    connectedCallback() {
+                        addLog('comp', 'demo-button 已连接');
+                    }
+                }
+                customElements.define('demo-button', DemoButton);
+                registeredComponents.push({ name: 'demo-button', tag: '<demo-button>' });
+            }
+            
+            // 注册卡片组件
+            if (!customElements.get('demo-card')) {
+                class DemoCard extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: 'open' });
+                        var template = document.getElementById('card-template');
+                        this.shadowRoot.appendChild(template.content.cloneNode(true));
+                    }
+                    
+                    connectedCallback() {
+                        addLog('comp', 'demo-card 已连接');
+                    }
+                }
+                customElements.define('demo-card', DemoCard);
+                registeredComponents.push({ name: 'demo-card', tag: '<demo-card>' });
+            }
+            
+            updateComponentList();
+        }
+
+        // ==================== 演示组件 ====================
+        function createDemoComponent() {
+            var preview = document.getElementById('demo-preview');
+            
+            componentCounter++;
+            
+            var html = '<demo-button>按钮 ' + componentCounter + '</demo-button>';
+            html += '<demo-card><span slot="title">卡片标题</span><span slot="content">这是卡片内容</span></demo-card>';
+            
+            preview.innerHTML = html;
+            
+            addLog('comp', '创建演示组件');
+            showToast('组件已创建', 'success');
+        }
+
+        function clearDemoPreview() {
+            document.getElementById('demo-preview').innerHTML = '';
+            addLog('comp', '清空演示区域');
+        }
+
+        // ==================== 自定义元素 ====================
+        function registerCustomElement() {
+            var name = document.getElementById('element-name').value.trim();
+            var extendsType = document.getElementById('element-extends').value;
+            var text = document.getElementById('element-text').value;
+            
+            if (!name || !name.includes('-')) {
+                showToast('组件名称必须包含连字符', 'warning');
+                return;
+            }
+            
+            if (customElements.get(name)) {
+                showToast('组件已存在: ' + name, 'warning');
+                return;
+            }
+            
+            try {
+                var componentClass = null;
+                
+                if (extendsType === 'HTMLElement') {
+                    componentClass = class extends HTMLElement {
+                        constructor() {
+                            super();
+                            this.attachShadow({ mode: 'open' });
+                            this.shadowRoot.innerHTML = '<style>:host { display: inline-block; } button { padding: 10px 20px; background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; border-radius: 10px; cursor: pointer; }</style><button><slot></slot></button>';
+                        }
+                        connectedCallback() {
+                            addLog('comp', name + ' 已连接');
+                        }
+                    };
+                } else if (extendsType === 'HTMLButtonElement') {
+                    componentClass = class extends HTMLButtonElement {
+                        constructor() {
+                            super();
+                            this.style.cssText = 'padding: 10px 20px; background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; border-radius: 10px; cursor: pointer;';
+                        }
+                        connectedCallback() {
+                            addLog('comp', name + ' 已连接');
+                        }
+                    };
+                    customElements.define(name, componentClass, { extends: 'button' });
+                } else {
+                    componentClass = class extends HTMLElement {
+                        constructor() {
+                            super();
+                            this.attachShadow({ mode: 'open' });
+                            this.shadowRoot.innerHTML = '<style>:host { display: block; padding: 10px; background: #fff7ed; border-radius: 10px; border: 1px solid #fed7aa; }</style><slot></slot>';
+                        }
+                        connectedCallback() {
+                            addLog('comp', name + ' 已连接');
+                        }
+                    };
+                }
+                
+                if (extendsType !== 'HTMLButtonElement') {
+                    customElements.define(name, componentClass);
+                }
+                
+                registeredComponents.push({ name: name, tag: '<' + name + '>' });
+                updateComponentList();
+                
+                document.getElementById('custom-element-result').style.display = 'block';
+                document.getElementById('custom-element-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">组件名</div><div class="result-value">' + name + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">继承自</div><div class="result-value">' + extendsType + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已注册</div></div>';
+                
+                addLog('comp', '注册组件: ' + name);
+                showToast('组件已注册: ' + name, 'success');
+                
+            } catch (e) {
+                showToast('注册失败: ' + e.message, 'error');
+                addLog('comp', '注册失败: ' + e.message);
+            }
+        }
+
+        function createElementInstance() {
+            var name = document.getElementById('element-name').value.trim();
+            var text = document.getElementById('element-text').value;
+            
+            if (!customElements.get(name)) {
+                showToast('组件未注册: ' + name, 'warning');
+                return;
+            }
+            
+            var preview = document.getElementById('custom-element-preview');
+            var element = document.createElement(name);
+            element.textContent = text;
+            preview.appendChild(element);
+            
+            addLog('comp', '创建实例: ' + name);
+            showToast('实例已创建', 'success');
+        }
+
+        async function getCustomElement() {
+            var name = document.getElementById('element-name').value.trim();
+            
+            var constructor = customElements.get(name);
+            
+            if (constructor) {
+                document.getElementById('custom-element-result').style.display = 'block';
+                document.getElementById('custom-element-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">组件名</div><div class="result-value">' + name + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">构造函数</div><div class="result-value">' + (constructor.name || '匿名类') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已定义</div></div>';
+                
+                addLog('comp', '获取组件定义: ' + name);
+            } else {
+                document.getElementById('custom-element-result').style.display = 'block';
+                document.getElementById('custom-element-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">组件名</div><div class="result-value">' + name + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--danger);">✗ 未定义</div></div>';
+                
+                addLog('comp', '组件未定义: ' + name);
+            }
+        }
+
+        // ==================== Shadow DOM ====================
+        function createShadowElement() {
+            var host = document.getElementById('shadow-host');
+            var mode = document.getElementById('shadow-mode').value;
+            var useSlot = document.getElementById('shadow-slot').value === 'true';
+            
+            // 清除旧的 Shadow Root
+            host.innerHTML = '';
+            
+            try {
+                var shadow = host.attachShadow({ mode: mode });
+                
+                shadow.innerHTML = '<style>' +
+                    '.container { padding: 20px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 10px; color: white; }' +
+                    'h3 { margin: 0 0 10px 0; }' +
+                    'p { margin: 0; opacity: 0.9; }' +
+                    '</style>' +
+                    '<div class="container">' +
+                    '<h3>Shadow DOM 内容</h3>' +
+                    '<p>这是封装在 Shadow DOM 中的内容</p>' +
+                    (useSlot ? '<slot></slot>' : '') +
+                    '</div>';
+                
+                if (useSlot) {
+                    host.innerHTML = '<span style="color: white; font-weight: bold;">外部插槽内容</span>';
+                }
+                
+                document.getElementById('shadow-result').style.display = 'block';
+                document.getElementById('shadow-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">模式</div><div class="result-value">' + mode + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">可访问</div><div class="result-value">' + (mode === 'open' ? '是' : '否') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">插槽</div><div class="result-value">' + (useSlot ? '启用' : '禁用') + '</div></div>';
+                
+                addLog('comp', '创建 Shadow DOM: ' + mode);
+                showToast('Shadow DOM 已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+                addLog('comp', '创建失败: ' + e.message);
+            }
+        }
+
+        function inspectShadowRoot() {
+            var host = document.getElementById('shadow-host');
+            var shadow = host.shadowRoot;
+            
+            if (shadow) {
+                document.getElementById('shadow-result').style.display = 'block';
+                document.getElementById('shadow-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">Shadow Root</div><div class="result-value">存在</div></div>' +
+                    '<div class="result-item"><div class="result-label">模式</div><div class="result-value">open</div></div>' +
+                    '<div class="result-item"><div class="result-label">子元素数</div><div class="result-value">' + shadow.children.length + '</div></div>';
+                
+                addLog('comp', '检查 Shadow Root');
+            } else {
+                document.getElementById('shadow-result').style.display = 'block';
+                document.getElementById('shadow-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">Shadow Root</div><div class="result-value" style="color: var(--danger);">不存在或 closed</div></div>';
+                
+                addLog('comp', 'Shadow Root 不可访问');
+            }
+        }
+
+        // ==================== 模板 ====================
+        function createTemplateComponent() {
+            var content = document.getElementById('template-content').value;
+            
+            // 创建模板组件类
+            if (!customElements.get('template-card')) {
+                class TemplateCard extends HTMLElement {
+                    constructor() {
+                        super();
+                        this.attachShadow({ mode: 'open' });
+                        
+                        this.shadowRoot.innerHTML = '<style>' +
+                            ':host { display: block; }' +
+                            '.card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #fed7aa; }' +
+                            'h3 { margin: 0 0 8px 0; color: #f97316; }' +
+                            'p { margin: 0; color: #64748b; }' +
+                            '</style>' + content;
+                    }
+                }
+                customElements.define('template-card', TemplateCard);
+                registeredComponents.push({ name: 'template-card', tag: '<template-card>' });
+                updateComponentList();
+            }
+            
+            var preview = document.getElementById('template-preview');
+            preview.innerHTML = '<template-card><span slot="title">自定义标题</span><span slot="content">自定义内容</span>默认插槽内容</template-card>';
+            
+            document.getElementById('template-result').style.display = 'block';
+            document.getElementById('template-result-grid').innerHTML = 
+                '<div class="result-item"><div class="result-label">组件</div><div class="result-value">template-card</div></div>' +
+                '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已创建</div></div>';
+            
+            addLog('comp', '创建模板组件');
+            showToast('模板组件已创建', 'success');
+        }
+
+        function cloneTemplate() {
+            var template = document.getElementById('card-template');
+            var preview = document.getElementById('template-preview');
+            
+            var clone = template.content.cloneNode(true);
+            
+            var wrapper = document.createElement('div');
+            wrapper.appendChild(clone);
+            
+            preview.innerHTML = '<div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #fed7aa;"><h3 style="margin: 0 0 8px 0; color: #f97316;">克隆的模板</h3><p style="margin: 0; color: #64748b;">这是从模板克隆的内容</p></div>';
+            
+            addLog('comp', '克隆模板');
+            showToast('模板已克隆', 'success');
+        }
+
+        // ==================== 生命周期 ====================
+        function createLifecycleComponent() {
+            if (customElements.get('lifecycle-demo')) {
+                showToast('生命周期组件已存在', 'warning');
+                return;
+            }
+            
+            class LifecycleDemo extends HTMLElement {
+                constructor() {
+                    super();
+                    this.attachShadow({ mode: 'open' });
+                    this.shadowRoot.innerHTML = '<style>' +
+                        ':host { display: block; padding: 16px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 10px; color: white; text-align: center; }' +
+                        '</style>' +
+                        '<div>生命周期演示组件</div>' +
+                        '<div id="attr-value" style="margin-top: 8px; font-size: 12px;">属性值: -</div>';
+                    
+                    addLifecycleLog('constructor', '构造函数调用');
+                }
+                
+                static get observedAttributes() {
+                    return ['data-value'];
+                }
+                
+                connectedCallback() {
+                    addLifecycleLog('connected', '元素已连接到 DOM');
+                }
+                
+                disconnectedCallback() {
+                    addLifecycleLog('disconnected', '元素已从 DOM 断开');
+                }
+                
+                attributeChangedCallback(name, oldVal, newVal) {
+                    addLifecycleLog('attribute', '属性 ' + name + ' 变化: ' + oldVal + ' → ' + newVal);
+                    var attrEl = this.shadowRoot.getElementById('attr-value');
+                    if (attrEl) {
+                        attrEl.textContent = '属性值: ' + newVal;
+                    }
+                }
+                
+                adoptedCallback() {
+                    addLifecycleLog('adopted', '元素已移动到新文档');
+                }
+            }
+            
+            customElements.define('lifecycle-demo', LifecycleDemo);
+            registeredComponents.push({ name: 'lifecycle-demo', tag: '<lifecycle-demo>' });
+            updateComponentList();
+            
+            addLog('comp', '注册生命周期组件');
+            showToast('生命周期组件已注册', 'success');
+        }
+
+        function addLifecycleElement() {
+            var container = document.getElementById('lifecycle-container');
+            
+            if (!customElements.get('lifecycle-demo')) {
+                createLifecycleComponent();
+            }
+            
+            lifecycleElement = document.createElement('lifecycle-demo');
+            lifecycleElement.setAttribute('data-value', '初始值');
+            container.appendChild(lifecycleElement);
+            
+            addLog('comp', '添加生命周期元素');
+        }
+
+        function removeLifecycleElement() {
+            var container = document.getElementById('lifecycle-container');
+            
+            if (lifecycleElement && lifecycleElement.parentNode) {
+                lifecycleElement.parentNode.removeChild(lifecycleElement);
+                lifecycleElement = null;
+                addLog('comp', '移除生命周期元素');
+            } else {
+                showToast('元素不存在', 'warning');
+            }
+        }
+
+        function changeLifecycleAttribute() {
+            if (lifecycleElement) {
+                var currentVal = lifecycleElement.getAttribute('data-value') || '0';
+                var newVal = 'value-' + Date.now().toString(36);
+                lifecycleElement.setAttribute('data-value', newVal);
+                addLog('comp', '改变属性: ' + newVal);
+            } else {
+                showToast('请先添加元素', 'warning');
+            }
+        }
+
+        function addLifecycleLog(type, message) {
+            var now = new Date();
+            var time = now.toTimeString().split(' ')[0];
+            var logEl = document.getElementById('lifecycle-log');
+            
+            var colors = {
+                constructor: '#f59e0b',
+                connected: '#10b981',
+                disconnected: '#ef4444',
+                attribute: '#6366f1',
+                adopted: '#8b5cf6'
+            };
+            
+            var entry = document.createElement('div');
+            entry.style.cssText = 'padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1);';
+            entry.innerHTML = '<span style="color: #94a3b8;">' + time + '</span> ' +
+                '<span style="background: ' + (colors[type] || '#64748b') + '; padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px;">' + type.toUpperCase() + '</span>' +
+                message;
+            
+            logEl.insertBefore(entry, logEl.firstChild);
+        }
+
+        // ==================== 组件列表 ====================
+        function updateComponentList() {
+            document.getElementById('component-count').textContent = registeredComponents.length;
+            
+            var container = document.getElementById('registered-components');
+            
+            if (registeredComponents.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">暂无已注册组件</div>';
+                return;
+            }
+            
+            var html = '';
+            registeredComponents.forEach(function(comp) {
+                html += '<div class="component-item">';
+                html += '<div class="component-name">' + comp.name + '</div>';
+                html += '<div class="component-tag">' + comp.tag + '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

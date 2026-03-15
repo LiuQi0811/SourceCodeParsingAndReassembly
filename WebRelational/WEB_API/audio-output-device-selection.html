@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频输出设备选择</title>
+    <style>
+        body {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+
+        button {
+            width: 100%;
+            height: 50px;
+            border: none;
+            border-radius: 10px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        select {
+            width: 100%;
+            height: 45px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding: 0 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+
+<body>
+<!-- 音源 -->
+<h2>音频资源</h2>
+<select id="audioSourceSelect">
+    <option value="default">默认音源</option>
+</select>
+<h2>音频输出设备测试</h2>
+<!-- 原生选择器按钮（仅 Chrome 105+ 支持） -->
+<button id="selectNativeBtn" disabled title="Chrome 105+ 才支持此功能">
+    🎧 使用系统选择器（实验性）
+</button>
+<!-- 设备列表选择 -->
+<select id="deviceSelect" disabled>
+    <option value="">加载中...</option>
+</select>
+<button id="playBtn" disabled>▶ 播放音频</button>
+<div id="status"></div>
+
+<script>
+    // 音频资源
+    const AUDIO_URL_SOURCE = [{
+        name: "提笔忘情", url: "https://wsaudio2bssdlbig.kugou.com/202602240944/d15ca79db3a92f56c442b7e9604573bb/bss/extname/wsaudio/b415397d571ec9f1f3bc3e3a9c6df299.mp3"
+    }, {
+        name: "上春山", url:
+            "https://wsaudio2bssdlbig.kugou.com/202602241138/19d88627d1b01ea15ff93cee0afc6323/bss/extname/wsaudio/9e256b50a652b2e1543b154d73a53338.mp3"
+    },
+        {
+            name: "红鸾弄", url: "https://wsaudio2bssdlbig.kugou.com/202602241140/88f8014901f2434755e0cc0ba0cc72b6/bss/extname/wsaudio/91fa3127a3556a4185f9e1846e87b213.mp3"
+        }];
+    let AUDIO_URL = "";
+    // DOM 元素
+    const audioSourceSelect = document.getElementById("audioSourceSelect");
+    const selectNativeBtn = document.getElementById("selectNativeBtn");
+    const deviceSelect = document.getElementById("deviceSelect");
+    const playBtn = document.getElementById("playBtn");
+    const statusDiv = document.getElementById("status");
+    // 当前选中的设备 ID
+    let currentDeviceId = "";
+    // 当前播放的音频对象
+    let currentAudio = null;
+
+    /**
+     * showStatus 函数用于显示状态信息
+     * @author LiuQi
+     **/
+    function showStatus(message, type = "info") {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+    }
+
+    /**
+     * loadAudioOutputDevices 函数用于获取并显示音频输出设备列表
+     * @author LiuQi
+     **/
+    async function loadAudioOutputDevices() {
+        try {
+            // 尝试获取麦克风权限以解锁设备标签
+            if (navigator.mediaDevices.getUserMedia) {
+                // 请求麦克风权限，这将解锁设备选择器
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+            // 获取音频输出设备列表
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            // 过滤出音频输出设备
+            const audioOutputs = devices.filter(device => device.kind === "audiooutput");
+            // 清空选择框
+            deviceSelect.innerHTML = "";
+            if (audioOutputs.length === 0) {
+                deviceSelect.innerHTML = '<option value="">未找到音频输出设备</option>';
+                return;
+            }
+            // 添加设备选项
+            audioOutputs.forEach((device, index) => {
+                const option = document.createElement("option");
+                option.value = device.deviceId;
+                // 如果没有标签，使用默认名称
+                option.textContent = device.label || `扬声器 ${index + 1}`;
+                // 添加到选择框中
+                deviceSelect.appendChild(option);
+            });
+
+            //默认选择第一个设备
+            currentDeviceId = audioOutputs[0].deviceId;
+            deviceSelect.value = currentDeviceId;
+            deviceSelect.disabled = false;
+            playBtn.disabled = false;
+            showStatus(`找到 ${audioOutputs.length} 个音频输出设备`, "success");
+        } catch (error) {
+            console.error("加载设备失败:", error);
+            deviceSelect.innerHTML = '<option value="">加载失败</option>';
+            showStatus(`错误: ${error.message}`, "error");
+        }
+    }
+
+    /**
+     * playAudioToDevice 函数用于播放音频到指定设备
+     * @author LiuQi
+     **/
+    async function playAudioToDevice(deviceId) {
+        try {
+            // 停止当前正在播放的音频
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.src = ""; // 释放资源
+                currentAudio = null;
+            }
+            const audio = new Audio(AUDIO_URL);
+            currentAudio = audio;
+            audio.volume = 0.7;
+            // 设置音频输出设备
+            if (deviceId) {
+                await audio.setSinkId(deviceId);
+            }
+            // 播发
+            await audio.play();
+            showStatus("音频播放中...", "success");
+            // 播放结束后清理
+            audio.onended = (() => {
+                showStatus("音频播放结束", "info");
+                currentAudio = null; // 播放结束，清空引用
+            });
+        } catch (error) {
+            console.error("播放失败:", error);
+            showStatus(`播放失败: ${error.message}`, "error");
+            currentAudio = null; // 清空引用
+        }
+    }
+
+    /**
+     * audioSources 函数用于显示音频资源列表
+     * @author LiuQi
+     **/
+    function audioSources() {
+        AUDIO_URL_SOURCE.forEach(audio => {
+            const option = document.createElement("option");
+            option.value = audio.url;
+            option.textContent = audio.name;
+            audioSourceSelect.appendChild(option);
+        });
+    }
+    /**
+     * initialize 函数用于初始化
+     * @author LiuQi
+     **/
+    async function initialize() {
+        // 检查浏览器支持情况
+        const supportsNative = !!navigator.mediaDevices?.selectAudioOutput;
+        const supportsSetSinkId = "setSinkId" in HTMLAudioElement.prototype;
+        if (!supportsSetSinkId) {
+            showStatus("当前浏览器不支持切换音频输出设备", "error");
+            return
+        }
+        // 启用原生选择器按钮（如果支持）
+        if (supportsNative) {
+            selectNativeBtn.disabled = false;
+            selectNativeBtn.title = "";
+        }
+        // 加载音频资源
+        audioSources();
+        // 加载设备列表
+        await loadAudioOutputDevices();
+    }
+
+    // 监听相关
+    // 实验性原生选择器按钮点击事件
+    selectNativeBtn.addEventListener("click", async () => {
+        try {
+            // 选择设备
+            const device = await navigator.mediaDevices.selectAudioOutput();
+            // 当前设备ID更新
+            currentDeviceId = device.deviceId;
+            showStatus(`已选择设备: ${device.label || "未知设备"}`, "success");
+            // 播放音频到该设备
+            await playAudioToDevice(currentDeviceId);
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                showStatus(`选择取消或失败: ${err.message}`, "error");
+            }
+        }
+    });
+
+    // 音频资源选择框变化事件
+    audioSourceSelect.addEventListener("change", async () => {
+        const newAudio = audioSourceSelect.value;
+        if (newAudio === "default") return;
+        AUDIO_URL = newAudio;
+        // 如果已选择输出设备，则立即播放新音频
+        if (currentDeviceId) {
+            // await playAudioToDevice(currentDeviceId, newAudio);
+        } else {
+            showStatus("请先选择音频输出设备", "info");
+        }
+    });
+
+    // 设备选择框变化事件
+    deviceSelect.addEventListener("change", () => {
+        currentDeviceId = deviceSelect.value;
+    });
+
+    // 播放按钮点击事件
+    playBtn.addEventListener("click", async () => {
+        if (!currentDeviceId) {
+            showStatus("请先选择一个音频输出设备", "error");
+            return;
+        }
+        if (!AUDIO_URL || AUDIO_URL === "default") {
+            showStatus("请选择一首歌曲", "error");
+            return;
+        }
+        // 播放音频到当前选中的设备
+        await playAudioToDevice(currentDeviceId);
+    });
+    // 启动应用
+    initialize().catch(console.error);
+</script>
+</body>
+
+</html>

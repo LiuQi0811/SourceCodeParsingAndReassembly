@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>企业级拖放工作台 · 完整优化版</title>
+    <style>
+        /* ========== 全局重置与设计变量 ========== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-light: #dbeafe;
+            --primary-dark: #2563eb;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 20px;
+            --radius-2xl: 24px;
+            --radius-full: 9999px;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        /* ========== 主容器 ========== */
+        .enterprise-dashboard {
+            width: 100%;
+            max-width: 1600px;
+            height: 95vh;
+            max-height: 1000px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-lg), 0 20px 40px -8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* ========== 头部区域 ========== */
+        .app-header {
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: var(--gray-800);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ========== 选项卡区域 ========== */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            flex-wrap: wrap;
+            min-height: 48px;
+            padding: 4px 0;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            border-radius: var(--radius-full);
+            font-size: 0.95rem;
+            font-weight: 500;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab:hover {
+            background: var(--gray-200);
+            transform: translateY(-1px);
+        }
+
+        .tab.active {
+            background: white;
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+            font-weight: 600;
+        }
+
+        .tab[draggable="true"] {
+            cursor: grab;
+        }
+
+        .tab[draggable="true"]:active {
+            cursor: grabbing;
+        }
+
+        .tab.drag-over {
+            background: var(--primary-light);
+            border: 2px dashed var(--primary);
+            transform: scale(1.02);
+        }
+
+        .tab.dragging-source {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .tab-close {
+            width: 20px;
+            height: 20px;
+            border-radius: var(--radius-full);
+            background: var(--gray-300);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 4px;
+        }
+
+        .tab-close:hover {
+            background: #ef4444;
+            transform: rotate(90deg);
+        }
+
+        .new-tab-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            background: white;
+            border: 1px solid var(--gray-200);
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--primary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .new-tab-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: rotate(90deg);
+        }
+
+        /* ========== 工作区 ========== */
+        .workspace {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            background: var(--gray-50);
+            scrollbar-width: thin;
+            scrollbar-color: var(--gray-400) var(--gray-100);
+        }
+
+        .workspace::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .workspace::-webkit-scrollbar-track {
+            background: var(--gray-100);
+        }
+
+        .workspace::-webkit-scrollbar-thumb {
+            background: var(--gray-400);
+            border-radius: var(--radius-full);
+        }
+
+        /* ========== 文件拖放区 ========== */
+        .file-drop-zone {
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--radius-xl);
+            padding: 32px 24px;
+            text-align: center;
+            background: white;
+            transition: all 0.2s;
+            margin-bottom: 24px;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-drop-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, var(--primary-light) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .file-drop-zone.drag-over-file {
+            border-color: var(--primary);
+            background: #f0f9ff;
+            transform: scale(1.02);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .file-drop-zone.drag-over-file::before {
+            opacity: 0.1;
+        }
+
+        .file-icon {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+        }
+
+        .file-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+
+        .file-subtitle {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        /* ========== 卡片网格 ========== */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* ========== 卡片样式 ========== */
+        .card {
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            padding: 20px;
+            border: 1px solid var(--gray-100);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: default;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card[draggable="true"] {
+            cursor: grab;
+        }
+
+        .card[draggable="true"]:active {
+            cursor: grabbing;
+        }
+
+        .card.dragging-source {
+            opacity: 0.3;
+            transform: scale(0.98);
+            filter: blur(1px);
+        }
+
+        .card.drag-over {
+            border: 2px solid var(--primary);
+            background: var(--primary-light);
+            transform: scale(1.02);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+        }
+
+        .card-badge {
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+
+        .card-content {
+            font-size: 0.95rem;
+            color: var(--gray-600);
+            line-height: 1.5;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            border-top: 1px solid var(--gray-100);
+            padding-top: 12px;
+            margin-top: 4px;
+        }
+
+        .drag-handle {
+            color: var(--gray-400);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            cursor: grab;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: background 0.2s;
+        }
+
+        .drag-handle:hover {
+            background: var(--gray-100);
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* ========== 状态栏 ========== */
+        .status-bar {
+            padding: 12px 24px;
+            background: white;
+            border-top: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--gray-600);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .event-log {
+            background: var(--gray-100);
+            padding: 6px 16px;
+            border-radius: var(--radius-full);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            max-width: 500px;
+            overflow-x: auto;
+            white-space: nowrap;
+            border: 1px solid var(--gray-200);
+        }
+
+        .stats {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: var(--primary);
+            background: var(--primary-light);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+        }
+
+        /* ========== 动画 ========== */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 1s ease-in-out;
+        }
+
+        /* ========== 响应式设计 ========== */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+
+            .app-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .tab-bar {
+                order: 2;
+            }
+
+            .new-tab-btn {
+                align-self: flex-end;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .event-log {
+                max-width: 100%;
+            }
+
+            .stats {
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .file-drop-zone {
+                padding: 20px 16px;
+            }
+        }
+
+        /* ========== 打印样式 ========== */
+        @media print {
+            .enterprise-dashboard {
+                height: auto;
+                max-height: none;
+                box-shadow: none;
+            }
+
+            .tab[draggable="true"],
+            .card[draggable="true"] {
+                cursor: default;
+            }
+
+            .status-bar {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="enterprise-dashboard">
+    <!-- 头部 + 选项卡 -->
+    <div class="app-header">
+        <div class="logo-area">
+            <span class="logo-icon">⚡</span>
+            <span>FlowBoard Enterprise</span>
+        </div>
+        <div class="tab-bar" id="tabContainer"></div>
+        <button class="new-tab-btn" id="addTabBtn" title="创建新选项卡 (Cmd/Ctrl + T)">+</button>
+    </div>
+
+    <!-- 工作区 -->
+    <div class="workspace" id="workspace">
+        <!-- 文件拖放区 -->
+        <div class="file-drop-zone" id="fileDropZone">
+            <div class="file-icon">📁</div>
+            <div class="file-title">拖放文件到此区域</div>
+            <div class="file-subtitle">支持任意格式 · 控制台查看文件信息</div>
+        </div>
+
+        <!-- 卡片网格 -->
+        <div class="card-grid" id="cardGrid"></div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="stats">
+                <span class="stat-item">
+                    <span>📊 卡片</span>
+                    <span class="stat-value" id="cardCount">0</span>
+                </span>
+            <span class="stat-item">
+                    <span>📑 选项卡</span>
+                    <span class="stat-value" id="tabCount">0</span>
+                </span>
+            <span class="stat-item">
+                    <span>🎯 拖拽模式</span>
+                    <span class="stat-value" id="dragMode">move/copy</span>
+                </span>
+        </div>
+        <div class="event-log" id="eventLog">
+            ⚡ 就绪 - 等待操作
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // ========== 核心配置 ==========
+        const CONFIG = {
+            maxTabs: 12,
+            maxCards: 50,
+            animationDuration: 300,
+            logMaxLength: 50,
+            defaultTabLabel: '新看板'
+        };
+
+        // ========== 数据状态 ==========
+        let state = {
+            tabs: [
+                { id: 'tab_1', label: '开发看板', closeable: false, created: Date.now() },
+                { id: 'tab_2', label: '产品需求', closeable: true, created: Date.now() },
+                { id: 'tab_3', label: '测试追踪', closeable: true, created: Date.now() }
+            ],
+            activeTabId: 'tab_1',
+            cards: [
+                { id: 'card_1', title: '用户故事地图', badge: '高优先级', desc: '梳理核心用户旅程', owner: '产品组', status: 'todo', created: Date.now() },
+                { id: 'card_2', title: 'API 网关设计', badge: '进行中', desc: 'OAuth2 与限流方案', owner: '后端组', status: 'doing', created: Date.now() },
+                { id: 'card_3', title: '组件库开发', badge: '待评审', desc: 'Button, Input, Modal', owner: '前端组', status: 'todo', created: Date.now() },
+                { id: 'card_4', title: '性能测试', badge: '阻塞', desc: 'QPS 5000 基准测试', owner: 'QA', status: 'blocked', created: Date.now() },
+                { id: 'card_5', title: '部署文档', badge: '已完成', desc: 'K8s 部署指南', owner: '运维组', status: 'done', created: Date.now() },
+                { id: 'card_6', title: '用户反馈分析', badge: '进行中', desc: 'NPS 调研结果', owner: '产品组', status: 'doing', created: Date.now() }
+            ],
+            lastDragEffect: 'move'
+        };
+
+        // ========== 拖拽上下文 ==========
+        let dragContext = {
+            element: null,
+            type: null,
+            sourceData: null,
+            startTime: 0,
+            startX: 0,
+            startY: 0,
+            dropEffect: 'move',
+            customGhost: null
+        };
+
+        // ========== DOM 元素引用 ==========
+        const elements = {
+            tabContainer: document.getElementById('tabContainer'),
+            cardGrid: document.getElementById('cardGrid'),
+            fileDropZone: document.getElementById('fileDropZone'),
+            eventLog: document.getElementById('eventLog'),
+            cardCount: document.getElementById('cardCount'),
+            tabCount: document.getElementById('tabCount'),
+            dragMode: document.getElementById('dragMode'),
+            addTabBtn: document.getElementById('addTabBtn')
+        };
+
+        // ========== 工具函数 ==========
+        const utils = {
+            generateId: (prefix = 'item') => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+
+            formatTime: (date = new Date()) => {
+                return date.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            },
+
+            debounce: (func, wait) => {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            },
+
+            getBadgeColor: (badge) => {
+                const colors = {
+                    '高优先级': '#fee2e2',
+                    '进行中': '#dbeafe',
+                    '待评审': '#fef3c7',
+                    '阻塞': '#ffedd5',
+                    '已完成': '#dcfce7',
+                    '默认': '#e2e8f0'
+                };
+                return colors[badge] || colors['默认'];
+            },
+
+            updateStats: () => {
+                elements.cardCount.textContent = state.cards.length;
+                elements.tabCount.textContent = state.tabs.length;
+                elements.dragMode.textContent = state.lastDragEffect === 'move' ? '移动' : '复制';
+            },
+
+            log: (message, data = '') => {
+                const time = utils.formatTime();
+                const logEntry = `[${time}] ${message}${data ? ' · ' + data : ''}`;
+                elements.eventLog.textContent = logEntry;
+
+                // 添加脉冲动画
+                elements.eventLog.classList.add('pulse');
+                setTimeout(() => elements.eventLog.classList.remove('pulse'), 300);
+
+                console.log(`%c${logEntry}`, 'color: #3b82f6; font-weight: 500;', data);
+            }
+        };
+
+        // ========== 渲染函数 ==========
+        function renderTabs() {
+            const container = elements.tabContainer;
+            container.innerHTML = '';
+
+            state.tabs.forEach(tab => {
+                const tabEl = document.createElement('div');
+                tabEl.className = `tab ${state.activeTabId === tab.id ? 'active' : ''}`;
+                tabEl.setAttribute('draggable', 'true');
+                tabEl.dataset.tabId = tab.id;
+                tabEl.dataset.type = 'tab';
+                tabEl.setAttribute('aria-label', `选项卡: ${tab.label}`);
+
+                // 创建文本节点
+                const textSpan = document.createElement('span');
+                textSpan.textContent = tab.label;
+                tabEl.appendChild(textSpan);
+
+                if (tab.closeable) {
+                    const closeBtn = document.createElement('span');
+                    closeBtn.className = 'tab-close';
+                    closeBtn.innerHTML = '✕';
+                    closeBtn.setAttribute('aria-label', '关闭选项卡');
+                    closeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                    });
+                    tabEl.appendChild(closeBtn);
+                }
+
+                tabEl.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('tab-close')) return;
+                    setActiveTab(tab.id);
+                });
+
+                attachDragEvents(tabEl, 'tab');
+                container.appendChild(tabEl);
+            });
+
+            utils.updateStats();
+        }
+
+        function renderCards() {
+            const grid = elements.cardGrid;
+            grid.innerHTML = '';
+
+            state.cards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card';
+                cardEl.setAttribute('draggable', 'true');
+                cardEl.dataset.cardId = card.id;
+                cardEl.dataset.type = 'card';
+                cardEl.id = `card-${card.id}`;
+
+                cardEl.innerHTML = `
+                        <div class="card-header">
+                            <span class="card-title">${escapeHtml(card.title)}</span>
+                            <span class="card-badge" style="background: ${utils.getBadgeColor(card.badge)}">${escapeHtml(card.badge)}</span>
+                        </div>
+                        <div class="card-content">${escapeHtml(card.desc)}</div>
+                        <div class="card-footer">
+                            <span>👤 ${escapeHtml(card.owner)}</span>
+                            <span class="drag-handle" draggable="false" aria-label="拖拽手柄">⋮⋮</span>
+                        </div>
+                    `;
+
+                attachDragEvents(cardEl, 'card');
+                grid.appendChild(cardEl);
+            });
+
+            utils.updateStats();
+        }
+
+        // HTML转义函数（防止XSS）
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // ========== 拖拽事件绑定 ==========
+        function attachDragEvents(element, type) {
+            // dragstart
+            element.addEventListener('dragstart', handleDragStart);
+
+            // drag
+            element.addEventListener('drag', utils.debounce(handleDrag, 100));
+
+            // dragend
+            element.addEventListener('dragend', handleDragEnd);
+
+            // dragenter
+            element.addEventListener('dragenter', handleDragEnter);
+
+            // dragover
+            element.addEventListener('dragover', handleDragOver);
+
+            // dragleave
+            element.addEventListener('dragleave', handleDragLeave);
+
+            // drop
+            element.addEventListener('drop', handleDrop);
+
+            // 辅助函数
+            function handleDragStart(e) {
+                e.stopPropagation();
+
+                // 设置拖拽上下文
+                dragContext.element = element;
+                dragContext.type = type;
+                dragContext.startTime = Date.now();
+                dragContext.startX = e.clientX;
+                dragContext.startY = e.clientY;
+
+                // 添加源元素样式
+                element.classList.add('dragging-source');
+
+                // 准备数据
+                if (type === 'card') {
+                    const cardId = element.dataset.cardId;
+                    const cardData = state.cards.find(c => c.id === cardId);
+                    if (cardData) {
+                        dragContext.sourceData = cardData;
+
+                        // 设置多种数据格式
+                        e.dataTransfer.setData('text/plain', `${cardData.title} (${cardData.owner})`);
+                        e.dataTransfer.setData('text/html', `<div>${cardData.title}</div>`);
+                        e.dataTransfer.setData('text/uri-list', `#/cards/${cardData.id}`);
+                        e.dataTransfer.setData('application/json', JSON.stringify(cardData));
+
+                        // 设置拖拽效果
+                        e.dataTransfer.effectAllowed = 'copyMove';
+
+                        // 自定义拖拽图像
+                        createCustomDragImage(e, cardData.title, 'card');
+                    }
+                } else if (type === 'tab') {
+                    const tabId = element.dataset.tabId;
+                    const tabData = state.tabs.find(t => t.id === tabId);
+                    if (tabData) {
+                        dragContext.sourceData = tabData;
+                        e.dataTransfer.setData('text/plain', `选项卡: ${tabData.label}`);
+                        e.dataTransfer.setData('application/json', JSON.stringify(tabData));
+                        e.dataTransfer.effectAllowed = 'move';
+
+                        createCustomDragImage(e, tabData.label, 'tab');
+                    }
+                }
+
+                utils.log(`开始拖动 ${type}`, dragContext.sourceData?.label || dragContext.sourceData?.title);
+            }
+
+            function createCustomDragImage(e, text, type) {
+                const ghost = document.createElement('div');
+                ghost.textContent = type === 'card' ? `📋 ${text}` : `📌 ${text}`;
+                ghost.style.cssText = `
+                        background: linear-gradient(135deg, #3b82f6, #2563eb);
+                        color: white;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        font-size: 14px;
+                        font-weight: 500;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        pointer-events: none;
+                        position: absolute;
+                        top: -1000px;
+                    `;
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 20, 20);
+
+                // 清理幽灵元素
+                dragContext.customGhost = ghost;
+                setTimeout(() => {
+                    if (ghost && ghost.parentNode) {
+                        ghost.parentNode.removeChild(ghost);
+                    }
+                }, 100);
+            }
+
+            function handleDrag(e) {
+                // 可以添加拖拽过程中的逻辑
+            }
+
+            function handleDragEnd(e) {
+                // 清理样式
+                document.querySelectorAll('.dragging-source').forEach(el => {
+                    el.classList.remove('dragging-source');
+                });
+                document.querySelectorAll('.drag-over').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+
+                // 清理文件区样式
+                elements.fileDropZone.classList.remove('drag-over-file');
+
+                // 记录拖拽结果
+                const dropEffect = e.dataTransfer.dropEffect;
+                state.lastDragEffect = dropEffect;
+                utils.log(`拖动结束`, `效果: ${dropEffect} 持续时间: ${Date.now() - dragContext.startTime}ms`);
+
+                // 清理上下文
+                if (dragContext.customGhost) {
+                    dragContext.customGhost = null;
+                }
+                dragContext.element = null;
+                dragContext.type = null;
+                dragContext.sourceData = null;
+
+                utils.updateStats();
+            }
+
+            function handleDragEnter(e) {
+                e.preventDefault();
+                if (dragContext.element === element) return;
+
+                if (type === 'card' && dragContext.type === 'card') {
+                    element.classList.add('drag-over');
+                } else if (type === 'tab' && dragContext.type === 'tab') {
+                    element.classList.add('drag-over');
+                }
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = dragContext.type === 'card' ? 'move' : 'move';
+
+                // 根据按键调整效果
+                if (e.ctrlKey) {
+                    e.dataTransfer.dropEffect = 'copy';
+                } else if (e.altKey) {
+                    e.dataTransfer.dropEffect = 'link';
+                }
+            }
+
+            function handleDragLeave(e) {
+                element.classList.remove('drag-over');
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                element.classList.remove('drag-over');
+
+                // 获取数据
+                const plainText = e.dataTransfer.getData('text/plain');
+                const jsonData = e.dataTransfer.getData('application/json');
+
+                // 根据类型处理放置
+                if (type === 'card' && dragContext.type === 'card' && dragContext.element) {
+                    handleCardDrop(e, element);
+                } else if (type === 'tab' && dragContext.type === 'tab' && dragContext.element) {
+                    handleTabDrop(e, element);
+                }
+
+                // 记录日志
+                utils.log('放置完成', `文本: "${plainText.substring(0, 30)}"${jsonData ? ' + JSON' : ''}`);
+            }
+        }
+
+        // ========== 卡片放置处理 ==========
+        function handleCardDrop(e, targetElement) {
+            const sourceCard = dragContext.element;
+            const targetCard = targetElement;
+
+            if (sourceCard === targetCard) return;
+
+            const sourceId = sourceCard.dataset.cardId;
+            const targetId = targetCard.dataset.cardId;
+
+            // 交换卡片在数组中的位置
+            const sourceIndex = state.cards.findIndex(c => c.id === sourceId);
+            const targetIndex = state.cards.findIndex(c => c.id === targetId);
+
+            if (sourceIndex !== -1 && targetIndex !== -1) {
+                // 交换数组元素
+                [state.cards[sourceIndex], state.cards[targetIndex]] =
+                    [state.cards[targetIndex], state.cards[sourceIndex]];
+
+                // 重新渲染
+                renderCards();
+
+                utils.log('卡片交换', `${sourceId} ↔ ${targetId}`);
+            }
+        }
+
+        // ========== 选项卡放置处理 ==========
+        function handleTabDrop(e, targetElement) {
+            const sourceTab = dragContext.element;
+            const targetTab = targetElement;
+
+            if (sourceTab === targetTab) return;
+
+            const sourceId = sourceTab.dataset.tabId;
+            const targetId = targetTab.dataset.tabId;
+
+            // 交换选项卡在数组中的位置
+            const sourceIndex = state.tabs.findIndex(t => t.id === sourceId);
+            const targetIndex = state.tabs.findIndex(t => t.id === targetId);
+
+            if (sourceIndex !== -1 && targetIndex !== -1) {
+                // 交换数组元素
+                [state.tabs[sourceIndex], state.tabs[targetIndex]] =
+                    [state.tabs[targetIndex], state.tabs[sourceIndex]];
+
+                // 重新渲染
+                renderTabs();
+
+                utils.log('选项卡交换', `${sourceId} ↔ ${targetId}`);
+            }
+        }
+
+        // ========== 文件拖放处理 ==========
+        function setupFileDropZone() {
+            const zone = elements.fileDropZone;
+
+            zone.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over-file');
+            });
+
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+            zone.addEventListener('dragleave', (e) => {
+                zone.classList.remove('drag-over-file');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over-file');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const fileInfo = Array.from(files).map(f =>
+                        `${f.name} (${(f.size / 1024).toFixed(1)}KB)`
+                    ).join(', ');
+                    utils.log('文件拖放', `收到 ${files.length} 个文件: ${fileInfo}`);
+
+                    // 如果是图片，可以预览
+                    Array.from(files).forEach(file => {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                utils.log('图片加载', `${file.name} 已加载`);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                } else {
+                    // 尝试获取文本
+                    const text = e.dataTransfer.getData('text/plain');
+                    if (text) {
+                        utils.log('文本拖放', text.substring(0, 50));
+                    }
+                }
+            });
+        }
+
+        // ========== 选项卡操作 ==========
+        function setActiveTab(tabId) {
+            if (state.activeTabId !== tabId) {
+                state.activeTabId = tabId;
+                renderTabs();
+                utils.log('切换选项卡', `激活: ${tabId}`);
+            }
+        }
+
+        function handleCloseTab(tabId) {
+            const tabIndex = state.tabs.findIndex(t => t.id === tabId);
+            if (tabIndex === -1 || !state.tabs[tabIndex].closeable) return;
+
+            state.tabs.splice(tabIndex, 1);
+
+            // 如果关闭的是当前激活的选项卡，激活第一个
+            if (state.activeTabId === tabId && state.tabs.length > 0) {
+                state.activeTabId = state.tabs[0].id;
+            } else if (state.tabs.length === 0) {
+                // 如果没有选项卡了，创建一个默认的
+                state.tabs.push({
+                    id: utils.generateId('tab'),
+                    label: CONFIG.defaultTabLabel,
+                    closeable: false,
+                    created: Date.now()
+                });
+                state.activeTabId = state.tabs[0].id;
+            }
+
+            renderTabs();
+            utils.log('关闭选项卡', tabId);
+        }
+
+        function addNewTab() {
+            if (state.tabs.length >= CONFIG.maxTabs) {
+                utils.log('警告', `最多只能创建 ${CONFIG.maxTabs} 个选项卡`);
+                return;
+            }
+
+            const newTab = {
+                id: utils.generateId('tab'),
+                label: `${CONFIG.defaultTabLabel} ${state.tabs.length + 1}`,
+                closeable: true,
+                created: Date.now()
+            };
+
+            state.tabs.push(newTab);
+            state.activeTabId = newTab.id;
+            renderTabs();
+            utils.log('新建选项卡', newTab.label);
+        }
+
+        // ========== 卡片操作 ==========
+        function addSampleCard() {
+            if (state.cards.length >= CONFIG.maxCards) {
+                utils.log('警告', `最多只能创建 ${CONFIG.maxCards} 个卡片`);
+                return;
+            }
+
+            const newCard = {
+                id: utils.generateId('card'),
+                title: `新任务 ${state.cards.length + 1}`,
+                badge: '待开始',
+                desc: '点击编辑描述',
+                owner: '当前用户',
+                status: 'todo',
+                created: Date.now()
+            };
+
+            state.cards.push(newCard);
+            renderCards();
+            utils.log('新建卡片', newCard.title);
+        }
+
+        // ========== 键盘快捷键 ==========
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Cmd/Ctrl + T 新建选项卡
+                if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+                    e.preventDefault();
+                    addNewTab();
+                }
+
+                // Cmd/Ctrl + N 新建卡片
+                if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+                    e.preventDefault();
+                    addSampleCard();
+                }
+
+                // Esc 取消拖拽
+                if (e.key === 'Escape' && dragContext.element) {
+                    e.preventDefault();
+                    if (dragContext.element) {
+                        dragContext.element.classList.remove('dragging-source');
+                    }
+                    utils.log('取消拖拽', 'ESC');
+                }
+            });
+        }
+
+        // ========== 网格拖放处理 ==========
+        function setupGridDrop() {
+            const grid = elements.cardGrid;
+
+            grid.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            grid.addEventListener('drop', (e) => {
+                e.preventDefault();
+
+                if (dragContext.type === 'card' && dragContext.element) {
+                    // 将卡片移动到网格末尾
+                    const cardId = dragContext.element.dataset.cardId;
+                    const cardIndex = state.cards.findIndex(c => c.id === cardId);
+
+                    if (cardIndex !== -1) {
+                        const [card] = state.cards.splice(cardIndex, 1);
+                        state.cards.push(card);
+                        renderCards();
+                        utils.log('卡片移动到末尾', card.title);
+                    }
+                }
+            });
+        }
+
+        // ========== 选项卡栏拖放处理 ==========
+        function setupTabBarDrop() {
+            const tabBar = elements.tabContainer;
+
+            tabBar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            tabBar.addEventListener('drop', (e) => {
+                e.preventDefault();
+
+                if (dragContext.type === 'tab' && dragContext.element) {
+                    // 将选项卡移动到末尾
+                    const tabId = dragContext.element.dataset.tabId;
+                    const tabIndex = state.tabs.findIndex(t => t.id === tabId);
+
+                    if (tabIndex !== -1) {
+                        const [tab] = state.tabs.splice(tabIndex, 1);
+                        state.tabs.push(tab);
+                        renderTabs();
+                        utils.log('选项卡移动到末尾', tab.label);
+                    }
+                }
+            });
+        }
+
+        // ========== 初始化 ==========
+        function init() {
+            // 阻止全局默认拖放行为
+            document.addEventListener('dragover', (e) => e.preventDefault());
+            document.addEventListener('drop', (e) => e.preventDefault());
+
+            // 渲染初始界面
+            renderTabs();
+            renderCards();
+
+            // 设置文件拖放区
+            setupFileDropZone();
+
+            // 设置网格和选项卡栏拖放
+            setupGridDrop();
+            setupTabBarDrop();
+
+            // 设置键盘快捷键
+            setupKeyboardShortcuts();
+
+            // 添加新选项卡按钮事件
+            elements.addTabBtn.addEventListener('click', addNewTab);
+
+            // 双击工作区空白处新建卡片
+            elements.workspace.addEventListener('dblclick', (e) => {
+                if (e.target === elements.workspace || e.target === elements.cardGrid) {
+                    addSampleCard();
+                }
+            });
+
+            // 初始化统计
+            utils.updateStats();
+            utils.log('系统初始化完成', `卡片: ${state.cards.length}, 选项卡: ${state.tabs.length}`);
+
+            // 添加离线存储支持 (可选)
+            if (window.localStorage) {
+                // 可以添加保存/加载功能
+                utils.log('本地存储可用', '支持自动保存');
+            }
+        }
+
+        // 启动应用
+        init();
+    })();
+</script>
+</body>
+</html>

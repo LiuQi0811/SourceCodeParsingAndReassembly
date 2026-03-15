@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABORT API.</title>
+    <style>
+        .wrapper{
+            width: 70%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        video{
+            max-width: 100%;
+        }
+        .wrapper > div{
+            margin-bottom: 10px;
+        }
+        .hidden{
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <h1>简易离线视频播放器</h1>
+        <div class="controls">
+            <!-- 下载视频按钮 -->
+            <button class="download">下载视频</button>
+            <!-- 取消下载按钮（初始隐藏） -->
+            <button class="abort hidden">取消下载</button>
+            <!-- 显示状态信息的段落 -->
+            <p class="reports"></p>
+        </div>
+        <!-- 视频容器（初始隐藏） -->
+        <div class="videoWrapper hidden">
+            <p>© copyright 简易离线视频播放器</p>
+        </div>
+    </div>
+    <script>
+        // 视频文件的 URL（本地或远程）
+        const url = "b_CvRraQEUyYic1609551977_v1.mp4";
+        // 获取 DOM 元素引用
+        const videoWrapper = document.querySelector(".videoWrapper");  // 视频容器
+        const downloadButton = document.querySelector(".download"); // 下载按钮
+        const abortButton = document.querySelector(".abort"); // 取消按钮
+        const reports = document.querySelector(".reports");  // 状态提示区域
+
+        // 控制 fetch 请求的 AbortController 实例
+        let controller;
+        // 用于显示“下载中...”动画的定时器 ID
+        let progressAnim;
+        // 动画计数器（用于切换省略号）
+        let animCount = 0;
+
+        // 为“下载视频”按钮绑定点击事件
+        downloadButton.addEventListener("click", fectchVideo);
+        // 为“取消下载”按钮绑定点击事件
+        abortButton.addEventListener("click", () => {
+            controller.abort(); // 中止 fetch 请求
+            console.log("下载已取消");
+        });
+
+        /**
+         * fectchVideo 异步函数：下载并播放视频
+         * @author LiuQi 
+         */
+        async function fectchVideo(){
+            // 创建新的 AbortController 用于控制本次请求
+            controller = new AbortController();
+            const signal = controller.signal; // 获取信号对象，传递给 fetch
+
+            // 隐藏下载按钮，显示取消按钮
+            downloadButton.classList.add("hidden");
+            abortButton.classList.remove("hidden");
+
+            // 初始提示信息
+            reports.textContent = "视频等待下载中...";
+
+            try{
+                // 使用 fetch 发起网络请求（支持中止）
+                const response = await fetch(url,{signal});
+                // 检查响应是否成功
+                if(!response.ok){
+                    throw new Error("请求失败");
+                }
+
+                // 启动“下载中...”动画效果
+                await runAnimation();
+                // （调试用）检查响应体是否已被使用
+                setTimeout(() => console.log("Body used: ", response.bodyUsed), 1);
+
+                // 将响应数据转为 Blob 对象（二进制大对象）
+                const blob = await response.blob();
+                // 如果成功获取到 blob
+                if(blob){
+                    // 创建 video 元素
+                    const video =  document.createElement("video");
+                    video.setAttribute("controls",""); // 添加播放控件
+                    video.src = URL.createObjectURL(blob); // 将 blob 转为可播放的 URL
+
+                    // 将 video 元素插入到页面容器中
+                    videoWrapper.appendChild(video);
+
+                    // 显示视频容器，隐藏按钮
+                    videoWrapper.classList.remove("hidden");
+                    abortButton.classList.add("hidden");
+                    downloadButton.classList.add("hidden");
+
+                    // 更新状态提示
+                    reports.textContent = "视频已准备就绪，可以播放";
+                }
+            }
+            catch(error){
+                // 出现错误时恢复界面状态
+                abortButton.classList.add('hidden');
+                downloadButton.classList.remove('hidden');
+
+                // 显示错误信息（如网络错误、用户取消等）
+                if (error.name === 'AbortError') {
+                    reports.textContent = '下载已取消';
+                } else {
+                    reports.textContent = '下载出错: ' + error.message;
+                }
+            }finally{
+                // 清除动画定时器，重置计数器
+                clearInterval(progressAnim);
+                animCount = 0;
+            }
+        }
+
+        /**
+         * runAnimation  显示“下载中...”的动态省略号动画
+         * @author LiuQi
+         */
+        async function runAnimation(){
+            progressAnim = setInterval(() => {
+                // 使用位运算 & 3 实现 0~3 循环（等价于 animCount % 4）
+                switch (animCount++ & 3) {
+                    case 0: reports.textContent = 'Download occuring; waiting for video player to be constructed'; break;
+                    case 1: reports.textContent = 'Download occuring; waiting for video player to be constructed.'; break;
+                    case 2: reports.textContent = 'Download occuring; waiting for video player to be constructed..'; break;
+                    case 3: reports.textContent = 'Download occuring; waiting for video player to be constructed...'; break;
+                }
+            }, 300); // 每 300 毫秒更新一次
+        }
+        
+    </script>
+</body>
+</html>

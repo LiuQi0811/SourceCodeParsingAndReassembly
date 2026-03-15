@@ -11,7 +11,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @Description BusinessLoggerApplication
  * @Author LiuQi
  */
-@EnableLoggerRecord(tenant = "")
+@EnableLoggerRecord(tenant = "",enrolTransaction = true)
 @SpringBootApplication
 public class BusinessLoggerApplication {
     public static void main(String[] args) {

@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Ink API 专业演示</title>
+    <style>
+        :root {
+            --bg-dark: #0a0c10;
+            --bg-panel: #12151c;
+            --bg-button: #1e222d;
+            --bg-hover: #2a2f3d;
+            --text-primary: #f0f2f5;
+            --text-secondary: #8b919e;
+            --accent: #5e7ce2;
+            --accent-glow: rgba(94, 124, 226, 0.4);
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --border: #2a2f3d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            height: 56px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 12px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 12px;
+            border-right: 1px solid var(--border);
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+            margin-left: auto;
+            padding-right: 0;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-button);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--danger);
+            transition: background 0.3s;
+        }
+
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .btn {
+            height: 34px;
+            padding: 0 12px;
+            background: var(--bg-button);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            width: 34px;
+            padding: 0;
+        }
+
+        /* 颜色选择器 */
+        .color-picker-wrapper {
+            position: relative;
+            width: 34px;
+            height: 34px;
+        }
+
+        .color-preview {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .color-preview:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="color"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* 滑块 */
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slider-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            width: 40px;
+        }
+
+        input[type="range"] {
+            width: 80px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* 主区域 */
+        .main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 画布容器 */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 主画布在底层 */
+            z-index: 1;
+        }
+
+        /* Ink API 预测层在顶层 */
+        #ink-canvas {
+            z-index: 2;
+            pointer-events: none; /* 不阻挡主画布事件 */
+        }
+
+        /* 侧边信息栏 */
+        .info-panel {
+            width: 240px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .panel-section {
+            background: var(--bg-dark);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .log-area {
+            flex: 1;
+            background: #000;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 10px;
+            line-height: 1.4;
+            overflow-y: auto;
+            color: var(--text-secondary);
+        }
+
+        .log-entry {
+            margin-bottom: 2px;
+        }
+
+        .log-time {
+            color: var(--accent);
+        }
+
+        .log-api {
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .log-user {
+            color: var(--warning);
+        }
+
+        /* 画笔类型选择 */
+        .brush-types {
+            display: flex;
+            gap: 6px;
+        }
+
+        .brush-btn {
+            flex: 1;
+            padding: 8px;
+            background: var(--bg-button);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .brush-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .brush-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .info-panel {
+                display: none;
+            }
+
+            .toolbar-group:not(:first-child):not(:last-child) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 顶部工具栏 -->
+<header class="toolbar">
+    <div class="toolbar-group">
+        <div class="logo">
+            <div class="logo-icon">Ink</div>
+            <span>Ink API Demo</span>
+        </div>
+    </div>
+
+    <div class="toolbar-group">
+        <div class="color-picker-wrapper">
+            <div class="color-preview" id="color-preview" style="background: #e2e8f0;"></div>
+            <input type="color" id="color-picker" value="#e2e8f0"/>
+        </div>
+        <div class="slider-group">
+            <span class="slider-label">粗细</span>
+            <input type="range" id="size-slider" min="1" max="20" value="3"/>
+        </div>
+    </div>
+
+    <div class="toolbar-group">
+        <div class="brush-types">
+            <button class="brush-btn active" data-brush="pen">钢笔</button>
+            <button class="brush-btn" data-brush="marker">马克笔</button>
+            <button class="brush-btn" data-brush="pencil">铅笔</button>
+        </div>
+    </div>
+
+    <div class="toolbar-group">
+        <button class="btn" id="undo-btn" disabled>撤销</button>
+        <button class="btn" id="redo-btn" disabled>重做</button>
+        <button class="btn btn-icon" id="clear-btn" title="清空">🗑️</button>
+    </div>
+
+    <div class="toolbar-group">
+        <button class="btn" id="highlight-ink-btn">高亮预测轨迹</button>
+        <div class="status-pill">
+            <span class="status-dot" id="api-status"></span>
+            <span id="api-status-text">检测中</span>
+        </div>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<div class="main-container">
+    <div class="canvas-container" id="canvas-container">
+        <!-- 主绘图层 -->
+        <canvas id="main-canvas"></canvas>
+        <!-- Ink API 预测层 -->
+        <canvas id="ink-canvas"></canvas>
+    </div>
+
+    <!-- 侧边信息栏 -->
+    <aside class="info-panel">
+        <div class="panel-section">
+            <div class="section-title">📊 绘图统计</div>
+            <div class="stat-row">
+                <span>总笔画数</span>
+                <span class="stat-value" id="stat-strokes">0</span>
+            </div>
+            <div class="stat-row">
+                <span>当前笔触点</span>
+                <span class="stat-value" id="stat-points">0</span>
+            </div>
+            <div class="stat-row">
+                <span>压力范围</span>
+                <span class="stat-value" id="stat-pressure">-</span>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">💡 功能说明</div>
+            <p style="color: var(--text-secondary); line-height: 1.5;">
+                本演示使用 Ink API 实现低延迟绘制。开启"高亮预测轨迹"后，绿色线条为系统预测的笔迹。
+            </p>
+        </div>
+
+        <div class="panel-section" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="section-title">📜 操作日志</div>
+            <div class="log-area" id="log-area"></div>
+        </div>
+    </aside>
+</div>
+
+<script>
+    // ========================================
+    // Ink API 专业绘图演示
+    // ========================================
+
+    // 配置常量
+    const CONFIG = {
+        defaultColor: '#e2e8f0',
+        defaultSize: 3,
+        brushTypes: {
+            pen: {opacity: 1.0, pressureFactor: 1.5, flow: 1.0},
+            marker: {opacity: 0.6, pressureFactor: 0.8, flow: 0.8},
+            pencil: {opacity: 0.8, pressureFactor: 1.2, flow: 0.6}
+        }
+    };
+
+    // 状态管理
+    const state = {
+        isDrawing: false,
+        lastPoint: null,
+        currentColor: CONFIG.defaultColor,
+        currentSize: CONFIG.defaultSize,
+        currentBrush: 'pen',
+        inkPresenter: null,
+        inkSupported: false,
+        highlightMode: false,
+        strokes: [],
+        currentStroke: null,
+        undoStack: [],
+        redoStack: [],
+        points: 0,
+        minPressure: 1,
+        maxPressure: 0
+    };
+
+    // DOM 元素
+    const elements = {
+        mainCanvas: document.getElementById('main-canvas'),
+        inkCanvas: document.getElementById('ink-canvas'),
+        container: document.getElementById('canvas-container'),
+        colorPicker: document.getElementById('color-picker'),
+        colorPreview: document.getElementById('color-preview'),
+        sizeSlider: document.getElementById('size-slider'),
+        undoBtn: document.getElementById('undo-btn'),
+        redoBtn: document.getElementById('redo-btn'),
+        clearBtn: document.getElementById('clear-btn'),
+        highlightBtn: document.getElementById('highlight-ink-btn'),
+        apiStatus: document.getElementById('api-status'),
+        apiStatusText: document.getElementById('api-status-text'),
+        logArea: document.getElementById('log-area'),
+        statStrokes: document.getElementById('stat-strokes'),
+        statPoints: document.getElementById('stat-points'),
+        statPressure: document.getElementById('stat-pressure')
+    };
+
+    const mainCtx = elements.mainCanvas.getContext('2d');
+    const inkCtx = elements.inkCanvas.getContext('2d');
+
+    // 日志系统
+    function log(message, type = 'info') {
+        const time = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        const typeClass = type === 'api' ? 'log-api' : type === 'user' ? 'log-user' : '';
+        entry.innerHTML = `<span class="log-time">${time}</span> <span class="${typeClass}">${message}</span>`;
+
+        elements.logArea.appendChild(entry);
+        elements.logArea.scrollTop = elements.logArea.scrollHeight;
+
+        // 限制日志数量
+        while (elements.logArea.children.length > 50) {
+            elements.logArea.removeChild(elements.logArea.firstChild);
+        }
+    }
+
+    // 初始化画布尺寸
+    function resizeCanvas() {
+        const rect = elements.container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        [elements.mainCanvas, elements.inkCanvas].forEach(canvas => {
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            canvas.getContext('2d').scale(dpr, dpr);
+        });
+
+        // 重绘所有笔画
+        redrawAllStrokes();
+        log('画布尺寸已调整');
+    }
+
+    // 检测并初始化 Ink API
+    async function initInkAPI() {
+        state.inkSupported = 'ink' in navigator;
+
+        elements.apiStatus.classList.toggle('active', state.inkSupported);
+        elements.apiStatusText.textContent = state.inkSupported ? 'Ink API 就绪' : '不支持 Ink API';
+
+        if (state.inkSupported) {
+            try {
+                // 将预测层作为呈现区域
+                state.inkPresenter = await navigator.ink.requestPresenter({
+                    presentationArea: elements.inkCanvas
+                });
+                log('Ink API Presenter 已连接', 'api');
+            } catch (e) {
+                log(`Ink API 初始化失败: ${e.message}`, 'user');
+                state.inkSupported = false;
+            }
+        } else {
+            log('当前浏览器不支持 Ink API，将使用标准渲染', 'user');
+        }
+    }
+
+    // 获取画笔设置
+    function getBrushSettings() {
+        return CONFIG.brushTypes[state.currentBrush] || CONFIG.brushTypes.pen;
+    }
+
+    // 计算线条宽度 (基于压力)
+    function calculateWidth(pressure) {
+        const brush = getBrushSettings();
+        const base = state.currentSize;
+        return base + (base * (pressure - 0.5) * brush.pressureFactor);
+    }
+
+    // 绘制线段 (主画布)
+    function drawSegment(ctx, p1, p2, pressure, color) {
+        if (!p1 || !p2) return;
+
+        const width = calculateWidth(pressure);
+        const brush = getBrushSettings();
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+
+        // 使用二次贝塞尔曲线使线条更平滑
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = brush.opacity * brush.flow;
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+    }
+
+    // 绘制单点 (点按)
+    function drawDot(ctx, point, pressure, color) {
+        const width = calculateWidth(pressure) * 0.8;
+        const brush = getBrushSettings();
+
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, width / 2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = brush.opacity;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+
+    // 重绘所有笔画
+    function redrawAllStrokes() {
+        const rect = elements.container.getBoundingClientRect();
+        mainCtx.clearRect(0, 0, rect.width, rect.height);
+
+        state.strokes.forEach(stroke => {
+            if (stroke.points.length === 0) return;
+
+            if (stroke.points.length === 1) {
+                drawDot(mainCtx, stroke.points[0], stroke.pressures[0], stroke.color);
+            } else {
+                for (let i = 1; i < stroke.points.length; i++) {
+                    drawSegment(
+                        mainCtx,
+                        stroke.points[i - 1],
+                        stroke.points[i],
+                        stroke.pressures[i],
+                        stroke.color
+                    );
+                }
+            }
+        });
+    }
+
+    // 开始新笔画
+    function beginStroke(e) {
+        state.isDrawing = true;
+        state.currentStroke = {
+            points: [],
+            pressures: [],
+            color: state.currentColor,
+            brush: state.currentBrush
+        };
+
+        const point = {x: e.offsetX, y: e.offsetY};
+        const pressure = e.pressure || 0.5;
+
+        state.currentStroke.points.push(point);
+        state.currentStroke.pressures.push(pressure);
+
+        // 绘制起点
+        drawDot(mainCtx, point, pressure, state.currentColor);
+
+        state.lastPoint = point;
+        state.points++;
+
+        updateStats(pressure);
+        log('开始绘制', 'user');
+    }
+
+    // 绘制中
+    async function moveStroke(e) {
+        if (!state.isDrawing) return;
+
+        const point = {x: e.offsetX, y: e.offsetY};
+        const pressure = e.pressure || 0.5;
+
+        state.currentStroke.points.push(point);
+        state.currentStroke.pressures.push(pressure);
+
+        // 绘制到主画布
+        drawSegment(mainCtx, state.lastPoint, point, pressure, state.currentColor);
+
+        state.lastPoint = point;
+        state.points++;
+
+        // 核心：调用 Ink API 更新预测轨迹起点
+        if (state.inkPresenter && state.inkSupported) {
+            try {
+                // 如果开启高亮模式，使用绿色显示预测轨迹，否则使用当前颜色
+                const inkColor = state.highlightMode ? '#4ade80' : state.currentColor;
+                const inkWidth = calculateWidth(pressure);
+
+                await state.inkPresenter.updateInkTrailStartPoint(e, {
+                    color: inkColor,
+                    diameter: inkWidth * 1.2 // 稍微大一点，便于观察
+                });
+            } catch (err) {
+                // 忽略 Ink API 错误，不影响主绘制
+            }
+        }
+
+        updateStats(pressure);
+    }
+
+    // 结束笔画
+    function endStroke() {
+        if (!state.isDrawing) return;
+
+        state.isDrawing = false;
+
+        if (state.currentStroke && state.currentStroke.points.length > 0) {
+            // 保存到历史
+            state.strokes.push(state.currentStroke);
+            state.undoStack.push({action: 'add', stroke: state.currentStroke});
+            state.redoStack = [];
+
+            updateButtons();
+        }
+
+        state.currentStroke = null;
+        state.lastPoint = null;
+
+        // 清空预测层
+        const rect = elements.container.getBoundingClientRect();
+        inkCtx.clearRect(0, 0, rect.width, rect.height);
+
+        elements.statStrokes.textContent = state.strokes.length;
+        log('结束绘制', 'user');
+    }
+
+    // 更新统计信息
+    function updateStats(pressure) {
+        state.minPressure = Math.min(state.minPressure, pressure);
+        state.maxPressure = Math.max(state.maxPressure, pressure);
+
+        elements.statPoints.textContent = state.points;
+        elements.statPressure.textContent = `${state.minPressure.toFixed(2)} - ${state.maxPressure.toFixed(2)}`;
+    }
+
+    // 撤销
+    function undo() {
+        if (state.strokes.length === 0) return;
+
+        const stroke = state.strokes.pop();
+        state.redoStack.push({action: 'add', stroke});
+
+        redrawAllStrokes();
+        updateButtons();
+        elements.statStrokes.textContent = state.strokes.length;
+        log('执行撤销');
+    }
+
+    // 重做
+    function redo() {
+        if (state.redoStack.length === 0) return;
+
+        const item = state.redoStack.pop();
+        state.strokes.push(item.stroke);
+        state.undoStack.push({action: 'add', stroke: item.stroke});
+
+        redrawAllStrokes();
+        updateButtons();
+        elements.statStrokes.textContent = state.strokes.length;
+        log('执行重做');
+    }
+
+    // 清空
+    function clearCanvas() {
+        if (state.strokes.length === 0) return;
+
+        state.strokes = [];
+        state.undoStack = [];
+        state.redoStack = [];
+
+        redrawAllStrokes();
+        updateButtons();
+        elements.statStrokes.textContent = 0;
+        log('画布已清空', 'user');
+    }
+
+    // 更新按钮状态
+    function updateButtons() {
+        elements.undoBtn.disabled = state.strokes.length === 0;
+        elements.redoBtn.disabled = state.redoStack.length === 0;
+    }
+
+    // 初始化事件监听
+    function initEvents() {
+        // 指针事件
+        elements.mainCanvas.addEventListener('pointerdown', beginStroke);
+        elements.mainCanvas.addEventListener('pointermove', moveStroke);
+        elements.mainCanvas.addEventListener('pointerup', endStroke);
+        elements.mainCanvas.addEventListener('pointerleave', endStroke);
+        elements.mainCanvas.addEventListener('pointercancel', endStroke);
+
+        // 工具栏事件
+        elements.colorPicker.addEventListener('input', e => {
+            state.currentColor = e.target.value;
+            elements.colorPreview.style.background = e.target.value;
+        });
+
+        elements.sizeSlider.addEventListener('input', e => {
+            state.currentSize = parseInt(e.target.value);
+        });
+
+        document.querySelectorAll('.brush-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.brush-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.currentBrush = btn.dataset.brush;
+                log(`切换画笔: ${btn.textContent}`);
+            });
+        });
+
+        elements.undoBtn.addEventListener('click', undo);
+        elements.redoBtn.addEventListener('click', redo);
+        elements.clearBtn.addEventListener('click', clearCanvas);
+
+        elements.highlightBtn.addEventListener('click', () => {
+            state.highlightMode = !state.highlightMode;
+            elements.highlightBtn.classList.toggle('active', state.highlightMode);
+            log(`预测轨迹高亮: ${state.highlightMode ? '开启' : '关闭'}`, 'api');
+        });
+
+        // 键盘快捷键
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) redo();
+                    else undo();
+                }
+            }
+        });
+
+        // 窗口调整
+        window.addEventListener('resize', resizeCanvas);
+    }
+
+    // 主初始化函数
+    async function init() {
+        log('系统初始化中...');
+
+        resizeCanvas();
+        await initInkAPI();
+        initEvents();
+
+        // 设置初始 UI 状态
+        elements.colorPreview.style.background = CONFIG.defaultColor;
+        updateButtons();
+
+        log('系统就绪，开始绘制');
+    }
+
+    // 启动
+    init();
+</script>
+</body>
+</html>

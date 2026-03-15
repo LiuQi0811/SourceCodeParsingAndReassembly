@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>媒体流图像捕获 API 专业演示</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --danger: #ef4444;
+            --success: #22c55e;
+            --radius: 12px;
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 16px 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .header-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 999px;
+            color: var(--primary);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* 主布局 */
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            flex: 1;
+        }
+
+        @media (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 视频区域 */
+        .camera-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: var(--radius);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            box-shadow: var(--shadow);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: #000;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: var(--text-muted);
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        .placeholder-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+
+        /* 闪光动画 */
+        .flash-overlay {
+            position: absolute;
+            inset: 0;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .flash-overlay.active {
+            animation: flash 0.15s ease-out;
+        }
+
+        @keyframes flash {
+            0% {
+                opacity: 0.9;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* 控制栏 */
+        .controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 16px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .control-group-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        select {
+            padding: 8px 32px 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            transition: all 0.2s;
+        }
+
+        select:hover {
+            border-color: var(--primary);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-light);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--border);
+            transform: translateY(-1px);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        button.primary:hover:not(:disabled) {
+            background: #2563eb;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        button.capture {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            padding: 0;
+            border: 4px solid var(--text);
+            background: transparent;
+            position: relative;
+        }
+
+        button.capture::after {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: var(--text);
+            transition: all 0.15s;
+        }
+
+        button.capture:hover::after {
+            background: var(--danger);
+        }
+
+        button.capture:active::after {
+            transform: scale(0.9);
+        }
+
+        button.icon-only {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            justify-content: center;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-body {
+            padding: 16px;
+        }
+
+        /* 设置项 */
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .setting-value {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="range"] {
+            width: 100px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border);
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Toggle Switch */
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle.active {
+            background: var(--primary);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        /* 照片画廊 */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--bg);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+
+        .gallery-item .overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.7));
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: flex-end;
+            padding: 8px;
+            font-size: 11px;
+        }
+
+        .gallery-item:hover .overlay {
+            opacity: 1;
+        }
+
+        .gallery-empty {
+            grid-column: span 2;
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* 照片信息 */
+        .photo-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .info-box {
+            background: var(--bg);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .info-data {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* 日志 */
+        .log-container {
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11px;
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .log-msg {
+            color: var(--text-muted);
+        }
+
+        .log-msg.error {
+            color: var(--danger);
+        }
+
+        .log-msg.success {
+            color: var(--success);
+        }
+
+        /* 全屏预览 */
+        .fullscreen-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .fullscreen-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .fullscreen-image {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .fullscreen-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .fullscreen-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            main {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .controls-bar {
+                padding: 12px;
+            }
+
+            .panel-body {
+                padding: 12px;
+            }
+
+            button.capture {
+                width: 56px;
+                height: 56px;
+            }
+
+            .gallery {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <h1>Image Capture API 专业演示</h1>
+        <span class="header-badge" id="api-status">检测中...</span>
+    </div>
+</header>
+
+<main>
+    <div class="app-container">
+        <!-- 左侧：相机区域 -->
+        <div class="camera-section">
+            <!-- 视频容器 -->
+            <div class="video-container" id="video-wrapper">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="flash-overlay" id="flash-overlay"></div>
+                <div class="video-placeholder" id="video-placeholder">
+                    <div class="placeholder-icon">📷</div>
+                    <div>点击下方按钮启动相机</div>
+                </div>
+            </div>
+
+            <!-- 控制栏 -->
+            <div class="controls-bar">
+                <div class="control-group">
+                    <select id="camera-select">
+                        <option value="">选择摄像头</option>
+                    </select>
+                </div>
+
+                <div class="control-group-center">
+                    <button type="button" id="start-btn" class="primary">启动相机</button>
+                    <button type="button" id="capture-btn" class="capture" disabled title="拍照"></button>
+                    <button type="button" id="grabframe-btn" class="icon-only" disabled title="抓取帧">🎨</button>
+                </div>
+
+                <div class="control-group">
+                    <button type="button" id="switch-btn" disabled title="切换摄像头">🔄</button>
+                    <button type="button" id="torch-btn" disabled title="闪光灯">💡</button>
+                </div>
+            </div>
+
+            <!-- 状态信息 -->
+            <div class="panel">
+                <div class="panel-body" style="padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                        <div>
+                            <span style="color: var(--text-muted); font-size: 12px;">状态：</span>
+                            <span id="status-text" style="font-weight: 500;">未启动</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-muted); font-size: 12px;">分辨率：</span>
+                            <span id="resolution-text">-</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-muted); font-size: 12px;">能力：</span>
+                            <span id="capabilities-text">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：信息面板 -->
+        <div class="sidebar">
+            <!-- 相机设置 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>相机设置</span>
+                </div>
+                <div class="panel-body">
+                    <div class="setting-item">
+                        <span class="setting-label">缩放</span>
+                        <div class="setting-control">
+                            <input type="range" id="zoom-slider" min="1" max="1" step="0.1" value="1" disabled>
+                            <span id="zoom-value" style="min-width: 30px; text-align: right;">1x</span>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">闪光灯模式</span>
+                        <select id="flash-mode" style="width: 100px;" disabled>
+                            <option value="off">关闭</option>
+                            <option value="auto">自动</option>
+                            <option value="flash">闪光</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">红眼减弱</span>
+                        <div class="toggle" id="redeye-toggle" data-active="false"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 照片画廊 -->
+            <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="panel-header">
+                    <span>照片画廊</span>
+                    <span id="photo-count" style="font-size: 12px; color: var(--text-muted);">0 张</span>
+                </div>
+                <div class="panel-body" style="flex: 1; overflow-y: auto;">
+                    <div class="gallery" id="gallery">
+                        <div class="gallery-empty">暂无照片</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 照片详情 -->
+            <div class="panel" id="photo-details" style="display: none;">
+                <div class="panel-header">
+                    <span>照片详情</span>
+                    <button type="button" id="download-btn" style="padding: 6px 12px; font-size: 12px;">下载</button>
+                </div>
+                <div class="panel-body">
+                    <div class="photo-info">
+                        <div class="info-box">
+                            <div class="info-label">捕获方式</div>
+                            <div class="info-data" id="detail-method">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">分辨率</div>
+                            <div class="info-data" id="detail-resolution">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">文件大小</div>
+                            <div class="info-data" id="detail-size">-</div>
+                        </div>
+                        <div class="info-box">
+                            <div class="info-label">类型</div>
+                            <div class="info-data" id="detail-type">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>日志</span>
+                    <button type="button" id="clear-log-btn" style="padding: 4px 8px; font-size: 11px;">清除</button>
+                </div>
+                <div class="panel-body" style="padding: 0;">
+                    <div class="log-container" id="log-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- 全屏预览 -->
+<div class="fullscreen-overlay" id="fullscreen-overlay">
+    <button class="fullscreen-close" id="fullscreen-close">✕</button>
+    <img class="fullscreen-image" id="fullscreen-image" src="" alt="Photo preview"/>
+</div>
+
+<script>
+    // ========================================
+    // 媒体流图像捕获 API - 专业演示
+    // ========================================
+
+    const state = {
+        stream: null,
+        imageCapture: null,
+        track: null,
+        capabilities: null,
+        photos: [],
+        currentPhotoIndex: -1,
+        isCapturing: false,
+        cameras: [],
+        currentCameraIndex: 0
+    };
+
+    // DOM 元素缓存
+    const $ = id => document.getElementById(id);
+    const dom = {
+        video: $('video'),
+        videoPlaceholder: $('video-placeholder'),
+        flashOverlay: $('flash-overlay'),
+        cameraSelect: $('camera-select'),
+        startBtn: $('start-btn'),
+        captureBtn: $('capture-btn'),
+        grabframeBtn: $('grabframe-btn'),
+        switchBtn: $('switch-btn'),
+        torchBtn: $('torch-btn'),
+        statusText: $('status-text'),
+        resolutionText: $('resolution-text'),
+        capabilitiesText: $('capabilities-text'),
+        apiStatus: $('api-status'),
+        zoomSlider: $('zoom-slider'),
+        zoomValue: $('zoom-value'),
+        flashMode: $('flash-mode'),
+        redeyeToggle: $('redeye-toggle'),
+        gallery: $('gallery'),
+        photoCount: $('photo-count'),
+        photoDetails: $('photo-details'),
+        downloadBtn: $('download-btn'),
+        logContainer: $('log-container'),
+        clearLogBtn: $('clear-log-btn'),
+        fullscreenOverlay: $('fullscreen-overlay'),
+        fullscreenImage: $('fullscreen-image'),
+        fullscreenClose: $('fullscreen-close'),
+        detailMethod: $('detail-method'),
+        detailResolution: $('detail-resolution'),
+        detailSize: $('detail-size'),
+        detailType: $('detail-type')
+    };
+
+    // 日志系统
+    function log(message, type = 'info') {
+        const time = new Date().toTimeString().slice(0, 8);
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `
+        <span class="log-time">${time}</span>
+        <span class="log-msg ${type}">${message}</span>
+      `;
+        dom.logContainer.appendChild(entry);
+        dom.logContainer.scrollTop = dom.logContainer.scrollHeight;
+
+        // 限制日志条数
+        while (dom.logContainer.children.length > 50) {
+            dom.logContainer.removeChild(dom.logContainer.firstChild);
+        }
+
+        console.log(`[ImageCapture][${time}] ${message}`);
+    }
+
+    // 初始化检测
+    async function init() {
+        // 检测 API 支持
+        const hasImageCapture = 'ImageCapture' in window;
+        const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+        if (!hasMediaDevices) {
+            dom.apiStatus.textContent = 'API 不支持';
+            dom.apiStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+            dom.apiStatus.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            dom.apiStatus.style.color = 'var(--danger)';
+            log('当前环境不支持媒体设备访问', 'error');
+            dom.startBtn.disabled = true;
+            return;
+        }
+
+        dom.apiStatus.textContent = hasImageCapture ? 'API 支持' : '降级模式';
+
+        if (!hasImageCapture) {
+            dom.apiStatus.style.background = 'rgba(245, 158, 11, 0.15)';
+            dom.apiStatus.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            dom.apiStatus.style.color = 'var(--warning)';
+            log('当前浏览器不支持 ImageCapture API，将使用 Canvas 降级方案', 'info');
+        }
+
+        // 枚举摄像头
+        await enumerateCameras();
+        log('初始化完成');
+    }
+
+    // 枚举摄像头设备
+    async function enumerateCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            state.cameras = devices.filter(device => device.kind === 'videoinput');
+
+            dom.cameraSelect.innerHTML = '<option value="">选择摄像头</option>';
+            state.cameras.forEach((camera, index) => {
+                const option = document.createElement('option');
+                option.value = camera.deviceId;
+                option.textContent = camera.label || `摄像头 ${index + 1}`;
+                dom.cameraSelect.appendChild(option);
+            });
+
+            dom.switchBtn.disabled = state.cameras.length < 2;
+            log(`检测到 ${state.cameras.length} 个摄像头设备`);
+        } catch (error) {
+            log(`枚举设备失败: ${error.message}`, 'error');
+        }
+    }
+
+    // 启动相机
+    async function startCamera(deviceId) {
+        try {
+            log('正在请求相机权限...');
+
+            // 先停止现有流
+            if (state.stream) {
+                stopCamera();
+            }
+
+            const constraints = {
+                video: {
+                    width: {ideal: 1920},
+                    height: {ideal: 1080},
+                    facingMode: deviceId ? undefined : 'user',
+                    deviceId: deviceId ? {exact: deviceId} : undefined
+                },
+                audio: false
+            };
+
+            state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            dom.video.srcObject = state.stream;
+            dom.videoPlaceholder.style.display = 'none';
+
+            // 获取视频轨道
+            state.track = state.stream.getVideoTracks()[0];
+            log(`已连接: ${state.track.label}`);
+
+            // 获取视频设置
+            const settings = state.track.getSettings();
+            dom.resolutionText.textContent = `${settings.width}x${settings.height}`;
+
+            // 初始化 ImageCapture
+            if ('ImageCapture' in window) {
+                state.imageCapture = new ImageCapture(state.track);
+                await loadCapabilities();
+            }
+
+            // 更新 UI
+            updateUI(true);
+            dom.startBtn.textContent = '停止相机';
+            dom.statusText.textContent = '运行中';
+
+            // 更新选择器
+            if (settings.deviceId) {
+                dom.cameraSelect.value = settings.deviceId;
+            }
+
+        } catch (error) {
+            log(`启动失败: ${error.message}`, 'error');
+            dom.statusText.textContent = '启动失败';
+        }
+    }
+
+    // 停止相机
+    function stopCamera() {
+        if (state.stream) {
+            state.stream.getTracks().forEach(track => track.stop());
+            state.stream = null;
+            state.track = null;
+            state.imageCapture = null;
+        }
+
+        dom.video.srcObject = null;
+        dom.videoPlaceholder.style.display = 'flex';
+        updateUI(false);
+        dom.startBtn.textContent = '启动相机';
+        dom.statusText.textContent = '已停止';
+        dom.resolutionText.textContent = '-';
+        dom.capabilitiesText.textContent = '-';
+        log('相机已停止');
+    }
+
+    // 加载相机能力
+    async function loadCapabilities() {
+        if (!state.imageCapture) return;
+
+        try {
+            state.capabilities = await state.imageCapture.getPhotoCapabilities();
+            log('已获取相机能力');
+
+            // 更新能力显示
+            const caps = [];
+            if (state.capabilities.fillLightMode && state.capabilities.fillLightMode.length > 0) {
+                caps.push('闪光');
+                dom.flashMode.disabled = false;
+                dom.flashMode.innerHTML = '';
+                state.capabilities.fillLightMode.forEach(mode => {
+                    const option = document.createElement('option');
+                    option.value = mode;
+                    option.textContent = {off: '关闭', auto: '自动', flash: '闪光'}[mode] || mode;
+                    dom.flashMode.appendChild(option);
+                });
+            }
+
+            if (state.capabilities.redEyeReduction) {
+                caps.push('红眼');
+                dom.redeyeToggle.style.pointerEvents = 'auto';
+                dom.redeyeToggle.style.opacity = '1';
+            }
+
+            if (state.capabilities.zoom) {
+                caps.push('变焦');
+                dom.zoomSlider.disabled = false;
+                dom.zoomSlider.min = state.capabilities.zoom.min;
+                dom.zoomSlider.max = state.capabilities.zoom.max;
+                dom.zoomSlider.step = state.capabilities.zoom.step;
+                dom.zoomSlider.value = state.track.getSettings().zoom || state.capabilities.zoom.min;
+                updateZoomDisplay();
+            }
+
+            dom.capabilitiesText.textContent = caps.length > 0 ? caps.join(' / ') : '基础';
+
+        } catch (error) {
+            log(`获取能力失败: ${error.message}`);
+            dom.capabilitiesText.textContent = '不支持';
+        }
+    }
+
+    // 更新 UI 状态
+    function updateUI(isActive) {
+        dom.captureBtn.disabled = !isActive;
+        dom.grabframeBtn.disabled = !isActive;
+        dom.torchBtn.disabled = !isActive;
+        dom.flashMode.disabled = !isActive || !state.capabilities?.fillLightMode?.length;
+        dom.zoomSlider.disabled = !isActive || !state.capabilities?.zoom;
+    }
+
+    // 拍照
+    async function takePhoto() {
+        if (state.isCapturing) return;
+        state.isCapturing = true;
+
+        try {
+            log('正在拍摄照片...');
+            triggerFlash();
+
+            let blob;
+            let method;
+
+            if (state.imageCapture) {
+                // 应用设置
+                await applyPhotoSettings();
+                blob = await state.imageCapture.takePhoto();
+                method = 'takePhoto';
+            } else {
+                // Canvas 降级
+                const canvas = document.createElement('canvas');
+                canvas.width = dom.video.videoWidth;
+                canvas.height = dom.video.videoHeight;
+                canvas.getContext('2d').drawImage(dom.video, 0, 0);
+
+                blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                method = 'canvas';
+            }
+
+            addPhoto(blob, method);
+            log(`照片已捕获 (${method})`, 'success');
+
+        } catch (error) {
+            log(`拍摄失败: ${error.message}`, 'error');
+        } finally {
+            state.isCapturing = false;
+        }
+    }
+
+    // 抓取帧
+    async function grabFrame() {
+        if (state.isCapturing) return;
+        state.isCapturing = true;
+
+        try {
+            log('正在抓取帧...');
+
+            let bitmap;
+            let method;
+
+            if (state.imageCapture) {
+                bitmap = await state.imageCapture.grabFrame();
+                method = 'grabFrame';
+            } else {
+                // Canvas 降级
+                const canvas = document.createElement('canvas');
+                canvas.width = dom.video.videoWidth;
+                canvas.height = dom.video.videoHeight;
+                canvas.getContext('2d').drawImage(dom.video, 0, 0);
+                bitmap = await createImageBitmap(canvas);
+                method = 'canvas';
+            }
+
+            // 转换为 Blob
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            canvas.getContext('2d').drawImage(bitmap, 0, 0);
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            addPhoto(blob, method);
+
+            log(`帧已抓取 (${method})`, 'success');
+
+        } catch (error) {
+            log(`抓帧失败: ${error.message}`, 'error');
+        } finally {
+            state.isCapturing = false;
+        }
+    }
+
+    // 应用照片设置
+    async function applyPhotoSettings() {
+        if (!state.imageCapture) return;
+
+        const settings = {};
+
+        if (!dom.flashMode.disabled) {
+            settings.fillLightMode = dom.flashMode.value;
+        }
+
+        if (state.capabilities?.redEyeReduction && dom.redeyeToggle.dataset.active === 'true') {
+            settings.redEyeReduction = true;
+        }
+
+        if (Object.keys(settings).length > 0) {
+            try {
+                await state.imageCapture.setOptions(settings);
+            } catch (error) {
+                log(`应用设置失败: ${error.message}`);
+            }
+        }
+    }
+
+    // 添加照片到画廊
+    function addPhoto(blob, method) {
+        const url = URL.createObjectURL(blob);
+        const photo = {
+            id: Date.now(),
+            url,
+            blob,
+            method,
+            timestamp: new Date()
+        };
+
+        // 获取图片尺寸
+        const img = new Image();
+        img.onload = () => {
+            photo.width = img.width;
+            photo.height = img.height;
+            updateGallery();
+            selectPhoto(state.photos.length - 1);
+        };
+        img.src = url;
+
+        state.photos.push(photo);
+
+        // 限制照片数量
+        if (state.photos.length > 20) {
+            const removed = state.photos.shift();
+            URL.revokeObjectURL(removed.url);
+        }
+    }
+
+    // 更新画廊显示
+    function updateGallery() {
+        if (state.photos.length === 0) {
+            dom.gallery.innerHTML = '<div class="gallery-empty">暂无照片</div>';
+            dom.photoCount.textContent = '0 张';
+            return;
+        }
+
+        dom.gallery.innerHTML = state.photos.map((photo, index) => `
+        <div class="gallery-item" data-index="${index}">
+          <img src="${photo.url}" alt="Photo ${index + 1}" />
+          <div class="overlay">
+            <span>${photo.method}</span>
+          </div>
+        </div>
+      `).join('');
+
+        dom.photoCount.textContent = `${state.photos.length} 张`;
+
+        // 绑定点击事件
+        dom.gallery.querySelectorAll('.gallery-item').forEach(item => {
+            item.addEventListener('click', () => {
+                selectPhoto(parseInt(item.dataset.index));
+            });
+        });
+    }
+
+    // 选择照片
+    function selectPhoto(index) {
+        if (index < 0 || index >= state.photos.length) return;
+
+        state.currentPhotoIndex = index;
+        const photo = state.photos[index];
+
+        dom.photoDetails.style.display = 'block';
+        dom.detailMethod.textContent = photo.method;
+        dom.detailResolution.textContent = `${photo.width} x ${photo.height}`;
+        dom.detailSize.textContent = `${(photo.blob.size / 1024).toFixed(1)} KB`;
+        dom.detailType.textContent = photo.blob.type.split('/')[1].toUpperCase();
+
+        // 高亮选中
+        dom.gallery.querySelectorAll('.gallery-item').forEach((item, i) => {
+            item.style.outline = i === index ? '2px solid var(--primary)' : 'none';
+        });
+    }
+
+    // 下载照片
+    function downloadPhoto() {
+        if (state.currentPhotoIndex < 0) return;
+
+        const photo = state.photos[state.currentPhotoIndex];
+        const link = document.createElement('a');
+        link.href = photo.url;
+        link.download = `photo_${photo.timestamp.getTime()}.${photo.blob.type.split('/')[1]}`;
+        link.click();
+
+        log('照片已下载', 'success');
+    }
+
+    // 触发闪光效果
+    function triggerFlash() {
+        dom.flashOverlay.classList.add('active');
+        setTimeout(() => dom.flashOverlay.classList.remove('active'), 150);
+    }
+
+    // 切换摄像头
+    async function switchCamera() {
+        if (state.cameras.length < 2) return;
+
+        state.currentCameraIndex = (state.currentCameraIndex + 1) % state.cameras.length;
+        const deviceId = state.cameras[state.currentCameraIndex].deviceId;
+
+        log('正在切换摄像头...');
+        await startCamera(deviceId);
+    }
+
+    // 切换手电筒
+    async function toggleTorch() {
+        if (!state.track) return;
+
+        try {
+            const settings = state.track.getSettings();
+            const newTorch = !settings.torch;
+
+            await state.track.applyConstraints({
+                advanced: [{torch: newTorch}]
+            });
+
+            dom.torchBtn.style.background = newTorch ? 'var(--warning)' : '';
+            dom.torchBtn.style.borderColor = newTorch ? 'var(--warning)' : '';
+            log(`手电筒已${newTorch ? '开启' : '关闭'}`);
+        } catch (error) {
+            log(`手电筒控制失败: ${error.message}`);
+        }
+    }
+
+    // 缩放控制
+    async function updateZoom() {
+        if (!state.track || !state.capabilities?.zoom) return;
+
+        const zoom = parseFloat(dom.zoomSlider.value);
+
+        try {
+            await state.track.applyConstraints({
+                advanced: [{zoom}]
+            });
+            updateZoomDisplay();
+        } catch (error) {
+            log(`缩放失败: ${error.message}`);
+        }
+    }
+
+    function updateZoomDisplay() {
+        const zoom = parseFloat(dom.zoomSlider.value);
+        dom.zoomValue.textContent = `${zoom.toFixed(1)}x`;
+    }
+
+    // 红眼切换
+    function toggleRedEye() {
+        const active = dom.redeyeToggle.dataset.active === 'true';
+        dom.redeyeToggle.dataset.active = (!active).toString();
+        dom.redeyeToggle.classList.toggle('active', !active);
+    }
+
+    // 全屏预览
+    function showFullscreen(src) {
+        dom.fullscreenImage.src = src;
+        dom.fullscreenOverlay.classList.add('active');
+    }
+
+    function hideFullscreen() {
+        dom.fullscreenOverlay.classList.remove('active');
+    }
+
+    // 事件绑定
+    dom.startBtn.addEventListener('click', () => {
+        if (state.stream) {
+            stopCamera();
+        } else {
+            startCamera(dom.cameraSelect.value || undefined);
+        }
+    });
+
+    dom.captureBtn.addEventListener('click', takePhoto);
+    dom.grabframeBtn.addEventListener('click', grabFrame);
+    dom.switchBtn.addEventListener('click', switchCamera);
+    dom.torchBtn.addEventListener('click', toggleTorch);
+    dom.downloadBtn.addEventListener('click', downloadPhoto);
+    dom.clearLogBtn.addEventListener('click', () => dom.logContainer.innerHTML = '');
+    dom.redeyeToggle.addEventListener('click', toggleRedEye);
+    dom.zoomSlider.addEventListener('input', updateZoom);
+
+    dom.cameraSelect.addEventListener('change', e => {
+        if (e.target.value) {
+            startCamera(e.target.value);
+        }
+    });
+
+    // 双击画廊进入全屏
+    dom.gallery.addEventListener('dblclick', e => {
+        const item = e.target.closest('.gallery-item');
+        if (item) {
+            const img = item.querySelector('img');
+            if (img) showFullscreen(img.src);
+        }
+    });
+
+    dom.fullscreenOverlay.addEventListener('click', e => {
+        if (e.target === dom.fullscreenOverlay || e.target === dom.fullscreenClose) {
+            hideFullscreen();
+        }
+    });
+
+    // 键盘快捷键
+    document.addEventListener('keydown', e => {
+        if (e.code === 'Space' && state.stream && !state.isCapturing) {
+            e.preventDefault();
+            takePhoto();
+        }
+        if (e.code === 'Escape') {
+            hideFullscreen();
+        }
+    });
+
+    // 初始化
+    init();
+</script>
+</body>
+</html>

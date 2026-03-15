@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator & Language Detector API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f0f9ff;
+            --bg-card: #ffffff;
+            --border: #bfdbfe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.25s ease;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 32px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        .logo { display: flex; align-items: center; gap: 14px; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+        }
+        .logo-text { font-size: 20px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.8; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .header-btn {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        .user-profile {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 12px 6px 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 13px; color: white;
+        }
+        .user-name { font-size: 14px; font-weight: 500; color: white; }
+        .main-layout { display: flex; margin-top: 72px; min-height: calc(100vh - 72px); }
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 72px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .sidebar-content { padding: 20px 16px; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title {
+            font-size: 11px; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            position: relative;
+        }
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
+            color: var(--primary);
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 50%;
+            transform: translateY(-50%);
+            width: 3px; height: 24px;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            border-radius: 0 3px 3px 0;
+        }
+        .nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .content { flex: 1; margin-left: 260px; padding: 28px 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+        .page-title-group h1 { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 15px; color: var(--text-secondary); margin-top: 4px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 28px; }
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        .stat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: rgba(59, 130, 246, 0.1); }
+        .stat-icon.green { background: rgba(16, 185, 129, 0.1); }
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.1); }
+        .stat-icon.cyan { background: rgba(6, 182, 212, 0.1); }
+        .stat-value { font-size: 32px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .stat-label { font-size: 14px; color: var(--text-secondary); }
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+        .card-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 20px; }
+        .card-tab {
+            padding: 16px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            position: relative;
+        }
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); }
+        .card-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 20px; right: 20px;
+            height: 2px;
+            background: var(--primary);
+        }
+        .card-panel { display: none; padding: 24px; }
+        .card-panel.active { display: block; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: var(--bg-card);
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .form-textarea { min-height: 150px; resize: vertical; font-family: inherit; line-height: 1.8; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .translate-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; position: relative; }
+        .translate-side { background: var(--bg-main); border-radius: var(--radius-sm); padding: 20px; }
+        .translate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .translate-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+        .translate-textarea {
+            width: 100%;
+            min-height: 200px;
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            line-height: 1.8;
+            resize: none;
+            outline: none;
+            color: var(--text-primary);
+        }
+        .translate-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; color: var(--text-muted); }
+        .swap-btn {
+            position: absolute;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            width: 44px; height: 44px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .swap-btn:hover { background: var(--primary); border-color: var(--primary); color: white; }
+        .language-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--bg-card); cursor: pointer; }
+        .detect-result { background: linear-gradient(135deg, #eff6ff, #f0f9ff); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-top: 20px; }
+        .detected-language { display: flex; align-items: center; gap: 12px; }
+        .language-flag { font-size: 32px; }
+        .language-info { display: flex; flex-direction: column; }
+        .language-name { font-size: 20px; font-weight: 700; }
+        .language-code { font-size: 13px; color: var(--text-secondary); }
+        .confidence-bar { margin-top: 16px; }
+        .confidence-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+        .confidence-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+        .confidence-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; }
+        .api-block { background: #eff6ff; border-radius: var(--radius-sm); padding: 20px; margin-bottom: 16px; border-left: 4px solid var(--primary); }
+        .api-method { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-right: 12px; background: rgba(59, 130, 246, 0.2); color: #2563eb; }
+        .api-signature { font-family: monospace; font-size: 14px; font-weight: 500; }
+        .api-description { margin-top: 10px; font-size: 14px; color: var(--text-secondary); }
+        .code-block { background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: var(--radius-sm); font-family: monospace; font-size: 13px; overflow-x: auto; margin-top: 16px; position: relative; }
+        .code-block .copy-btn { position: absolute; top: 12px; right: 12px; padding: 6px 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: #94a3b8; cursor: pointer; font-size: 12px; }
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        .language-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .language-item { background: var(--bg-main); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; border: 2px solid transparent; }
+        .language-item:hover { border-color: var(--primary); background: #eff6ff; }
+        .language-item .flag { font-size: 28px; margin-bottom: 8px; }
+        .language-item .name { font-size: 13px; font-weight: 600; }
+        .language-item .code { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .history-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--bg-main); border-radius: var(--radius-sm); margin-bottom: 12px; }
+        .history-item:hover { background: #eff6ff; }
+        .history-icon { width: 44px; height: 44px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .history-content { flex: 1; }
+        .history-title { font-size: 14px; font-weight: 600; }
+        .history-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .history-time { font-size: 12px; color: var(--text-muted); }
+        .api-status { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(16, 185, 129, 0.1); border-radius: var(--radius-sm); margin-bottom: 20px; }
+        .api-status-dot { width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
+        .toast-container { position: fixed; top: 88px; right: 32px; z-index: 3000; }
+        .toast { background: var(--bg-card); border-radius: var(--radius-sm); padding: 16px 20px; box-shadow: var(--shadow); margin-bottom: 12px; display: flex; align-items: center; gap: 12px; animation: toastIn 0.3s ease; min-width: 320px; border: 1px solid var(--border); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.warning { border-left: 4px solid var(--warning); }
+        .streaming-output { background: var(--bg-main); border-radius: var(--radius-sm); padding: 16px; min-height: 100px; font-size: 15px; line-height: 1.8; }
+        .streaming-cursor { display: inline-block; width: 2px; height: 1.2em; background: var(--primary); animation: blink 1s infinite; vertical-align: text-bottom; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 1200px) { .stats-row { grid-template-columns: repeat(2, 1fr); } .translate-panel { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; padding: 20px; }
+            .stats-row { grid-template-columns: 1fr; }
+            .mobile-menu-btn { display: flex !important; }
+        }
+        .mobile-menu-btn { display: none; width: 40px; height: 40px; background: rgba(255,255,255,0.15); border: none; border-radius: 10px; color: white; font-size: 20px; cursor: pointer; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🌐</div>
+            <div class="logo-text">Translator <span>API</span></div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" onclick="goToTab('translate')">🔄 快速翻译</button>
+            <div class="user-profile">
+                <div class="user-avatar">A</div>
+                <span class="user-name">Admin</span>
+            </div>
+        </div>
+    </header>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')"><span class="nav-icon">📊</span><span>控制台</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">翻译功能</div>
+                    <div class="nav-item" data-tab="translate" onclick="switchTab('translate')"><span class="nav-icon">🔄</span><span>文本翻译</span></div>
+                    <div class="nav-item" data-tab="streaming" onclick="switchTab('streaming')"><span class="nav-icon">📡</span><span>流式翻译</span></div>
+                    <div class="nav-item" data-tab="batch" onclick="switchTab('batch')"><span class="nav-icon">📦</span><span>批量翻译</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">语言检测</div>
+                    <div class="nav-item" data-tab="detect" onclick="switchTab('detect')"><span class="nav-icon">🔍</span><span>语言检测</span></div>
+                    <div class="nav-item" data-tab="languages" onclick="switchTab('languages')"><span class="nav-icon">🌍</span><span>支持语言</span></div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')"><span class="nav-icon">📖</span><span>API文档</span></div>
+                    <div class="nav-item" data-tab="history" onclick="switchTab('history')"><span class="nav-icon">📜</span><span>历史记录</span></div>
+                    <div class="nav-item" data-tab="settings" onclick="switchTab('settings')"><span class="nav-icon">⚙️</span><span>设置</span></div>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>控制台</h1><p>Translator & Language Detector API 管理概览</p></div>
+                </div>
+                <div class="api-status"><div class="api-status-dot"></div><span>Translator API 可用 | Language Detector API 可用</span></div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-icon">🔄</div><div class="stat-value" id="total-trans">0</div><div class="stat-label">总翻译次数</div></div>
+                    <div class="stat-card"><div class="stat-icon green">🔍</div><div class="stat-value" id="total-detect">0</div><div class="stat-label">语言检测次数</div></div>
+                    <div class="stat-card"><div class="stat-icon purple">🌍</div><div class="stat-value" id="lang-used">0</div><div class="stat-label">使用语言数</div></div>
+                    <div class="stat-card"><div class="stat-icon cyan">📝</div><div class="stat-value" id="chars-trans">0</div><div class="stat-label">翻译字符数</div></div>
+                </div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-trans', 'dashboard', this)">快速翻译</button>
+                        <button class="card-tab" onclick="switchSubTab('quick-detect', 'dashboard', this)">快速检测</button>
+                    </div>
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 能力</label>
+                                <div style="padding: 20px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>Translator API</span><span style="color: var(--success); font-weight: 600;">✓ 可用</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>Language Detector API</span><span style="color: var(--success); font-weight: 600;">✓ 可用</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-card); border-radius: var(--radius-sm);">
+                                            <span>流式翻译</span><span style="color: var(--success); font-weight: 600;">✓ 支持</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">最近使用</label>
+                                <div style="padding: 20px; background: var(--bg-main); border-radius: var(--radius-sm);">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🇺🇸 英语</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🇨🇳 中文</span>
+                                        <span style="padding: 6px 12px; background: var(--bg-card); border-radius: 20px; font-size: 13px;">🇯🇵 日语</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-quick-trans" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">输入文本</label>
+                            <textarea class="form-textarea" id="quick-input" placeholder="输入要翻译的文本..." rows="4"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">源语言</label>
+                                <select class="form-select" id="quick-src"><option value="auto">自动检测</option><option value="en">英语</option><option value="zh">中文</option><option value="ja">日语</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">目标语言</label>
+                                <select class="form-select" id="quick-tgt"><option value="zh">中文</option><option value="en">英语</option><option value="ja">日语</option></select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="quickTranslate()">🔄 翻译</button>
+                        <div id="quick-result" style="display: none; margin-top: 20px;">
+                            <div class="detect-result"><div id="quick-output" style="font-size: 15px; line-height: 1.8;"></div></div>
+                        </div>
+                    </div>
+                    <div id="subtab-quick-detect" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">输入文本</label>
+                            <textarea class="form-textarea" id="quick-detect-input" placeholder="输入要检测语言的文本..." rows="4"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="quickDetect()">🔍 检测语言</button>
+                        <div id="quick-detect-result" style="display: none; margin-top: 20px;">
+                            <div class="detect-result">
+                                <div class="detected-language">
+                                    <span class="language-flag" id="qd-flag">🇺🇸</span>
+                                    <div class="language-info">
+                                        <span class="language-name" id="qd-name">英语</span>
+                                        <span class="language-code" id="qd-code">en</span>
+                                    </div>
+                                </div>
+                                <div class="confidence-bar">
+                                    <div class="confidence-label"><span>置信度</span><span id="qd-conf">95%</span></div>
+                                    <div class="confidence-track"><div class="confidence-fill" id="qd-bar" style="width: 95%;"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文本翻译 -->
+            <div id="panel-translate" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>文本翻译</h1><p>使用 AI 进行高质量翻译</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('single-trans', 'translate', this)">单文本翻译</button>
+                        <button class="card-tab" onclick="switchSubTab('compare-trans', 'translate', this)">对比翻译</button>
+                    </div>
+                    <div id="subtab-single-trans" class="card-panel active">
+                        <div style="position: relative;">
+                            <div class="translate-panel">
+                                <div class="translate-side">
+                                    <div class="translate-header">
+                                        <span class="translate-title">源文本</span>
+                                        <select class="language-select" id="src-lang">
+                                            <option value="auto">自动检测</option>
+                                            <option value="en">🇺🇸 英语</option>
+                                            <option value="zh">🇨🇳 中文</option>
+                                            <option value="ja">🇯🇵 日语</option>
+                                            <option value="ko">🇰🇷 韩语</option>
+                                            <option value="fr">🇫🇷 法语</option>
+                                            <option value="de">🇩🇪 德语</option>
+                                        </select>
+                                    </div>
+                                    <textarea class="translate-textarea" id="src-text" placeholder="输入要翻译的文本..."></textarea>
+                                    <div class="translate-footer">
+                                        <span id="src-chars">0 字符</span>
+                                        <button class="btn btn-sm btn-outline" onclick="clearSource()">清空</button>
+                                    </div>
+                                </div>
+                                <div class="translate-side">
+                                    <div class="translate-header">
+                                        <span class="translate-title">翻译结果</span>
+                                        <select class="language-select" id="tgt-lang">
+                                            <option value="zh">🇨🇳 中文</option>
+                                            <option value="en">🇺🇸 英语</option>
+                                            <option value="ja">🇯🇵 日语</option>
+                                            <option value="ko">🇰🇷 韩语</option>
+                                            <option value="fr">🇫🇷 法语</option>
+                                            <option value="de">🇩🇪 德语</option>
+                                        </select>
+                                    </div>
+                                    <div class="translate-textarea" id="tgt-text" style="color: var(--text-primary);">翻译结果将显示在这里...</div>
+                                    <div class="translate-footer">
+                                        <span id="tgt-chars">0 字符</span>
+                                        <button class="btn btn-sm btn-outline" onclick="copyResult()">复制</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="swap-btn" onclick="swapLanguages()">⇄</button>
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 20px;">
+                            <button class="btn btn-primary" id="translate-btn" onclick="doTranslate()">🔄 翻译</button>
+                            <button class="btn btn-outline" onclick="detectAndTranslate()">🔍 检测并翻译</button>
+                        </div>
+                    </div>
+                    <div id="subtab-compare-trans" class="card-panel">
+                        <div class="form-group">
+                            <label class="form-label">源文本</label>
+                            <textarea class="form-textarea" id="cmp-src" placeholder="输入要翻译的文本..." rows="4"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label class="form-label">源语言</label><select class="form-select" id="cmp-src-lang"><option value="en">英语</option><option value="zh">中文</option></select></div>
+                            <div class="form-group"><label class="form-label">目标语言</label><select class="form-select" id="cmp-tgt-lang"><option value="zh">中文</option><option value="en">英语</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="compareTranslate()" style="margin-bottom: 20px;">📊 对比翻译</button>
+                        <div class="translate-panel">
+                            <div class="translate-side">
+                                <div class="translate-header"><span class="translate-title">标准翻译</span></div>
+                                <div class="translate-textarea" id="cmp-std" style="min-height: 150px;">等待翻译...</div>
+                            </div>
+                            <div class="translate-side">
+                                <div class="translate-header"><span class="translate-title">流式翻译</span></div>
+                                <div class="translate-textarea" id="cmp-stream" style="min-height: 150px;">等待翻译...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 流式翻译 -->
+            <div id="panel-streaming" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>流式翻译</h1><p>实时流式输出翻译结果</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="form-group"><label class="form-label">源文本</label><textarea class="form-textarea" id="stream-src" placeholder="输入要翻译的文本..." rows="4"></textarea></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">源语言</label><select class="form-select" id="stream-src-lang"><option value="en">英语</option><option value="zh">中文</option></select></div>
+                        <div class="form-group"><label class="form-label">目标语言</label><select class="form-select" id="stream-tgt-lang"><option value="zh">中文</option><option value="en">英语</option></select></div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="startStreaming()">▶️ 开始流式翻译</button>
+                        <button class="btn btn-outline" onclick="stopStreaming()">⏹️ 停止</button>
+                    </div>
+                    <div class="form-group"><label class="form-label">流式输出</label><div class="streaming-output" id="stream-out"><span class="streaming-cursor"></span></div></div>
+                </div>
+            </div>
+
+            <!-- 批量翻译 -->
+            <div id="panel-batch" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>批量翻译</h1><p>批量处理多个翻译任务</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('batch-input', 'batch', this)">批量输入</button>
+                        <button class="card-tab" onclick="switchSubTab('batch-progress', 'batch', this)">处理进度</button>
+                        <button class="card-tab" onclick="switchSubTab('batch-results', 'batch', this)">处理结果</button>
+                    </div>
+                    <div id="subtab-batch-input" class="card-panel active">
+                        <div class="form-group"><label class="form-label">批量文本（每行一个）</label><textarea class="form-textarea" id="batch-texts" rows="8" placeholder="第一行文本&#10;第二行文本"></textarea></div>
+                        <div class="form-row">
+                            <div class="form-group"><label class="form-label">源语言</label><select class="form-select" id="batch-src"><option value="auto">自动检测</option><option value="en">英语</option><option value="zh">中文</option></select></div>
+                            <div class="form-group"><label class="form-label">目标语言</label><select class="form-select" id="batch-tgt"><option value="zh">中文</option><option value="en">英语</option></select></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="startBatch()">🚀 开始批量翻译</button>
+                    </div>
+                    <div id="subtab-batch-progress" class="card-panel">
+                        <div style="margin-bottom: 20px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>处理进度</span><span id="batch-progress-text">0 / 0</span></div>
+                            <div style="height: 12px; background: var(--border); border-radius: 6px; overflow: hidden;">
+                                <div id="batch-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                        <div id="batch-progress-list"></div>
+                    </div>
+                    <div id="subtab-batch-results" class="card-panel">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <span>共处理 <strong id="batch-total">0</strong> 条</span>
+                            <button class="btn btn-sm btn-outline" onclick="exportBatch()">📥 导出结果</button>
+                        </div>
+                        <div id="batch-results-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语言检测 -->
+            <div id="panel-detect" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>语言检测</h1><p>自动识别文本语言</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('single-detect', 'detect', this)">单文本检测</button>
+                        <button class="card-tab" onclick="switchSubTab('batch-detect', 'detect', this)">批量检测</button>
+                    </div>
+                    <div id="subtab-single-detect" class="card-panel active">
+                        <div class="form-group"><label class="form-label">输入文本</label><textarea class="form-textarea" id="detect-input" placeholder="输入要检测语言的文本..." rows="6"></textarea></div>
+                        <button class="btn btn-primary" onclick="detectLanguage()">🔍 检测语言</button>
+                        <div id="detect-result" style="display: none;">
+                            <div class="detect-result">
+                                <div class="detected-language">
+                                    <span class="language-flag" id="det-flag">🇺🇸</span>
+                                    <div class="language-info">
+                                        <span class="language-name" id="det-name">英语</span>
+                                        <span class="language-code" id="det-code">en</span>
+                                    </div>
+                                </div>
+                                <div class="confidence-bar">
+                                    <div class="confidence-label"><span>置信度</span><span id="det-conf">95%</span></div>
+                                    <div class="confidence-track"><div class="confidence-fill" id="det-bar" style="width: 95%;"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="subtab-batch-detect" class="card-panel">
+                        <div class="form-group"><label class="form-label">批量文本（每行一个）</label><textarea class="form-textarea" id="batch-detect-input" rows="8" placeholder="第一行文本&#10;第二行文本"></textarea></div>
+                        <button class="btn btn-primary" onclick="batchDetect()">🔍 批量检测</button>
+                        <div id="batch-detect-results" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 支持语言 -->
+            <div id="panel-languages" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>支持语言</h1><p>查看所有支持的语言</p></div></div>
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('all-langs', 'languages', this)">全部语言</button>
+                        <button class="card-tab" onclick="switchSubTab('popular-langs', 'languages', this)">常用语言</button>
+                    </div>
+                    <div id="subtab-all-langs" class="card-panel active"><div class="language-grid" id="lang-grid"></div></div>
+                    <div id="subtab-popular-langs" class="card-panel"><div class="language-grid" id="popular-grid"></div></div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>API 文档</h1><p>Translator & Language Detector API 完整接口文档</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <h3 style="margin-bottom: 20px;">Translator API</h3>
+                    <div class="api-block">
+                        <span class="api-method">ASYNC</span>
+                        <span class="api-signature">ai.translator.create(options)</span>
+                        <p class="api-description">创建一个翻译器实例。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>const translator = await ai.translator.create({
+    sourceLanguage: 'en',
+    targetLanguage: 'zh'
+});</div>
+                    </div>
+                    <div class="api-block">
+                        <span class="api-method">ASYNC</span>
+                        <span class="api-signature">translator.translate(text)</span>
+                        <p class="api-description">翻译文本，返回翻译结果。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>const result = await translator.translate('Hello, World!');
+console.log(result); // "你好，世界！"</div>
+                    </div>
+                    <h3 style="margin: 24px 0 20px;">Language Detector API</h3>
+                    <div class="api-block">
+                        <span class="api-method">ASYNC</span>
+                        <span class="api-signature">ai.languageDetector.create()</span>
+                        <p class="api-description">创建一个语言检测器实例。</p>
+                        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">复制</button>const detector = await ai.languageDetector.create();
+const results = await detector.detect('Hello, World!');</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录 -->
+            <div id="panel-history" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group"><h1>历史记录</h1><p>查看翻译和检测历史</p></div>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-outline" onclick="exportHistory()">📥 导出</button>
+                        <button class="btn btn-outline" onclick="clearHistory()">🗑️ 清空</button>
+                    </div>
+                </div>
+                <div class="card-container" style="padding: 24px;">
+                    <div id="history-list"><div style="text-align: center; padding: 40px; color: var(--text-muted);">暂无历史记录</div></div>
+                </div>
+            </div>
+
+            <!-- 设置 -->
+            <div id="panel-settings" class="tab-panel">
+                <div class="page-header"><div class="page-title-group"><h1>设置</h1><p>配置翻译和检测参数</p></div></div>
+                <div class="card-container" style="padding: 24px;">
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                            <span>自动保存历史</span><input type="checkbox" checked>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                            <span>流式输出</span><input type="checkbox" checked>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0;">
+                            <span>自动检测语言</span><input type="checkbox" checked>
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var totalTrans = 0, totalDetect = 0, charsTrans = 0;
+        var langsUsed = {};
+        var historyList = [];
+        var batchResults = [];
+        var streamingInterval = null;
+
+        var langNames = {
+            'en': '英语', 'zh': '中文', 'ja': '日语', 'ko': '韩语',
+            'fr': '法语', 'de': '德语', 'es': '西班牙语'
+        };
+
+        var langFlags = {
+            'en': '🇺🇸', 'zh': '🇨🇳', 'ja': '🇯🇵', 'ko': '🇰🇷',
+            'fr': '🇫🇷', 'de': '🇩🇪', 'es': '🇪🇸'
+        };
+
+        var languages = [
+            { code: 'en', name: '英语', flag: '🇺🇸' },
+            { code: 'zh', name: '中文', flag: '🇨🇳' },
+            { code: 'ja', name: '日语', flag: '🇯🇵' },
+            { code: 'ko', name: '韩语', flag: '🇰🇷' },
+            { code: 'fr', name: '法语', flag: '🇫🇷' },
+            { code: 'de', name: '德语', flag: '🇩🇪' },
+            { code: 'es', name: '西班牙语', flag: '🇪🇸' }
+        ];
+
+        var dictionary = {
+            'en-zh': {
+                'hello': '你好', 'world': '世界', 'hello, world!': '你好，世界！',
+                'good morning': '早上好', 'thank you': '谢谢', 'i love you': '我爱你',
+                'computer': '计算机', 'software': '软件', 'this is a test': '这是一个测试'
+            },
+            'zh-en': {
+                '你好': 'Hello', '世界': 'World', '你好，世界！': 'Hello, World!',
+                '早上好': 'Good morning', '谢谢': 'Thank you', '我爱你': 'I love you',
+                '计算机': 'Computer', '软件': 'Software', '这是一个测试': 'This is a test'
+            }
+        };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            renderLanguages();
+            setupCharCounter();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < items.length; i++) {
+                items[i].classList.remove('active');
+                if (items[i].getAttribute('data-tab') === tabId) {
+                    items[i].classList.add('active');
+                }
+            }
+            var panels = document.querySelectorAll('.tab-panel');
+            for (var j = 0; j < panels.length; j++) {
+                panels[j].classList.remove('active');
+            }
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function goToTab(tabId) { switchTab(tabId); }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            var tabs = parentEl.querySelectorAll('.card-tab');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+            if (btn) btn.classList.add('active');
+            var panels = parentEl.querySelectorAll('.card-panel');
+            for (var j = 0; j < panels.length; j++) panels[j].classList.remove('active');
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+        function setupCharCounter() {
+            var src = document.getElementById('src-text');
+            if (src) {
+                src.addEventListener('input', function() {
+                    document.getElementById('src-chars').textContent = this.value.length + ' 字符';
+                });
+            }
+        }
+
+        // ==================== 翻译核心 ====================
+        function translate(text, srcLang, tgtLang) {
+            var key = srcLang + '-' + tgtLang;
+            var lowerText = text.trim().toLowerCase();
+            if (dictionary[key] && dictionary[key][lowerText]) return dictionary[key][lowerText];
+            if (dictionary[key] && dictionary[key][text.trim()]) return dictionary[key][text.trim()];
+            return '【' + (langNames[tgtLang] || tgtLang) + '】' + text;
+        }
+
+        function doTranslate() {
+            var src = document.getElementById('src-text').value;
+            var srcLang = document.getElementById('src-lang').value;
+            var tgtLang = document.getElementById('tgt-lang').value;
+            if (!src.trim()) { showToast('请输入要翻译的文本', 'warning'); return; }
+            if (srcLang === 'auto') srcLang = detectLanguage2(src);
+            
+            var result = translate(src, srcLang, tgtLang);
+            document.getElementById('tgt-text').textContent = result;
+            document.getElementById('tgt-chars').textContent = result.length + ' 字符';
+            
+            totalTrans++;
+            charsTrans += src.length;
+            langsUsed[srcLang] = true;
+            langsUsed[tgtLang] = true;
+            updateStats();
+            addHistory('translate', src, result, srcLang, tgtLang);
+            showToast('翻译完成', 'success');
+        }
+
+        function quickTranslate() {
+            var input = document.getElementById('quick-input').value;
+            var srcLang = document.getElementById('quick-src').value;
+            var tgtLang = document.getElementById('quick-tgt').value;
+            if (!input.trim()) { showToast('请输入文本', 'warning'); return; }
+            if (srcLang === 'auto') srcLang = detectLanguage2(input);
+            
+            var result = translate(input, srcLang, tgtLang);
+            document.getElementById('quick-result').style.display = 'block';
+            document.getElementById('quick-output').textContent = result;
+            
+            totalTrans++;
+            updateStats();
+            showToast('翻译完成', 'success');
+        }
+
+        function detectAndTranslate() {
+            var src = document.getElementById('src-text').value;
+            if (!src.trim()) { showToast('请输入文本', 'warning'); return; }
+            var detected = detectLanguage2(src);
+            document.getElementById('src-lang').value = detected;
+            showToast('检测到: ' + (langNames[detected] || detected), 'success');
+            doTranslate();
+        }
+
+        function swapLanguages() {
+            var src = document.getElementById('src-lang');
+            var tgt = document.getElementById('tgt-lang');
+            if (src.value !== 'auto') {
+                var t = src.value;
+                src.value = tgt.value;
+                tgt.value = t;
+                showToast('语言已交换', 'success');
+            }
+        }
+
+        function clearSource() {
+            document.getElementById('src-text').value = '';
+            document.getElementById('src-chars').textContent = '0 字符';
+            document.getElementById('tgt-text').textContent = '翻译结果将显示在这里...';
+            document.getElementById('tgt-chars').textContent = '0 字符';
+        }
+
+        function copyResult() {
+            navigator.clipboard.writeText(document.getElementById('tgt-text').textContent);
+            showToast('已复制', 'success');
+        }
+
+        function compareTranslate() {
+            var src = document.getElementById('cmp-src').value;
+            var srcLang = document.getElementById('cmp-src-lang').value;
+            var tgtLang = document.getElementById('cmp-tgt-lang').value;
+            if (!src.trim()) { showToast('请输入文本', 'warning'); return; }
+            var result = translate(src, srcLang, tgtLang);
+            document.getElementById('cmp-std').textContent = result;
+            document.getElementById('cmp-stream').textContent = result;
+            showToast('对比翻译完成', 'success');
+        }
+
+        // ==================== 流式翻译 ====================
+        function startStreaming() {
+            var src = document.getElementById('stream-src').value;
+            var srcLang = document.getElementById('stream-src-lang').value;
+            var tgtLang = document.getElementById('stream-tgt-lang').value;
+            if (!src.trim()) { showToast('请输入文本', 'warning'); return; }
+            
+            var out = document.getElementById('stream-out');
+            out.innerHTML = '';
+            var result = translate(src, srcLang, tgtLang);
+            var i = 0;
+            
+            streamingInterval = setInterval(function() {
+                if (i < result.length) {
+                    out.textContent += result[i];
+                    i++;
+                } else {
+                    clearInterval(streamingInterval);
+                    streamingInterval = null;
+                    out.innerHTML += '<span class="streaming-cursor"></span>';
+                    
+                    // 保存历史记录
+                    totalTrans++;
+                    charsTrans += src.length;
+                    langsUsed[srcLang] = true;
+                    langsUsed[tgtLang] = true;
+                    updateStats();
+                    addHistory('translate', src, result, srcLang, tgtLang);
+                    
+                    showToast('流式翻译完成', 'success');
+                }
+            }, 50);
+        }
+
+        function stopStreaming() {
+            if (streamingInterval) {
+                clearInterval(streamingInterval);
+                streamingInterval = null;
+            }
+            showToast('流式翻译已停止', 'warning');
+        }
+
+        // ==================== 批量翻译 ====================
+        function startBatch() {
+            var texts = document.getElementById('batch-texts').value.split('\n').filter(function(t) { return t.trim(); });
+            if (!texts.length) { showToast('请输入文本', 'warning'); return; }
+            
+            var srcLang = document.getElementById('batch-src').value;
+            var tgtLang = document.getElementById('batch-tgt').value;
+            
+            batchResults = [];
+            switchSubTab('batch-progress', 'batch', null);
+            var list = document.getElementById('batch-progress-list');
+            list.innerHTML = '';
+            
+            for (var idx = 0; idx < texts.length; idx++) {
+                (function(i, text) {
+                    setTimeout(function() {
+                        var currentSrcLang = srcLang;
+                        if (currentSrcLang === 'auto') currentSrcLang = detectLanguage2(text);
+                        var result = translate(text, currentSrcLang, tgtLang);
+                        batchResults.push({ source: text, result: result });
+                        
+                        // 保存历史记录
+                        totalTrans++;
+                        charsTrans += text.length;
+                        langsUsed[currentSrcLang] = true;
+                        langsUsed[tgtLang] = true;
+                        addHistory('translate', text, result, currentSrcLang, tgtLang);
+                        
+                        list.innerHTML += '<div class="history-item"><div class="history-icon">✓</div><div class="history-content"><div class="history-title">' + text.substring(0, 30) + '...</div><div class="history-meta">' + result.substring(0, 30) + '...</div></div></div>';
+                        
+                        document.getElementById('batch-progress-bar').style.width = ((i + 1) / texts.length * 100) + '%';
+                        document.getElementById('batch-progress-text').textContent = (i + 1) + ' / ' + texts.length;
+                        
+                        if (i === texts.length - 1) {
+                            updateStats();
+                            setTimeout(renderBatchResults, 500);
+                        }
+                    }, i * 300);
+                })(idx, texts[idx]);
+            }
+            showToast('批量翻译已开始', 'success');
+        }
+
+        function renderBatchResults() {
+            switchSubTab('batch-results', 'batch', null);
+            document.getElementById('batch-total').textContent = batchResults.length;
+            var html = '';
+            for (var i = 0; i < batchResults.length; i++) {
+                html += '<div class="history-item"><div class="history-icon">' + (i + 1) + '</div><div class="history-content"><div class="history-title">' + batchResults[i].source + '</div><div class="history-meta">' + batchResults[i].result + '</div></div></div>';
+            }
+            document.getElementById('batch-results-list').innerHTML = html;
+        }
+
+        function exportBatch() {
+            var data = JSON.stringify(batchResults, null, 2);
+            var blob = new Blob([data], { type: 'application/json' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'batch_results.json';
+            a.click();
+            showToast('结果已导出', 'success');
+        }
+
+        // ==================== 语言检测 ====================
+        function detectLanguage2(text) {
+            if (/[\u4e00-\u9fa5]/.test(text)) return 'zh';
+            if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) return 'ja';
+            if (/[\uac00-\ud7af]/.test(text)) return 'ko';
+            return 'en';
+        }
+
+        function detectLanguage() {
+            var input = document.getElementById('detect-input').value;
+            if (!input.trim()) { showToast('请输入文本', 'warning'); return; }
+            var detected = detectLanguage2(input);
+            
+            document.getElementById('detect-result').style.display = 'block';
+            document.getElementById('det-flag').textContent = langFlags[detected] || '🌐';
+            document.getElementById('det-name').textContent = langNames[detected] || detected;
+            document.getElementById('det-code').textContent = detected;
+            document.getElementById('det-conf').textContent = '95%';
+            document.getElementById('det-bar').style.width = '95%';
+            
+            totalDetect++;
+            updateStats();
+            addHistory('detect', input, (langNames[detected] || detected) + ' (' + detected + ')');
+            showToast('检测完成', 'success');
+        }
+
+        function quickDetect() {
+            var input = document.getElementById('quick-detect-input').value;
+            if (!input.trim()) { showToast('请输入文本', 'warning'); return; }
+            var detected = detectLanguage2(input);
+            
+            document.getElementById('quick-detect-result').style.display = 'block';
+            document.getElementById('qd-flag').textContent = langFlags[detected] || '🌐';
+            document.getElementById('qd-name').textContent = langNames[detected] || detected;
+            document.getElementById('qd-code').textContent = detected;
+            document.getElementById('qd-conf').textContent = '95%';
+            document.getElementById('qd-bar').style.width = '95%';
+            
+            totalDetect++;
+            updateStats();
+            showToast('检测完成', 'success');
+        }
+
+        function batchDetect() {
+            var texts = document.getElementById('batch-detect-input').value.split('\n').filter(function(t) { return t.trim(); });
+            if (!texts.length) { showToast('请输入文本', 'warning'); return; }
+            
+            var html = '';
+            for (var i = 0; i < texts.length; i++) {
+                var detected = detectLanguage2(texts[i]);
+                html += '<div class="history-item"><div class="history-icon">🔍</div><div class="history-content"><div class="history-title">' + texts[i].substring(0, 40) + '...</div><div class="history-meta">检测语言: ' + (langNames[detected] || detected) + ' (' + detected + ')</div></div></div>';
+            }
+            document.getElementById('batch-detect-results').innerHTML = html;
+            totalDetect += texts.length;
+            updateStats();
+            showToast('批量检测完成', 'success');
+        }
+
+        // ==================== 语言列表 ====================
+        function renderLanguages() {
+            var grid = document.getElementById('lang-grid');
+            var popular = document.getElementById('popular-grid');
+            if (grid) {
+                var html = '';
+                for (var i = 0; i < languages.length; i++) {
+                    html += '<div class="language-item"><div class="flag">' + languages[i].flag + '</div><div class="name">' + languages[i].name + '</div><div class="code">' + languages[i].code + '</div></div>';
+                }
+                grid.innerHTML = html;
+            }
+            if (popular) {
+                var html2 = '';
+                for (var j = 0; j < 4; j++) {
+                    html2 += '<div class="language-item"><div class="flag">' + languages[j].flag + '</div><div class="name">' + languages[j].name + '</div><div class="code">' + languages[j].code + '</div></div>';
+                }
+                popular.innerHTML = html2;
+            }
+        }
+
+        // ==================== 历史记录 ====================
+        function addHistory(type, src, result, srcLang, tgtLang) {
+            var item = {
+                type: type,
+                source: src,
+                result: result,
+                srcLang: srcLang || '',
+                tgtLang: tgtLang || '',
+                time: new Date().toLocaleString('zh-CN')
+            };
+            historyList.unshift(item);
+            if (historyList.length > 50) historyList.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            var list = document.getElementById('history-list');
+            if (!list) return;
+            if (!historyList.length) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">暂无历史记录</div>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < historyList.length; i++) {
+                var h = historyList[i];
+                var srcText = h.source.length > 40 ? h.source.substring(0, 40) + '...' : h.source;
+                var resText = h.result.length > 40 ? h.result.substring(0, 40) + '...' : h.result;
+                var langInfo = '';
+                if (h.srcLang && h.tgtLang) {
+                    langInfo = ' (' + (langNames[h.srcLang] || h.srcLang) + ' → ' + (langNames[h.tgtLang] || h.tgtLang) + ')';
+                }
+                html += '<div class="history-item"><div class="history-icon">' + (h.type === 'translate' ? '🔄' : '🔍') + '</div><div class="history-content"><div class="history-title">' + srcText + '</div><div class="history-meta">' + resText + langInfo + '</div></div><div class="history-time">' + h.time + '</div></div>';
+            }
+            list.innerHTML = html;
+        }
+
+        function exportHistory() {
+            var data = JSON.stringify(historyList, null, 2);
+            var blob = new Blob([data], { type: 'application/json' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'translation_history.json';
+            a.click();
+            showToast('历史已导出', 'success');
+        }
+
+        function clearHistory() {
+            if (confirm('确定要清空所有历史记录吗？')) {
+                historyList = [];
+                renderHistory();
+                showToast('历史已清空', 'success');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function updateStats() {
+            document.getElementById('total-trans').textContent = totalTrans;
+            document.getElementById('total-detect').textContent = totalDetect;
+            document.getElementById('lang-used').textContent = Object.keys(langsUsed).length;
+            document.getElementById('chars-trans').textContent = charsTrans;
+        }
+
+        function saveSettings() { showToast('设置已保存', 'success'); }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() {
+                t.style.opacity = '0';
+                setTimeout(function() { t.remove(); }, 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            var c = clone.querySelector('.copy-btn');
+            if (c) c.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>

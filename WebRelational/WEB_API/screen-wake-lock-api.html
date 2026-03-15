@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Wake Lock API 企业级应用平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #34d399;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #475569;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            --radius: 8px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-dark) 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-input);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger);
+            transition: all 0.3s;
+        }
+
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--success); }
+            50% { opacity: 0.7; box-shadow: 0 0 20px var(--success); }
+        }
+
+        /* Main Layout */
+        .main-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 1.5rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .sidebar-title {
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .tab-list {
+            list-style: none;
+        }
+
+        .tab-item {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-item:last-child {
+            border-bottom: none;
+        }
+
+        .tab-btn {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tab-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--primary-light);
+            border-left: 3px solid var(--primary);
+        }
+
+        .tab-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Content Area */
+        .content-area {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .content-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .content-body {
+            padding: 1.5rem;
+        }
+
+        /* Tab Panels */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            filter: brightness(1.1);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border-color);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        /* Wake Lock Visual */
+        .wake-lock-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .screen-icon {
+            position: relative;
+            width: 200px;
+            height: 140px;
+        }
+
+        .screen-frame {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.5s;
+        }
+
+        .screen-frame.active {
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(16, 185, 129, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .screen-display {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen-display::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                45deg,
+                transparent 40%,
+                rgba(255, 255, 255, 0.1) 50%,
+                transparent 60%
+            );
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .screen-display.inactive {
+            background: #374151;
+        }
+
+        .screen-display.inactive::before {
+            display: none;
+        }
+
+        .screen-stand {
+            width: 60px;
+            height: 20px;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            margin-top: -5px;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .screen-base {
+            width: 100px;
+            height: 8px;
+            background: linear-gradient(145deg, #2d3748, #1a202c);
+            border-radius: 4px;
+            margin-top: 2px;
+        }
+
+        .lock-indicator {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 50px;
+            height: 50px;
+            background: var(--bg-card);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid var(--border-color);
+            transition: all 0.3s;
+        }
+
+        .lock-indicator.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .lock-indicator svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--text-secondary);
+            transition: all 0.3s;
+        }
+
+        .lock-indicator.active svg {
+            stroke: var(--primary);
+        }
+
+        .status-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 1;
+        }
+
+        .status-subtext {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+            z-index: 1;
+        }
+
+        /* Info Cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-card {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .info-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-light);
+        }
+
+        .info-value.success {
+            color: var(--success);
+        }
+
+        .info-value.warning {
+            color: var(--warning);
+        }
+
+        .info-value.danger {
+            color: var(--danger);
+        }
+
+        /* Timer Display */
+        .timer-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.5rem;
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .timer-value {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: 'Monaco', 'Menlo', monospace;
+            color: var(--primary-light);
+        }
+
+        .timer-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Controls Grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .control-input {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .control-select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        /* Switch */
+        .switch-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--border-color);
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .switch input:checked + .switch-slider {
+            background: var(--primary);
+        }
+
+        .switch input:checked + .switch-slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Log Panel */
+        .log-panel {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-family: monospace;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .log-type {
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .log-type.info {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--info);
+        }
+
+        .log-type.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .log-type.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .log-type.warn {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .log-message {
+            flex: 1;
+            color: var(--text-primary);
+        }
+
+        /* Code Panel */
+        .code-panel {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .code-header {
+            padding: 0.75rem 1rem;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-title {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .code-content {
+            padding: 1rem;
+            overflow: auto;
+            max-height: 400px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* API Reference */
+        .api-section {
+            margin-bottom: 2rem;
+        }
+
+        .api-section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+            display: inline-block;
+        }
+
+        .api-item {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-name {
+            font-family: monospace;
+            color: var(--primary-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .api-desc {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .api-params {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+            background: var(--bg-input);
+            padding: 0.5rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .api-example {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-input);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--success);
+            white-space: pre-wrap;
+        }
+
+        /* Feature Cards */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--primary);
+        }
+
+        .feature-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Compatibility Table */
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .compat-table th,
+        .compat-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .compat-table th {
+            background: var(--bg-input);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .compat-table td {
+            font-size: 0.85rem;
+        }
+
+        .compat-yes {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .compat-no {
+            color: var(--danger);
+        }
+
+        .compat-partial {
+            color: var(--warning);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--success);
+            color: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification.error {
+            background: var(--danger);
+        }
+
+        /* Section Divider */
+        .section-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 1.5rem 0;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            padding: 1rem;
+            background: var(--bg-dark);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-light);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .screen-icon {
+                width: 160px;
+                height: 112px;
+            }
+
+            .timer-value {
+                font-size: 2rem;
+            }
+
+            .stats-bar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <svg viewBox="0 0 40 40" fill="none">
+                    <rect width="40" height="40" rx="8" fill="url(#logoGrad)"/>
+                    <rect x="6" y="8" width="28" height="18" rx="2" stroke="white" stroke-width="2" fill="none"/>
+                    <circle cx="20" cy="17" r="4" fill="white"/>
+                    <path d="M14 32L20 26L26 32" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#06b6d4"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h1>Screen Wake Lock API 企业级应用平台</h1>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">屏幕未锁定</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-title">功能模块</div>
+            <ul class="tab-list">
+                <li class="tab-item">
+                    <button class="tab-btn active" data-tab="control">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </span>
+                        唤醒锁控制
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="monitor">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            </svg>
+                        </span>
+                        状态监控
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="events">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </span>
+                        事件日志
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="visibility">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </span>
+                        可见性管理
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="compatibility">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                                <line x1="8" y1="21" x2="16" y2="21"/>
+                                <line x1="12" y1="17" x2="12" y2="21"/>
+                            </svg>
+                        </span>
+                        兼容性检测
+                    </button>
+                </li>
+                <li class="tab-item">
+                    <button class="tab-btn" data-tab="api">
+                        <span class="tab-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </span>
+                        API参考
+                    </button>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content-area">
+            <!-- Control Panel -->
+            <div class="tab-panel active" id="control-panel">
+                <div class="content-header">
+                    <h2 class="content-title">唤醒锁控制</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="requestLockBtn" onclick="requestWakeLock()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            请求唤醒锁
+                        </button>
+                        <button class="btn btn-danger" id="releaseLockBtn" onclick="releaseWakeLock()" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                            </svg>
+                            释放唤醒锁
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="wake-lock-visual">
+                        <div class="screen-icon">
+                            <div class="screen-frame" id="screenFrame">
+                                <div class="screen-display" id="screenDisplay">
+                                    <div class="status-text" id="screenStatusText">未激活</div>
+                                    <div class="status-subtext" id="screenSubtext">点击按钮请求唤醒锁</div>
+                                </div>
+                            </div>
+                            <div class="lock-indicator" id="lockIndicator">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="screen-stand"></div>
+                        <div class="screen-base"></div>
+                    </div>
+
+                    <div class="timer-display">
+                        <div class="timer-value" id="activeTimer">00:00:00</div>
+                        <div class="timer-label">唤醒锁激活时长</div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">快速设置</h3>
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">自动重新请求</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoReacquire" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">页面可见时自动激活</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoActivate">
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">显示通知提醒</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="showNotifications" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">当前 WakeLockSentinel 对象</span>
+                            <button class="btn btn-secondary" onclick="copySentinelData()">复制</button>
+                        </div>
+                        <pre class="code-content" id="sentinelData">// 唤醒锁未激活</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monitor Panel -->
+            <div class="tab-panel" id="monitor-panel">
+                <div class="content-header">
+                    <h2 class="content-title">状态监控</h2>
+                    <button class="btn btn-secondary" onclick="refreshMonitor()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        刷新
+                    </button>
+                </div>
+                <div class="content-body">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">唤醒锁状态</div>
+                            <div class="info-value" id="monitorLockStatus">未激活</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">released 属性</div>
+                            <div class="info-value" id="monitorReleased">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">锁定类型</div>
+                            <div class="info-value" id="monitorType">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">激活次数</div>
+                            <div class="info-value" id="monitorActivateCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">释放次数</div>
+                            <div class="info-value" id="monitorReleaseCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">页面可见性</div>
+                            <div class="info-value" id="monitorVisibility">--</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">会话统计</h3>
+                    <div class="stats-bar">
+                        <div class="stat-item">
+                            <span class="stat-label">总激活时长</span>
+                            <span class="stat-value" id="totalActiveTime">00:00:00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">当前会话时长</span>
+                            <span class="stat-value" id="currentSessionTime">00:00:00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">最长单次激活</span>
+                            <span class="stat-value" id="longestSession">00:00:00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">平均激活时长</span>
+                            <span class="stat-value" id="averageSession">00:00:00</span>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">系统信息</h3>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">API 支持状态</div>
+                            <div class="info-value" id="apiSupport">检测中</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">用户代理</div>
+                            <div class="info-value" id="userAgent" style="font-size: 0.75rem; word-break: break-all;">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">屏幕状态</div>
+                            <div class="info-value" id="screenStatus">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">电池状态</div>
+                            <div class="info-value" id="batteryStatus">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Panel -->
+            <div class="tab-panel" id="events-panel">
+                <div class="content-header">
+                    <h2 class="content-title">事件日志</h2>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="exportEventLog()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            导出日志
+                        </button>
+                        <button class="btn btn-danger" onclick="clearEventLog()">
+                            清空日志
+                        </button>
+                    </div>
+                </div>
+                <div class="content-body">
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">记录唤醒锁事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="logWakeLock" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">记录可见性事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="logVisibility" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="switch-group">
+                                <span class="control-label" style="margin: 0;">记录错误事件</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="logErrors" checked>
+                                    <span class="switch-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="log-panel" id="eventLog">
+                        <div class="log-item">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-type info">INFO</span>
+                            <span class="log-message">等待事件...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visibility Panel -->
+            <div class="tab-panel" id="visibility-panel">
+                <div class="content-header">
+                    <h2 class="content-title">可见性管理</h2>
+                </div>
+                <div class="content-body">
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">页面可见性检测</div>
+                            <div class="feature-desc">当页面变为不可见时，唤醒锁会自动释放。当页面重新可见时，可以自动重新请求唤醒锁。</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">自动重新获取</div>
+                            <div class="feature-desc">启用此功能后，当页面从隐藏状态恢复时，系统会自动重新请求唤醒锁，保持屏幕常亮。</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">安全释放机制</div>
+                            <div class="feature-desc">当用户切换标签页、最小化窗口或锁定屏幕时，唤醒锁会安全释放，避免资源浪费。</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">当前可见性状态</h3>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">document.visibilityState</div>
+                            <div class="info-value" id="visibilityState">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">document.hidden</div>
+                            <div class="info-value" id="hiddenState">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">可见性变化次数</div>
+                            <div class="info-value" id="visibilityChangeCount">0</div>
+                        </div>
+                    </div>
+
+                    <div class="code-panel">
+                        <div class="code-header">
+                            <span class="code-title">可见性事件处理代码</span>
+                        </div>
+                        <pre class="code-content">// 监听页面可见性变化
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+        // 页面变为可见，重新请求唤醒锁
+        if (shouldReacquire) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('唤醒锁已重新获取');
+            } catch (err) {
+                console.error('重新获取失败:', err);
+            }
+        }
+    } else {
+        // 页面变为不可见，唤醒锁会自动释放
+        console.log('页面不可见，唤醒锁将释放');
+    }
+});</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compatibility Panel -->
+            <div class="tab-panel" id="compatibility-panel">
+                <div class="content-header">
+                    <h2 class="content-title">兼容性检测</h2>
+                </div>
+                <div class="content-body">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-label">Wake Lock API</div>
+                            <div class="info-value" id="compatWakeLock">检测中</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">screen 类型支持</div>
+                            <div class="info-value" id="compatScreen">检测中</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Page Visibility API</div>
+                            <div class="info-value" id="compatVisibility">检测中</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Battery Status API</div>
+                            <div class="info-value" id="compatBattery">检测中</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">浏览器兼容性表</h3>
+                    <table class="compat-table">
+                        <thead>
+                            <tr>
+                                <th>浏览器</th>
+                                <th>支持状态</th>
+                                <th>最低版本</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Chrome</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>84+</td>
+                                <td>桌面和 Android</td>
+                            </tr>
+                            <tr>
+                                <td>Edge</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>84+</td>
+                                <td>基于 Chromium</td>
+                            </tr>
+                            <tr>
+                                <td>Firefox</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>126+</td>
+                                <td>需要 HTTPS</td>
+                            </tr>
+                            <tr>
+                                <td>Safari</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>16.4+</td>
+                                <td>iOS 和 macOS</td>
+                            </tr>
+                            <tr>
+                                <td>Opera</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>70+</td>
+                                <td>基于 Chromium</td>
+                            </tr>
+                            <tr>
+                                <td>Samsung Internet</td>
+                                <td class="compat-yes">完全支持</td>
+                                <td>14+</td>
+                                <td>Android</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-divider"></div>
+
+                    <h3 style="margin-bottom: 1rem;">使用限制</h3>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">需要安全上下文</div>
+                            <div class="feature-desc">Wake Lock API 只能在安全上下文（HTTPS 或 localhost）中使用。</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 6v6l4 2"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">用户激活要求</div>
+                            <div class="feature-desc">某些浏览器要求用户交互后才能请求唤醒锁，不能在页面加载时自动请求。</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                                    <line x1="8" y1="21" x2="16" y2="21"/>
+                                    <line x1="12" y1="17" x2="12" y2="21"/>
+                                </svg>
+                            </div>
+                            <div class="feature-title">跨平台行为差异</div>
+                            <div class="feature-desc">不同操作系统和浏览器对唤醒锁的处理可能有细微差异，建议进行充分测试。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Reference Panel -->
+            <div class="tab-panel" id="api-panel">
+                <div class="content-header">
+                    <h2 class="content-title">API 参考</h2>
+                </div>
+                <div class="content-body">
+                    <div class="api-section">
+                        <h3 class="api-section-title">核心接口</h3>
+                        <div class="api-item">
+                            <div class="api-name">navigator.wakeLock</div>
+                            <div class="api-desc">WakeLock API 的入口点，用于访问唤醒锁功能</div>
+                            <div class="api-params">返回类型: WakeLock | undefined</div>
+                            <div class="api-example">if ('wakeLock' in navigator) {
+    console.log('Wake Lock API 可用');
+}</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">navigator.wakeLock.request(type)</div>
+                            <div class="api-desc">请求指定类型的唤醒锁。目前只支持 'screen' 类型。</div>
+                            <div class="api-params">参数: type - "screen" | 返回: Promise&lt;WakeLockSentinel&gt;</div>
+                            <div class="api-example">try {
+    const wakeLock = await navigator.wakeLock.request('screen');
+    console.log('唤醒锁已获取');
+} catch (err) {
+    console.error('获取失败:', err.name, err.message);
+}</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">WakeLockSentinel 对象</h3>
+                        <div class="api-item">
+                            <div class="api-name">WakeLockSentinel</div>
+                            <div class="api-desc">表示一个唤醒锁的句柄，用于管理和监控唤醒锁状态</div>
+                            <div class="api-params">接口属性和方法</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">sentinel.released</div>
+                            <div class="api-desc">只读属性，指示唤醒锁是否已被释放</div>
+                            <div class="api-params">类型: boolean | 初始值: false</div>
+                            <div class="api-example">if (wakeLock.released) {
+    console.log('唤醒锁已释放');
+} else {
+    console.log('唤醒锁仍处于活动状态');
+}</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">sentinel.release()</div>
+                            <div class="api-desc">手动释放唤醒锁。返回一个 Promise，在锁释放后 resolve。</div>
+                            <div class="api-params">返回: Promise&lt;void&gt;</div>
+                            <div class="api-example">await wakeLock.release();
+console.log('唤醒锁已手动释放');</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">sentinel.onrelease</div>
+                            <div class="api-desc">事件处理器，当唤醒锁被释放时触发（无论是手动还是自动）</div>
+                            <div class="api-params">事件类型: Event</div>
+                            <div class="api-example">wakeLock.addEventListener('release', () => {
+    console.log('唤醒锁已释放');
+});
+
+// 或使用属性方式
+wakeLock.onrelease = () => {
+    console.log('唤醒锁已释放');
+};</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">sentinel.type</div>
+                            <div class="api-desc">只读属性，返回唤醒锁的类型</div>
+                            <div class="api-params">类型: "screen"</div>
+                            <div class="api-example">console.log(wakeLock.type); // "screen"</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">错误处理</h3>
+                        <div class="api-item">
+                            <div class="api-name">NotSupportedError</div>
+                                                       <div class="api-desc">浏览器不支持请求的唤醒锁类型</div>
+                            <div class="api-params">场景: 请求非 'screen' 类型时</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">SecurityError</div>
+                            <div class="api-desc">在不安全的上下文中使用 API</div>
+                            <div class="api-params">场景: 非 HTTPS 或 localhost 环境</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">NotAllowedError</div>
+                            <div class="api-desc">唤醒锁请求被拒绝</div>
+                            <div class="api-params">场景: 用户未交互、页面不可见、系统限制等</div>
+                        </div>
+                        <div class="api-item">
+                            <div class="api-name">AbortError</div>
+                            <div class="api-desc">请求被中止</div>
+                            <div class="api-params">场景: 页面在请求过程中变为不可见</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">相关事件</h3>
+                        <div class="api-item">
+                            <div class="api-name">visibilitychange</div>
+                            <div class="api-desc">页面可见性变化时触发，唤醒锁会在此事件后自动释放</div>
+                            <div class="api-example">document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // 页面可见，可以重新请求唤醒锁
+    } else {
+        // 页面不可见，唤醒锁将自动释放
+    }
+});</div>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-section-title">完整示例</h3>
+                        <div class="api-item">
+                            <div class="api-name">完整的唤醒锁管理类</div>
+                            <div class="api-example">class WakeLockManager {
+    constructor() {
+        this.wakeLock = null;
+        this.setupVisibilityHandler();
+    }
+
+    async request() {
+        if (!('wakeLock' in navigator)) {
+            throw new Error('Wake Lock API 不支持');
+        }
+
+        try {
+            this.wakeLock = await navigator.wakeLock.request('screen');
+            this.wakeLock.addEventListener('release', () => {
+                console.log('唤醒锁已释放');
+                this.wakeLock = null;
+            });
+            console.log('唤醒锁已获取');
+            return this.wakeLock;
+        } catch (err) {
+            console.error('获取唤醒锁失败:', err);
+            throw err;
+        }
+    }
+
+    async release() {
+        if (this.wakeLock && !this.wakeLock.released) {
+            await this.wakeLock.release();
+            this.wakeLock = null;
+        }
+    }
+
+    setupVisibilityHandler() {
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible' && !this.wakeLock) {
+                await this.request();
+            }
+        });
+    }
+
+    get isActive() {
+        return this.wakeLock && !this.wakeLock.released;
+    }
+}
+
+// 使用
+const wakeLockManager = new WakeLockManager();
+await wakeLockManager.request();</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">操作成功！</div>
+
+    <script>
+        // Global State
+        let wakeLock = null;
+        let activeStartTime = null;
+        let timerInterval = null;
+        let stats = {
+            activateCount: 0,
+            releaseCount: 0,
+            totalActiveTime: 0,
+            currentSessionStart: null,
+            longestSession: 0,
+            sessions: [],
+            visibilityChangeCount: 0
+        };
+
+        // DOM Elements
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const screenFrame = document.getElementById('screenFrame');
+        const screenDisplay = document.getElementById('screenDisplay');
+        const screenStatusText = document.getElementById('screenStatusText');
+        const screenSubtext = document.getElementById('screenSubtext');
+        const lockIndicator = document.getElementById('lockIndicator');
+        const requestLockBtn = document.getElementById('requestLockBtn');
+        const releaseLockBtn = document.getElementById('releaseLockBtn');
+
+        // Tab Navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                const tabId = btn.getAttribute('data-tab');
+                document.getElementById(`${tabId}-panel`).classList.add('active');
+            });
+        });
+
+        // Utility Functions
+        function showNotification(message, isError = false) {
+            if (!document.getElementById('showNotifications').checked) return;
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification show' + (isError ? ' error' : '');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+
+        function formatTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function logEvent(type, message) {
+            if (!document.getElementById('logWakeLock')?.checked && type !== 'info') return;
+            
+            const log = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-type ${type}">${type.toUpperCase()}</span>
+                <span class="log-message">${message}</span>
+            `;
+            log.insertBefore(item, log.firstChild);
+            
+            // Limit log items
+            while (log.children.length > 200) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function clearEventLog() {
+            document.getElementById('eventLog').innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-type info">INFO</span><span class="log-message">日志已清空</span></div>';
+        }
+
+        function exportEventLog() {
+            const logItems = document.querySelectorAll('#eventLog .log-item');
+            let content = 'Screen Wake Lock API 事件日志\n';
+            content += '导出时间: ' + new Date().toLocaleString() + '\n\n';
+            
+            logItems.forEach(item => {
+                const time = item.querySelector('.log-time')?.textContent || '';
+                const type = item.querySelector('.log-type')?.textContent || '';
+                const message = item.querySelector('.log-message')?.textContent || '';
+                content += `[${time}] [${type}] ${message}\n`;
+            });
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wake-lock-log-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('日志已导出');
+        }
+
+        // Wake Lock Functions
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) {
+                showNotification('此浏览器不支持 Wake Lock API', true);
+                logEvent('error', '浏览器不支持 Wake Lock API');
+                return;
+            }
+
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                
+                // Update state
+                activeStartTime = Date.now();
+                stats.activateCount++;
+                stats.currentSessionStart = activeStartTime;
+                
+                // Setup release handler
+                wakeLock.addEventListener('release', handleWakeLockRelease);
+                
+                // Update UI
+                updateUI(true);
+                startTimer();
+                updateSentinelData();
+                updateMonitor();
+                
+                logEvent('success', '唤醒锁已成功获取');
+                showNotification('屏幕唤醒锁已激活');
+
+            } catch (err) {
+                logEvent('error', `获取唤醒锁失败: ${err.name} - ${err.message}`);
+                showNotification('获取唤醒锁失败: ' + err.message, true);
+            }
+        }
+
+        async function releaseWakeLock() {
+            if (wakeLock && !wakeLock.released) {
+                try {
+                    await wakeLock.release();
+                    logEvent('info', '唤醒锁已手动释放');
+                    showNotification('唤醒锁已释放');
+                } catch (err) {
+                    logEvent('error', `释放唤醒锁失败: ${err.message}`);
+                    showNotification('释放失败: ' + err.message, true);
+                }
+            }
+        }
+
+        function handleWakeLockRelease() {
+            // Calculate session time
+            if (activeStartTime) {
+                const sessionTime = Date.now() - activeStartTime;
+                stats.totalActiveTime += sessionTime;
+                stats.sessions.push(sessionTime);
+                if (sessionTime > stats.longestSession) {
+                    stats.longestSession = sessionTime;
+                }
+            }
+            
+            stats.releaseCount++;
+            activeStartTime = null;
+            wakeLock = null;
+            
+            // Update UI
+            updateUI(false);
+            stopTimer();
+            updateSentinelData();
+            updateMonitor();
+            
+            logEvent('warn', '唤醒锁已释放');
+        }
+
+        function updateUI(isActive) {
+            // Status badge
+            statusDot.className = 'status-dot' + (isActive ? ' active' : '');
+            statusText.textContent = isActive ? '屏幕已锁定' : '屏幕未锁定';
+
+            // Screen frame
+            screenFrame.className = 'screen-frame' + (isActive ? ' active' : '');
+            screenDisplay.className = 'screen-display' + (isActive ? '' : ' inactive');
+            screenStatusText.textContent = isActive ? '已激活' : '未激活';
+            screenSubtext.textContent = isActive ? '屏幕将保持常亮' : '点击按钮请求唤醒锁';
+
+            // Lock indicator
+            lockIndicator.className = 'lock-indicator' + (isActive ? ' active' : '');
+
+            // Buttons
+            requestLockBtn.disabled = isActive;
+            releaseLockBtn.disabled = !isActive;
+        }
+
+        function startTimer() {
+            stopTimer();
+            timerInterval = setInterval(() => {
+                if (activeStartTime) {
+                    const elapsed = Date.now() - activeStartTime;
+                    document.getElementById('activeTimer').textContent = formatTime(elapsed);
+                    document.getElementById('currentSessionTime').textContent = formatTime(elapsed);
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            document.getElementById('activeTimer').textContent = '00:00:00';
+        }
+
+        function updateSentinelData() {
+            const dataElement = document.getElementById('sentinelData');
+            
+            if (wakeLock) {
+                const data = {
+                    type: wakeLock.type,
+                    released: wakeLock.released,
+                    activeTime: activeStartTime ? formatTime(Date.now() - activeStartTime) : '00:00:00'
+                };
+                dataElement.textContent = JSON.stringify(data, null, 2);
+            } else {
+                dataElement.textContent = '// 唤醒锁未激活';
+            }
+        }
+
+        function copySentinelData() {
+            const data = document.getElementById('sentinelData').textContent;
+            navigator.clipboard.writeText(data);
+            showNotification('数据已复制');
+        }
+
+        function updateMonitor() {
+            // Lock status
+            document.getElementById('monitorLockStatus').textContent = wakeLock ? '已激活' : '未激活';
+            document.getElementById('monitorLockStatus').className = 'info-value' + (wakeLock ? ' success' : ' danger');
+            
+            // Released property
+            document.getElementById('monitorReleased').textContent = wakeLock ? String(wakeLock.released) : '--';
+            
+            // Type
+            document.getElementById('monitorType').textContent = wakeLock ? wakeLock.type : '--';
+            
+            // Counts
+            document.getElementById('monitorActivateCount').textContent = stats.activateCount;
+            document.getElementById('monitorReleaseCount').textContent = stats.releaseCount;
+            
+            // Visibility
+            document.getElementById('monitorVisibility').textContent = document.visibilityState;
+            
+            // Stats
+            document.getElementById('totalActiveTime').textContent = formatTime(stats.totalActiveTime);
+            document.getElementById('longestSession').textContent = formatTime(stats.longestSession);
+            
+            if (stats.sessions.length > 0) {
+                const avg = stats.sessions.reduce((a, b) => a + b, 0) / stats.sessions.length;
+                document.getElementById('averageSession').textContent = formatTime(avg);
+            }
+        }
+
+        function refreshMonitor() {
+            updateMonitor();
+            updateSystemInfo();
+            logEvent('info', '监控数据已刷新');
+            showNotification('监控数据已刷新');
+        }
+
+        async function updateSystemInfo() {
+            // API Support
+            const apiSupported = 'wakeLock' in navigator;
+            document.getElementById('apiSupport').textContent = apiSupported ? '支持' : '不支持';
+            document.getElementById('apiSupport').className = 'info-value' + (apiSupported ? ' success' : ' danger');
+
+            // User Agent
+            document.getElementById('userAgent').textContent = navigator.userAgent.substring(0, 50) + '...';
+
+            // Screen Status
+            document.getElementById('screenStatus').textContent = `${screen.width}x${screen.height}`;
+
+            // Battery Status
+            if ('getBattery' in navigator) {
+                try {
+                    const battery = await navigator.getBattery();
+                    document.getElementById('batteryStatus').textContent = `${Math.round(battery.level * 100)}%`;
+                } catch {
+                    document.getElementById('batteryStatus').textContent = '不可用';
+                }
+            } else {
+                document.getElementById('batteryStatus').textContent = '不支持';
+            }
+        }
+
+        // Visibility Handler
+        function setupVisibilityHandler() {
+            document.addEventListener('visibilitychange', async () => {
+                stats.visibilityChangeCount++;
+                document.getElementById('visibilityChangeCount').textContent = stats.visibilityChangeCount;
+                document.getElementById('visibilityState').textContent = document.visibilityState;
+                document.getElementById('hiddenState').textContent = String(document.hidden);
+
+                if (document.getElementById('logVisibility').checked) {
+                    logEvent('info', `页面可见性变化: ${document.visibilityState}`);
+                }
+
+                if (document.visibilityState === 'visible') {
+                    // Page became visible
+                    if (document.getElementById('autoReacquire').checked && stats.activateCount > 0 && !wakeLock) {
+                        logEvent('info', '尝试自动重新获取唤醒锁...');
+                        await requestWakeLock();
+                    }
+                } else {
+                    // Page became hidden
+                    if (wakeLock && !wakeLock.released) {
+                        logEvent('warn', '页面不可见，唤醒锁将自动释放');
+                    }
+                }
+            });
+        }
+
+        // Compatibility Check
+        function checkCompatibility() {
+            // Wake Lock API
+            const wakeLockSupported = 'wakeLock' in navigator;
+            document.getElementById('compatWakeLock').textContent = wakeLockSupported ? '支持' : '不支持';
+            document.getElementById('compatWakeLock').className = 'info-value' + (wakeLockSupported ? ' success' : ' danger');
+
+            // Screen type
+            document.getElementById('compatScreen').textContent = wakeLockSupported ? '支持' : '不支持';
+            document.getElementById('compatScreen').className = 'info-value' + (wakeLockSupported ? ' success' : ' danger');
+
+            // Visibility API
+            const visibilitySupported = 'visibilityState' in document;
+            document.getElementById('compatVisibility').textContent = visibilitySupported ? '支持' : '不支持';
+            document.getElementById('compatVisibility').className = 'info-value' + (visibilitySupported ? ' success' : ' danger');
+
+            // Battery API
+            const batterySupported = 'getBattery' in navigator;
+            document.getElementById('compatBattery').textContent = batterySupported ? '支持' : '不支持';
+            document.getElementById('compatBattery').className = 'info-value' + (batterySupported ? ' success' : ' danger');
+        }
+
+        // Auto activate on visible
+        function setupAutoActivate() {
+            document.getElementById('autoActivate').addEventListener('change', async (e) => {
+                if (e.target.checked && document.visibilityState === 'visible' && !wakeLock) {
+                    await requestWakeLock();
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkCompatibility();
+            setupVisibilityHandler();
+            setupAutoActivate();
+            updateSystemInfo();
+            updateMonitor();
+            
+            // Initial visibility state
+            document.getElementById('visibilityState').textContent = document.visibilityState;
+            document.getElementById('hiddenState').textContent = String(document.hidden);
+            
+            logEvent('info', 'Screen Wake Lock API 应用已初始化');
+        });
+    </script>
+</body>
+</html>

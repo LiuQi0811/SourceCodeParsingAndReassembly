@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Local Font Access API - 字体管理面板</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --font-mono: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.error {
+            background: var(--accent-orange);
+        }
+
+        .status-dot.loading {
+            background: var(--accent-blue);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 340px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #2a3142;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-size: 12px;
+            margin-top: 6px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .permission-status {
+            margin-top: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 8px;
+            background: var(--bg-deep);
+            border-radius: 4px;
+        }
+
+        /* 右侧内容区 */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at top, #1a1f2e 0%, var(--bg-main) 100%);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stats {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .font-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .font-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 16px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .font-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .font-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .font-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        .font-postscript {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            font-family: var(--font-mono);
+        }
+
+        .preview-box {
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-deep);
+            border-radius: 4px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            font-size: 24px;
+            line-height: 1.3;
+            word-break: break-all;
+            color: var(--text-secondary);
+            transition: font-family 0.1s;
+        }
+
+        .detail-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-hover);
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            width: auto;
+            padding: 0 8px;
+            font-size: 10px;
+        }
+
+        .font-card:hover .detail-btn {
+            opacity: 1;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* 响应式 */
+        @media (max-width: 800px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .control-panel {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                overflow-x: auto;
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .card {
+                min-width: 200px;
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">Ft</div>
+        <span>Local Font Access API</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">检测中...</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制 -->
+    <aside class="control-panel">
+        <div class="card">
+            <div class="section-title">API 状态</div>
+            <p id="api-status-desc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                正在检测浏览器支持情况...
+            </p>
+            <div class="permission-status" id="perm-status">
+                权限状态: 未知
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">权限控制</div>
+            <button id="request-btn" class="primary">
+                <span>🔍 枚举本地字体</span>
+            </button>
+            <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px; text-align: center;">
+                点击后将请求系统权限，访问已安装字体列表。
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="section-title">预览设置</div>
+            <label style="font-size: 11px; color: var(--text-muted);">自定义预览文本</label>
+            <input type="text" id="preview-text" placeholder="输入预览文本..." value="Hello 世界"/>
+        </div>
+    </aside>
+
+    <!-- 右侧内容 -->
+    <section class="content-area">
+        <div class="toolbar">
+            <div class="stats" id="stats-text">共 0 个字体</div>
+            <button id="load-more-btn" style="width: auto; display: none;">加载更多</button>
+        </div>
+
+        <div class="font-grid" id="font-grid">
+            <!-- 字体卡片 -->
+        </div>
+
+        <div class="empty-state" id="empty-state">
+            <div class="empty-icon">🅰️</div>
+            <div>点击左侧按钮获取本地字体列表</div>
+            <div style="font-size: 11px; margin-top: 8px;">支持 Chrome/Edge 103+</div>
+        </div>
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Local Font Access API 演示
+    // ========================================
+
+    const $ = id => document.getElementById(id);
+
+    const state = {
+        supported: 'queryLocalFonts' in window,
+        fonts: [],
+        page: 0,
+        pageSize: 30 // 分页加载，防止卡顿
+    };
+
+    // 初始化
+    async function init() {
+        updateUI();
+
+        if (state.supported) {
+            // 尝试检查权限状态
+            try {
+                const status = await navigator.permissions.query({name: 'local-fonts'});
+                handlePermissionChange(status);
+                status.onchange = () => handlePermissionChange(status);
+            } catch (e) {
+                console.log("Permissions API not fully supported for local-fonts");
+            }
+        }
+
+        setupListeners();
+    }
+
+    function updateUI() {
+        const dot = $('status-dot');
+        const text = $('status-text');
+
+        if (state.supported) {
+            dot.classList.add('active');
+            text.textContent = 'API 支持';
+            $('api-status-desc').innerHTML = '当前浏览器支持 <b>Local Font Access API</b>。';
+        } else {
+            dot.classList.add('error');
+            text.textContent = 'API 不支持';
+            $('api-status-desc').innerHTML = '当前浏览器不支持此 API。请使用 Chrome 103+ 或 Edge 103+。';
+            $('request-btn').disabled = true;
+            $('request-btn').textContent = '浏览器不支持';
+        }
+    }
+
+    function handlePermissionChange(status) {
+        let msg = '';
+        switch (status.state) {
+            case 'granted':
+                msg = '权限状态: <span style="color:var(--accent-green)">已授予</span>';
+                $('request-btn').textContent = '✅ 权限已开启 (重新扫描)';
+                break;
+            case 'denied':
+                msg = '权限状态: <span style="color:var(--accent-orange)">已拒绝</span>';
+                $('request-btn').textContent = '权限被拒绝';
+                $('request-btn').disabled = true;
+                break;
+            case 'prompt':
+                msg = '权限状态: <span style="color:var(--text-muted)">待请求</span>';
+                break;
+        }
+        $('perm-status').innerHTML = msg;
+    }
+
+    function setupListeners() {
+        $('request-btn').addEventListener('click', requestFonts);
+
+        // 预览文本更新
+        $('preview-text').addEventListener('input', (e) => {
+            updatePreviews(e.target.value);
+        });
+
+        // 加载更多
+        $('load-more-btn').addEventListener('click', renderNextPage);
+    }
+
+    // ========================================
+    // 核心逻辑：枚举字体
+    // ========================================
+
+    async function requestFonts() {
+        if (!state.supported) return;
+
+        $('request-btn').disabled = true;
+        $('request-btn').textContent = '正在扫描...';
+        $('status-dot').classList.add('loading');
+
+        try {
+            // 核心调用
+            const fonts = await window.queryLocalFonts();
+
+            state.fonts = fonts;
+            state.page = 0;
+
+            $('empty-state').style.display = 'none';
+            $('stats-text').textContent = `共 ${fonts.length} 个字体`;
+            $('load-more-btn').style.display = fonts.length > state.pageSize ? 'block' : 'none';
+
+            // 重置视图
+            $('font-grid').innerHTML = '';
+            renderNextPage();
+
+            // 更新权限状态显示
+            $('perm-status').innerHTML = '权限状态: <span style="color:var(--accent-green)">已授予</span>';
+            $('request-btn').textContent = '✅ 重新扫描';
+
+        } catch (err) {
+            console.error(err);
+            $('perm-status').innerHTML = '权限状态: <span style="color:var(--accent-orange)">访问失败</span>';
+            $('request-btn').textContent = '重试';
+        } finally {
+            $('request-btn').disabled = false;
+            $('status-dot').classList.remove('loading');
+        }
+    }
+
+    // ========================================
+    // 渲染逻辑
+    // ========================================
+
+    function renderNextPage() {
+        const start = state.page * state.pageSize;
+        const end = start + state.pageSize;
+        const fontsToRender = state.fonts.slice(start, end);
+
+        const previewText = $('preview-text').value || 'Hello';
+
+        fontsToRender.forEach(font => {
+            const card = document.createElement('div');
+            card.className = 'font-card';
+
+            card.innerHTML = `
+          <div class="font-header">
+            <div>
+              <div class="font-name">${font.family}</div>
+              <div class="font-postscript">${font.postscriptName}</div>
+            </div>
+          </div>
+          <div class="preview-box" style="font-family: '${font.family}'">
+            ${previewText}
+          </div>
+          <button class="detail-btn" data-family="${font.family}">读取文件信息</button>
+        `;
+
+            // 绑定详情按钮事件
+            const detailBtn = card.querySelector('.detail-btn');
+            detailBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                inspectFont(font);
+            });
+
+            $('font-grid').appendChild(card);
+        });
+
+        state.page++;
+
+        // 隐藏加载更多按钮
+        if (end >= state.fonts.length) {
+            $('load-more-btn').style.display = 'none';
+        }
+    }
+
+    function updatePreviews(text) {
+        document.querySelectorAll('.preview-box').forEach(el => {
+            el.textContent = text;
+        });
+    }
+
+    // ========================================
+    // 进阶功能：Blob 访问
+    // ========================================
+
+    async function inspectFont(fontData) {
+        // 演示如何访问字体文件数据
+        try {
+            // 注意：blob() 方法目前仍处于实验阶段，部分浏览器可能尚未实现
+            if (!fontData.blob) {
+                alert(`当前浏览器暂不支持读取字体文件数据。\n字体名称: ${fontData.family}`);
+                return;
+            }
+
+            const blob = await fontData.blob();
+
+            // 这里可以做更多事，比如解析字体格式、上传到服务器等
+            const sizeKB = (blob.size / 1024).toFixed(2);
+
+            alert(
+                `字体详情:\n` +
+                `Family: ${fontData.family}\n` +
+                `PostScript: ${fontData.postscriptName}\n` +
+                `File Size: ${sizeKB} KB\n` +
+                `Type: ${blob.type}`
+            );
+
+        } catch (e) {
+            console.error("Error inspecting font", e);
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

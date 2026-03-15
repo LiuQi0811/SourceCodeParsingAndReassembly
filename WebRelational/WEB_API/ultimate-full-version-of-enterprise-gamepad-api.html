@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级 Gamepad API · 终极完整版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, #0a1a2f, #0f2a40);
+            padding: 24px;
+            color: #e6f1ff;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #b8dcff;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #2b5070;
+            padding-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            background: #1d4c73;
+            color: white;
+            padding: 4px 16px;
+            border-radius: 40px;
+        }
+
+        .subtitle {
+            color: #9bc2e5;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            background: #1a334a80;
+            padding: 8px 20px;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        .status-bar {
+            background: #1e2f42;
+            border-radius: 40px;
+            padding: 16px 24px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            border-left: 4px solid #4f9eff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 800px) {
+            .status-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #9bc2e5;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .dot-connected {
+            background: #2c9b4a;
+            box-shadow: 0 0 10px #2c9b4a;
+        }
+
+        .dot-disconnected {
+            background: #c94a4a;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: #1e2f42;
+            padding: 8px;
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: #9bc2e5;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .tab-btn:hover {
+            background: #2a4058;
+            color: white;
+        }
+
+        .tab-btn.active {
+            background: #1a73e8;
+            color: white;
+            box-shadow: 0 4px 8px rgba(26,115,232,0.3);
+        }
+
+        .tab-content {
+            background: #1e2f42;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            padding: 24px;
+            border: 1px solid #2d6090;
+            min-height: 650px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .panel-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #0f233a;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #2d6090;
+            transition: all 0.2s;
+        }
+
+        .panel:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-color: #4f9eff;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #2d6090;
+            padding-bottom: 12px;
+        }
+
+        .panel-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #b8dcff;
+        }
+
+        .badge {
+            background: #1a73e8;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #2c9b4a;
+        }
+
+        .badge-warning {
+            background: #ffb347;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px dashed #2d6090;
+        }
+        .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .label {
+            font-weight: 600;
+            color: #9bc2e5;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 8px 0;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border-radius: 40px;
+            border: 1px solid #2d6090;
+            background: #1e3f60;
+            color: #e6f1ff;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            background: #2a5580;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4285f4;
+        }
+
+        .btn-success {
+            background: #2c9b4a;
+            border-color: #2c9b4a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #34b755;
+        }
+
+        .btn-warning {
+            background: #ffb347;
+            border-color: #e69138;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #c94a4a;
+            border-color: #c94a4a;
+            color: white;
+        }
+
+        .result-box {
+            background: #0a1b2c;
+            color: #cbe4ff;
+            border-radius: 12px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #2d6090;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* 手柄可视化 */
+        .gamepad-visualization {
+            background: #0a1b2c;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 2px solid #2d6090;
+        }
+
+        .gamepad-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .gamepad-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .gamepad-section {
+            background: #0f233a;
+            border-radius: 16px;
+            padding: 15px;
+        }
+
+        .gamepad-title {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #b8dcff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            justify-items: center;
+        }
+
+        .gamepad-button {
+            background: #1e3f60;
+            border: 2px solid #2d6090;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #9bc2e5;
+            transition: all 0.05s;
+            cursor: pointer;
+        }
+
+        .gamepad-button:hover {
+            border-color: #4f9eff;
+        }
+
+        .gamepad-button.pressed {
+            background: #4f9eff;
+            border-color: white;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #4f9eff;
+        }
+
+        .gamepad-joystick-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .joystick-wrapper {
+            text-align: center;
+        }
+
+        .gamepad-joystick {
+            background: #1e3f60;
+            border: 2px solid #2d6090;
+            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            position: relative;
+            margin: 0 auto 10px;
+        }
+
+        .joystick-dot {
+            width: 20px;
+            height: 20px;
+            background: #4f9eff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.05s;
+            box-shadow: 0 0 15px #4f9eff;
+        }
+
+        .joystick-coords {
+            font-size: 11px;
+            color: #9bc2e5;
+            margin-top: 5px;
+        }
+
+        .gamepad-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background: #1e3f60;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #9bc2e5;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* 摇杆条 */
+        .axis-bar-container {
+            margin: 10px 0;
+        }
+
+        .axis-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #9bc2e5;
+            margin-bottom: 4px;
+        }
+
+        .axis-bar {
+            width: 100%;
+            height: 8px;
+            background: #0a1b2c;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .axis-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f9eff, #b8dcff);
+            width: 50%;
+            transition: width 0.05s;
+        }
+
+        /* 事件日志 */
+        .event-log {
+            background: #0a1b2c;
+            color: #cbe4ff;
+            border-radius: 12px;
+            padding: 12px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #2d6090;
+        }
+
+        .log-time {
+            color: #4f9eff;
+            margin-right: 8px;
+        }
+
+        /* 指标面板 */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .metric-card {
+            background: #1e3f60;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #4f9eff;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #9bc2e5;
+            margin-top: 4px;
+        }
+
+        /* 手柄列表 */
+        .gamepad-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .gamepad-item {
+            background: #1e3f60;
+            border-radius: 12px;
+            padding: 12px;
+            border-left: 4px solid #2c9b4a;
+            transition: all 0.2s;
+        }
+
+        .gamepad-item:hover {
+            transform: translateX(4px);
+        }
+
+        .gamepad-item.disconnected {
+            border-left-color: #c94a4a;
+            opacity: 0.7;
+        }
+
+        .gamepad-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .gamepad-name {
+            font-weight: 600;
+            color: white;
+        }
+
+        .gamepad-status {
+            font-size: 12px;
+            color: #2c9b4a;
+        }
+
+        .gamepad-item.disconnected .gamepad-status {
+            color: #c94a4a;
+        }
+
+        .gamepad-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            font-size: 12px;
+            color: #9bc2e5;
+        }
+
+        /* 震动控制 */
+        .slider-container {
+            margin: 15px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 6px;
+            background: #0a1b2c;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4f9eff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #4f9eff;
+        }
+
+        .mode-select {
+            width: 100%;
+            padding: 10px;
+            background: #1e3f60;
+            border: 1px solid #2d6090;
+            border-radius: 40px;
+            color: white;
+            margin: 10px 0;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e3f60;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            margin-top: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-left: 4px solid #4f9eff;
+            animation: slideIn 0.3s;
+            font-size: 13px;
+            max-width: 350px;
+        }
+
+        .toast.success { border-left-color: #2c9b4a; background: #1e4a3a; }
+        .toast.error { border-left-color: #c94a4a; background: #4a2f2f; }
+        .toast.warning { border-left-color: #ffb347; background: #4a3f2f; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #5a7b9c;
+            font-size: 12px;
+        }
+
+        .chart-container {
+            background: #0a1b2c;
+            border-radius: 12px;
+            padding: 12px;
+            height: 200px;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <h1>
+        🎮 Gamepad API · 企业级终极完整版
+        <small>手柄连接 · 按键状态 · 摇杆数据 · 震动反馈 · 实时监控</small>
+    </h1>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-label">手柄状态</span>
+            <span class="status-value" id="statusConnection">
+                    <span class="status-dot dot-disconnected"></span>
+                    未连接
+                </span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">已连接手柄</span>
+            <span class="status-value" id="statusCount">0</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">当前手柄</span>
+            <span class="status-value" id="statusActive">-</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">API 支持</span>
+            <span class="status-value" id="statusAPI">检测中...</span>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab1">🎮 手柄可视化</button>
+        <button class="tab-btn" data-tab="tab2">📊 数据监控</button>
+        <button class="tab-btn" data-tab="tab3">📋 手柄列表</button>
+        <button class="tab-btn" data-tab="tab4">⚡ 震动反馈</button>
+        <button class="tab-btn" data-tab="tab5">🔧 调试工具</button>
+    </div>
+
+    <div class="tab-content">
+        <!-- 选项卡1：手柄可视化 -->
+        <div class="tab-pane active" id="tab1">
+            <div class="panel-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🎮 手柄实时状态</h3>
+                        <span class="badge">可视化</span>
+                    </div>
+
+                    <div class="gamepad-visualization">
+                        <div class="gamepad-layout">
+                            <!-- 左侧：动作按键 -->
+                            <div class="gamepad-section">
+                                <div class="gamepad-title">动作按键</div>
+                                <div class="button-grid">
+                                    <div class="gamepad-button" id="btn0">A</div>
+                                    <div class="gamepad-button" id="btn1">B</div>
+                                    <div class="gamepad-button" id="btn2">X</div>
+                                    <div class="gamepad-button" id="btn3">Y</div>
+                                    <div class="gamepad-button" id="btn4">LB</div>
+                                    <div class="gamepad-button" id="btn5">RB</div>
+                                    <div class="gamepad-button" id="btn6">LT</div>
+                                    <div class="gamepad-button" id="btn7">RT</div>
+                                    <div class="gamepad-button" id="btn8">Sel</div>
+                                    <div class="gamepad-button" id="btn9">Sta</div>
+                                    <div class="gamepad-button" id="btn10">LS</div>
+                                    <div class="gamepad-button" id="btn11">RS</div>
+                                </div>
+                            </div>
+
+                            <!-- 右侧：功能按键 -->
+                            <div class="gamepad-section">
+                                <div class="gamepad-title">方向键</div>
+                                <div class="button-grid" style="grid-template-columns: repeat(3, 1fr);">
+                                    <div></div>
+                                    <div class="gamepad-button" id="btn12">↑</div>
+                                    <div></div>
+                                    <div class="gamepad-button" id="btn13">←</div>
+                                    <div class="gamepad-button" id="btn14">↓</div>
+                                    <div class="gamepad-button" id="btn15">→</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 摇杆区域 -->
+                        <div class="gamepad-joystick-container">
+                            <div class="joystick-wrapper">
+                                <div class="gamepad-joystick" id="leftJoystick">
+                                    <div class="joystick-dot" id="leftDot"></div>
+                                </div>
+                                <div class="joystick-coords" id="leftCoords">X: 0.00, Y: 0.00</div>
+                            </div>
+                            <div class="joystick-wrapper">
+                                <div class="gamepad-joystick" id="rightJoystick">
+                                    <div class="joystick-dot" id="rightDot"></div>
+                                </div>
+                                <div class="joystick-coords" id="rightCoords">X: 0.00, Y: 0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- 手柄信息卡片 -->
+                        <div class="gamepad-info-grid">
+                            <div class="info-card">
+                                <div class="info-label">手柄名称</div>
+                                <div class="info-value" id="infoName">未连接</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">手柄ID</div>
+                                <div class="info-value" id="infoId">-</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">按键数</div>
+                                <div class="info-value" id="infoButtons">0</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">摇杆数</div>
+                                <div class="info-value" id="infoAxes">0</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">时间戳</div>
+                                <div class="info-value" id="infoTimestamp">-</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-label">连接状态</div>
+                                <div class="info-value" id="infoConnected">未连接</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="scanGamepads">扫描手柄</button>
+                        <button class="btn" id="startPolling">开始轮询</button>
+                        <button class="btn" id="stopPolling">停止轮询</button>
+                        <button class="btn" id="resetView">重置视图</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 实时数据</h3>
+                        <span class="badge">JSON输出</span>
+                    </div>
+
+                    <div class="result-box" id="gamepadData" style="height: 400px;">
+                        等待手柄连接...
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value" id="metricRate">0</div>
+                            <div class="metric-label">更新率(Hz)</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="metricButtons">0</div>
+                            <div class="metric-label">激活按键</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="metricDataSize">0</div>
+                            <div class="metric-label">数据大小</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="metricEvents">0</div>
+                            <div class="metric-label">总事件</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡2：数据监控 -->
+        <div class="tab-pane" id="tab2">
+            <div class="panel-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 按键状态</h3>
+                        <span class="badge">实时监控</span>
+                    </div>
+
+                    <div class="result-box" id="buttonStates" style="height: 350px; overflow-y: auto;">
+                        等待数据...
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn" id="exportButtonStats">导出统计</button>
+                        <button class="btn" id="resetButtonStats">重置统计</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📈 摇杆数据</h3>
+                        <span class="badge">实时图表</span>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="axisChart" width="400" height="180"></canvas>
+                    </div>
+
+                    <div class="axis-bar-container">
+                        <div class="axis-label">
+                            <span>左摇杆 X</span>
+                            <span id="leftXValue">0.00</span>
+                        </div>
+                        <div class="axis-bar">
+                            <div class="axis-fill" id="leftXBar" style="width: 50%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="axis-bar-container">
+                        <div class="axis-label">
+                            <span>左摇杆 Y</span>
+                            <span id="leftYValue">0.00</span>
+                        </div>
+                        <div class="axis-bar">
+                            <div class="axis-fill" id="leftYBar" style="width: 50%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="axis-bar-container">
+                        <div class="axis-label">
+                            <span>右摇杆 X</span>
+                            <span id="rightXValue">0.00</span>
+                        </div>
+                        <div class="axis-bar">
+                            <div class="axis-fill" id="rightXBar" style="width: 50%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="axis-bar-container">
+                        <div class="axis-label">
+                            <span>右摇杆 Y</span>
+                            <span id="rightYValue">0.00</span>
+                        </div>
+                        <div class="axis-bar">
+                            <div class="axis-fill" id="rightYBar" style="width: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡3：手柄列表 -->
+        <div class="tab-pane" id="tab3">
+            <div class="panel-grid">
+                <div class="panel" style="grid-column: span 2;">
+                    <div class="panel-header">
+                        <h3>📋 已连接手柄列表</h3>
+                        <span class="badge">GamepadManager</span>
+                    </div>
+
+                    <div class="gamepad-list" id="gamepadList">
+                        <div class="gamepad-item disconnected">
+                            <div class="gamepad-item-header">
+                                <span class="gamepad-name">暂无手柄</span>
+                                <span class="gamepad-status">未连接</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group" style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="refreshGamepadList">刷新列表</button>
+                        <button class="btn" id="selectFirstGamepad">选择第一个手柄</button>
+                        <button class="btn" id="clearGamepadList">清空列表</button>
+                    </div>
+
+                    <div class="result-box" id="gamepadListDetail" style="margin-top: 20px;">
+                        点击刷新查看详细手柄信息
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡4：震动反馈 -->
+        <div class="tab-pane" id="tab4">
+            <div class="panel-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>⚡ 震动控制</h3>
+                        <span class="badge">vibrationActuator</span>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>震动强度</span>
+                            <span id="strengthValue">0.5</span>
+                        </div>
+                        <input type="range" id="vibrationStrength" min="0" max="1" step="0.1" value="0.5">
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>震动时长 (ms)</span>
+                            <span id="durationValue">500</span>
+                        </div>
+                        <input type="range" id="vibrationDuration" min="100" max="3000" step="100" value="500">
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>重复次数</span>
+                            <span id="repeatValue">1</span>
+                        </div>
+                        <input type="range" id="vibrationRepeat" min="0" max="5" step="1" value="1">
+                    </div>
+
+                    <select id="vibrationMode" class="mode-select">
+                        <option value="single">单次震动</option>
+                        <option value="double">双次震动</option>
+                        <option value="pulse">脉冲震动</option>
+                        <option value="continuous">持续震动</option>
+                        <option value="custom">自定义模式</option>
+                    </select>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="startVibration">开始震动</button>
+                        <button class="btn btn-danger" id="stopVibration">停止震动</button>
+                        <button class="btn" id="testVibration">测试震动</button>
+                    </div>
+
+                    <div class="result-box" id="vibrationResult">
+                        震动状态将显示在此
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 震动支持检测</h3>
+                        <span class="badge">actuator</span>
+                    </div>
+
+                    <div class="gamepad-info-grid">
+                        <div class="info-card">
+                            <div class="info-label">震动支持</div>
+                            <div class="info-value" id="supportVibration">检测中...</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">执行器类型</div>
+                            <div class="info-value" id="actuatorType">-</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">执行器数量</div>
+                            <div class="info-value" id="actuatorCount">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">效果支持</div>
+                            <div class="info-value" id="effectSupport">-</div>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="actuatorInfo" style="height: 150px;">
+                        执行器详细信息
+                    </div>
+
+                    <button class="btn" id="detectActuators">检测执行器</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选项卡5：调试工具 -->
+        <div class="tab-pane" id="tab5">
+            <div class="panel-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔧 调试日志</h3>
+                        <span class="badge">开发者工具</span>
+                    </div>
+
+                    <div class="event-log" id="debugLog">
+                        <div class="log-entry"><span class="log-time">✨</span> 调试日志将显示在此</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn" id="clearDebugLog">清除日志</button>
+                        <button class="btn" id="copyDebugLog">复制日志</button>
+                        <button class="btn" id="exportDebugLog">导出JSON</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 系统信息</h3>
+                        <span class="badge">兼容性</span>
+                    </div>
+
+                    <div class="gamepad-info-grid">
+                        <div class="info-card">
+                            <div class="info-label">浏览器</div>
+                            <div class="info-value" id="infoBrowser">检测中...</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Gamepad API</div>
+                            <div class="info-value" id="infoGamepadAPI">检测中...</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">震动支持</div>
+                            <div class="info-value" id="infoVibration">检测中...</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">最大手柄数</div>
+                            <div class="info-value" id="infoMaxGamepads">4</div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="testCompatibility">测试兼容性</button>
+                        <button class="btn" id="simulateGamepad">模拟手柄</button>
+                        <button class="btn btn-danger" id="resetAll">重置所有</button>
+                    </div>
+
+                    <div class="result-box" id="debugResult">
+                        调试信息
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        ⚡ 企业级 Gamepad API 终极完整版 · 连接游戏手柄体验完整功能 · 支持震动反馈 · 实时数据监控
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+    // ==================== 企业级 Gamepad API 终极完整实现 ====================
+
+    // --- 工具函数 ---
+    function showToast(msg, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    function formatTime() {
+        return new Date().toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3
+        });
+    }
+
+    // --- 调试日志 ---
+    function addDebugLog(message, type = 'info') {
+        const log = document.getElementById('debugLog');
+        if (!log) return;
+
+        const time = formatTime();
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+
+        let color = '#cbe4ff';
+        if (type === 'error') color = '#ffaeae';
+        if (type === 'success') color = '#a5d6ff';
+        if (type === 'warning') color = '#ffb347';
+
+        entry.innerHTML = `<span class="log-time">[${time}]</span> <span style="color: ${color};">${message}</span>`;
+
+        log.insertBefore(entry, log.firstChild);
+
+        while (log.children.length > 100) {
+            log.removeChild(log.lastChild);
+        }
+    }
+
+    // --- 全局变量 ---
+    let pollingInterval = null;
+    let animationFrame = null;
+    let lastGamepads = {};
+    let eventCount = 0;
+    let lastUpdateTime = Date.now();
+    let updateRates = [];
+    let buttonPressCounts = {};
+    let axisHistory = {
+        leftX: [], leftY: [], rightX: [], rightY: []
+    };
+    const MAX_HISTORY = 50;
+
+    // --- 选项卡切换逻辑 ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const tabId = btn.dataset.tab;
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    // --- Gamepad API 支持检测 ---
+    function checkGamepadSupport() {
+        const supported = 'getGamepads' in navigator;
+        document.getElementById('statusAPI').innerHTML = supported ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        document.getElementById('infoGamepadAPI').innerHTML = supported ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        if (!supported) {
+            addDebugLog('当前浏览器不支持 Gamepad API', 'error');
+            showToast('浏览器不支持 Gamepad API', 'error');
+        } else {
+            addDebugLog('Gamepad API 支持检测通过', 'success');
+        }
+
+        document.getElementById('infoBrowser').textContent = navigator.userAgent.split(' ').slice(-1)[0];
+
+        return supported;
+    }
+
+    // --- 获取所有手柄 ---
+    function getGamepads() {
+        return navigator.getGamepads ? navigator.getGamepads() : [];
+    }
+
+    // --- 更新手柄状态 ---
+    function updateGamepadStatus() {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        document.getElementById('statusCount').textContent = connected.length;
+
+        if (connected.length > 0) {
+            document.getElementById('statusConnection').innerHTML = `
+                    <span class="status-dot dot-connected"></span>
+                    已连接
+                `;
+            document.getElementById('statusActive').textContent = connected[0].id.substring(0, 20) + '...';
+        } else {
+            document.getElementById('statusConnection').innerHTML = `
+                    <span class="status-dot dot-disconnected"></span>
+                    未连接
+                `;
+            document.getElementById('statusActive').textContent = '-';
+        }
+
+        updateGamepadList(connected);
+
+        return connected;
+    }
+
+    // --- 更新手柄列表 ---
+    function updateGamepadList(connected) {
+        const list = document.getElementById('gamepadList');
+        if (connected.length === 0) {
+            list.innerHTML = `
+                    <div class="gamepad-item disconnected">
+                        <div class="gamepad-item-header">
+                            <span class="gamepad-name">暂无手柄</span>
+                            <span class="gamepad-status">未连接</span>
+                        </div>
+                    </div>
+                `;
+            return;
+        }
+
+        let html = '';
+        connected.forEach((gamepad, index) => {
+            html += `
+                    <div class="gamepad-item">
+                        <div class="gamepad-item-header">
+                            <span class="gamepad-name">手柄 ${index + 1}</span>
+                            <span class="gamepad-status">已连接</span>
+                        </div>
+                        <div class="gamepad-details">
+                            <span>按键: ${gamepad.buttons.length}</span>
+                            <span>摇杆: ${gamepad.axes.length}</span>
+                            <span>ID: ${gamepad.index}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #9bc2e5; margin-top: 8px;">
+                            ${gamepad.id.substring(0, 50)}
+                        </div>
+                    </div>
+                `;
+        });
+        list.innerHTML = html;
+    }
+
+    // --- 更新可视化 ---
+    function updateVisualization(gamepad) {
+        if (!gamepad || !gamepad.connected) {
+            // 重置所有按钮和摇杆
+            for (let i = 0; i < 16; i++) {
+                const btn = document.getElementById(`btn${i}`);
+                if (btn) btn.classList.remove('pressed');
+            }
+
+            const leftDot = document.getElementById('leftDot');
+            const rightDot = document.getElementById('rightDot');
+            if (leftDot) leftDot.style.transform = 'translate(-50%, -50%)';
+            if (rightDot) rightDot.style.transform = 'translate(-50%, -50%)';
+
+            document.getElementById('leftCoords').textContent = 'X: 0.00, Y: 0.00';
+            document.getElementById('rightCoords').textContent = 'X: 0.00, Y: 0.00';
+            document.getElementById('infoName').textContent = '未连接';
+            document.getElementById('infoId').textContent = '-';
+            document.getElementById('infoButtons').textContent = '0';
+            document.getElementById('infoAxes').textContent = '0';
+            document.getElementById('infoTimestamp').textContent = '-';
+            document.getElementById('infoConnected').textContent = '未连接';
+            return;
+        }
+
+        // 更新按钮状态
+        for (let i = 0; i < Math.min(gamepad.buttons.length, 16); i++) {
+            const btn = document.getElementById(`btn${i}`);
+            if (btn) {
+                const pressed = gamepad.buttons[i].pressed;
+                if (pressed) {
+                    btn.classList.add('pressed');
+                    buttonPressCounts[i] = (buttonPressCounts[i] || 0) + 1;
+                } else {
+                    btn.classList.remove('pressed');
+                }
+            }
+        }
+
+        // 更新摇杆位置
+        if (gamepad.axes.length >= 4) {
+            const leftX = gamepad.axes[0] || 0;
+            const leftY = gamepad.axes[1] || 0;
+            const rightX = gamepad.axes[2] || 0;
+            const rightY = gamepad.axes[3] || 0;
+
+            // 左摇杆
+            const leftDot = document.getElementById('leftDot');
+            leftDot.style.transform = `translate(calc(-50% + ${leftX * 35}px), calc(-50% + ${leftY * 35}px))`;
+            document.getElementById('leftCoords').textContent = `X: ${leftX.toFixed(2)}, Y: ${leftY.toFixed(2)}`;
+
+            // 右摇杆
+            const rightDot = document.getElementById('rightDot');
+            rightDot.style.transform = `translate(calc(-50% + ${rightX * 35}px), calc(-50% + ${rightY * 35}px))`;
+            document.getElementById('rightCoords').textContent = `X: ${rightX.toFixed(2)}, Y: ${rightY.toFixed(2)}`;
+
+            // 更新摇杆条
+            document.getElementById('leftXBar').style.width = `${(leftX + 1) * 50}%`;
+            document.getElementById('leftYBar').style.width = `${(leftY + 1) * 50}%`;
+            document.getElementById('rightXBar').style.width = `${(rightX + 1) * 50}%`;
+            document.getElementById('rightYBar').style.width = `${(rightY + 1) * 50}%`;
+
+            document.getElementById('leftXValue').textContent = leftX.toFixed(2);
+            document.getElementById('leftYValue').textContent = leftY.toFixed(2);
+            document.getElementById('rightXValue').textContent = rightX.toFixed(2);
+            document.getElementById('rightYValue').textContent = rightY.toFixed(2);
+
+            // 记录历史
+            axisHistory.leftX.push(leftX);
+            axisHistory.leftY.push(leftY);
+            axisHistory.rightX.push(rightX);
+            axisHistory.rightY.push(rightY);
+
+            // 限制历史长度
+            ['leftX', 'leftY', 'rightX', 'rightY'].forEach(axis => {
+                if (axisHistory[axis].length > MAX_HISTORY) axisHistory[axis].shift();
+            });
+
+            // 更新图表
+            updateAxisChart();
+        }
+
+        // 更新信息
+        document.getElementById('infoName').textContent = gamepad.id.substring(0, 20);
+        document.getElementById('infoId').textContent = gamepad.id.substring(0, 15);
+        document.getElementById('infoButtons').textContent = gamepad.buttons.length;
+        document.getElementById('infoAxes').textContent = gamepad.axes.length;
+        document.getElementById('infoTimestamp').textContent = gamepad.timestamp.toFixed(0);
+        document.getElementById('infoConnected').textContent = '已连接';
+
+        // 更新按键状态文本
+        updateButtonStatesText(gamepad);
+
+        // 更新JSON数据
+        updateGamepadData(gamepad);
+
+        // 更新指标
+        document.getElementById('metricButtons').textContent =
+            Array.from(gamepad.buttons).filter(b => b.pressed).length;
+    }
+
+    // --- 更新按键状态文本 ---
+    function updateButtonStatesText(gamepad) {
+        const container = document.getElementById('buttonStates');
+        if (!container) return;
+
+        let html = '<table style="width:100%; border-collapse: collapse;">';
+        html += '<tr><th>按键</th><th>状态</th><th>值</th><th>次数</th></tr>';
+
+        for (let i = 0; i < gamepad.buttons.length; i++) {
+            const btn = gamepad.buttons[i];
+            const pressed = btn.pressed;
+            const value = btn.value.toFixed(2);
+            const count = buttonPressCounts[i] || 0;
+
+            html += `<tr style="border-bottom: 1px solid #2d6090;">
+                    <td style="padding: 4px;">${i}</td>
+                    <td style="padding: 4px; color: ${pressed ? '#4f9eff' : '#9bc2e5'};">
+                        ${pressed ? '按下' : '释放'}
+                    </td>
+                    <td style="padding: 4px;">${value}</td>
+                    <td style="padding: 4px; color: #ffb347;">${count}</td>
+                </tr>`;
+        }
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // --- 更新手柄数据JSON ---
+    function updateGamepadData(gamepad) {
+        const container = document.getElementById('gamepadData');
+        if (!container) return;
+
+        const data = {
+            id: gamepad.id,
+            index: gamepad.index,
+            connected: gamepad.connected,
+            timestamp: gamepad.timestamp,
+            axes: Array.from(gamepad.axes).map(a => parseFloat(a.toFixed(3))),
+            buttons: Array.from(gamepad.buttons).map(b => ({
+                pressed: b.pressed,
+                value: parseFloat(b.value.toFixed(3))
+            })),
+            mapping: gamepad.mapping,
+            vibrationActuator: gamepad.vibrationActuator ? {
+                type: gamepad.vibrationActuator.type,
+                supported: true
+            } : null
+        };
+
+        container.innerHTML = JSON.stringify(data, null, 2);
+
+        document.getElementById('metricDataSize').textContent = JSON.stringify(data).length;
+    }
+
+    // --- 更新摇杆图表 ---
+    function updateAxisChart() {
+        const canvas = document.getElementById('axisChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // 绘制网格
+        ctx.strokeStyle = '#2d6090';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= 4; i++) {
+            const x = i * width / 4;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+
+        // 绘制中心线
+        ctx.strokeStyle = '#4f9eff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(width/2, 0);
+        ctx.lineTo(width/2, height);
+        ctx.stroke();
+
+        // 绘制左X轴历史
+        if (axisHistory.leftX.length > 1) {
+            ctx.strokeStyle = '#ffb347';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const step = width / axisHistory.leftX.length;
+            axisHistory.leftX.forEach((value, index) => {
+                const x = index * step;
+                const y = height/2 - (value * height/2);
+                if (index === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        // 绘制右X轴历史
+        if (axisHistory.rightX.length > 1) {
+            ctx.strokeStyle = '#4f9eff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const step = width / axisHistory.rightX.length;
+            axisHistory.rightX.forEach((value, index) => {
+                const x = index * step;
+                const y = height/2 - (value * height/2);
+                if (index === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+    }
+
+    // --- 轮询手柄状态 ---
+    function startPolling() {
+        if (pollingInterval) return;
+
+        pollingInterval = setInterval(() => {
+            const gamepads = getGamepads();
+            const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+            if (connected.length > 0) {
+                const primaryGamepad = connected[0];
+                updateVisualization(primaryGamepad);
+
+                // 计算更新率
+                const now = Date.now();
+                const delta = now - lastUpdateTime;
+                if (delta > 0) {
+                    const rate = Math.round(1000 / delta);
+                    updateRates.push(rate);
+                    if (updateRates.length > 10) updateRates.shift();
+
+                    const avgRate = Math.round(updateRates.reduce((a, b) => a + b, 0) / updateRates.length);
+                    document.getElementById('metricRate').textContent = avgRate;
+                }
+
+                eventCount++;
+                document.getElementById('metricEvents').textContent = eventCount;
+
+                lastUpdateTime = now;
+            } else {
+                updateVisualization(null);
+            }
+
+            updateGamepadStatus();
+        }, 16); // 约60fps
+
+        addDebugLog('开始轮询手柄数据', 'success');
+    }
+
+    function stopPolling() {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+            addDebugLog('停止轮询手柄数据', 'info');
+        }
+    }
+
+    // --- 震动控制 ---
+    async function vibrate(gamepad, intensity, duration, mode = 'single', repeat = 1) {
+        if (!gamepad || !gamepad.vibrationActuator) {
+            showToast('当前手柄不支持震动', 'warning');
+            return false;
+        }
+
+        try {
+            const actuator = gamepad.vibrationActuator;
+
+            switch(mode) {
+                case 'single':
+                    await actuator.playEffect(actuator.type, {
+                        duration: duration,
+                        startDelay: 0,
+                        strongMagnitude: intensity,
+                        weakMagnitude: intensity
+                    });
+                    addDebugLog(`执行单次震动: 强度=${intensity}, 时长=${duration}ms`, 'success');
+                    break;
+
+                case 'double':
+                    for (let i = 0; i < repeat; i++) {
+                        await actuator.playEffect(actuator.type, {
+                            duration: duration,
+                            startDelay: i * (duration + 200),
+                            strongMagnitude: intensity,
+                            weakMagnitude: intensity
+                        });
+                    }
+                    addDebugLog(`执行双次震动: 重复=${repeat}次`, 'success');
+                    break;
+
+                case 'pulse':
+                    await actuator.playEffect(actuator.type, {
+                        duration: duration,
+                        startDelay: 0,
+                        strongMagnitude: intensity,
+                        weakMagnitude: intensity,
+                        period: 200
+                    });
+                    addDebugLog(`执行脉冲震动`, 'success');
+                    break;
+
+                case 'continuous':
+                    await actuator.playEffect(actuator.type, {
+                        duration: 0,
+                        startDelay: 0,
+                        strongMagnitude: intensity,
+                        weakMagnitude: intensity
+                    });
+                    addDebugLog(`执行持续震动`, 'success');
+                    break;
+
+                case 'custom':
+                    // 自定义模式：强弱交替
+                    for (let i = 0; i < repeat; i++) {
+                        await actuator.playEffect(actuator.type, {
+                            duration: 200,
+                            startDelay: i * 400,
+                            strongMagnitude: intensity,
+                            weakMagnitude: intensity * 0.5
+                        });
+                    }
+                    addDebugLog(`执行自定义震动`, 'success');
+                    break;
+            }
+
+            return true;
+        } catch (err) {
+            addDebugLog(`震动失败: ${err.message}`, 'error');
+            showToast('震动失败: ' + err.message, 'error');
+            return false;
+        }
+    }
+
+    // --- 事件绑定 ---
+
+    // 扫描手柄
+    document.getElementById('scanGamepads').addEventListener('click', () => {
+        const connected = updateGamepadStatus();
+        addDebugLog(`扫描手柄: 发现 ${connected.length} 个已连接手柄`, 'info');
+        showToast(`发现 ${connected.length} 个手柄`, 'info');
+    });
+
+    // 开始轮询
+    document.getElementById('startPolling').addEventListener('click', startPolling);
+
+    // 停止轮询
+    document.getElementById('stopPolling').addEventListener('click', stopPolling);
+
+    // 重置视图
+    document.getElementById('resetView').addEventListener('click', () => {
+        updateVisualization(null);
+        addDebugLog('重置可视化视图', 'info');
+    });
+
+    // 刷新列表
+    document.getElementById('refreshGamepadList').addEventListener('click', () => {
+        const connected = updateGamepadStatus();
+        const gamepads = getGamepads();
+        document.getElementById('gamepadListDetail').innerHTML = JSON.stringify(
+            Array.from(gamepads).filter(g => g).map(g => ({
+                id: g.id.substring(0, 30),
+                index: g.index,
+                connected: g.connected,
+                buttons: g.buttons.length,
+                axes: g.axes.length,
+                mapping: g.mapping,
+                timestamp: g.timestamp
+            })),
+            null, 2
+        );
+        addDebugLog(`刷新手柄列表: ${connected.length} 个已连接`, 'info');
+    });
+
+    // 选择第一个手柄
+    document.getElementById('selectFirstGamepad').addEventListener('click', () => {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        if (connected.length > 0) {
+            updateVisualization(connected[0]);
+            showToast('已选择第一个手柄', 'success');
+        } else {
+            showToast('没有已连接的手柄', 'warning');
+        }
+    });
+
+    // 清空列表
+    document.getElementById('clearGamepadList').addEventListener('click', () => {
+        document.getElementById('gamepadListDetail').innerHTML = '列表已清空';
+        addDebugLog('清空手柄列表', 'info');
+    });
+
+    // 导出按键统计
+    document.getElementById('exportButtonStats').addEventListener('click', () => {
+        const data = {
+            buttonPressCounts: buttonPressCounts,
+            timestamp: Date.now(),
+            totalEvents: eventCount
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `button-stats-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('按键统计已导出', 'success');
+    });
+
+    // 重置按键统计
+    document.getElementById('resetButtonStats').addEventListener('click', () => {
+        buttonPressCounts = {};
+        addDebugLog('重置按键统计', 'info');
+        showToast('按键统计已重置', 'info');
+    });
+
+    // 震动控制
+    document.getElementById('startVibration').addEventListener('click', async () => {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        if (connected.length === 0) {
+            showToast('没有已连接的手柄', 'warning');
+            return;
+        }
+
+        const strength = parseFloat(document.getElementById('vibrationStrength').value);
+        const duration = parseInt(document.getElementById('vibrationDuration').value);
+        const repeat = parseInt(document.getElementById('vibrationRepeat').value);
+        const mode = document.getElementById('vibrationMode').value;
+
+        const success = await vibrate(connected[0], strength, duration, mode, repeat);
+
+        document.getElementById('vibrationResult').innerHTML = success ?
+            `✅ 震动已触发 (强度: ${strength}, 时长: ${duration}ms, 模式: ${mode})` :
+            `❌ 震动失败`;
+    });
+
+    document.getElementById('stopVibration').addEventListener('click', async () => {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        if (connected.length === 0 || !connected[0].vibrationActuator) return;
+
+        try {
+            await connected[0].vibrationActuator.reset();
+            document.getElementById('vibrationResult').innerHTML = '⏹️ 震动已停止';
+            addDebugLog('停止震动', 'info');
+        } catch (err) {
+            showToast('停止震动失败: ' + err.message, 'error');
+        }
+    });
+
+    document.getElementById('testVibration').addEventListener('click', async () => {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        if (connected.length === 0) {
+            showToast('没有已连接的手柄', 'warning');
+            return;
+        }
+
+        await vibrate(connected[0], 0.5, 200, 'single', 1);
+    });
+
+    // 检测执行器
+    document.getElementById('detectActuators').addEventListener('click', () => {
+        const gamepads = getGamepads();
+        const connected = Array.from(gamepads).filter(g => g && g.connected);
+
+        if (connected.length === 0) {
+            document.getElementById('actuatorInfo').innerHTML = '没有已连接的手柄';
+            return;
+        }
+
+        const gamepad = connected[0];
+        const info = {
+            hasVibration: !!gamepad.vibrationActuator,
+            actuatorType: gamepad.vibrationActuator?.type || '无',
+            actuatorCount: gamepad.vibrationActuator ? 1 : 0,
+            effects: ['dual-rumble']
+        };
+
+        document.getElementById('supportVibration').innerHTML = info.hasVibration ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+        document.getElementById('actuatorType').textContent = info.actuatorType;
+        document.getElementById('actuatorCount').textContent = info.actuatorCount;
+        document.getElementById('effectSupport').textContent = info.effects.join(', ');
+        document.getElementById('actuatorInfo').innerHTML = JSON.stringify(info, null, 2);
+        document.getElementById('infoVibration').innerHTML = info.hasVibration ?
+            '<span style="color:#2c9b4a;">✅ 支持</span>' :
+            '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+        addDebugLog('检测执行器完成', 'success');
+    });
+
+    // 调试工具
+    document.getElementById('clearDebugLog').addEventListener('click', () => {
+        document.getElementById('debugLog').innerHTML = '<div class="log-entry"><span class="log-time">✨</span> 调试日志已清空</div>';
+    });
+
+    document.getElementById('copyDebugLog').addEventListener('click', () => {
+        const log = document.getElementById('debugLog').innerText;
+        navigator.clipboard?.writeText(log).then(() => {
+            showToast('日志已复制', 'success');
+        });
+    });
+
+    document.getElementById('exportDebugLog').addEventListener('click', () => {
+        const log = document.getElementById('debugLog').innerText;
+        const blob = new Blob([log], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gamepad-log-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('日志已导出', 'success');
+    });
+
+    document.getElementById('testCompatibility').addEventListener('click', () => {
+        const support = {
+            gamepadAPI: 'getGamepads' in navigator,
+            vibration: 'vibrationActuator' in (Gamepad.prototype || {}),
+            standardMapping: true,
+            maxGamepads: 4
+        };
+
+        document.getElementById('debugResult').innerHTML = JSON.stringify(support, null, 2);
+        addDebugLog('兼容性测试完成', 'info');
+    });
+
+    document.getElementById('simulateGamepad').addEventListener('click', () => {
+        showToast('模拟手柄功能需要浏览器原生支持', 'info');
+        addDebugLog('尝试模拟手柄 - 需要使用实际硬件', 'warning');
+    });
+
+    document.getElementById('resetAll').addEventListener('click', () => {
+        stopPolling();
+        buttonPressCounts = {};
+        axisHistory = { leftX: [], leftY: [], rightX: [], rightY: [] };
+        eventCount = 0;
+
+        updateVisualization(null);
+        document.getElementById('gamepadData').innerHTML = '等待手柄连接...';
+        document.getElementById('buttonStates').innerHTML = '等待数据...';
+        document.getElementById('gamepadListDetail').innerHTML = '列表已重置';
+        document.getElementById('vibrationResult').innerHTML = '震动状态将显示在此';
+        document.getElementById('debugResult').innerHTML = '调试信息';
+
+        document.getElementById('metricRate').textContent = '0';
+        document.getElementById('metricButtons').textContent = '0';
+        document.getElementById('metricDataSize').textContent = '0';
+        document.getElementById('metricEvents').textContent = '0';
+
+        addDebugLog('所有状态已重置', 'info');
+        showToast('所有状态已重置', 'info');
+    });
+
+    // 更新滑块显示
+    document.getElementById('vibrationStrength').addEventListener('input', (e) => {
+        document.getElementById('strengthValue').textContent = e.target.value;
+    });
+
+    document.getElementById('vibrationDuration').addEventListener('input', (e) => {
+        document.getElementById('durationValue').textContent = e.target.value;
+    });
+
+    document.getElementById('vibrationRepeat').addEventListener('input', (e) => {
+        document.getElementById('repeatValue').textContent = e.target.value;
+    });
+
+    // 监听手柄连接事件
+    window.addEventListener('gamepadconnected', (e) => {
+        addDebugLog(`手柄已连接: ${e.gamepad.id.substring(0, 30)}`, 'success');
+        showToast(`手柄已连接`, 'success');
+        updateGamepadStatus();
+
+        if (!pollingInterval) {
+            startPolling();
+        }
+    });
+
+    window.addEventListener('gamepaddisconnected', (e) => {
+        addDebugLog(`手柄已断开: ${e.gamepad.id.substring(0, 30)}`, 'warning');
+        showToast('手柄已断开', 'warning');
+        updateGamepadStatus();
+    });
+
+    // 初始化
+    checkGamepadSupport();
+    updateGamepadStatus();
+    startPolling();
+    addDebugLog('Gamepad API 终极版已启动', 'success');
+    showToast('🚀 Gamepad API 终极版已启动', 'success');
+</script>
+</body>
+</html>

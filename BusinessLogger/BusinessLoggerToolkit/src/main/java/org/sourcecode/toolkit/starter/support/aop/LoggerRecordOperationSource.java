@@ -33,7 +33,7 @@ public class LoggerRecordOperationSource {
         Collection<LoggerRecordOperations> loggerRecordsOperations = parseLoggerRecordsAnnotations(mostSpecificMethod);
         Collection<LoggerRecordOperations> abstractLoggerRecordOperations = parseLoggerRecordAnnotations(getInterfaceMethodIfPossible(method));
         Collection<LoggerRecordOperations> abstractLoggerRecordsOperations = parseLoggerRecordsAnnotations(getInterfaceMethodIfPossible(method));
-        Set<LoggerRecordOperations> result = new HashSet<>();
+        HashSet<LoggerRecordOperations> result = new HashSet<>();
         result.addAll(loggerRecordOperations);
         result.addAll(abstractLoggerRecordOperations);
         result.addAll(loggerRecordsOperations);
@@ -62,7 +62,7 @@ public class LoggerRecordOperationSource {
     }
 
     private Collection<LoggerRecordOperations> parseLoggerRecordAnnotations(AnnotatedElement annotatedElement) {
-        Set<LoggerRecord> allMergedAnnotations = AnnotatedElementUtils.findAllMergedAnnotations(annotatedElement, LoggerRecord.class);
+        Collection<LoggerRecord> allMergedAnnotations = AnnotatedElementUtils.findAllMergedAnnotations(annotatedElement, LoggerRecord.class);
         Collection<LoggerRecordOperations> loggerRecordOptionsCollection = new ArrayList<>();
         if (!allMergedAnnotations.isEmpty()) {
             allMergedAnnotations.forEach(annotation -> {

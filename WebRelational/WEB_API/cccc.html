@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MSE Engine - WebM Stream</title>
+    <style>
+        :root {
+            --bg-dash: #0b0f15;
+            --bg-panel: #131920;
+            --bg-card: #1a222d;
+            --border: #2a3544;
+            --text-main: #e4e8ef;
+            --text-dim: #6b7a8f;
+            --accent-primary: #2962ff;
+            --accent-success: #00c853;
+            --accent-danger: #ff3d00;
+            --font-data: 'IBM Plex Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-dash); color: var(--text-main);
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        header {
+            height: 50px; background: var(--bg-panel); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
+        }
+        .logo { font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        .logo span { color: var(--accent-primary); }
+        .status-indicator {
+            display: flex; align-items: center; gap: 8px; font-size: 12px;
+            font-family: var(--font-data); padding: 4px 12px; background: var(--bg-card); border-radius: 12px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+        .dot.active { background: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
+        .dot.error { background: var(--accent-danger); }
+
+        .main-grid {
+            flex: 1; display: grid; grid-template-columns: 1fr 320px; grid-template-rows: 1fr 200px;
+            gap: 1px; background: var(--border);
+        }
+        .video-col { background: var(--bg-dash); display: flex; flex-direction: column; }
+        .video-container { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; max-height: 100%; }
+
+        .progress-section { background: var(--bg-panel); padding: 15px; border-top: 1px solid var(--border); }
+        .timeline-track { width: 100%; height: 6px; background: var(--bg-card); border-radius: 3px; position: relative; cursor: pointer; }
+        .buffer-segment { position: absolute; height: 100%; background: var(--text-dim); opacity: 0.4; border-radius: 2px; }
+        .play-head { position: absolute; height: 100%; background: var(--accent-primary); width: 0%; border-radius: 3px; z-index: 2; }
+        .time-stats { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 4px; font-family: var(--font-data); }
+
+        .control-panel { background: var(--bg-panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); }
+        .section-title { font-size: 11px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; font-weight: 600; }
+        .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .metric-card { background: var(--bg-card); padding: 10px; border-radius: 4px; border: 1px solid var(--border); }
+        .metric-label { font-size: 9px; color: var(--text-dim); margin-bottom: 4px; }
+        .metric-value { font-family: var(--font-data); font-size: 14px; font-weight: 600; }
+
+        button {
+            background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 10px;
+            border-radius: 4px; cursor: pointer; font-size: 11px; width: 100%; margin-bottom: 8px; transition: all 0.2s;
+        }
+        button:hover { background: var(--border); }
+        button.primary-action { background: var(--accent-primary); border: none; color: white; font-weight: 600; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .log-terminal {
+            grid-column: 1 / -1; background: #080b0f; padding: 10px 20px;
+            font-family: var(--font-data); font-size: 10px; overflow-y: auto;
+            border-top: 1px solid var(--border); display: flex; flex-direction: column-reverse;
+        }
+        .log-line { margin-bottom: 4px; }
+        .log-err { color: var(--accent-danger); }
+        .log-sys { color: var(--text-dim); }
+        .log-mse { color: var(--accent-success); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo"><span>MSE</span> WebM Engine</div>
+    <div class="status-indicator">
+        <span class="dot" id="sys-dot"></span>
+        <span id="sys-status">IDLE</span>
+    </div>
+</header>
+
+<div class="main-grid">
+    <div class="video-col">
+        <div class="video-container">
+            <video id="player" controls></video>
+        </div>
+        <div class="progress-section">
+            <div class="timeline-track" id="timeline">
+                <div id="buf-viz"></div>
+                <div class="play-head" id="playhead"></div>
+            </div>
+            <div class="time-stats">
+                <span id="time-cur">00:00</span>
+                <span id="time-dur">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="section-title">Engine Metrics</div>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">DOWNLOADED</div>
+                <div class="metric-value" id="met-load">0 MB</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">BUFFER STATUS</div>
+                <div class="metric-value" id="met-buf">Idle</div>
+            </div>
+        </div>
+        <div class="section-title">Actions</div>
+        <button id="btn-start" class="primary-action">Load WebM Video</button>
+        <button id="btn-abort" style="border-color: var(--accent-danger); color: var(--accent-danger);">Hard Reset</button>
+    </div>
+
+    <div class="log-terminal" id="logs">
+        <div class="log-line log-sys">System ready. Using WebM container.</div>
+    </div>
+</div>
+
+<script>
+    // ========================================
+    // MSE 引擎 - WebM 格式版 (彻底解决 Internal Error)
+    // ========================================
+
+    // 配置：使用 WebM 格式 (VP8)
+    // 注意：MSE 原生支持 WebM 流式加载，无需像 MP4 那样处理复杂的 moov 原子
+    const CONF = {
+        URL: 'https://www.w3schools.com/html/mov_bbb.webm',
+        MIME: 'video/webm; codecs="vp8, vorbis"', // VP8 视频 + Vorbis 音频
+        CHUNK_SIZE: 256 * 1024 // 256KB 分片
+    };
+
+    let State = null;
+    const $ = id => document.getElementById(id);
+    const Player = $('player');
+    const Logs = $('logs');
+
+    // 1. 状态重置
+    function resetState() {
+        if (State) {
+            if (State.abortController) State.abortController.abort();
+            if (State.mediaSource) {
+                State.mediaSource.removeEventListener('sourceopen', onSourceOpen);
+                State.mediaSource.removeEventListener('sourceclose', onMediaSourceClose);
+            }
+            if (State.sourceBuffer) {
+                State.sourceBuffer.removeEventListener('updateend', processQueue);
+                State.sourceBuffer.removeEventListener('error', onBufferError);
+            }
+        }
+        State = {
+            mediaSource: null,
+            sourceBuffer: null,
+            totalSize: 0,
+            bytesLoaded: 0,
+            isFetching: false,
+            abortController: null,
+            fetchQueue: [],
+            stats: { ops: 0 }
+        };
+        $('met-load').textContent = '0 MB';
+        $('met-buf').textContent = 'Idle';
+    }
+
+    resetState();
+
+    function isMSEAlive() {
+        return State.mediaSource &&
+            State.mediaSource.readyState === 'open' &&
+            State.sourceBuffer;
+    }
+
+    // 2. 初始化
+    async function initEngine() {
+        if (State.mediaSource && State.mediaSource.readyState === 'open') return;
+        resetState();
+
+        Player.removeAttribute('src');
+        Player.load();
+        updateUI('LOADING');
+        log('sys', 'Initializing MediaSource...');
+
+        try {
+            // 探测文件大小
+            const head = await fetch(CONF.URL, { method: 'HEAD' });
+            State.totalSize = parseInt(head.headers.get('Content-Length'));
+            log('net', `Source found: ${(State.totalSize/1024/1024).toFixed(2)} MB`);
+
+            // 创建 MSE
+            State.mediaSource = new MediaSource();
+            Player.src = URL.createObjectURL(State.mediaSource);
+
+            State.mediaSource.addEventListener('sourceopen', onSourceOpen);
+            State.mediaSource.addEventListener('sourceclose', onMediaSourceClose);
+
+        } catch (e) {
+            handleError(e);
+        }
+    }
+
+    function onMediaSourceClose() { updateUI('IDLE'); }
+
+    // 3. MSE 核心
+    function onSourceOpen() {
+        if (State.mediaSource.sourceBuffers.length > 0) return;
+
+        // 检查浏览器支持
+        if (!MediaSource.isTypeSupported(CONF.MIME)) {
+            log('err', `MIME not supported: ${CONF.MIME}`);
+            handleError(new Error('Unsupported Format'));
+            return;
+        }
+
+        try {
+            State.sourceBuffer = State.mediaSource.addSourceBuffer(CONF.MIME);
+            log('mse', `SourceBuffer created (MIME: ${CONF.MIME})`);
+
+            State.sourceBuffer.addEventListener('updateend', processQueue);
+            State.sourceBuffer.addEventListener('error', onBufferError);
+
+            updateUI('READY');
+
+            Player.addEventListener('timeupdate', onTimeUpdate);
+            Player.addEventListener('seeking', onSeek);
+
+            // 开始加载
+            startFetch(0);
+
+        } catch(e) { handleError(e); }
+    }
+
+    // 错误处理
+    function onBufferError(e) {
+        log('err', 'SourceBuffer Internal Error: ' + e.message);
+        updateUI('ERROR');
+    }
+
+    // 4. 网络层
+    async function startFetch(startByte) {
+        if (!isMSEAlive()) return;
+        if (State.isFetching) return;
+
+        if (startByte >= State.totalSize) {
+            if (isMSEAlive()) State.mediaSource.endOfStream();
+            log('sys', 'Stream finished.');
+            $('met-buf').textContent = 'Done';
+            return;
+        }
+
+        State.isFetching = true;
+        State.abortController = new AbortController();
+
+        // 计算范围
+        const endByte = Math.min(startByte + CONF.CHUNK_SIZE, State.totalSize - 1);
+        const range = `bytes=${startByte}-${endByte}`;
+
+        try {
+            log('net', `Fetching ${range}`);
+            const resp = await fetch(CONF.URL, {
+                headers: { Range: range },
+                signal: State.abortController.signal
+            });
+
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const buffer = await resp.arrayBuffer();
+
+            if (!isMSEAlive()) return;
+
+            // 推入队列
+            State.fetchQueue.push(buffer);
+            State.bytesLoaded = endByte + 1;
+
+            // 更新 UI (修复了之前的 null 错误)
+            $('met-load').textContent = (State.bytesLoaded / 1024 / 1024).toFixed(1) + ' MB';
+            $('met-buf').textContent = 'Buffering...';
+
+            processQueue();
+
+        } catch (e) {
+            if (e.name !== 'AbortError') log('err', e.message);
+        } finally {
+            State.isFetching = false;
+        }
+    }
+
+    // 5. 缓冲层
+    function processQueue() {
+        // 必须等待 updating 变为 false
+        if (!isMSEAlive() || State.sourceBuffer.updating || State.fetchQueue.length === 0) {
+            // 如果队列空了且空闲，继续下载下一块
+            if (isMSEAlive() && !State.sourceBuffer.updating && State.fetchQueue.length === 0) {
+                scheduleNext();
+            }
+            return;
+        }
+
+        try {
+            const chunk = State.fetchQueue.shift();
+            State.sourceBuffer.appendBuffer(chunk);
+            log('mse', `Appended ${chunk.byteLength} bytes.`);
+        } catch (e) {
+            log('err', `Append failed: ${e.message}`);
+            updateUI('ERROR');
+        }
+    }
+
+    function scheduleNext() {
+        // 策略：缓冲少于 20 秒就继续下载
+        const health = getBufferHealth();
+        if (health < 20 && !State.isFetching) {
+            startFetch(State.bytesLoaded);
+        }
+    }
+
+    // 6. 交互逻辑
+    function onSeek() {
+        if (!isMSEAlive()) return;
+        const t = Player.currentTime;
+        // 简单估算字节位置 (WebM 支持 MSE 的 seek 策略较好)
+        const approxByte = (t / Player.duration) * State.totalSize;
+
+        let isBuffered = false;
+        for(let i=0; i<Player.buffered.length; i++) {
+            if(t >= Player.buffered.start(i) && t <= Player.buffered.end(i)) isBuffered = true;
+        }
+
+        if (!isBuffered) {
+            log('act', `Seeking to ${t.toFixed(1)}s (Byte: ${Math.round(approxByte)})`);
+            State.fetchQueue = [];
+            // 清空当前缓冲区
+            if (State.sourceBuffer.updating) {
+                State.sourceBuffer.addEventListener('updateend', () => doSeek(approxByte), {once: true});
+            } else {
+                doSeek(approxByte);
+            }
+        }
+    }
+
+    function doSeek(bytePos) {
+        if (!isMSEAlive()) return;
+        try {
+            State.sourceBuffer.remove(0, Player.duration);
+            State.sourceBuffer.addEventListener('updateend', () => {
+                State.bytesLoaded = bytePos;
+                startFetch(bytePos);
+            }, {once: true});
+        } catch(e) { console.error(e); }
+    }
+
+    function onTimeUpdate() {
+        $('playhead').style.width = `${(Player.currentTime / Player.duration) * 100}%`;
+        $('time-cur').textContent = formatTime(Player.currentTime);
+
+        const health = getBufferHealth();
+        $('met-buf').textContent = `${health.toFixed(1)}s`;
+
+        drawBufferViz();
+        scheduleNext();
+    }
+
+    function drawBufferViz() {
+        const bufViz = $('buf-viz'); bufViz.innerHTML = '';
+        if(!Player.buffered.length) return;
+        for (let i=0; i<Player.buffered.length; i++) {
+            const s = Player.buffered.start(i); const e = Player.buffered.end(i);
+            const el = document.createElement('div');
+            el.className = 'buffer-segment';
+            el.style.left = `${(s/Player.duration)*100}%`;
+            el.style.width = `${((e-s)/Player.duration)*100}%`;
+            bufViz.appendChild(el);
+        }
+    }
+
+    function getBufferHealth() {
+        if (!Player.buffered.length) return 0;
+        return Player.buffered.end(Player.buffered.length - 1) - Player.currentTime;
+    }
+
+    function handleError(e) { log('err', e.message); updateUI('ERROR'); }
+
+    function log(type, msg) {
+        const div = document.createElement('div');
+        div.className = `log-line log-${type}`;
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        Logs.insertBefore(div, Logs.firstChild);
+    }
+
+    function updateUI(s) {
+        $('sys-status').textContent = s;
+        $('sys-dot').className = 'dot';
+        if (s === 'READY' || s === 'LOADING') $('sys-dot').classList.add('active');
+        if (s === 'ERROR') $('sys-dot').classList.add('error');
+    }
+
+    function formatTime(s) {
+        if (isNaN(s)) return '00:00';
+        return new Date(s * 1000).toISOString().substr(14, 5);
+    }
+
+    $('btn-start').onclick = initEngine;
+    $('btn-abort').onclick = () => {
+        if (State.abortController) State.abortController.abort();
+        Player.removeAttribute('src'); Player.load();
+        resetState();
+        updateUI('IDLE');
+        log('sys', 'Engine reset.');
+    };
+
+    Player.addEventListener('loadedmetadata', () => $('time-dur').textContent = formatTime(Player.duration));
+
+</script>
+</body>
+</html>

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Insertable Streams 专业处理工作台</title>
+    <style>
+        :root {
+            --bg-deep: #05070a;
+            --bg-main: #0c1017;
+            --bg-card: #151a23;
+            --bg-hover: #1c2433;
+            --border: #232b3a;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部栏 */
+        header {
+            height: 56px;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        /* 主布局 */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧控制面板 */
+        .control-panel {
+            width: 280px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--bg-hover);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        button.primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        button.danger {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background: transparent;
+        }
+
+        button.danger:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 滤镜选择器 */
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 12px;
+            text-align: center;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+        }
+
+        .filter-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .filter-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        /* 统计卡片 */
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+        }
+
+        .stat-value.fps {
+            color: var(--accent-green);
+        }
+
+        .stat-value.ms {
+            color: var(--accent-orange);
+        }
+
+        /* 右侧视频区 */
+        .video-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-main);
+        }
+
+        .video-header {
+            height: 48px;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .video-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .placeholder-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .control-panel {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                overflow-y: visible;
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .panel-section {
+                flex: 1;
+                min-width: 200px;
+                margin-bottom: 0;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="logo">
+        <div class="logo-icon">IS</div>
+        <span>Insertable Streams 工作台</span>
+    </div>
+    <div class="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">未启动</span>
+    </div>
+</header>
+
+<main class="main-container">
+    <!-- 左侧控制面板 -->
+    <aside class="control-panel">
+        <div class="panel-section">
+            <div class="section-title">管线控制</div>
+            <div class="btn-group">
+                <button type="button" id="start-btn" class="primary">
+                    <span>启动处理管线</span>
+                    <span>▶</span>
+                </button>
+                <button type="button" id="stop-btn" disabled class="danger">
+                    <span>停止处理</span>
+                    <span>■</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">处理效果</div>
+            <div class="filter-grid">
+                <button class="filter-btn active" data-filter="passthrough">
+                    <div class="filter-icon">⚡</div>
+                    <div>直通</div>
+                </button>
+                <button class="filter-btn" data-filter="grayscale">
+                    <div class="filter-icon">🌫️</div>
+                    <div>灰度</div>
+                </button>
+                <button class="filter-btn" data-filter="invert">
+                    <div class="filter-icon">🌓</div>
+                    <div>反转</div>
+                </button>
+                <button class="filter-btn" data-filter="pixelate">
+                    <div class="filter-icon">🧱</div>
+                    <div>像素化</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">性能监控</div>
+            <div class="stat-card">
+                <div class="stat-row">
+                    <span class="stat-label">处理帧率</span>
+                    <span class="stat-value fps" id="stat-fps">- FPS</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">帧处理耗时</span>
+                    <span class="stat-value ms" id="stat-latency">- ms</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">分辨率</span>
+                    <span class="stat-value" id="stat-resolution">-</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧视频区 -->
+    <section class="video-section">
+        <div class="video-header">
+            <span>实时处理预览 (需 HTTPS 或 localhost)</span>
+            <span id="camera-info">等待连接...</span>
+        </div>
+        <div class="video-grid">
+            <!-- 原始视频 -->
+            <div class="video-wrapper">
+                <video id="original-video" autoplay playsinline muted></video>
+                <div class="video-label">原始流</div>
+                <div class="placeholder" id="placeholder-original">
+                    <div class="placeholder-icon">📷</div>
+                    <div>等待摄像头</div>
+                </div>
+            </div>
+            <!-- 处理后视频 -->
+            <div class="video-wrapper">
+                <video id="processed-video" autoplay playsinline muted></video>
+                <div class="video-label">处理后流</div>
+                <div class="placeholder" id="placeholder-processed">
+                    <div class="placeholder-icon">⚙️</div>
+                    <div>处理管线输出</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+    // ========================================
+    // Insertable Streams 专业处理工作台
+    // ========================================
+
+    // 状态管理
+    const state = {
+        stream: null,
+        processor: null,
+        generator: null,
+        transformer: null,
+        abortController: null,
+        currentFilter: 'passthrough',
+        canvas: null,      // 复用 OffscreenCanvas
+        ctx: null,         // 复用 Context
+        frameCount: 0,
+        lastTime: 0,
+        fps: 0,
+        latency: 0
+    };
+
+    // DOM 元素
+    const $ = id => document.getElementById(id);
+    const dom = {
+        originalVideo: $('original-video'),
+        processedVideo: $('processed-video'),
+        placeholderOriginal: $('placeholder-original'),
+        placeholderProcessed: $('placeholder-processed'),
+        startBtn: $('start-btn'),
+        stopBtn: $('stop-btn'),
+        statusDot: $('status-dot'),
+        statusText: $('status-text'),
+        cameraInfo: $('camera-info'),
+        statFps: $('stat-fps'),
+        statLatency: $('stat-latency'),
+        statResolution: $('stat-resolution')
+    };
+
+    // 更新状态 UI
+    function updateStatus(active, text) {
+        dom.statusDot.classList.toggle('active', active);
+        dom.statusText.textContent = text;
+    }
+
+    // 更新统计信息
+    function updateStats() {
+        dom.statFps.textContent = `${state.fps.toFixed(1)} FPS`;
+        dom.statLatency.textContent = `${state.latency.toFixed(2)} ms`;
+    }
+
+    // ========================================
+    // 核心优化：复用 Canvas 与 优化算法
+    // ========================================
+
+    // 初始化或调整复用的 Canvas 尺寸
+    function ensureCanvasReady(width, height) {
+        if (!state.canvas) {
+            state.canvas = new OffscreenCanvas(width, height);
+            state.ctx = state.canvas.getContext('2d', {alpha: false}); // 优化：禁用透明通道
+        } else if (state.canvas.width !== width || state.canvas.height !== height) {
+            state.canvas.width = width;
+            state.canvas.height = height;
+        }
+        return state.ctx;
+    }
+
+    // 帧处理逻辑集合
+    const filters = {
+        // 直通：仅拷贝，用于测量 API 本身开销
+        passthrough(ctx, frame) {
+            ctx.drawImage(frame, 0, 0);
+            return ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        },
+
+        // 灰度：标准加权算法
+        grayscale(ctx, frame) {
+            ctx.drawImage(frame, 0, 0);
+            const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+                data[i] = data[i + 1] = data[i + 2] = avg;
+            }
+            return imageData;
+        },
+
+        // 反转颜色
+        invert(ctx, frame) {
+            ctx.drawImage(frame, 0, 0);
+            const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = 255 - data[i];
+                data[i + 1] = 255 - data[i + 1];
+                data[i + 2] = 255 - data[i + 2];
+            }
+            return imageData;
+        },
+
+        // 像素化：性能优化演示 - 缩小再放大
+        pixelate(ctx, frame) {
+            const w = ctx.canvas.width;
+            const h = ctx.canvas.height;
+            const pixelSize = 20; // 像素块大小
+
+            // 1. 缩小绘制
+            const tempW = Math.ceil(w / pixelSize);
+            const tempH = Math.ceil(h / pixelSize);
+
+            // 离屏绘制优化（这里简化处理，直接利用 canvas 缩放特性）
+            // 关闭平滑以获得清晰的像素边缘
+            ctx.imageSmoothingEnabled = false;
+
+            // 缩小
+            ctx.drawImage(frame, 0, 0, tempW, tempH);
+            // 放大回原尺寸
+            ctx.drawImage(ctx.canvas, 0, 0, tempW, tempH, 0, 0, w, h);
+
+            return ctx.getImageData(0, 0, w, h);
+        }
+    };
+
+    // ========================================
+    // 管线控制
+    // ========================================
+
+    async function startPipeline() {
+        try {
+            updateStatus(false, '正在初始化...');
+
+            // 1. API 检测
+            if (!window.MediaStreamTrackProcessor || !window.MediaStreamTrackGenerator) {
+                throw new Error('当前浏览器不支持 Insertable Streams API');
+            }
+
+            // 2. 获取流
+            state.stream = await navigator.mediaDevices.getUserMedia({
+                video: {width: {ideal: 1280}, height: {ideal: 720}, facingMode: 'user'},
+                audio: false
+            });
+
+            dom.originalVideo.srcObject = state.stream;
+            dom.placeholderOriginal.style.display = 'none';
+
+            const track = state.stream.getVideoTracks()[0];
+            const settings = track.getSettings();
+            dom.cameraInfo.textContent = `${settings.width}x${settings.height} @ ${settings.frameRate}fps`;
+            dom.statResolution.textContent = `${settings.width}x${settings.height}`;
+
+            // 3. 初始化复用的 Canvas
+            ensureCanvasReady(settings.width, settings.height);
+
+            // 4. 创建 Processor 和 Generator
+            state.processor = new MediaStreamTrackProcessor({track});
+            state.generator = new MediaStreamTrackGenerator({kind: 'video'});
+
+            const processedStream = new MediaStream([state.generator]);
+            dom.processedVideo.srcObject = processedStream;
+            dom.placeholderProcessed.style.display = 'none';
+
+            // 5. 创建 TransformStream
+            state.abortController = new AbortController();
+
+            let lastFrameTime = performance.now();
+
+            state.transformer = new TransformStream({
+                async transform(frame, controller) {
+                    const startTime = performance.now();
+
+                    // 确保 Canvas 尺寸与帧匹配
+                    const ctx = ensureCanvasReady(frame.displayWidth, frame.displayHeight);
+
+                    let imageData;
+
+                    // 执行选定的滤镜
+                    if (filters[state.currentFilter]) {
+                        imageData = filters[state.currentFilter](ctx, frame);
+                    } else {
+                        imageData = filters.passthrough(ctx, frame);
+                    }
+
+                    // 绘制处理后的数据
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // 创建新帧
+                    const newFrame = new VideoFrame(ctx.canvas, {
+                        timestamp: frame.timestamp,
+                        alpha: 'discard'
+                    });
+
+                    // 必须关闭旧帧
+                    frame.close();
+
+                    controller.enqueue(newFrame);
+
+                    // 性能统计
+                    const elapsed = startTime - lastFrameTime;
+                    lastFrameTime = startTime;
+                    state.latency = performance.now() - startTime;
+
+                    // 平滑 FPS 计算
+                    state.frameCount++;
+                    if (performance.now() - state.lastTime >= 1000) {
+                        state.fps = state.frameCount * 1000 / (performance.now() - state.lastTime);
+                        state.frameCount = 0;
+                        state.lastTime = performance.now();
+                        updateStats();
+                    }
+                },
+                flush() {
+                    console.log('Stream flushed');
+                }
+            });
+
+            // 6. 连接管线
+            await state.processor.readable
+                .pipeThrough(state.transformer, {signal: state.abortController.signal})
+                .pipeTo(state.generator.writable);
+
+            updateStatus(true, '处理中');
+            dom.startBtn.disabled = true;
+            dom.stopBtn.disabled = false;
+
+        } catch (error) {
+            console.error(error);
+            updateStatus(false, '启动失败');
+            alert(`错误: ${error.message}`);
+            stopPipeline();
+        }
+    }
+
+    function stopPipeline() {
+        if (state.abortController) {
+            state.abortController.abort();
+            state.abortController = null;
+        }
+
+        if (state.stream) {
+            state.stream.getTracks().forEach(t => t.stop());
+            state.stream = null;
+        }
+
+        dom.originalVideo.srcObject = null;
+        dom.processedVideo.srcObject = null;
+        dom.placeholderOriginal.style.display = 'flex';
+        dom.placeholderProcessed.style.display = 'flex';
+
+        state.processor = null;
+        state.generator = null;
+        state.canvas = null; // 释放 Canvas
+        state.ctx = null;
+
+        updateStatus(false, '已停止');
+        dom.statFps.textContent = '- FPS';
+        dom.statLatency.textContent = '- ms';
+        dom.startBtn.disabled = false;
+        dom.stopBtn.disabled = true;
+    }
+
+    // ========================================
+    // 事件绑定
+    // ========================================
+
+    dom.startBtn.addEventListener('click', startPipeline);
+    dom.stopBtn.addEventListener('click', stopPipeline);
+
+    // 滤镜切换
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.currentFilter = btn.dataset.filter;
+        });
+    });
+
+    // 检测 API 支持
+    if (!window.MediaStreamTrackProcessor || !window.MediaStreamTrackGenerator) {
+        dom.startBtn.disabled = true;
+        dom.startBtn.textContent = 'API 不支持';
+        dom.startBtn.style.opacity = 0.5;
+        updateStatus(false, 'API 不支持');
+    }
+</script>
+</body>
+</html>

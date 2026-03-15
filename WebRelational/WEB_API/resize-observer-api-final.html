@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resize Observer API Pro - 企业级尺寸监控平台</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary-50: #f0f9ff;
+            --primary-200: #bae6fd;
+            --primary-500: #0ea5e9;
+            --primary-600: #0284c7;
+            --primary-700: #0369a1;
+            --gray-200: #e2e8f0;
+            --gray-800: #1e293b;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --header-bg: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+            --code-bg: #1e293b;
+            --code-text: #f1f5f9;
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius: 0.375rem;
+            --radius-lg: 0.75rem;
+            --transition: 150ms ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --card-bg: #1e293b;
+            --header-bg: linear-gradient(135deg, #075985 0%, #0c4a6e 100%);
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --primary-50: rgba(14, 165, 233, 0.15);
+            --success-50: rgba(34, 197, 94, 0.15);
+            --error-50: rgba(239, 68, 68, 0.15);
+        }
+
+        html { font-size: 16px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.5; min-height: 100vh; transition: background var(--transition), color var(--transition); }
+
+        .app-container { max-width: 1100px; margin: 0 auto; padding: 0.08rem; }
+        @media (min-width: 768px) { .app-container { padding: 0.12rem; } }
+
+        /* Header */
+        .app-header { background: var(--header-bg); color: white; padding: 0.08rem 0.12rem; border-radius: var(--radius-lg); margin-bottom: 0.05rem; box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+        .app-header::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none; }
+        .header-content { display: flex; flex-direction: column; gap: 0.02rem; position: relative; z-index: 1; }
+        @media (min-width: 768px) { .header-content { flex-direction: row; justify-content: space-between; align-items: center; } }
+        .header-title { display: flex; align-items: center; gap: 0.03rem; }
+        .header-title h1 { font-size: 0.26rem; font-weight: 700; }
+        @media (min-width: 768px) { .header-title h1 { font-size: 0.4rem; } }
+        .header-icon { width: 0.42rem; height: 0.42rem; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 0.2rem; }
+        .header-subtitle { color: rgba(255, 255, 255, 0.8); font-size: 0.15rem; }
+        .header-actions { display: flex; align-items: center; gap: 0.02rem; }
+        .header-status { display: flex; align-items: center; gap: 0.02rem; background: rgba(255, 255, 255, 0.1); padding: 0.02rem 0.04rem; border-radius: 99px; font-size: 0.12rem; }
+        .status-dot { width: 0.04rem; height: 0.04rem; border-radius: 50%; background: var(--success-500); }
+        .theme-toggle { background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer; padding: 0.02rem; border-radius: var(--radius); color: white; display: flex; }
+        .theme-toggle:hover { background: rgba(255, 255, 255, 0.2); }
+        .theme-toggle svg { width: 0.2rem; height: 0.2rem; }
+
+        /* Tabs */
+        .tabs-container { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border-color); }
+        .tabs-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--border-color); background: var(--bg-tertiary); }
+        .tab-btn { flex: 1; min-width: 12px; padding: 0.02rem; background: transparent; border: none; cursor: pointer; font-size: 0.12rem; font-weight: 500; color: var(--text-muted); transition: all var(--transition); position: relative; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 0.01rem; }
+        @media (min-width: 640px) { .tab-btn { flex-direction: row; min-width: 18px; font-size: 0.15rem; padding: 0.03rem 0.06rem; } }
+        .tab-btn:hover { color: var(--primary-600); background: var(--bg-secondary); }
+        .tab-btn.active { color: var(--primary-600); background: var(--card-bg); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+        .tab-btn svg { width: 0.16rem; height: 0.16rem; }
+        .tab-content { display: none; padding: 0.03rem; animation: fadeIn 0.1s ease; }
+        @media (min-width: 768px) { .tab-content { padding: 0.06rem; } }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Cards */
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 0.04rem; margin-bottom: 0.03rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.02rem; padding-bottom: 0.02rem; border-bottom: 1px solid var(--border-color); }
+        .card-title { font-size: 0.15rem; font-weight: 600; color: var(--text-primary); }
+        .card-badge { font-size: 0.1rem; padding: 0.01rem 0.02rem; border-radius: 99px; font-weight: 500; }
+        .badge-success { background: var(--success-50); color: var(--success-500); }
+        .badge-info { background: var(--primary-50); color: var(--primary-600); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.02rem; margin-bottom: 0.03rem; }
+        @media (min-width: 640px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+        .stat-card { background: linear-gradient(135deg, var(--primary-50) 0%, var(--card-bg) 100%); border: 1px solid var(--primary-200); border-radius: var(--radius); padding: 0.02rem; text-align: center; }
+        [data-theme="dark"] .stat-card { background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, var(--card-bg) 100%); border-color: rgba(14, 165, 233, 0.2); }
+        .stat-value { font-size: 0.18rem; font-weight: 700; color: var(--primary-600); }
+        .stat-label { font-size: 0.1rem; color: var(--text-muted); text-transform: uppercase; }
+
+        /* Resize Display */
+        .resize-display { display: flex; align-items: center; justify-content: center; gap: 0.06rem; padding: 0.06rem; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--card-bg) 100%); border-radius: var(--radius); margin-bottom: 0.03rem; border: 1px solid var(--border-color); }
+        .resize-icon { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%); display: flex; align-items: center; justify-content: center; }
+        .resize-icon svg { width: 0.2rem; height: 0.2rem; color: white; }
+        .resize-info { text-align: left; }
+        .resize-status { font-size: 0.17rem; font-weight: 700; color: var(--text-primary); }
+        .resize-desc { font-size: 0.12rem; color: var(--text-muted); }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.01rem; padding: 0.02rem 0.03rem; border-radius: var(--radius); font-size: 0.12rem; font-weight: 500; cursor: pointer; transition: all var(--transition); border: none; white-space: nowrap; }
+        .btn-primary { background: var(--primary-600); color: white; }
+        .btn-primary:hover { background: var(--primary-700); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-danger { background: var(--error-500); color: white; }
+        .btn-lg { padding: 0.02rem 0.05rem; font-size: 0.13rem; }
+
+        .demo-buttons { display: flex; flex-wrap: wrap; gap: 0.02rem; margin-bottom: 0.03rem; }
+
+        /* Resizable Box */
+        .resizable-container { display: flex; flex-direction: column; gap: 0.03rem; }
+        @media (min-width: 768px) { .resizable-container { flex-direction: row; } }
+        .resizable-box { flex: 1; min-height: 60px; background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg-tertiary) 100%); border: 2px dashed var(--primary-200); border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.01rem; resize: both; overflow: auto; padding: 0.03rem; transition: border-color var(--transition); }
+        .resizable-box:hover { border-color: var(--primary-500); }
+        .box-size { font-size: 0.14rem; font-weight: 700; color: var(--primary-600); font-family: monospace; }
+        .box-label { font-size: 0.1rem; color: var(--text-muted); }
+
+        /* Element List */
+        .element-list { display: flex; flex-direction: column; gap: 0.02rem; max-height: 80px; overflow-y: auto; }
+        .element-item { display: flex; align-items: center; gap: 0.02rem; padding: 0.02rem 0.03rem; background: var(--bg-tertiary); border-radius: var(--radius); border-left: 2px solid var(--primary-500); }
+        .element-name { flex: 1; font-size: 0.12rem; font-weight: 500; color: var(--text-primary); }
+        .element-size { font-size: 0.1rem; color: var(--text-muted); font-family: monospace; }
+        .element-remove { width: 0.16rem; height: 0.16rem; border-radius: 50%; background: var(--error-50); color: var(--error-500); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.1rem; border: none; }
+
+        /* Event Log */
+        .event-log { max-height: 70px; overflow-y: auto; background: var(--bg-tertiary); border-radius: var(--radius); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.09rem; }
+        .log-item { padding: 0.01rem 0.02rem; border-bottom: 1px solid var(--border-color); display: flex; gap: 0.02rem; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); white-space: nowrap; }
+        .log-element { font-weight: 600; color: var(--primary-600); }
+        .log-size { color: var(--text-secondary); }
+
+        /* Code Block */
+        .code-block { background: var(--code-bg); color: var(--code-text); padding: 0.03rem; border-radius: var(--radius); font-family: monospace; font-size: 0.1rem; overflow-x: auto; line-height: 1.3; }
+        .code-block .keyword { color: #c792ea; }
+        .code-block .string { color: #c3e88d; }
+        .code-block .comment { color: #546e7a; }
+        .code-block .function { color: #82aaff; }
+
+        /* Tables */
+        .table-wrapper { overflow-x: auto; }
+        .api-table { width: 100%; border-collapse: collapse; font-size: 0.12rem; }
+        .api-table th, .api-table td { padding: 0.02rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .api-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-primary); font-size: 0.1rem; }
+        .api-status { display: inline-flex; padding: 0.01rem 0.02rem; border-radius: 99px; font-size: 0.09rem; font-weight: 500; }
+        .api-status.supported { background: var(--success-50); color: var(--success-500); }
+        .api-status.unsupported { background: var(--error-50); color: var(--error-500); }
+        code { background: var(--bg-tertiary); padding: 0.01rem; border-radius: 2px; font-family: monospace; font-size: 0.1em; color: var(--primary-600); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 0.05rem; right: 0.05rem; z-index: 1000; display: flex; flex-direction: column; gap: 0.02rem; max-width: calc(100vw - 0.1rem); }
+        @media (min-width: 768px) { .toast-container { bottom: 0.06rem; right: 0.06rem; max-width: 50px; } }
+        .toast { display: flex; align-items: flex-start; gap: 0.02rem; padding: 0.02rem 0.03rem; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow-lg); animation: toastIn 0.1s ease; border: 1px solid var(--border-color); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { border-left: 2px solid var(--success-500); }
+        .toast-error { border-left: 2px solid var(--error-500); }
+        .toast-info { border-left: 2px solid var(--primary-500); }
+        .toast-icon { width: 0.12rem; height: 0.12rem; flex-shrink: 0; }
+        .toast-title { font-weight: 600; color: var(--text-primary); font-size: 0.12rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div>
+                    <div class="header-title">
+                        <div class="header-icon">📐</div>
+                        <h1>Resize Observer API</h1>
+                    </div>
+                    <p class="header-subtitle">尺寸监控 | 监听元素尺寸变化</p>
+                </div>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle" title="切换主题 (T)">
+                        <svg id="themeIconLight" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+                        <svg id="themeIconDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <div class="header-status"><span class="status-dot"></span><span>API 支持</span></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="tabs-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" data-tab="demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg><span>演示</span></button>
+                <button class="tab-btn" data-tab="elements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg><span>元素</span></button>
+                <button class="tab-btn" data-tab="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>事件</span></button>
+                <button class="tab-btn" data-tab="api"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>API</span></button>
+            </nav>
+
+            <!-- Demo Tab -->
+            <div class="tab-content active" id="tab-demo">
+                <div class="resize-display">
+                    <div class="resize-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></div>
+                    <div class="resize-info"><div class="resize-status">Resize Observer API</div><div class="resize-desc">监听元素尺寸变化</div></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="apiSupport">检测中</div><div class="stat-label">API 支持</div></div>
+                    <div class="stat-card"><div class="stat-value" id="observerCount">0</div><div class="stat-label">观察元素</div></div>
+                    <div class="stat-card"><div class="stat-value" id="changeCount">0</div><div class="stat-label">变化次数</div></div>
+                    <div class="stat-card"><div class="stat-value" id="lastSize">--</div><div class="stat-label">最近尺寸</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">可调整元素</h3><span class="card-badge badge-info">拖拽调整</span></div>
+                    <div class="resizable-container">
+                        <div class="resizable-box" id="box1"><span class="box-size" id="size1">-- × --</span><span class="box-label">Box 1</span></div>
+                        <div class="resizable-box" id="box2"><span class="box-size" id="size2">-- × --</span><span class="box-label">Box 2</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">观察控制</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary btn-lg" id="observeAllBtn">观察所有</button>
+                        <button class="btn btn-secondary btn-lg" id="unobserveAllBtn">取消观察</button>
+                        <button class="btn btn-danger btn-lg" id="disconnectBtn">断开连接</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elements Tab -->
+            <div class="tab-content" id="tab-elements">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">观察元素</h3><span class="card-badge badge-success" id="elementBadge">0 个</span></div>
+                    <div class="element-list" id="elementList"><div style="padding: 0.06rem; text-align: center; color: var(--text-muted); font-size: 0.1rem;">暂无观察元素</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">添加元素</h3></div>
+                    <div class="demo-buttons">
+                        <button class="btn btn-primary" id="addBoxBtn">添加盒子</button>
+                        <button class="btn btn-secondary" id="observeBodyBtn">观察 body</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="tab-content" id="tab-events">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件日志</h3><button class="btn btn-secondary" id="clearLogBtn">清除</button></div>
+                    <div class="event-log" id="eventLog"><div style="padding: 0.03rem; text-align: center; color: var(--text-muted); font-size: 0.09rem;">等待事件...</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">事件属性</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>属性</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>target</code></td><td>目标元素</td></tr>
+                            <tr><td><code>contentRect</code></td><td>内容区域尺寸</td></tr>
+                            <tr><td><code>borderBoxSize</code></td><td>边框盒尺寸</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Tab -->
+            <div class="tab-content" id="tab-api">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">API 支持</h3><button class="btn btn-secondary" id="refreshApiBtn">刷新</button></div>
+                    <div class="table-wrapper"><table class="api-table"><thead><tr><th>API</th><th>类型</th><th>描述</th><th>状态</th></tr></thead><tbody id="apiTable"></tbody></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">主要方法</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>方法</th><th>说明</th></tr></thead><tbody>
+                            <tr><td><code>observe(el)</code></td><td>开始观察</td></tr>
+                            <tr><td><code>unobserve(el)</code></td><td>停止观察</td></tr>
+                            <tr><td><code>disconnect()</code></td><td>断开所有</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">代码示例</h3></div>
+                    <div class="code-block">
+<span class="keyword">const</span> obs = <span class="keyword">new</span> <span class="function">ResizeObserver</span>(entries => {
+  entries.<span class="function">forEach</span>(e => console.<span class="function">log</span>(e.contentRect));
+});
+obs.<span class="function">observe</span>(element);
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">浏览器兼容</h3></div>
+                    <div class="table-wrapper">
+                        <table class="api-table"><thead><tr><th>浏览器</th><th>版本</th></tr></thead><tbody>
+                            <tr><td>Chrome</td><td>64+</td></tr>
+                            <tr><td>Firefox</td><td>69+</td></tr>
+                            <tr><td>Edge</td><td>79+</td></tr>
+                            <tr><td>Safari</td><td>13.1+</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toasts"></div>
+
+    <script>
+        // ==================== State ====================
+        const S = { theme: 'light', elements: [], changes: 0, boxCount: 2 };
+        const hasResize = 'ResizeObserver' in window;
+        let observer = null;
+
+        // ==================== Theme ====================
+        const T = {
+            init() {
+                const v = localStorage.getItem('resize-theme');
+                if (v) S.theme = v;
+                else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) S.theme = 'dark';
+                this.apply();
+            },
+            toggle() { S.theme = S.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('resize-theme', S.theme); this.apply(); },
+            apply() {
+                document.documentElement.setAttribute('data-theme', S.theme);
+                document.getElementById('themeIconLight').style.display = S.theme === 'light' ? 'block' : 'none';
+                document.getElementById('themeIconDark').style.display = S.theme === 'dark' ? 'block' : 'none';
+            }
+        };
+
+        // ==================== Toast ====================
+        function toast(type, title) {
+            const c = document.getElementById('toasts'), t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            const i = { success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>' };
+            t.innerHTML = `${i[type]}<div class="toast-title">${title}</div>`;
+            c.appendChild(t);
+            setTimeout(() => { t.style.animation = 'toastIn 0.1s ease reverse'; setTimeout(() => t.remove(), 100); }, 350);
+        }
+
+        // ==================== Tabs ====================
+        document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+        }));
+
+        // ==================== Resize Observer ====================
+        const R = {
+            init() {
+                document.getElementById('apiSupport').textContent = hasResize ? '支持' : '不支持';
+                document.getElementById('apiSupport').style.color = hasResize ? 'var(--success-500)' : 'var(--error-500)';
+                if (hasResize) {
+                    observer = new ResizeObserver(entries => {
+                        entries.forEach(entry => {
+                            const { width, height } = entry.contentRect;
+                            const id = entry.target.id;
+                            const sizeEl = document.getElementById('size' + id.replace('box', ''));
+                            if (sizeEl) sizeEl.textContent = `${Math.round(width)} × ${Math.round(height)}`;
+                            S.changes++;
+                            document.getElementById('changeCount').textContent = S.changes;
+                            document.getElementById('lastSize').textContent = `${Math.round(width)}×${Math.round(height)}`;
+                            this.log(id, Math.round(width), Math.round(height));
+                            this.updateEl(id, Math.round(width), Math.round(height));
+                        });
+                    });
+                }
+                this.bind();
+            },
+
+            observe(el) {
+                if (!observer) { toast('error', '不支持'); return; }
+                observer.observe(el);
+                if (!S.elements.find(e => e.id === el.id)) S.elements.push({ id: el.id, name: el.id || 'el', w: 0, h: 0 });
+                this.update();
+                toast('success', '已观察');
+            },
+
+            unobserve(el) {
+                if (!observer) return;
+                observer.unobserve(el);
+                S.elements = S.elements.filter(e => e.id !== el.id);
+                this.update();
+                toast('info', '已取消');
+            },
+
+            disconnect() {
+                if (!observer) return;
+                observer.disconnect();
+                S.elements = [];
+                this.update();
+                toast('info', '已断开');
+            },
+
+            observeAll() { document.querySelectorAll('.resizable-box').forEach(el => this.observe(el)); },
+            unobserveAll() { document.querySelectorAll('.resizable-box').forEach(el => observer?.unobserve(el)); S.elements = []; this.update(); },
+
+            addBox() {
+                S.boxCount++;
+                const id = 'box' + S.boxCount;
+                const box = document.createElement('div');
+                box.className = 'resizable-box';
+                box.id = id;
+                box.innerHTML = `<span class="box-size" id="size${S.boxCount}">-- × --</span><span class="box-label">Box ${S.boxCount}</span>`;
+                document.querySelector('.resizable-container').appendChild(box);
+                this.observe(box);
+            },
+
+            update() {
+                document.getElementById('observerCount').textContent = S.elements.length;
+                document.getElementById('elementBadge').textContent = S.elements.length + ' 个';
+                this.render();
+            },
+
+            updateEl(id, w, h) { const el = S.elements.find(e => e.id === id); if (el) { el.w = w; el.h = h; } this.render(); },
+
+            render() {
+                const list = document.getElementById('elementList');
+                if (!S.elements.length) { list.innerHTML = '<div style="padding: 0.06rem; text-align: center; color: var(--text-muted); font-size: 0.1rem;">暂无观察元素</div>'; return; }
+                list.innerHTML = S.elements.map(e => `<div class="element-item"><span class="element-name">${e.name}</span><span class="element-size">${e.w}×${e.h}</span><button class="element-remove" data-id="${e.id}">×</button></div>`).join('');
+                list.querySelectorAll('.element-remove').forEach(btn => btn.onclick = () => { const el = document.getElementById(btn.dataset.id); if (el) this.unobserve(el); });
+            },
+
+            log(id, w, h) {
+                const log = document.getElementById('eventLog');
+                const p = log.querySelector('div[style]');
+                if (p) p.remove();
+                const t = new Date().toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                log.insertAdjacentHTML('afterbegin', `<div class="log-item"><span class="log-time">${t}</span><span class="log-element">${id}</span><span class="log-size">${w}×${h}</span></div>`);
+                while (log.children.length > 6) log.lastChild.remove();
+            },
+
+            bind() {
+                document.getElementById('observeAllBtn').onclick = () => this.observeAll();
+                document.getElementById('unobserveAllBtn').onclick = () => this.unobserveAll();
+                document.getElementById('disconnectBtn').onclick = () => this.disconnect();
+                document.getElementById('addBoxBtn').onclick = () => this.addBox();
+                document.getElementById('observeBodyBtn').onclick = () => this.observe(document.body);
+                document.getElementById('clearLogBtn').onclick = () => { document.getElementById('eventLog').innerHTML = '<div style="padding: 0.03rem; text-align: center; color: var(--text-muted); font-size: 0.09rem;">等待事件...</div>'; };
+            }
+        };
+
+        // ==================== API ====================
+        const A = {
+            render() {
+                const apis = [
+                    { name: 'ResizeObserver', type: '接口', desc: '尺寸观察者', ok: hasResize },
+                    { name: 'ResizeObserverEntry', type: '接口', desc: '观察条目', ok: 'ResizeObserverEntry' in window },
+                    { name: 'observe()', type: '方法', desc: '开始观察', ok: hasResize },
+                ];
+                document.getElementById('apiTable').innerHTML = apis.map(a => `<tr><td><code>${a.name}</code></td><td><span class="card-badge badge-info">${a.type}</span></td><td>${a.desc}</td><td><span class="api-status ${a.ok ? 'supported' : 'unsupported'}">${a.ok ? '✓' : '✗'}</span></td></tr>`).join('');
+            }
+        };
+
+        // ==================== Events ====================
+        document.addEventListener('keydown', e => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); T.toggle(); }
+            if (e.key.toLowerCase() === 'o' && !e.ctrlKey) { e.preventDefault(); R.observeAll(); }
+        });
+
+        document.getElementById('themeToggle').onclick = () => T.toggle();
+        document.getElementById('refreshApiBtn').onclick = () => { A.render(); toast('success', '已刷新'); };
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => { T.init(); R.init(); A.render(); });
+    </script>
+</body>
+</html>
