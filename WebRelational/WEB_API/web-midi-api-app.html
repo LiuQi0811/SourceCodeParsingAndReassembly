@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web MIDI API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #a78bfa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #faf5ff;
+            --bg-card: #ffffff;
+            --border: #e9d5ff;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #faf5ff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #2e1065;
+                --bg-card: #581c87;
+                --border: #6b21a8;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(139, 92, 246, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Device Card */
+        .device-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .device-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .device-info { flex: 1; }
+        
+        .device-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .device-detail {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .device-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .device-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+        
+        .device-status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+        
+        /* Piano */
+        .piano-container {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        
+        .piano-key {
+            width: 40px;
+            height: 120px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 0 0 6px 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            transition: all 0.1s;
+        }
+        
+        .piano-key:hover { background: #f3e8ff; }
+        .piano-key:active, .piano-key.active { background: var(--primary); color: white; }
+        
+        .piano-key.black {
+            width: 30px;
+            height: 80px;
+            background: #1e293b;
+            color: white;
+            margin: 0 -15px;
+            z-index: 1;
+        }
+        
+        .piano-key.black:hover { background: #374151; }
+        .piano-key.black:active, .piano-key.black.active { background: var(--primary-dark); }
+        
+        /* MIDI Monitor */
+        .midi-monitor {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+        }
+        
+        .midi-message {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .midi-message:last-child { border-bottom: none; }
+        
+        .midi-time { color: #94a3b8; margin-right: 8px; }
+        .midi-data { color: var(--secondary); }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(139, 92, 246, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.midi { background: rgba(139, 92, 246, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎹</div>
+            <div class="logo-text">Web MIDI <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">MIDI 功能</div>
+                    <div class="nav-item" data-tab="devices" onclick="switchTab('devices')">
+                        <span class="nav-icon">🎹</span><span>设备管理</span>
+                    </div>
+                    <div class="nav-item" data-tab="input" onclick="switchTab('input')">
+                        <span class="nav-icon">📥</span><span>MIDI 输入</span>
+                    </div>
+                    <div class="nav-item" data-tab="output" onclick="switchTab('output')">
+                        <span class="nav-icon">📤</span><span>MIDI 输出</span>
+                    </div>
+                    <div class="nav-item" data-tab="virtual-piano" onclick="switchTab('virtual-piano')">
+                        <span class="nav-icon">🎹</span><span>虚拟钢琴</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web MIDI API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎹</div>
+                        <div class="stat-value" id="input-count">0</div>
+                        <div class="stat-label">输入设备</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔊</div>
+                        <div class="stat-value" id="output-count">0</div>
+                        <div class="stat-label">输出设备</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📨</div>
+                        <div class="stat-value" id="message-count">0</div>
+                        <div class="stat-label">接收消息</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>requestMIDIAccess</span>
+                                        <span id="api-request" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>MIDIAccess</span>
+                                        <span id="api-access" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>MIDIInput</span>
+                                        <span id="api-input" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>MIDIOutput</span>
+                                        <span id="api-output" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">MIDI 访问</label>
+                                <div style="text-align: center; padding: 40px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                    <div style="font-size: 48px; margin-bottom: 16px;">🎹</div>
+                                    <div style="color: var(--text-secondary); margin-bottom: 16px;">连接您的 MIDI 设备</div>
+                                    <button class="btn btn-primary" onclick="requestMIDIAccess()">🔌 请求 MIDI 访问</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            点击下方钢琴键播放音符，或连接 MIDI 设备进行交互
+                        </div>
+                        
+                        <div class="piano-container" id="demo-piano">
+                            <!-- 钢琴键将由 JS 生成 -->
+                        </div>
+                        
+                        <div class="result-box">
+                            <div class="result-title">MIDI 消息监视器</div>
+                            <div class="midi-monitor" id="midi-monitor">
+                                <div style="color: var(--text-muted);">等待 MIDI 消息...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备管理 -->
+            <div id="panel-devices" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>设备管理</h1>
+                        <p>管理 MIDI 输入和输出设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>MIDIAccess</strong> 提供对所有可用 MIDI 设备的访问。
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="refreshDevices()">🔄 刷新设备</button>
+                        <button class="btn btn-outline" onclick="toggleDeviceMonitor()">📡 监控状态变化</button>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">输入设备</label>
+                            <div id="input-devices-list">
+                                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                    暂无输入设备
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">输出设备</label>
+                            <div id="output-devices-list">
+                                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                    暂无输出设备
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDI 输入 -->
+            <div id="panel-input" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>MIDI 输入</h1>
+                        <p>接收和处理 MIDI 消息</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>MIDIInput</strong> 接收来自 MIDI 设备的消息，通过 onmidimessage 事件处理。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择输入设备</label>
+                        <select class="form-select" id="input-device-select" onchange="selectInputDevice()">
+                            <option value="">-- 选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="startListening()">▶️ 开始监听</button>
+                        <button class="btn btn-danger" onclick="stopListening()">⏹️ 停止监听</button>
+                        <button class="btn btn-outline" onclick="clearMidiMessages()">🗑️ 清空消息</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">接收的 MIDI 消息</div>
+                        <div class="midi-monitor" id="input-messages" style="min-height: 150px;">
+                            <div style="color: var(--text-muted);">等待 MIDI 消息...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="input-stats" style="display: none; margin-top: 16px;">
+                        <div class="result-box">
+                            <div class="result-title">统计信息</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">总消息数</div>
+                                    <div class="result-value" id="total-messages">0</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">Note On</div>
+                                    <div class="result-value" id="note-on-count">0</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">Note Off</div>
+                                    <div class="result-value" id="note-off-count">0</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">Control Change</div>
+                                    <div class="result-value" id="cc-count">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDI 输出 -->
+            <div id="panel-output" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>MIDI 输出</h1>
+                        <p>发送 MIDI 消息到设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>MIDIOutput</strong> 发送 MIDI 消息到外部设备，使用 send() 方法。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择输出设备</label>
+                        <select class="form-select" id="output-device-select">
+                            <option value="">-- 选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">MIDI 通道</label>
+                            <select class="form-select" id="midi-channel">
+                                <option value="0">通道 1</option>
+                                <option value="1">通道 2</option>
+                                <option value="2">通道 3</option>
+                                <option value="3">通道 4</option>
+                                <option value="4">通道 5</option>
+                                <option value="5">通道 6</option>
+                                <option value="6">通道 7</option>
+                                <option value="7">通道 8</option>
+                                <option value="8">通道 9</option>
+                                <option value="9">通道 10</option>
+                                <option value="10">通道 11</option>
+                                <option value="11">通道 12</option>
+                                <option value="12">通道 13</option>
+                                <option value="13">通道 14</option>
+                                <option value="14">通道 15</option>
+                                <option value="15">通道 16</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">音符编号 (0-127)</label>
+                            <input type="number" class="form-input" id="note-number" value="60" min="0" max="127">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">力度 (0-127)</label>
+                            <input type="number" class="form-input" id="velocity" value="100" min="0" max="127">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-success" onclick="sendNoteOn()">🎵 Note On</button>
+                        <button class="btn btn-danger" onclick="sendNoteOff()">🔇 Note Off</button>
+                        <button class="btn btn-outline" onclick="sendControlChange()">🎛️ Control Change</button>
+                        <button class="btn btn-outline" onclick="sendProgramChange()">📋 Program Change</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">自定义 MIDI 消息 (十六进制，空格分隔)</label>
+                        <input type="text" class="form-input" id="custom-message" placeholder="例如: 90 3C 40">
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="sendCustomMessage()">📤 发送自定义消息</button>
+                </div>
+            </div>
+
+            <!-- 虚拟钢琴 -->
+            <div id="panel-virtual-piano" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>虚拟钢琴</h1>
+                        <p>使用键盘或鼠标演奏</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        使用键盘 A-L 和 W-P 演奏白键和黑键，或直接点击钢琴键
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">输出设备</label>
+                            <select class="form-select" id="piano-output-device">
+                                <option value="">-- 内置音源 --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">八度</label>
+                            <select class="form-select" id="piano-octave" onchange="updatePianoOctave()">
+                                <option value="3">第 3 八度</option>
+                                <option value="4" selected>第 4 八度</option>
+                                <option value="5">第 5 八度</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="piano-container" id="main-piano">
+                        <!-- 钢琴键将由 JS 生成 -->
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 20px;">
+                        <div class="result-title">键盘映射</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">白键</div>
+                                <div class="result-value">A S D F G H J K L</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">黑键</div>
+                                <div class="result-value">W E T Y U O P</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web MIDI API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心方法</h3>
+                    <div class="api-block">
+                        <span class="api-method">METHOD</span>
+                        <span class="api-signature">navigator.requestMIDIAccess(options)</span>
+                        <p class="api-description">请求 MIDI 访问权限，返回 Promise&lt;MIDIAccess&gt;。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">MIDIAccess</h3>
+                    <table>
+                        <thead>
+                            <tr><th>属性/方法</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>inputs</code></td><td>MIDIInputMap - 输入设备集合</td></tr>
+                            <tr><td><code>outputs</code></td><td>MIDIOutputMap - 输出设备集合</td></tr>
+                            <tr><td><code>onstatechange</code></td><td>设备状态变化事件</td></tr>
+                            <tr><td><code>sysexEnabled</code></td><td>是否启用系统专属消息</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">MIDIInput</h3>
+                    <table>
+                        <thead><tr><th>属性/方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>id</code></td><td>设备唯一标识</td></tr>
+                            <tr><td><code>name</code></td><td>设备名称</td></tr>
+                            <tr><td><code>manufacturer</code></td><td>制造商</td></tr>
+                            <tr><td><code>state</code></td><td>连接状态</td></tr>
+                            <tr><td><code>onmidimessage</code></td><td>MIDI 消息事件处理</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">MIDIOutput</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>send(data, timestamp)</code></td><td>发送 MIDI 消息</td></tr>
+                            <tr><td><code>clear()</code></td><td>清除待发送的消息</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">MIDI 消息格式</h3>
+                    <table>
+                        <thead><tr><th>状态字节</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>0x80-0x8F</code></td><td>Note Off (通道 1-16)</td></tr>
+                            <tr><td><code>0x90-0x9F</code></td><td>Note On (通道 1-16)</td></tr>
+                            <tr><td><code>0xA0-0xAF</code></td><td>Polyphonic Key Pressure</td></tr>
+                            <tr><td><code>0xB0-0xBF</code></td><td>Control Change</td></tr>
+                            <tr><td><code>0xC0-0xCF</code></td><td>Program Change</td></tr>
+                            <tr><td><code>0xD0-0xDF</code></td><td>Channel Pressure</td></tr>
+                            <tr><td><code>0xE0-0xEF</code></td><td>Pitch Bend</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 请求 MIDI 访问
+const access = await navigator.requestMIDIAccess();
+
+// 获取输入设备
+access.inputs.forEach(input => {
+    input.onmidimessage = (event) => {
+        const [status, note, velocity] = event.data;
+        console.log('MIDI消息:', status, note, velocity);
+    };
+});
+
+// 获取输出设备并发送消息
+access.outputs.forEach(output => {
+    // Note On: 通道1, 音符60 (C4), 力度100
+    output.send([0x90, 60, 100]);
+    
+    // 1秒后 Note Off
+    setTimeout(() => {
+        output.send([0x80, 60, 0]);
+    }, 1000);
+});
+
+// 监听设备状态变化
+access.onstatechange = (event) => {
+    console.log('设备状态变化:', event.port.name, event.port.state);
+};</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        Web MIDI API 需要 HTTPS 环境，并在 Chrome、Edge、Opera 等浏览器中得到支持。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var midiAccess = null;
+        var selectedInput = null;
+        var selectedOutput = null;
+        var messageCount = 0;
+        var noteOnCount = 0;
+        var noteOffCount = 0;
+        var ccCount = 0;
+        var isMonitoring = false;
+        var audioContext = null;
+        var activeOscillators = {};
+
+        // 钢琴键映射
+        var keyboardMap = {
+            'a': 0, 'w': 1, 's': 2, 'e': 3, 'd': 4, 'f': 5, 't': 6,
+            'g': 7, 'y': 8, 'h': 9, 'u': 10, 'j': 11, 'k': 12,
+            'o': 13, 'l': 14, 'p': 15
+        };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            initPiano();
+            initKeyboard();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var midiSupported = 'requestMIDIAccess' in navigator;
+            
+            document.getElementById('api-request').textContent = midiSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-request').style.color = midiSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-access').textContent = typeof MIDIAccess !== 'undefined' ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-access').style.color = typeof MIDIAccess !== 'undefined' ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-input').textContent = typeof MIDIInput !== 'undefined' ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-input').style.color = typeof MIDIInput !== 'undefined' ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-output').textContent = typeof MIDIOutput !== 'undefined' ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-output').style.color = typeof MIDIOutput !== 'undefined' ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = midiSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = midiSupported ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== MIDI 访问 ====================
+        async function requestMIDIAccess() {
+            if (!navigator.requestMIDIAccess) {
+                showToast('Web MIDI API 不支持', 'error');
+                return;
+            }
+            
+            try {
+                midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+                
+                showToast('MIDI 访问已授权', 'success');
+                addLog('midi', 'MIDI 访问已授权');
+                
+                updateDeviceLists();
+                
+                midiAccess.onstatechange = function(event) {
+                    addLog('midi', '设备状态变化: ' + event.port.name + ' - ' + event.port.state);
+                    updateDeviceLists();
+                };
+                
+            } catch (error) {
+                showToast('MIDI 访问被拒绝: ' + error.message, 'error');
+                addLog('midi', '访问被拒绝: ' + error.message);
+            }
+        }
+
+        // ==================== 设备管理 ====================
+        function updateDeviceLists() {
+            if (!midiAccess) return;
+            
+            var inputCount = 0;
+            var outputCount = 0;
+            
+            // 更新输入设备列表
+            var inputHtml = '';
+            midiAccess.inputs.forEach(function(input) {
+                inputCount++;
+                var statusClass = input.state === 'connected' ? 'connected' : 'disconnected';
+                inputHtml += '<div class="device-card">' +
+                    '<div class="device-icon">🎹</div>' +
+                    '<div class="device-info">' +
+                    '<div class="device-name">' + (input.name || '未知设备') + '</div>' +
+                    '<div class="device-detail">制造商: ' + (input.manufacturer || '未知') + '</div>' +
+                    '</div>' +
+                    '<span class="device-status ' + statusClass + '">' + input.state + '</span>' +
+                    '</div>';
+            });
+            
+            document.getElementById('input-devices-list').innerHTML = inputHtml || 
+                '<div style="text-align: center; padding: 20px; color: var(--text-muted);">暂无输入设备</div>';
+            
+            // 更新输出设备列表
+            var outputHtml = '';
+            midiAccess.outputs.forEach(function(output) {
+                outputCount++;
+                var statusClass = output.state === 'connected' ? 'connected' : 'disconnected';
+                outputHtml += '<div class="device-card">' +
+                    '<div class="device-icon">🔊</div>' +
+                    '<div class="device-info">' +
+                    '<div class="device-name">' + (output.name || '未知设备') + '</div>' +
+                    '<div class="device-detail">制造商: ' + (output.manufacturer || '未知') + '</div>' +
+                    '</div>' +
+                    '<span class="device-status ' + statusClass + '">' + output.state + '</span>' +
+                    '</div>';
+            });
+            
+            document.getElementById('output-devices-list').innerHTML = outputHtml || 
+                '<div style="text-align: center; padding: 20px; color: var(--text-muted);">暂无输出设备</div>';
+            
+            // 更新选择框
+            updateDeviceSelects();
+            
+            // 更新统计
+            document.getElementById('input-count').textContent = inputCount;
+            document.getElementById('output-count').textContent = outputCount;
+        }
+
+        function updateDeviceSelects() {
+            if (!midiAccess) return;
+            
+            // 输入设备选择框
+            var inputSelect = document.getElementById('input-device-select');
+            var inputOptions = '<option value="">-- 选择设备 --</option>';
+            midiAccess.inputs.forEach(function(input, id) {
+                inputOptions += '<option value="' + id + '">' + (input.name || '未知设备') + '</option>';
+            });
+            inputSelect.innerHTML = inputOptions;
+            
+            // 输出设备选择框
+            var outputSelect = document.getElementById('output-device-select');
+            var pianoOutputSelect = document.getElementById('piano-output-device');
+            var outputOptions = '<option value="">-- 内置音源 --</option>';
+            midiAccess.outputs.forEach(function(output, id) {
+                outputOptions += '<option value="' + id + '">' + (output.name || '未知设备') + '</option>';
+            });
+            outputSelect.innerHTML = outputOptions;
+            pianoOutputSelect.innerHTML = outputOptions;
+        }
+
+        function refreshDevices() {
+            if (!midiAccess) {
+                requestMIDIAccess();
+            } else {
+                updateDeviceLists();
+                showToast('设备列表已刷新', 'success');
+            }
+        }
+
+        function toggleDeviceMonitor() {
+            isMonitoring = !isMonitoring;
+            showToast(isMonitoring ? '监控已启动' : '监控已停止', 'success');
+        }
+
+        // ==================== MIDI 输入 ====================
+        function selectInputDevice() {
+            var deviceId = document.getElementById('input-device-select').value;
+            
+            if (!deviceId || !midiAccess) {
+                selectedInput = null;
+                return;
+            }
+            
+            selectedInput = midiAccess.inputs.get(deviceId);
+            addLog('midi', '选择输入设备: ' + (selectedInput.name || deviceId));
+        }
+
+        function startListening() {
+            if (!selectedInput) {
+                showToast('请先选择输入设备', 'warning');
+                return;
+            }
+            
+            selectedInput.onmidimessage = handleMidiMessage;
+            document.getElementById('input-stats').style.display = 'block';
+            
+            addLog('midi', '开始监听 MIDI 输入');
+            showToast('开始监听', 'success');
+        }
+
+        function stopListening() {
+            if (selectedInput) {
+                selectedInput.onmidimessage = null;
+            }
+            addLog('midi', '停止监听 MIDI 输入');
+            showToast('停止监听', 'success');
+        }
+
+        function handleMidiMessage(event) {
+            var data = event.data;
+            var status = data[0] & 0xF0;
+            var channel = (data[0] & 0x0F) + 1;
+            
+            messageCount++;
+            document.getElementById('message-count').textContent = messageCount;
+            document.getElementById('total-messages').textContent = messageCount;
+            
+            var messageStr = '';
+            
+            if (status === 0x90) {
+                noteOnCount++;
+                document.getElementById('note-on-count').textContent = noteOnCount;
+                messageStr = 'Note On - 音符: ' + data[1] + ', 力度: ' + data[2];
+            } else if (status === 0x80) {
+                noteOffCount++;
+                document.getElementById('note-off-count').textContent = noteOffCount;
+                messageStr = 'Note Off - 音符: ' + data[1];
+            } else if (status === 0xB0) {
+                ccCount++;
+                document.getElementById('cc-count').textContent = ccCount;
+                messageStr = 'CC - 控制器: ' + data[1] + ', 值: ' + data[2];
+            } else {
+                messageStr = '状态: 0x' + status.toString(16) + ' - ' + Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ');
+            }
+            
+            addMidiMessage('通道 ' + channel + ' - ' + messageStr);
+        }
+
+        function addMidiMessage(message) {
+            var now = new Date();
+            var time = now.toTimeString().split(' ')[0];
+            var monitor = document.getElementById('input-messages');
+            
+            var entry = document.createElement('div');
+            entry.className = 'midi-message';
+            entry.innerHTML = '<span class="midi-time">' + time + '</span><span class="midi-data">' + message + '</span>';
+            
+            monitor.insertBefore(entry, monitor.firstChild);
+            
+            // 限制消息数量
+            while (monitor.children.length > 50) {
+                monitor.removeChild(monitor.lastChild);
+            }
+        }
+
+        function clearMidiMessages() {
+            document.getElementById('input-messages').innerHTML = 
+                '<div style="color: var(--text-muted);">等待 MIDI 消息...</div>';
+            messageCount = 0;
+            noteOnCount = 0;
+            noteOffCount = 0;
+            ccCount = 0;
+            document.getElementById('message-count').textContent = '0';
+            document.getElementById('total-messages').textContent = '0';
+            document.getElementById('note-on-count').textContent = '0';
+            document.getElementById('note-off-count').textContent = '0';
+            document.getElementById('cc-count').textContent = '0';
+            showToast('消息已清空', 'success');
+        }
+
+        // ==================== MIDI 输出 ====================
+        function sendNoteOn() {
+            var deviceId = document.getElementById('output-device-select').value;
+            var channel = parseInt(document.getElementById('midi-channel').value);
+            var note = parseInt(document.getElementById('note-number').value);
+            var velocity = parseInt(document.getElementById('velocity').value);
+            
+            if (deviceId && midiAccess) {
+                var output = midiAccess.outputs.get(deviceId);
+                if (output) {
+                    output.send([0x90 | channel, note, velocity]);
+                    addLog('midi', '发送 Note On: ' + note + ', 力度: ' + velocity);
+                }
+            }
+            
+            // 同时播放内置音源
+            playNote(note);
+            showToast('Note On: ' + note, 'success');
+        }
+
+        function sendNoteOff() {
+            var deviceId = document.getElementById('output-device-select').value;
+            var channel = parseInt(document.getElementById('midi-channel').value);
+            var note = parseInt(document.getElementById('note-number').value);
+            
+            if (deviceId && midiAccess) {
+                var output = midiAccess.outputs.get(deviceId);
+                if (output) {
+                    output.send([0x80 | channel, note, 0]);
+                    addLog('midi', '发送 Note Off: ' + note);
+                }
+            }
+            
+            stopNote(note);
+            showToast('Note Off: ' + note, 'success');
+        }
+
+        function sendControlChange() {
+            var deviceId = document.getElementById('output-device-select').value;
+            var channel = parseInt(document.getElementById('midi-channel').value);
+            
+            if (!deviceId || !midiAccess) {
+                showToast('请选择输出设备', 'warning');
+                return;
+            }
+            
+            var output = midiAccess.outputs.get(deviceId);
+            if (output) {
+                // 发送 CC 64 (Sustain)
+                output.send([0xB0 | channel, 64, 127]);
+                addLog('midi', '发送 CC: 64 (Sustain)');
+                showToast('CC 发送成功', 'success');
+            }
+        }
+
+        function sendProgramChange() {
+            var deviceId = document.getElementById('output-device-select').value;
+            var channel = parseInt(document.getElementById('midi-channel').value);
+            
+            if (!deviceId || !midiAccess) {
+                showToast('请选择输出设备', 'warning');
+                return;
+            }
+            
+            var output = midiAccess.outputs.get(deviceId);
+            if (output) {
+                output.send([0xC0 | channel, 0]);
+                addLog('midi', '发送 Program Change: 0');
+                showToast('Program Change 发送成功', 'success');
+            }
+        }
+
+        function sendCustomMessage() {
+            var deviceId = document.getElementById('output-device-select').value;
+            var messageStr = document.getElementById('custom-message').value.trim();
+            
+            if (!messageStr) {
+                showToast('请输入消息', 'warning');
+                return;
+            }
+            
+            var bytes = messageStr.split(/\s+/).map(function(hex) {
+                return parseInt(hex, 16);
+            });
+            
+            if (bytes.some(isNaN)) {
+                showToast('无效的十六进制格式', 'error');
+                return;
+            }
+            
+            if (deviceId && midiAccess) {
+                var output = midiAccess.outputs.get(deviceId);
+                if (output) {
+                    output.send(bytes);
+                    addLog('midi', '发送自定义消息: ' + bytes.map(function(b) { return b.toString(16).padStart(2, '0'); }).join(' '));
+                    showToast('消息已发送', 'success');
+                }
+            } else {
+                showToast('请选择输出设备', 'warning');
+            }
+        }
+
+        // ==================== 音频引擎 ====================
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        function noteToFrequency(note) {
+            return 440 * Math.pow(2, (note - 69) / 12);
+        }
+
+        function playNote(note) {
+            var ctx = getAudioContext();
+            
+            if (activeOscillators[note]) {
+                stopNote(note);
+            }
+            
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.value = noteToFrequency(note);
+            
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            
+            activeOscillators[note] = { osc: osc, gain: gain };
+        }
+
+        function stopNote(note) {
+            if (activeOscillators[note]) {
+                var ctx = getAudioContext();
+                activeOscillators[note].gain.gain.cancelScheduledValues(ctx.currentTime);
+                activeOscillators[note].gain.gain.setValueAtTime(activeOscillators[note].gain.gain.value, ctx.currentTime);
+                activeOscillators[note].gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                activeOscillators[note].osc.stop(ctx.currentTime + 0.1);
+                delete activeOscillators[note];
+            }
+        }
+
+        // ==================== 虚拟钢琴 ====================
+        function initPiano() {
+            var pianoContainers = ['demo-piano', 'main-piano'];
+            
+            pianoContainers.forEach(function(containerId) {
+                var container = document.getElementById(containerId);
+                if (!container) return;
+                
+                container.innerHTML = '';
+                
+                var notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C'];
+                var whiteNotes = [0, 2, 4, 5, 7, 9, 11, 12];
+                var blackNotes = [1, 3, 6, 8, 10];
+                
+                // 创建白键
+                whiteNotes.forEach(function(offset, index) {
+                    var key = document.createElement('div');
+                    key.className = 'piano-key';
+                    key.dataset.note = offset;
+                    key.innerHTML = notes[offset];
+                    key.onmousedown = function() { playPianoKey(offset); };
+                    key.onmouseup = function() { releasePianoKey(offset); };
+                    key.onmouseleave = function() { releasePianoKey(offset); };
+                    container.appendChild(key);
+                });
+                
+                // 创建黑键
+                blackNotes.forEach(function(offset) {
+                    var key = document.createElement('div');
+                    key.className = 'piano-key black';
+                    key.dataset.note = offset;
+                    key.innerHTML = notes[offset];
+                    key.onmousedown = function() { playPianoKey(offset); };
+                    key.onmouseup = function() { releasePianoKey(offset); };
+                    key.onmouseleave = function() { releasePianoKey(offset); };
+                    container.appendChild(key);
+                });
+            });
+        }
+
+        function playPianoKey(offset) {
+            var octave = parseInt(document.getElementById('piano-octave').value);
+            var note = octave * 12 + offset;
+            
+            playNote(note);
+            
+            // 发送到 MIDI 输出
+            var deviceId = document.getElementById('piano-output-device').value;
+            if (deviceId && midiAccess) {
+                var output = midiAccess.outputs.get(deviceId);
+                if (output) {
+                    output.send([0x90, note, 100]);
+                }
+            }
+            
+            // 高亮按键
+            document.querySelectorAll('.piano-key[data-note="' + offset + '"]').forEach(function(key) {
+                key.classList.add('active');
+            });
+        }
+
+        function releasePianoKey(offset) {
+            var octave = parseInt(document.getElementById('piano-octave').value);
+            var note = octave * 12 + offset;
+            
+            stopNote(note);
+            
+            // 发送到 MIDI 输出
+            var deviceId = document.getElementById('piano-output-device').value;
+            if (deviceId && midiAccess) {
+                var output = midiAccess.outputs.get(deviceId);
+                if (output) {
+                    output.send([0x80, note, 0]);
+                }
+            }
+            
+            // 取消高亮
+            document.querySelectorAll('.piano-key[data-note="' + offset + '"]').forEach(function(key) {
+                key.classList.remove('active');
+            });
+        }
+
+        function updatePianoOctave() {
+            // 可以在这里添加八度变化的逻辑
+        }
+
+        // ==================== 键盘控制 ====================
+        function initKeyboard() {
+            document.addEventListener('keydown', function(event) {
+                if (event.repeat) return;
+                var key = event.key.toLowerCase();
+                if (keyboardMap.hasOwnProperty(key)) {
+                    playPianoKey(keyboardMap[key]);
+                }
+            });
+            
+            document.addEventListener('keyup', function(event) {
+                var key = event.key.toLowerCase();
+                if (keyboardMap.hasOwnProperty(key)) {
+                    releasePianoKey(keyboardMap[key]);
+                }
+            });
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

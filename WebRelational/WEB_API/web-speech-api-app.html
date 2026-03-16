@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Speech API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --secondary: #a78bfa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f5f3ff;
+            --bg-card: #ffffff;
+            --border: #ddd6fe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f5f3ff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #1e1b4b;
+                --bg-card: #312e81;
+                --border: #4338ca;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(124, 58, 237, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Voice Button */
+        .voice-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            transition: all 0.3s;
+            box-shadow: 0 8px 30px rgba(124, 58, 237, 0.3);
+        }
+        
+        .voice-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(124, 58, 237, 0.4);
+        }
+        
+        .voice-button.recording {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
+        
+        /* Voice List */
+        .voice-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .voice-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .voice-item:hover {
+            border-color: var(--primary);
+        }
+        
+        .voice-item.selected {
+            border-color: var(--primary);
+            background: rgba(124, 58, 237, 0.1);
+        }
+        
+        .voice-icon {
+            width: 40px; height: 40px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .voice-info { flex: 1; }
+        
+        .voice-name {
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .voice-lang {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        /* Waveform */
+        .waveform-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            height: 60px;
+            padding: 20px;
+        }
+        
+        .waveform-bar {
+            width: 4px;
+            background: var(--primary);
+            border-radius: 2px;
+            animation: waveform 0.5s ease-in-out infinite;
+        }
+        
+        .waveform-bar:nth-child(1) { animation-delay: 0s; }
+        .waveform-bar:nth-child(2) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(4) { animation-delay: 0.3s; }
+        .waveform-bar:nth-child(5) { animation-delay: 0.4s; }
+        
+        @keyframes waveform {
+            0%, 100% { height: 10px; }
+            50% { height: 40px; }
+        }
+        
+        /* Recognition Result */
+        .recognition-result {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            min-height: 100px;
+            border: 1px solid var(--border);
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        
+        .recognition-result.interim {
+            color: var(--text-secondary);
+        }
+        
+        .recognition-result.final {
+            color: var(--text-primary);
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(124, 58, 237, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(124, 58, 237, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.speech { background: rgba(124, 58, 237, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(124, 58, 237, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+            
+            .voice-button {
+                width: 100px;
+                height: 100px;
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎤</div>
+            <div class="logo-text">Web Speech <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">语音功能</div>
+                    <div class="nav-item" data-tab="recognition" onclick="switchTab('recognition')">
+                        <span class="nav-icon">🎤</span><span>语音识别</span>
+                    </div>
+                    <div class="nav-item" data-tab="synthesis" onclick="switchTab('synthesis')">
+                        <span class="nav-icon">🔊</span><span>语音合成</span>
+                    </div>
+                    <div class="nav-item" data-tab="voices" onclick="switchTab('voices')">
+                        <span class="nav-icon">🗣️</span><span>语音列表</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web Speech API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎤</div>
+                        <div class="stat-value" id="recognition-count">0</div>
+                        <div class="stat-label">识别次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔊</div>
+                        <div class="stat-value" id="synthesis-count">0</div>
+                        <div class="stat-label">合成次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🗣️</div>
+                        <div class="stat-value" id="voice-count">0</div>
+                        <div class="stat-label">可用语音</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>SpeechRecognition</span>
+                                        <span id="api-recognition" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>SpeechSynthesis</span>
+                                        <span id="api-synthesis" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>SpeechGrammar</span>
+                                        <span id="api-grammar" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>语音数量</span>
+                                        <span id="api-voices" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">快速测试</label>
+                                <div style="text-align: center; padding: 40px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                                    <div style="font-size: 48px; margin-bottom: 16px;">🎤</div>
+                                    <div style="color: var(--text-secondary); margin-bottom: 16px;">语音识别与合成</div>
+                                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                                        <button class="btn btn-primary" onclick="quickRecognize()">🎤 识别</button>
+                                        <button class="btn btn-success" onclick="quickSpeak()">🔊 合成</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            点击麦克风按钮开始语音识别，或输入文本进行语音合成
+                        </div>
+                        
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <button class="voice-button" id="voice-btn" onclick="toggleRecognition()">
+                                🎤
+                            </button>
+                            <div style="margin-top: 12px; color: var(--text-secondary);" id="voice-status">点击开始识别</div>
+                        </div>
+                        
+                        <div class="waveform-container" id="waveform" style="display: none;">
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                        </div>
+                        
+                        <div class="result-box">
+                            <div class="result-title">识别结果</div>
+                            <div class="recognition-result" id="recognition-result">等待语音输入...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语音识别 -->
+            <div id="panel-recognition" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>语音识别</h1>
+                        <p>SpeechRecognition - 语音转文本</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>SpeechRecognition</strong> 将语音转换为文本，支持连续识别和中间结果。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">识别语言</label>
+                            <select class="form-select" id="recognition-lang">
+                                <option value="zh-CN">中文 (简体)</option>
+                                <option value="zh-TW">中文 (繁体)</option>
+                                <option value="en-US">英语 (美国)</option>
+                                <option value="en-GB">英语 (英国)</option>
+                                <option value="ja-JP">日语</option>
+                                <option value="ko-KR">韩语</option>
+                                <option value="fr-FR">法语</option>
+                                <option value="de-DE">德语</option>
+                                <option value="es-ES">西班牙语</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">识别模式</label>
+                            <select class="form-select" id="recognition-mode">
+                                <option value="continuous">连续识别</option>
+                                <option value="single">单次识别</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">返回中间结果</label>
+                            <select class="form-select" id="interim-results">
+                                <option value="true">是</option>
+                                <option value="false">否</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">最大替代结果</label>
+                            <input type="number" class="form-input" id="max-alternatives" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary btn-lg" onclick="startRecognition()">🎤 开始识别</button>
+                        <button class="btn btn-danger btn-lg" onclick="stopRecognition()">⏹️ 停止识别</button>
+                        <button class="btn btn-outline" onclick="clearRecognitionResult()">🗑️ 清空结果</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">识别结果</div>
+                        <div class="recognition-result" id="main-recognition-result">等待语音输入...</div>
+                    </div>
+                    
+                    <div id="recognition-info" style="display: none; margin-top: 16px;">
+                        <div class="result-box">
+                            <div class="result-title">识别信息</div>
+                            <div class="result-grid" id="recognition-info-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语音合成 -->
+            <div id="panel-synthesis" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>语音合成</h1>
+                        <p>SpeechSynthesis - 文本转语音</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>SpeechSynthesis</strong> 将文本转换为语音，支持多种语音和参数调节。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">要朗读的文本</label>
+                        <textarea class="form-textarea" id="speak-text" placeholder="输入要朗读的文本">欢迎使用 Web Speech API 语音合成功能。这是一个强大的文本转语音工具。</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">选择语音</label>
+                            <select class="form-select" id="voice-select">
+                                <option value="">-- 默认语音 --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">语速 (0.1-10)</label>
+                            <input type="range" class="form-input" id="speech-rate" min="0.1" max="10" step="0.1" value="1" style="padding: 0;">
+                            <span id="rate-value">1</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">音调 (0-2)</label>
+                            <input type="range" class="form-input" id="speech-pitch" min="0" max="2" step="0.1" value="1" style="padding: 0;">
+                            <span id="pitch-value">1</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">音量 (0-1)</label>
+                            <input type="range" class="form-input" id="speech-volume" min="0" max="1" step="0.1" value="1" style="padding: 0;">
+                            <span id="volume-value">1</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary btn-lg" onclick="startSpeaking()">🔊 开始朗读</button>
+                        <button class="btn btn-outline" onclick="pauseSpeaking()">⏸️ 暂停</button>
+                        <button class="btn btn-outline" onclick="resumeSpeaking()">▶️ 继续</button>
+                        <button class="btn btn-danger" onclick="stopSpeaking()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div id="synthesis-status" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">合成状态</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">状态</div>
+                                    <div class="result-value" id="synth-state">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">当前语音</div>
+                                    <div class="result-value" id="synth-voice">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">字符位置</div>
+                                    <div class="result-value" id="synth-char">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语音列表 -->
+            <div id="panel-voices" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>语音列表</h1>
+                        <p>查看所有可用的语音</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>speechSynthesis.getVoices()</strong> 获取所有可用的语音列表。
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="refreshVoices()">🔄 刷新语音列表</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">筛选语言</label>
+                        <select class="form-select" id="voice-filter" onchange="filterVoices()">
+                            <option value="">全部语言</option>
+                        </select>
+                    </div>
+                    
+                    <div class="voice-list" id="voice-list">
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            加载语音列表中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web Speech API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">语音识别 API</h3>
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">SpeechRecognition</span>
+                        <p class="api-description">语音识别对象，用于将语音转换为文本。</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr><th>属性/方法</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>start()</code></td><td>开始识别</td></tr>
+                            <tr><td><code>stop()</code></td><td>停止识别</td></tr>
+                            <tr><td><code>abort()</code></td><td>中止识别</td></tr>
+                            <tr><td><code>continuous</code></td><td>是否连续识别</td></tr>
+                            <tr><td><code>interimResults</code></td><td>是否返回中间结果</td></tr>
+                            <tr><td><code>lang</code></td><td>识别语言</td></tr>
+                            <tr><td><code>maxAlternatives</code></td><td>最大替代结果数</td></tr>
+                            <tr><td><code>onresult</code></td><td>识别结果事件</td></tr>
+                            <tr><td><code>onerror</code></td><td>错误事件</td></tr>
+                            <tr><td><code>onstart</code></td><td>开始事件</td></tr>
+                            <tr><td><code>onend</code></td><td>结束事件</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">语音合成 API</h3>
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">SpeechSynthesis</span>
+                        <p class="api-description">语音合成对象，用于将文本转换为语音。</p>
+                    </div>
+                    
+                    <table>
+                        <thead><tr><th>属性/方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>speak(utterance)</code></td><td>朗读</td></tr>
+                            <tr><td><code>cancel()</code></td><td>取消所有朗读</td></tr>
+                            <tr><td><code>pause()</code></td><td>暂停朗读</td></tr>
+                            <tr><td><code>resume()</code></td><td>继续朗读</td></tr>
+                            <tr><td><code>getVoices()</code></td><td>获取语音列表</td></tr>
+                            <tr><td><code>paused</code></td><td>是否暂停</td></tr>
+                            <tr><td><code>speaking</code></td><td>是否正在朗读</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">SpeechSynthesisUtterance</h3>
+                    <table>
+                        <thead><tr><th>属性</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>text</code></td><td>要朗读的文本</td></tr>
+                            <tr><td><code>lang</code></td><td>语言</td></tr>
+                            <tr><td><code>voice</code></td><td>语音对象</td></tr>
+                            <tr><td><code>rate</code></td><td>语速 (0.1-10)</td></tr>
+                            <tr><td><code>pitch</code></td><td>音调 (0-2)</td></tr>
+                            <tr><td><code>volume</code></td><td>音量 (0-1)</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 语音识别
+const recognition = new webkitSpeechRecognition();
+recognition.continuous = true;
+recognition.interimResults = true;
+recognition.lang = 'zh-CN';
+
+recognition.onresult = (event) => {
+    const result = event.results[event.results.length - 1];
+    console.log(result[0].transcript);
+};
+
+recognition.start();
+
+// 语音合成
+const utterance = new SpeechSynthesisUtterance('你好世界');
+utterance.lang = 'zh-CN';
+utterance.rate = 1;
+utterance.pitch = 1;
+utterance.volume = 1;
+
+// 选择语音
+const voices = speechSynthesis.getVoices();
+utterance.voice = voices[0];
+
+speechSynthesis.speak(utterance);</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        Web Speech API 在现代浏览器中得到广泛支持，语音识别需要网络连接。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var recognitionCount = 0;
+        var synthesisCount = 0;
+        var recognition = null;
+        var isRecognizing = false;
+        var voices = [];
+        var currentUtterance = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            initVoices();
+            initRangeInputs();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var recognitionSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+            var synthesisSupported = 'speechSynthesis' in window;
+            var grammarSupported = 'SpeechGrammar' in window || 'webkitSpeechGrammar' in window;
+            
+            document.getElementById('api-recognition').textContent = recognitionSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-recognition').style.color = recognitionSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-synthesis').textContent = synthesisSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-synthesis').style.color = synthesisSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-grammar').textContent = grammarSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-grammar').style.color = grammarSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (synthesisSupported) {
+                var voiceList = speechSynthesis.getVoices();
+                document.getElementById('api-voices').textContent = voiceList.length + ' 个';
+                document.getElementById('api-voices').style.color = 'var(--success)';
+            } else {
+                document.getElementById('api-voices').textContent = '不支持';
+                document.getElementById('api-voices').style.color = 'var(--danger)';
+            }
+            
+            document.getElementById('api-status').textContent = (recognitionSupported || synthesisSupported) ? '✓' : '✗';
+            document.getElementById('api-status').style.color = (recognitionSupported || synthesisSupported) ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 语音初始化 ====================
+        function initVoices() {
+            if (!('speechSynthesis' in window)) return;
+            
+            function loadVoices() {
+                voices = speechSynthesis.getVoices();
+                document.getElementById('voice-count').textContent = voices.length;
+                updateVoiceSelects();
+                renderVoiceList();
+            }
+            
+            loadVoices();
+            
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+
+        function updateVoiceSelects() {
+            var selects = ['voice-select', 'voice-filter'];
+            
+            selects.forEach(function(selectId, index) {
+                var select = document.getElementById(selectId);
+                if (!select) return;
+                
+                if (index === 0) {
+                    // 语音选择
+                    var options = '<option value="">-- 默认语音 --</option>';
+                    voices.forEach(function(voice, i) {
+                        options += '<option value="' + i + '">' + voice.name + ' (' + voice.lang + ')</option>';
+                    });
+                    select.innerHTML = options;
+                } else {
+                    // 语言筛选
+                    var langs = {};
+                    voices.forEach(function(voice) {
+                        langs[voice.lang] = true;
+                    });
+                    
+                    var options = '<option value="">全部语言</option>';
+                    Object.keys(langs).sort().forEach(function(lang) {
+                        options += '<option value="' + lang + '">' + lang + '</option>';
+                    });
+                    select.innerHTML = options;
+                }
+            });
+        }
+
+        function renderVoiceList(filterLang) {
+            var container = document.getElementById('voice-list');
+            
+            var filteredVoices = voices;
+            if (filterLang) {
+                filteredVoices = voices.filter(function(v) { return v.lang === filterLang; });
+            }
+            
+            if (filteredVoices.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">没有找到语音</div>';
+                return;
+            }
+            
+            var html = '';
+            filteredVoices.forEach(function(voice, index) {
+                var flag = getLanguageFlag(voice.lang);
+                html += '<div class="voice-item" onclick="selectVoice(' + voices.indexOf(voice) + ')">';
+                html += '<div class="voice-icon">' + flag + '</div>';
+                html += '<div class="voice-info">';
+                html += '<div class="voice-name">' + voice.name + '</div>';
+                html += '<div class="voice-lang">' + voice.lang + (voice.localService ? ' (本地)' : ' (网络)') + '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function getLanguageFlag(lang) {
+            var flags = {
+                'zh': '🇨🇳', 'zh-CN': '🇨🇳', 'zh-TW': '🇹🇼', 'zh-HK': '🇭🇰',
+                'en': '🇺🇸', 'en-US': '🇺🇸', 'en-GB': '🇬🇧', 'en-AU': '🇦🇺',
+                'ja': '🇯🇵', 'ja-JP': '🇯🇵',
+                'ko': '🇰🇷', 'ko-KR': '🇰🇷',
+                'fr': '🇫🇷', 'fr-FR': '🇫🇷',
+                'de': '🇩🇪', 'de-DE': '🇩🇪',
+                'es': '🇪🇸', 'es-ES': '🇪🇸',
+                'it': '🇮🇹', 'it-IT': '🇮🇹',
+                'pt': '🇵🇹', 'pt-BR': '🇧🇷',
+                'ru': '🇷🇺', 'ru-RU': '🇷🇺',
+                'ar': '🇸🇦', 'ar-SA': '🇸🇦'
+            };
+            return flags[lang] || '🌐';
+        }
+
+        function filterVoices() {
+            var lang = document.getElementById('voice-filter').value;
+            renderVoiceList(lang);
+        }
+
+        function selectVoice(index) {
+            document.getElementById('voice-select').value = index;
+            showToast('已选择语音', 'success');
+        }
+
+        function refreshVoices() {
+            if ('speechSynthesis' in window) {
+                voices = speechSynthesis.getVoices();
+                renderVoiceList(document.getElementById('voice-filter').value);
+                showToast('语音列表已刷新', 'success');
+            }
+        }
+
+        // ==================== 范围输入 ====================
+        function initRangeInputs() {
+            var rateInput = document.getElementById('speech-rate');
+            var pitchInput = document.getElementById('speech-pitch');
+            var volumeInput = document.getElementById('speech-volume');
+            
+            if (rateInput) {
+                rateInput.addEventListener('input', function() {
+                    document.getElementById('rate-value').textContent = this.value;
+                });
+            }
+            
+            if (pitchInput) {
+                pitchInput.addEventListener('input', function() {
+                    document.getElementById('pitch-value').textContent = this.value;
+                });
+            }
+            
+            if (volumeInput) {
+                volumeInput.addEventListener('input', function() {
+                    document.getElementById('volume-value').textContent = this.value;
+                });
+            }
+        }
+
+        // ==================== 快速演示 ====================
+        async function quickRecognize() {
+            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                showToast('当前浏览器不支持语音识别', 'error');
+                return;
+            }
+            
+            await startRecognition();
+        }
+
+        function quickSpeak() {
+            var text = '欢迎使用 Web Speech API 语音合成功能！';
+            document.getElementById('speak-text').value = text;
+            startSpeaking();
+        }
+
+        // ==================== 语音识别 ====================
+        function createRecognition() {
+            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return null;
+            
+            var rec = new SpeechRecognition();
+            rec.lang = document.getElementById('recognition-lang')?.value || 'zh-CN';
+            rec.continuous = document.getElementById('recognition-mode')?.value === 'continuous';
+            rec.interimResults = document.getElementById('interim-results')?.value === 'true';
+            rec.maxAlternatives = parseInt(document.getElementById('max-alternatives')?.value) || 1;
+            
+            return rec;
+        }
+
+        async function startRecognition() {
+            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                showToast('当前浏览器不支持语音识别', 'error');
+                return;
+            }
+            
+            if (isRecognizing) {
+                showToast('正在识别中', 'warning');
+                return;
+            }
+            
+            recognition = createRecognition();
+            if (!recognition) return;
+            
+            isRecognizing = true;
+            
+            // 更新UI
+            var voiceBtn = document.getElementById('voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.add('recording');
+                voiceBtn.innerHTML = '⏹️';
+            }
+            
+            var waveform = document.getElementById('waveform');
+            if (waveform) waveform.style.display = 'flex';
+            
+            var status = document.getElementById('voice-status');
+            if (status) status.textContent = '正在聆听...';
+            
+            recognition.onstart = function() {
+                addLog('speech', '语音识别已开始');
+            };
+            
+            recognition.onresult = function(event) {
+                var result = '';
+                var isFinal = false;
+                
+                for (var i = event.resultIndex; i < event.results.length; i++) {
+                    result += event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        isFinal = true;
+                    }
+                }
+                
+                // 更新结果显示
+                var resultEl = document.getElementById('recognition-result');
+                var mainResultEl = document.getElementById('main-recognition-result');
+                
+                if (resultEl) {
+                    resultEl.textContent = result;
+                    resultEl.className = 'recognition-result ' + (isFinal ? 'final' : 'interim');
+                }
+                
+                if (mainResultEl) {
+                    mainResultEl.textContent = result;
+                    mainResultEl.className = 'recognition-result ' + (isFinal ? 'final' : 'interim');
+                }
+                
+                if (isFinal) {
+                    recognitionCount++;
+                    document.getElementById('recognition-count').textContent = recognitionCount;
+                    addLog('speech', '识别结果: ' + result);
+                    
+                    // 显示识别信息
+                    showRecognitionInfo(event.results[event.results.length - 1][0]);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                addLog('speech', '识别错误: ' + event.error);
+                showToast('识别错误: ' + event.error, 'error');
+                resetRecognitionUI();
+            };
+            
+            recognition.onend = function() {
+                addLog('speech', '语音识别已结束');
+                resetRecognitionUI();
+            };
+            
+            try {
+                recognition.start();
+                showToast('开始语音识别', 'success');
+            } catch (e) {
+                showToast('启动识别失败: ' + e.message, 'error');
+                resetRecognitionUI();
+            }
+        }
+
+        function stopRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+            resetRecognitionUI();
+        }
+
+        function resetRecognitionUI() {
+            isRecognizing = false;
+            
+            var voiceBtn = document.getElementById('voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '🎤';
+            }
+            
+            var waveform = document.getElementById('waveform');
+            if (waveform) waveform.style.display = 'none';
+            
+            var status = document.getElementById('voice-status');
+            if (status) status.textContent = '点击开始识别';
+        }
+
+        function toggleRecognition() {
+            if (isRecognizing) {
+                stopRecognition();
+            } else {
+                startRecognition();
+            }
+        }
+
+        function clearRecognitionResult() {
+            var resultEl = document.getElementById('recognition-result');
+            var mainResultEl = document.getElementById('main-recognition-result');
+            
+            if (resultEl) resultEl.textContent = '等待语音输入...';
+            if (mainResultEl) mainResultEl.textContent = '等待语音输入...';
+            
+            var infoEl = document.getElementById('recognition-info');
+            if (infoEl) infoEl.style.display = 'none';
+        }
+
+        function showRecognitionInfo(result) {
+            var infoEl = document.getElementById('recognition-info');
+            var gridEl = document.getElementById('recognition-info-grid');
+            
+            if (!infoEl || !gridEl) return;
+            
+            infoEl.style.display = 'block';
+            
+            gridEl.innerHTML = 
+                '<div class="result-item"><div class="result-label">置信度</div><div class="result-value">' + (result.confidence * 100).toFixed(1) + '%</div></div>' +
+                '<div class="result-item"><div class="result-label">文本长度</div><div class="result-value">' + result.transcript.length + ' 字符</div></div>';
+        }
+
+        // ==================== 语音合成 ====================
+        function startSpeaking() {
+            if (!('speechSynthesis' in window)) {
+                showToast('当前浏览器不支持语音合成', 'error');
+                return;
+            }
+            
+            var text = document.getElementById('speak-text').value;
+            if (!text) {
+                showToast('请输入要朗读的文本', 'warning');
+                return;
+            }
+            
+            // 取消之前的朗读
+            speechSynthesis.cancel();
+            
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            
+            // 设置语音
+            var voiceIndex = document.getElementById('voice-select').value;
+            if (voiceIndex !== '' && voices[voiceIndex]) {
+                currentUtterance.voice = voices[voiceIndex];
+            }
+            
+            // 设置参数
+            currentUtterance.rate = parseFloat(document.getElementById('speech-rate').value);
+            currentUtterance.pitch = parseFloat(document.getElementById('speech-pitch').value);
+            currentUtterance.volume = parseFloat(document.getElementById('speech-volume').value);
+            currentUtterance.lang = document.getElementById('recognition-lang')?.value || 'zh-CN';
+            
+            // 事件处理
+            currentUtterance.onstart = function() {
+                document.getElementById('synthesis-status').style.display = 'block';
+                document.getElementById('synth-state').textContent = '朗读中';
+                document.getElementById('synth-voice').textContent = currentUtterance.voice ? currentUtterance.voice.name : '默认';
+                addLog('speech', '开始朗读');
+            };
+            
+            currentUtterance.onend = function() {
+                document.getElementById('synth-state').textContent = '已完成';
+                synthesisCount++;
+                document.getElementById('synthesis-count').textContent = synthesisCount;
+                addLog('speech', '朗读完成');
+            };
+            
+            currentUtterance.onerror = function(e) {
+                document.getElementById('synth-state').textContent = '错误';
+                addLog('speech', '朗读错误: ' + e.error);
+            };
+            
+            currentUtterance.onboundary = function(e) {
+                document.getElementById('synth-char').textContent = e.charIndex;
+            };
+            
+            speechSynthesis.speak(currentUtterance);
+            showToast('开始朗读', 'success');
+        }
+
+        function pauseSpeaking() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.pause();
+                document.getElementById('synth-state').textContent = '已暂停';
+                addLog('speech', '朗读已暂停');
+            }
+        }
+
+        function resumeSpeaking() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.resume();
+                document.getElementById('synth-state').textContent = '朗读中';
+                addLog('speech', '朗读已继续');
+            }
+        }
+
+        function stopSpeaking() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                document.getElementById('synth-state').textContent = '已停止';
+                document.getElementById('synthesis-status').style.display = 'none';
+                addLog('speech', '朗读已停止');
+                showToast('已停止朗读', 'success');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web NFC API 管理平台</title>
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIldlYiBORkMgQVBJIOWvgeiupOeul+azleS8miIsCiAgInNob3J0X25hbWUiOiAiTkZDIEFQSSIsCiAgImRlc2NyaXB0aW9uIjogIldlYiBORkMgQVBJIOa3u+WKoOeul+azleS8miIsCiAgInN0YXJ0X3VybCI6ICIuLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzFmMjkzNyIsCiAgInRoZW1lX2NvbG9yIjogIiMxZDRlOGMiLAogICJpY29ucyI6IFtdCn0=">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #1d4ed8;
+            --primary-dark: #1e40af;
+            --secondary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #eff6ff;
+            --bg-card: #ffffff;
+            --border: #bfdbfe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #eff6ff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #0f172a;
+                --bg-card: #1e293b;
+                --border: #334155;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(29, 78, 216, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(29, 78, 216, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(29, 78, 216, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+            word-break: break-all;
+        }
+        
+        /* NFC Animation */
+        .nfc-animation {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin: 20px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .nfc-icon {
+            width: 100px; height: 100px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            animation: nfcPulse 2s infinite;
+        }
+        
+        @keyframes nfcPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(29, 78, 216, 0); }
+        }
+        
+        .nfc-text {
+            margin-top: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        /* Record Card */
+        .record-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .record-type {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(29, 78, 216, 0.1);
+            color: var(--primary);
+        }
+        
+        .record-content {
+            font-size: 13px;
+            word-break: break-all;
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(29, 78, 216, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(29, 78, 216, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.nfc { background: rgba(29, 78, 216, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(29, 78, 216, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Warning Box */
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">📡</div>
+            <div class="logo-text">Web NFC <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">NFC 功能</div>
+                    <div class="nav-item" data-tab="read" onclick="switchTab('read')">
+                        <span class="nav-icon">📖</span><span>读取标签</span>
+                    </div>
+                    <div class="nav-item" data-tab="write" onclick="switchTab('write')">
+                        <span class="nav-icon">✏️</span><span>写入标签</span>
+                    </div>
+                    <div class="nav-item" data-tab="history" onclick="switchTab('history')">
+                        <span class="nav-icon">📜</span><span>历史记录</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web NFC API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">📡</div>
+                        <div class="stat-value" id="read-count">0</div>
+                        <div class="stat-label">读取次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✏️</div>
+                        <div class="stat-value" id="write-count">0</div>
+                        <div class="stat-label">写入次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏷️</div>
+                        <div class="stat-value" id="tag-count">0</div>
+                        <div class="stat-label">标签数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>NDEFReader</span>
+                                        <span id="api-ndefreader" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>NDEFMessage</span>
+                                        <span id="api-ndefmessage" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>NDEFRecord</span>
+                                        <span id="api-ndefrecord" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>NFC 支持</span>
+                                        <span id="api-nfc" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">NFC 状态</label>
+                                <div class="nfc-animation">
+                                    <div class="nfc-icon">📡</div>
+                                    <div class="nfc-text">准备扫描 NFC 标签</div>
+                                </div>
+                                <div style="display: flex; gap: 10px; justify-content: center;">
+                                    <button class="btn btn-primary" onclick="quickScan()">📡 快速扫描</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            点击下方按钮开始扫描 NFC 标签，或将标签靠近设备
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <button class="btn btn-primary btn-lg" onclick="startScan()">📡 开始扫描</button>
+                            <button class="btn btn-danger btn-lg" onclick="stopScan()">⏹️ 停止扫描</button>
+                        </div>
+                        
+                        <div id="scan-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">扫描结果</div>
+                                <div id="scan-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 读取标签 -->
+            <div id="panel-read" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>读取标签</h1>
+                        <p>扫描并读取 NFC 标签内容</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>NDEFReader.scan()</strong> 开始扫描 NFC 标签，读取 NDEF 格式数据。
+                    </div>
+                    
+                    <div class="warning-box">
+                        <strong>注意：</strong> 需要 HTTPS 环境和用户交互触发，部分浏览器需要 PWA 支持。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">扫描选项</label>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">信号强度</label>
+                                <select class="form-select" id="signal-strength">
+                                    <option value="auto">自动</option>
+                                    <option value="high">高</option>
+                                    <option value="low">低</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary btn-lg" onclick="startReading()">📡 开始读取</button>
+                        <button class="btn btn-danger btn-lg" onclick="stopReading()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div id="reading-status" style="display: none;">
+                        <div class="nfc-animation" style="margin: 0;">
+                            <div class="nfc-icon" style="animation: nfcPulse 0.5s infinite;">📡</div>
+                            <div class="nfc-text">正在扫描...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="read-result" style="display: none; margin-top: 20px;">
+                        <div class="result-box">
+                            <div class="result-title">读取结果</div>
+                            <div class="result-grid" id="read-result-grid"></div>
+                        </div>
+                        
+                        <div id="records-container" style="margin-top: 16px;">
+                            <div class="result-title">NDEF 记录</div>
+                            <div id="records-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 写入标签 -->
+            <div id="panel-write" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>写入标签</h1>
+                        <p>向 NFC 标签写入数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>NDEFReader.write()</strong> 向 NFC 标签写入 NDEF 格式数据。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">记录类型</label>
+                        <select class="form-select" id="record-type" onchange="updateWriteForm()">
+                            <option value="text">文本 (text)</option>
+                            <option value="url">URL (url)</option>
+                            <option value="json">JSON (json)</option>
+                            <option value="opaque">二进制 (opaque)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="text-input-group">
+                        <div class="form-group">
+                            <label class="form-label">文本内容</label>
+                            <textarea class="form-textarea" id="text-content" placeholder="输入要写入的文本内容">Hello, NFC!</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">语言代码</label>
+                            <input type="text" class="form-input" id="lang-code" value="zh-CN">
+                        </div>
+                    </div>
+                    
+                    <div id="url-input-group" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">URL 地址</label>
+                            <input type="url" class="form-input" id="url-content" placeholder="https://example.com" value="https://example.com">
+                        </div>
+                    </div>
+                    
+                    <div id="json-input-group" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">JSON 数据</label>
+                            <textarea class="form-textarea" id="json-content" placeholder='{"key": "value"}'>{"name": "Web NFC", "version": "1.0"}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div id="opaque-input-group" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">十六进制数据</label>
+                            <input type="text" class="form-input" id="opaque-content" placeholder="例如: 01 02 03 04">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">写入选项</label>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">覆盖模式</label>
+                                <select class="form-select" id="overwrite-mode">
+                                    <option value="overwrite">覆盖现有内容</option>
+                                    <option value="append">追加到现有内容</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">超时时间 (秒)</label>
+                                <input type="number" class="form-input" id="write-timeout" value="10" min="1" max="60">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary btn-lg" onclick="startWriting()">✏️ 开始写入</button>
+                        <button class="btn btn-danger btn-lg" onclick="stopWriting()">⏹️ 取消</button>
+                    </div>
+                    
+                    <div id="write-status" style="display: none;">
+                        <div class="nfc-animation" style="margin: 0;">
+                            <div class="nfc-icon" style="animation: nfcPulse 0.5s infinite;">✏️</div>
+                            <div class="nfc-text">等待标签...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="write-result" style="display: none; margin-top: 20px;">
+                        <div class="result-box">
+                            <div class="result-title">写入结果</div>
+                            <div id="write-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 历史记录 -->
+            <div id="panel-history" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>历史记录</h1>
+                        <p>查看 NFC 操作历史</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearHistory()">🗑️ 清空历史</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div id="history-list">
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            暂无历史记录
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web NFC API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心对象</h3>
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">NDEFReader</span>
+                        <p class="api-description">NFC 读取器对象，用于读取和写入 NDEF 格式的 NFC 标签。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">NDEFMessage</span>
+                        <p class="api-description">NDEF 消息对象，包含一组 NDEF 记录。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">NDEFRecord</span>
+                        <p class="api-description">NDEF 记录对象，表示单个 NFC 数据记录。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">NDEFReader 方法</h3>
+                    <table>
+                        <thead>
+                            <tr><th>方法</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>scan(options)</code></td><td>开始扫描 NFC 标签</td></tr>
+                            <tr><td><code>write(message, options)</code></td><td>向标签写入数据</td></tr>
+                            <tr><td><code>onreading</code></td><td>读取事件处理</td></tr>
+                            <tr><td><code>onreadingerror</code></td><td>读取错误事件</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">NDEFRecord 类型</h3>
+                    <table>
+                        <thead><tr><th>类型</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>"text"</code></td><td>文本记录</td></tr>
+                            <tr><td><code>"url"</code></td><td>URL 记录</td></tr>
+                            <tr><td><code>"json"</code></td><td>JSON 记录</td></tr>
+                            <tr><td><code>"opaque"</code></td><td>二进制记录</td></tr>
+                            <tr><td><code>"empty"</code></td><td>空记录</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 读取 NFC 标签
+const reader = new NDEFReader();
+await reader.scan();
+reader.onreading = event => {
+    const message = event.message;
+    for (const record of message.records) {
+        console.log('记录类型:', record.recordType);
+        console.log('媒体类型:', record.mediaType);
+        
+        if (record.recordType === 'text') {
+            const decoder = new TextDecoder(record.encoding);
+            console.log('文本:', decoder.decode(record.data));
+        }
+    }
+};
+
+// 写入 NFC 标签
+const writer = new NDEFReader();
+await writer.write({
+    records: [{
+        recordType: 'text',
+        data: 'Hello NFC!',
+        lang: 'zh-CN'
+    }]
+});
+
+// 写入 URL
+await writer.write({
+    records: [{
+        recordType: 'url',
+        data: 'https://example.com'
+    }]
+});</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="warning-box">
+                        <strong>重要：</strong> Web NFC API 需要 HTTPS 环境，Chrome 89+ 支持，需要用户交互触发。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var history = [];
+        var readCount = 0;
+        var writeCount = 0;
+        var tagCount = 0;
+        var currentReader = null;
+        var currentAbortController = null;
+        var isScanning = false;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            loadHistory();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var ndefReaderSupported = typeof NDEFReader !== 'undefined';
+            var ndefMessageSupported = typeof NDEFMessage !== 'undefined';
+            var ndefRecordSupported = typeof NDEFRecord !== 'undefined';
+            var nfcSupported = 'NDEFReader' in window;
+            
+            document.getElementById('api-ndefreader').textContent = ndefReaderSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-ndefreader').style.color = ndefReaderSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-ndefmessage').textContent = ndefMessageSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-ndefmessage').style.color = ndefMessageSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-ndefrecord').textContent = ndefRecordSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-ndefrecord').style.color = ndefRecordSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-nfc').textContent = nfcSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-nfc').style.color = nfcSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = nfcSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = nfcSupported ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 快速扫描 ====================
+        async function quickScan() {
+            if (!('NDEFReader' in window)) {
+                showToast('Web NFC API 不支持', 'error');
+                return;
+            }
+            
+            try {
+                var reader = new NDEFReader();
+                await reader.scan();
+                
+                reader.onreading = function(event) {
+                    var message = event.message;
+                    var serial = event.serialNumber || '未知';
+                    
+                    readCount++;
+                    tagCount++;
+                    document.getElementById('read-count').textContent = readCount;
+                    document.getElementById('tag-count').textContent = tagCount;
+                    
+                    var content = '检测到 NFC 标签<br>';
+                    content += '序列号: ' + serial + '<br>';
+                    content += '记录数: ' + message.records.length;
+                    
+                    document.getElementById('scan-result').style.display = 'block';
+                    document.getElementById('scan-result-content').innerHTML = content;
+                    
+                    addHistory('read', serial, message);
+                    addLog('nfc', '读取标签: ' + serial);
+                    showToast('标签已读取', 'success');
+                };
+                
+                reader.onreadingerror = function(event) {
+                    showToast('读取错误', 'error');
+                    addLog('nfc', '读取错误');
+                };
+                
+                showToast('开始扫描...', 'success');
+                addLog('nfc', '开始扫描');
+                
+            } catch (error) {
+                showToast('扫描失败: ' + error.message, 'error');
+                addLog('nfc', '扫描失败: ' + error.message);
+            }
+        }
+
+        // ==================== 读取标签 ====================
+        async function startReading() {
+            if (!('NDEFReader' in window)) {
+                showToast('Web NFC API 不支持', 'error');
+                return;
+            }
+            
+            if (isScanning) {
+                showToast('正在扫描中', 'warning');
+                return;
+            }
+            
+            try {
+                currentReader = new NDEFReader();
+                currentAbortController = new AbortController();
+                isScanning = true;
+                
+                document.getElementById('reading-status').style.display = 'block';
+                document.getElementById('read-result').style.display = 'none';
+                
+                await currentReader.scan({ signal: currentAbortController.signal });
+                
+                currentReader.onreading = function(event) {
+                    isScanning = false;
+                    document.getElementById('reading-status').style.display = 'none';
+                    
+                    var message = event.message;
+                    var serial = event.serialNumber || '未知';
+                    
+                    readCount++;
+                    tagCount++;
+                    document.getElementById('read-count').textContent = readCount;
+                    document.getElementById('tag-count').textContent = tagCount;
+                    
+                    // 显示结果
+                    var resultHtml = '';
+                    resultHtml += '<div class="result-item"><div class="result-label">序列号</div><div class="result-value">' + serial + '</div></div>';
+                    resultHtml += '<div class="result-item"><div class="result-label">记录数</div><div class="result-value">' + message.records.length + '</div></div>';
+                    resultHtml += '<div class="result-item"><div class="result-label">大小</div><div class="result-value">' + (message.records.length > 0 ? '有数据' : '空') + '</div></div>';
+                    
+                    document.getElementById('read-result-grid').innerHTML = resultHtml;
+                    
+                    // 显示记录
+                    var recordsHtml = '';
+                    message.records.forEach(function(record, index) {
+                        var content = '';
+                        
+                        if (record.recordType === 'text') {
+                            var decoder = new TextDecoder(record.encoding || 'utf-8');
+                            content = decoder.decode(record.data);
+                        } else if (record.recordType === 'url') {
+                            var decoder = new TextDecoder('utf-8');
+                            content = decoder.decode(record.data);
+                        } else if (record.recordType === 'json') {
+                            var decoder = new TextDecoder('utf-8');
+                            try {
+                                var json = JSON.parse(decoder.decode(record.data));
+                                content = JSON.stringify(json, null, 2);
+                            } catch (e) {
+                                content = decoder.decode(record.data);
+                            }
+                        } else if (record.recordType === 'opaque') {
+                            content = '二进制数据 (' + record.data.byteLength + ' 字节)';
+                        } else {
+                            content = '未知类型';
+                        }
+                        
+                        recordsHtml += '<div class="record-card">';
+                        recordsHtml += '<div class="record-header">';
+                        recordsHtml += '<span>记录 #' + (index + 1) + '</span>';
+                        recordsHtml += '<span class="record-type">' + record.recordType + '</span>';
+                        recordsHtml += '</div>';
+                        recordsHtml += '<div class="record-content">' + content + '</div>';
+                        recordsHtml += '</div>';
+                    });
+                    
+                    document.getElementById('records-list').innerHTML = recordsHtml || '<div style="color: var(--text-muted);">无记录</div>';
+                    document.getElementById('read-result').style.display = 'block';
+                    
+                    addHistory('read', serial, message);
+                    addLog('nfc', '读取标签: ' + serial);
+                    showToast('标签已读取', 'success');
+                };
+                
+                currentReader.onreadingerror = function(event) {
+                    isScanning = false;
+                    document.getElementById('reading-status').style.display = 'none';
+                    showToast('读取错误', 'error');
+                    addLog('nfc', '读取错误');
+                };
+                
+                addLog('nfc', '开始读取');
+                showToast('开始扫描...', 'success');
+                
+            } catch (error) {
+                isScanning = false;
+                document.getElementById('reading-status').style.display = 'none';
+                showToast('读取失败: ' + error.message, 'error');
+                addLog('nfc', '读取失败: ' + error.message);
+            }
+        }
+
+        function stopReading() {
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+            }
+            isScanning = false;
+            document.getElementById('reading-status').style.display = 'none';
+            addLog('nfc', '停止读取');
+            showToast('已停止', 'success');
+        }
+
+        // ==================== 写入标签 ====================
+        function updateWriteForm() {
+            var type = document.getElementById('record-type').value;
+            
+            document.getElementById('text-input-group').style.display = type === 'text' ? 'block' : 'none';
+            document.getElementById('url-input-group').style.display = type === 'url' ? 'block' : 'none';
+            document.getElementById('json-input-group').style.display = type === 'json' ? 'block' : 'none';
+            document.getElementById('opaque-input-group').style.display = type === 'opaque' ? 'block' : 'none';
+        }
+
+        async function startWriting() {
+            if (!('NDEFReader' in window)) {
+                showToast('Web NFC API 不支持', 'error');
+                return;
+            }
+            
+            var type = document.getElementById('record-type').value;
+            var record = {};
+            
+            if (type === 'text') {
+                var text = document.getElementById('text-content').value;
+                var lang = document.getElementById('lang-code').value;
+                if (!text) {
+                    showToast('请输入文本内容', 'warning');
+                    return;
+                }
+                record = {
+                    recordType: 'text',
+                    data: text,
+                    lang: lang
+                };
+            } else if (type === 'url') {
+                var url = document.getElementById('url-content').value;
+                if (!url) {
+                    showToast('请输入 URL', 'warning');
+                    return;
+                }
+                record = {
+                    recordType: 'url',
+                    data: url
+                };
+            } else if (type === 'json') {
+                var jsonStr = document.getElementById('json-content').value;
+                try {
+                    JSON.parse(jsonStr);
+                } catch (e) {
+                    showToast('无效的 JSON 格式', 'error');
+                    return;
+                }
+                record = {
+                    recordType: 'json',
+                    data: jsonStr
+                };
+            } else if (type === 'opaque') {
+                var hex = document.getElementById('opaque-content').value.trim();
+                if (!hex) {
+                    showToast('请输入十六进制数据', 'warning');
+                    return;
+                }
+                var bytes = hex.split(/\s+/).map(function(h) { return parseInt(h, 16); });
+                record = {
+                    recordType: 'opaque',
+                    data: new Uint8Array(bytes)
+                };
+            }
+            
+            document.getElementById('write-status').style.display = 'block';
+            document.getElementById('write-result').style.display = 'none';
+            
+            try {
+                var reader = new NDEFReader();
+                var timeout = parseInt(document.getElementById('write-timeout').value) * 1000;
+                
+                var abortController = new AbortController();
+                setTimeout(function() { abortController.abort(); }, timeout);
+                
+                await reader.write({ records: [record] }, { signal: abortController.signal });
+                
+                writeCount++;
+                tagCount++;
+                document.getElementById('write-count').textContent = writeCount;
+                document.getElementById('tag-count').textContent = tagCount;
+                
+                document.getElementById('write-status').style.display = 'none';
+                document.getElementById('write-result').style.display = 'block';
+                document.getElementById('write-result-content').innerHTML = 
+                    '<div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border-radius: var(--radius-sm);">' +
+                    '<strong style="color: var(--success);">✓ 写入成功</strong><br>' +
+                    '类型: ' + type + '<br>' +
+                    '时间: ' + new Date().toLocaleTimeString() +
+                    '</div>';
+                
+                addHistory('write', 'N/A', { records: [record] });
+                addLog('nfc', '写入成功: ' + type);
+                showToast('写入成功', 'success');
+                
+            } catch (error) {
+                document.getElementById('write-status').style.display = 'none';
+                document.getElementById('write-result').style.display = 'block';
+                document.getElementById('write-result-content').innerHTML = 
+                    '<div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-radius: var(--radius-sm);">' +
+                    '<strong style="color: var(--danger);">✗ 写入失败</strong><br>' +
+                    error.message +
+                    '</div>';
+                
+                addLog('nfc', '写入失败: ' + error.message);
+                showToast('写入失败: ' + error.message, 'error');
+            }
+        }
+
+        function stopWriting() {
+            document.getElementById('write-status').style.display = 'none';
+            addLog('nfc', '取消写入');
+            showToast('已取消', 'success');
+        }
+
+        // ==================== 扫描控制 ====================
+        async function startScan() {
+            await quickScan();
+        }
+
+        function stopScan() {
+            stopReading();
+        }
+
+        // ==================== 历史记录 ====================
+        function loadHistory() {
+            try {
+                var saved = localStorage.getItem('webnfc-history');
+                if (saved) {
+                    history = JSON.parse(saved);
+                    renderHistory();
+                }
+            } catch (e) {
+                history = [];
+            }
+        }
+
+        function saveHistory() {
+            try {
+                localStorage.setItem('webnfc-history', JSON.stringify(history.slice(0, 50)));
+            } catch (e) {}
+        }
+
+        function addHistory(type, serial, message) {
+            var entry = {
+                type: type,
+                serial: serial,
+                time: new Date().toISOString(),
+                recordCount: message.records ? message.records.length : 0
+            };
+            
+            history.unshift(entry);
+            if (history.length > 50) history.pop();
+            
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            var container = document.getElementById('history-list');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">暂无历史记录</div>';
+                return;
+            }
+            
+            var html = '';
+            history.forEach(function(entry, index) {
+                var date = new Date(entry.time);
+                var typeIcon = entry.type === 'read' ? '📖' : '✏️';
+                var typeText = entry.type === 'read' ? '读取' : '写入';
+                
+                html += '<div class="record-card">';
+                html += '<div class="record-header">';
+                html += '<span>' + typeIcon + ' ' + typeText + '</span>';
+                html += '<span class="record-type">' + date.toLocaleString() + '</span>';
+                html += '</div>';
+                html += '<div class="record-content">';
+                html += '序列号: ' + entry.serial + '<br>';
+                html += '记录数: ' + entry.recordCount;
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function clearHistory() {
+            history = [];
+            saveHistory();
+            renderHistory();
+            showToast('历史已清空', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

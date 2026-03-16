@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Crypto API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #14b8a6;
+            --primary-dark: #0d9488;
+            --secondary: #2dd4bf;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f0fdfa;
+            --bg-card: #ffffff;
+            --border: #99f6e4;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f0fdfa;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #042f2e;
+                --bg-card: #134e4a;
+                --border: #115e59;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(20, 184, 166, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(20, 184, 166, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(20, 184, 166, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 12px;
+            font-weight: 600;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(20, 184, 166, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(20, 184, 166, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.crypto { background: rgba(20, 184, 166, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(20, 184, 166, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔐</div>
+            <div class="logo-text">Web Crypto <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">核心功能</div>
+                    <div class="nav-item" data-tab="random" onclick="switchTab('random')">
+                        <span class="nav-icon">🎲</span><span>随机数生成</span>
+                    </div>
+                    <div class="nav-item" data-tab="digest" onclick="switchTab('digest')">
+                        <span class="nav-icon">📋</span><span>摘要算法</span>
+                    </div>
+                    <div class="nav-item" data-tab="symmetric" onclick="switchTab('symmetric')">
+                        <span class="nav-icon">🔑</span><span>对称加密</span>
+                    </div>
+                    <div class="nav-item" data-tab="asymmetric" onclick="switchTab('asymmetric')">
+                        <span class="nav-icon">🔐</span><span>非对称加密</span>
+                    </div>
+                    <div class="nav-item" data-tab="sign" onclick="switchTab('sign')">
+                        <span class="nav-icon">✍️</span><span>签名验证</span>
+                    </div>
+                    <div class="nav-item" data-tab="derive" onclick="switchTab('derive')">
+                        <span class="nav-icon">🔄</span><span>密钥派生</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📖</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📜</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Web Crypto API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔐</div>
+                        <div class="stat-value" id="operation-count">0</div>
+                        <div class="stat-label">操作次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔑</div>
+                        <div class="stat-value" id="key-count">0</div>
+                        <div class="stat-label">密钥数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-value" id="algorithm-count">-</div>
+                        <div class="stat-label">支持算法</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>crypto.subtle</span>
+                                        <span id="api-subtle" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>getRandomValues()</span>
+                                        <span id="api-random" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>generateKey()</span>
+                                        <span id="api-generateKey" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>encrypt()/decrypt()</span>
+                                        <span id="api-encrypt" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>sign()/verify()</span>
+                                        <span id="api-sign" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">支持算法</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>SHA-256</span>
+                                        <span id="algo-sha256" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>AES-GCM</span>
+                                        <span id="algo-aes" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>RSA-OAEP</span>
+                                        <span id="algo-rsa" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>ECDSA</span>
+                                        <span id="algo-ecdsa" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>PBKDF2</span>
+                                        <span id="algo-pbkdf2" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            快速体验 Web Crypto API 的核心功能
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <button class="btn btn-primary" onclick="quickRandom()">🎲 随机数</button>
+                            <button class="btn btn-primary" onclick="quickDigest()">📋 SHA-256</button>
+                            <button class="btn btn-primary" onclick="quickEncrypt()">🔑 AES加密</button>
+                            <button class="btn btn-primary" onclick="quickSign()">✍️ RSA签名</button>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">结果</div>
+                                <div id="demo-result-content" style="font-family: monospace; font-size: 12px; word-break: break-all;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 随机数生成 -->
+            <div id="panel-random" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>随机数生成</h1>
+                        <p>crypto.getRandomValues() 生成安全随机数</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>getRandomValues()</strong> 生成密码学安全的随机值，适用于安全敏感场景。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">数据类型</label>
+                            <select class="form-select" id="random-type">
+                                <option value="Uint8Array">Uint8Array (0-255)</option>
+                                <option value="Uint16Array">Uint16Array (0-65535)</option>
+                                <option value="Uint32Array">Uint32Array (0-4294967295)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">数组长度</label>
+                            <input type="number" class="form-input" id="random-length" value="16" min="1" max="1024">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="generateRandomValues()">🎲 生成随机数</button>
+                        <button class="btn btn-outline" onclick="generateUUID()">🆔 生成 UUID</button>
+                        <button class="btn btn-outline" onclick="generateHex()">📝 生成十六进制</button>
+                    </div>
+                    
+                    <div id="random-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">随机数结果</div>
+                            <div class="result-grid" id="random-result-grid"></div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">完整值</label>
+                                <div id="random-full-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 摘要算法 -->
+            <div id="panel-digest" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>摘要算法</h1>
+                        <p>crypto.subtle.digest() 计算哈希值</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>digest()</strong> 计算数据的哈希值，支持 SHA-1、SHA-256、SHA-384、SHA-512。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">输入数据</label>
+                        <textarea class="form-textarea" id="digest-input" placeholder="输入要计算哈希的数据">Hello, Web Crypto API!</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">哈希算法</label>
+                        <select class="form-select" id="digest-algo">
+                            <option value="SHA-256" selected>SHA-256</option>
+                            <option value="SHA-384">SHA-384</option>
+                            <option value="SHA-512">SHA-512</option>
+                            <option value="SHA-1">SHA-1 (不推荐)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="computeDigest()">📋 计算哈希</button>
+                    
+                    <div id="digest-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">哈希结果</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">算法</div>
+                                    <div class="result-value" id="digest-algo-result">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">长度</div>
+                                    <div class="result-value" id="digest-length">-</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">哈希值 (Hex)</label>
+                                <div id="digest-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对称加密 -->
+            <div id="panel-symmetric" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>对称加密</h1>
+                        <p>AES-GCM 加密和解密</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>AES-GCM</strong> 是一种安全高效的对称加密算法，使用相同的密钥进行加密和解密。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">密钥长度</label>
+                            <select class="form-select" id="aes-key-length">
+                                <option value="128">128 位</option>
+                                <option value="192">192 位</option>
+                                <option value="256" selected>256 位</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">IV 长度 (字节)</label>
+                            <input type="number" class="form-input" id="aes-iv-length" value="12" min="12" max="16">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">明文数据</label>
+                        <textarea class="form-textarea" id="aes-plaintext" placeholder="输入要加密的数据">这是需要加密的秘密数据</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="generateAESKey()">🔑 生成密钥</button>
+                        <button class="btn btn-success" onclick="aesEncrypt()">🔒 加密</button>
+                        <button class="btn btn-outline" onclick="aesDecrypt()">🔓 解密</button>
+                    </div>
+                    
+                    <div id="aes-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">AES 操作结果</div>
+                            <div class="result-grid" id="aes-result-grid"></div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">结果数据</label>
+                                <div id="aes-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 非对称加密 -->
+            <div id="panel-asymmetric" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>非对称加密</h1>
+                        <p>RSA-OAEP 加密和解密</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>RSA-OAEP</strong> 使用公钥加密、私钥解密，适用于密钥交换和数据加密。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">模数长度</label>
+                            <select class="form-select" id="rsa-modulus">
+                                <option value="2048" selected>2048 位</option>
+                                <option value="4096">4096 位</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">哈希算法</label>
+                            <select class="form-select" id="rsa-hash">
+                                <option value="SHA-256" selected>SHA-256</option>
+                                <option value="SHA-384">SHA-384</option>
+                                <option value="SHA-512">SHA-512</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">明文数据</label>
+                        <textarea class="form-textarea" id="rsa-plaintext" placeholder="输入要加密的数据">RSA加密测试数据</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="generateRSAKeyPair()">🔑 生成密钥对</button>
+                        <button class="btn btn-success" onclick="rsaEncrypt()">🔒 公钥加密</button>
+                        <button class="btn btn-outline" onclick="rsaDecrypt()">🔓 私钥解密</button>
+                    </div>
+                    
+                    <div id="rsa-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">RSA 操作结果</div>
+                            <div class="result-grid" id="rsa-result-grid"></div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">结果数据</label>
+                                <div id="rsa-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); max-height: 200px; overflow-y: auto;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 签名验证 -->
+            <div id="panel-sign" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>签名验证</h1>
+                        <p>数字签名和验证</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>数字签名</strong> 用于验证数据的完整性和真实性，支持 RSASSA-PKCS1-v1_5 和 ECDSA。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">签名算法</label>
+                        <select class="form-select" id="sign-algo">
+                            <option value="RSASSA-PKCS1-v1_5">RSASSA-PKCS1-v1_5</option>
+                            <option value="ECDSA">ECDSA</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">要签名的数据</label>
+                        <textarea class="form-textarea" id="sign-data" placeholder="输入要签名的数据">这是需要签名的数据</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="generateSignKey()">🔑 生成签名密钥</button>
+                        <button class="btn btn-success" onclick="signData()">✍️ 签名</button>
+                        <button class="btn btn-outline" onclick="verifySignature()">✅ 验证</button>
+                    </div>
+                    
+                    <div id="sign-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">签名操作结果</div>
+                            <div class="result-grid" id="sign-result-grid"></div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">签名值</label>
+                                <div id="sign-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 密钥派生 -->
+            <div id="panel-derive" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>密钥派生</h1>
+                        <p>PBKDF2 从密码派生密钥</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>PBKDF2</strong> 从密码派生加密密钥，增加迭代次数可提高安全性。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-input" id="derive-password" value="my-secret-password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">盐值 (Salt)</label>
+                        <input type="text" class="form-input" id="derive-salt" value="random-salt-value">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">迭代次数</label>
+                            <input type="number" class="form-input" id="derive-iterations" value="100000" min="1000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">派生密钥长度 (位)</label>
+                            <select class="form-select" id="derive-length">
+                                <option value="128">128 位</option>
+                                <option value="192">192 位</option>
+                                <option value="256" selected>256 位</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="deriveKey()">🔄 派生密钥</button>
+                        <button class="btn btn-outline" onclick="deriveBits()">📊 派生位</button>
+                    </div>
+                    
+                    <div id="derive-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">派生结果</div>
+                            <div class="result-grid" id="derive-result-grid"></div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">派生值</label>
+                                <div id="derive-value" style="font-family: monospace; font-size: 11px; word-break: break-all; background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Web Crypto API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心对象</h3>
+                    <div class="api-block">
+                        <span class="api-method">OBJECT</span>
+                        <span class="api-signature">crypto.subtle</span>
+                        <p class="api-description">SubtleCrypto 对象，提供所有加密操作方法。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead>
+                            <tr><th>方法</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>encrypt(algorithm, key, data)</code></td><td>加密数据</td></tr>
+                            <tr><td><code>decrypt(algorithm, key, data)</code></td><td>解密数据</td></tr>
+                            <tr><td><code>sign(algorithm, key, data)</code></td><td>生成签名</td></tr>
+                            <tr><td><code>verify(algorithm, key, signature, data)</code></td><td>验证签名</td></tr>
+                            <tr><td><code>digest(algorithm, data)</code></td><td>计算哈希</td></tr>
+                            <tr><td><code>generateKey(algorithm, extractable, keyUsages)</code></td><td>生成密钥</td></tr>
+                            <tr><td><code>deriveKey(algorithm, baseKey, derivedKeyType, extractable, keyUsages)</code></td><td>派生密钥</td></tr>
+                            <tr><td><code>deriveBits(algorithm, baseKey, length)</code></td><td>派生位</td></tr>
+                            <tr><td><code>importKey(format, keyData, algorithm, extractable, keyUsages)</code></td><td>导入密钥</td></tr>
+                            <tr><td><code>exportKey(format, key)</code></td><td>导出密钥</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">支持的算法</h3>
+                    <table>
+                        <thead><tr><th>类别</th><th>算法</th></tr></thead>
+                        <tbody>
+                            <tr><td>摘要</td><td>SHA-1, SHA-256, SHA-384, SHA-512</td></tr>
+                            <tr><td>对称加密</td><td>AES-GCM, AES-CBC, AES-CTR</td></tr>
+                            <tr><td>非对称加密</td><td>RSA-OAEP, RSA-PSS</td></tr>
+                            <tr><td>签名</td><td>RSASSA-PKCS1-v1_5, ECDSA</td></tr>
+                            <tr><td>密钥派生</td><td>PBKDF2, HKDF, ECDH</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 生成随机值
+const array = new Uint8Array(16);
+crypto.getRandomValues(array);
+
+// 计算哈希
+const encoder = new TextEncoder();
+const data = encoder.encode('Hello');
+const hash = await crypto.subtle.digest('SHA-256', data);
+
+// 生成 AES 密钥
+const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+);
+
+// 加密
+const iv = crypto.getRandomValues(new Uint8Array(12));
+const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+);
+
+// 解密
+const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encrypted
+);</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        Web Crypto API 在所有现代浏览器中得到广泛支持，需要 HTTPS 环境。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var operationCount = 0;
+        var keyCount = 0;
+        
+        // 存储的密钥
+        var aesKey = null;
+        var aesIV = null;
+        var aesEncrypted = null;
+        var rsaKeyPair = null;
+        var rsaEncrypted = null;
+        var signKeyPair = null;
+        var signature = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        async function checkApiSupport() {
+            var subtleSupported = 'subtle' in crypto;
+            var randomSupported = 'getRandomValues' in crypto;
+            var generateKeySupported = subtleSupported && typeof crypto.subtle.generateKey === 'function';
+            var encryptSupported = subtleSupported && typeof crypto.subtle.encrypt === 'function';
+            var signSupported = subtleSupported && typeof crypto.subtle.sign === 'function';
+            
+            document.getElementById('api-subtle').textContent = subtleSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-subtle').style.color = subtleSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-random').textContent = randomSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-random').style.color = randomSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-generateKey').textContent = generateKeySupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-generateKey').style.color = generateKeySupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-encrypt').textContent = encryptSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-encrypt').style.color = encryptSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-sign').textContent = signSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-sign').style.color = signSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = subtleSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = subtleSupported ? 'var(--success)' : 'var(--danger)';
+            
+            // 检测算法支持
+            if (subtleSupported) {
+                var algoCount = 0;
+                
+                try {
+                    await crypto.subtle.digest('SHA-256', new Uint8Array(1));
+                    document.getElementById('algo-sha256').textContent = '✓ 支持';
+                    document.getElementById('algo-sha256').style.color = 'var(--success)';
+                    algoCount++;
+                } catch (e) {
+                    document.getElementById('algo-sha256').textContent = '✗ 不支持';
+                    document.getElementById('algo-sha256').style.color = 'var(--danger)';
+                }
+                
+                try {
+                    await crypto.subtle.generateKey({ name: 'AES-GCM', length: 128 }, false, ['encrypt']);
+                    document.getElementById('algo-aes').textContent = '✓ 支持';
+                    document.getElementById('algo-aes').style.color = 'var(--success)';
+                    algoCount++;
+                } catch (e) {
+                    document.getElementById('algo-aes').textContent = '✗ 不支持';
+                    document.getElementById('algo-aes').style.color = 'var(--danger)';
+                }
+                
+                try {
+                    await crypto.subtle.generateKey({ name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, false, ['encrypt']);
+                    document.getElementById('algo-rsa').textContent = '✓ 支持';
+                    document.getElementById('algo-rsa').style.color = 'var(--success)';
+                    algoCount++;
+                } catch (e) {
+                    document.getElementById('algo-rsa').textContent = '✗ 不支持';
+                    document.getElementById('algo-rsa').style.color = 'var(--danger)';
+                }
+                
+                try {
+                    await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+                    document.getElementById('algo-ecdsa').textContent = '✓ 支持';
+                    document.getElementById('algo-ecdsa').style.color = 'var(--success)';
+                    algoCount++;
+                } catch (e) {
+                    document.getElementById('algo-ecdsa').textContent = '✗ 不支持';
+                    document.getElementById('algo-ecdsa').style.color = 'var(--danger)';
+                }
+                
+                try {
+                    await crypto.subtle.importKey('raw', new Uint8Array(16), { name: 'PBKDF2' }, false, ['deriveBits']);
+                    document.getElementById('algo-pbkdf2').textContent = '✓ 支持';
+                    document.getElementById('algo-pbkdf2').style.color = 'var(--success)';
+                    algoCount++;
+                } catch (e) {
+                    document.getElementById('algo-pbkdf2').textContent = '✗ 不支持';
+                    document.getElementById('algo-pbkdf2').style.color = 'var(--danger)';
+                }
+                
+                document.getElementById('algorithm-count').textContent = algoCount;
+            }
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 工具函数 ====================
+        function bufferToHex(buffer) {
+            var bytes = new Uint8Array(buffer);
+            var hex = '';
+            for (var i = 0; i < bytes.length; i++) {
+                hex += bytes[i].toString(16).padStart(2, '0');
+            }
+            return hex;
+        }
+
+        function hexToBuffer(hex) {
+            var bytes = new Uint8Array(hex.length / 2);
+            for (var i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes.buffer;
+        }
+
+        function incrementOperation() {
+            operationCount++;
+            document.getElementById('operation-count').textContent = operationCount;
+        }
+
+        function incrementKey() {
+            keyCount++;
+            document.getElementById('key-count').textContent = keyCount;
+        }
+
+        // ==================== 快速演示 ====================
+        async function quickRandom() {
+            var array = new Uint8Array(16);
+            crypto.getRandomValues(array);
+            
+            document.getElementById('demo-result').style.display = 'block';
+            document.getElementById('demo-result-content').innerHTML = 
+                '<strong>随机数 (16字节):</strong><br>' + bufferToHex(array);
+            
+            incrementOperation();
+            addLog('crypto', '生成随机数');
+        }
+
+        async function quickDigest() {
+            var encoder = new TextEncoder();
+            var data = encoder.encode('Hello, Web Crypto API!');
+            var hash = await crypto.subtle.digest('SHA-256', data);
+            
+            document.getElementById('demo-result').style.display = 'block';
+            document.getElementById('demo-result-content').innerHTML = 
+                '<strong>SHA-256 哈希:</strong><br>' + bufferToHex(hash);
+            
+            incrementOperation();
+            addLog('crypto', '计算 SHA-256 哈希');
+            showToast('哈希计算完成', 'success');
+        }
+
+        async function quickEncrypt() {
+            try {
+                // 生成密钥
+                var key = await crypto.subtle.generateKey(
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+                
+                var iv = crypto.getRandomValues(new Uint8Array(12));
+                var encoder = new TextEncoder();
+                var data = encoder.encode('秘密消息');
+                
+                var encrypted = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    data
+                );
+                
+                var decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    encrypted
+                );
+                
+                var decoder = new TextDecoder();
+                
+                document.getElementById('demo-result').style.display = 'block';
+                document.getElementById('demo-result-content').innerHTML = 
+                    '<strong>原始:</strong> 秘密消息<br><br>' +
+                    '<strong>加密后:</strong> ' + bufferToHex(encrypted).substring(0, 40) + '...<br><br>' +
+                    '<strong>解密后:</strong> ' + decoder.decode(decrypted);
+                
+                incrementOperation();
+                incrementKey();
+                addLog('crypto', 'AES-GCM 加密演示');
+                showToast('加密演示完成', 'success');
+            } catch (e) {
+                showToast('加密失败: ' + e.message, 'error');
+            }
+        }
+
+        async function quickSign() {
+            try {
+                var keyPair = await crypto.subtle.generateKey(
+                    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+                    true,
+                    ['sign', 'verify']
+                );
+                
+                var encoder = new TextEncoder();
+                var data = encoder.encode('要签名的数据');
+                
+                var sig = await crypto.subtle.sign(
+                    'RSASSA-PKCS1-v1_5',
+                    keyPair.privateKey,
+                    data
+                );
+                
+                var verified = await crypto.subtle.verify(
+                    'RSASSA-PKCS1-v1_5',
+                    keyPair.publicKey,
+                    sig,
+                    data
+                );
+                
+                document.getElementById('demo-result').style.display = 'block';
+                document.getElementById('demo-result-content').innerHTML = 
+                    '<strong>签名:</strong> ' + bufferToHex(sig).substring(0, 40) + '...<br><br>' +
+                    '<strong>验证结果:</strong> ' + (verified ? '✓ 有效' : '✗ 无效');
+                
+                incrementOperation();
+                incrementKey();
+                addLog('crypto', 'RSA 签名演示');
+                showToast('签名演示完成', 'success');
+            } catch (e) {
+                showToast('签名失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 随机数生成 ====================
+        function generateRandomValues() {
+            var type = document.getElementById('random-type').value;
+            var length = parseInt(document.getElementById('random-length').value);
+            
+            var array;
+            if (type === 'Uint8Array') {
+                array = new Uint8Array(length);
+            } else if (type === 'Uint16Array') {
+                array = new Uint16Array(length);
+            } else {
+                array = new Uint32Array(length);
+            }
+            
+            crypto.getRandomValues(array);
+            
+            document.getElementById('random-result').style.display = 'block';
+            document.getElementById('random-result-grid').innerHTML = 
+                '<div class="result-item"><div class="result-label">类型</div><div class="result-value">' + type + '</div></div>' +
+                '<div class="result-item"><div class="result-label">长度</div><div class="result-value">' + length + '</div></div>' +
+                '<div class="result-item"><div class="result-label">最小值</div><div class="result-value">' + array[0] + '</div></div>' +
+                '<div class="result-item"><div class="result-label">最大值</div><div class="result-value">' + Math.max.apply(null, array) + '</div></div>';
+            
+            document.getElementById('random-full-value').textContent = Array.from(array).join(', ');
+            
+            incrementOperation();
+            addLog('crypto', '生成随机数: ' + type + '[' + length + ']');
+            showToast('随机数已生成', 'success');
+        }
+
+        function generateUUID() {
+            var bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            
+            // 设置版本和变体
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            
+            var hex = bufferToHex(bytes);
+            var uuid = hex.substr(0, 8) + '-' + hex.substr(8, 4) + '-' + hex.substr(12, 4) + '-' + hex.substr(16, 4) + '-' + hex.substr(20, 12);
+            
+            document.getElementById('random-result').style.display = 'block';
+            document.getElementById('random-result-grid').innerHTML = 
+                '<div class="result-item"><div class="result-label">类型</div><div class="result-value">UUID v4</div></div>';
+            
+            document.getElementById('random-full-value').textContent = uuid;
+            
+            incrementOperation();
+            addLog('crypto', '生成 UUID');
+            showToast('UUID 已生成', 'success');
+        }
+
+        function generateHex() {
+            var bytes = new Uint8Array(32);
+            crypto.getRandomValues(bytes);
+            
+            var hex = bufferToHex(bytes);
+            
+            document.getElementById('random-result').style.display = 'block';
+            document.getElementById('random-result-grid').innerHTML = 
+                '<div class="result-item"><div class="result-label">类型</div><div class="result-value">十六进制</div></div>' +
+                '<div class="result-item"><div class="result-label">字节数</div><div class="result-value">32</div></div>';
+            
+            document.getElementById('random-full-value').textContent = hex;
+            
+            incrementOperation();
+            addLog('crypto', '生成十六进制随机数');
+            showToast('十六进制已生成', 'success');
+        }
+
+        // ==================== 摘要算法 ====================
+        async function computeDigest() {
+            var input = document.getElementById('digest-input').value;
+            var algo = document.getElementById('digest-algo').value;
+            
+            if (!input) {
+                showToast('请输入数据', 'warning');
+                return;
+            }
+            
+            try {
+                var encoder = new TextEncoder();
+                var data = encoder.encode(input);
+                var hash = await crypto.subtle.digest(algo, data);
+                
+                var hex = bufferToHex(hash);
+                
+                document.getElementById('digest-result').style.display = 'block';
+                document.getElementById('digest-algo-result').textContent = algo;
+                document.getElementById('digest-length').textContent = hash.byteLength * 8 + ' 位';
+                document.getElementById('digest-value').textContent = hex;
+                
+                incrementOperation();
+                addLog('crypto', '计算 ' + algo + ' 哈希');
+                showToast('哈希计算完成', 'success');
+            } catch (e) {
+                showToast('计算失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 对称加密 ====================
+        async function generateAESKey() {
+            try {
+                var length = parseInt(document.getElementById('aes-key-length').value);
+                
+                aesKey = await crypto.subtle.generateKey(
+                    { name: 'AES-GCM', length: length },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+                
+                var exported = await crypto.subtle.exportKey('raw', aesKey);
+                
+                document.getElementById('aes-result').style.display = 'block';
+                document.getElementById('aes-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已生成</div></div>' +
+                    '<div class="result-item"><div class="result-label">算法</div><div class="result-value">AES-GCM</div></div>' +
+                    '<div class="result-item"><div class="result-label">密钥长度</div><div class="result-value">' + length + ' 位</div></div>';
+                
+                document.getElementById('aes-value').textContent = bufferToHex(exported);
+                
+                incrementKey();
+                addLog('crypto', '生成 AES-' + length + ' 密钥');
+                showToast('密钥已生成', 'success');
+            } catch (e) {
+                showToast('生成失败: ' + e.message, 'error');
+            }
+        }
+
+        async function aesEncrypt() {
+            if (!aesKey) {
+                showToast('请先生成密钥', 'warning');
+                return;
+            }
+            
+            var plaintext = document.getElementById('aes-plaintext').value;
+            if (!plaintext) {
+                showToast('请输入明文', 'warning');
+                return;
+            }
+            
+            try {
+                var ivLength = parseInt(document.getElementById('aes-iv-length').value);
+                aesIV = crypto.getRandomValues(new Uint8Array(ivLength));
+                
+                var encoder = new TextEncoder();
+                var data = encoder.encode(plaintext);
+                
+                aesEncrypted = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: aesIV },
+                    aesKey,
+                    data
+                );
+                
+                document.getElementById('aes-result').style.display = 'block';
+                document.getElementById('aes-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已加密</div></div>' +
+                    '<div class="result-item"><div class="result-label">IV</div><div class="result-value">' + bufferToHex(aesIV) + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">密文长度</div><div class="result-value">' + aesEncrypted.byteLength + ' 字节</div></div>';
+                
+                document.getElementById('aes-value').textContent = bufferToHex(aesEncrypted);
+                
+                incrementOperation();
+                addLog('crypto', 'AES-GCM 加密');
+                showToast('加密完成', 'success');
+            } catch (e) {
+                showToast('加密失败: ' + e.message, 'error');
+            }
+        }
+
+        async function aesDecrypt() {
+            if (!aesKey || !aesEncrypted || !aesIV) {
+                showToast('请先加密数据', 'warning');
+                return;
+            }
+            
+            try {
+                var decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: aesIV },
+                    aesKey,
+                    aesEncrypted
+                );
+                
+                var decoder = new TextDecoder();
+                var plaintext = decoder.decode(decrypted);
+                
+                document.getElementById('aes-result').style.display = 'block';
+                document.getElementById('aes-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已解密</div></div>';
+                
+                document.getElementById('aes-value').textContent = plaintext;
+                
+                incrementOperation();
+                addLog('crypto', 'AES-GCM 解密');
+                showToast('解密完成', 'success');
+            } catch (e) {
+                showToast('解密失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 非对称加密 ====================
+        async function generateRSAKeyPair() {
+            try {
+                var modulus = parseInt(document.getElementById('rsa-modulus').value);
+                var hash = document.getElementById('rsa-hash').value;
+                
+                rsaKeyPair = await crypto.subtle.generateKey(
+                    { name: 'RSA-OAEP', modulusLength: modulus, publicExponent: new Uint8Array([1, 0, 1]), hash: hash },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+                
+                document.getElementById('rsa-result').style.display = 'block';
+                document.getElementById('rsa-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已生成</div></div>' +
+                    '<div class="result-item"><div class="result-label">算法</div><div class="result-value">RSA-OAEP</div></div>' +
+                    '<div class="result-item"><div class="result-label">模数</div><div class="result-value">' + modulus + ' 位</div></div>' +
+                    '<div class="result-item"><div class="result-label">哈希</div><div class="result-value">' + hash + '</div></div>';
+                
+                document.getElementById('rsa-value').textContent = '密钥对已生成，可进行加密操作';
+                
+                incrementKey();
+                addLog('crypto', '生成 RSA-' + modulus + ' 密钥对');
+                showToast('密钥对已生成', 'success');
+            } catch (e) {
+                showToast('生成失败: ' + e.message, 'error');
+            }
+        }
+
+        async function rsaEncrypt() {
+            if (!rsaKeyPair) {
+                showToast('请先生成密钥对', 'warning');
+                return;
+            }
+            
+            var plaintext = document.getElementById('rsa-plaintext').value;
+            if (!plaintext) {
+                showToast('请输入明文', 'warning');
+                return;
+            }
+            
+            try {
+                var encoder = new TextEncoder();
+                var data = encoder.encode(plaintext);
+                
+                rsaEncrypted = await crypto.subtle.encrypt(
+                    { name: 'RSA-OAEP' },
+                    rsaKeyPair.publicKey,
+                    data
+                );
+                
+                document.getElementById('rsa-result').style.display = 'block';
+                document.getElementById('rsa-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已加密</div></div>' +
+                    '<div class="result-item"><div class="result-label">密文长度</div><div class="result-value">' + rsaEncrypted.byteLength + ' 字节</div></div>';
+                
+                document.getElementById('rsa-value').textContent = bufferToHex(rsaEncrypted);
+                
+                incrementOperation();
+                addLog('crypto', 'RSA-OAEP 加密');
+                showToast('加密完成', 'success');
+            } catch (e) {
+                showToast('加密失败: ' + e.message, 'error');
+            }
+        }
+
+        async function rsaDecrypt() {
+            if (!rsaKeyPair || !rsaEncrypted) {
+                showToast('请先加密数据', 'warning');
+                return;
+            }
+            
+            try {
+                var decrypted = await crypto.subtle.decrypt(
+                    { name: 'RSA-OAEP' },
+                    rsaKeyPair.privateKey,
+                    rsaEncrypted
+                );
+                
+                var decoder = new TextDecoder();
+                var plaintext = decoder.decode(decrypted);
+                
+                document.getElementById('rsa-result').style.display = 'block';
+                document.getElementById('rsa-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已解密</div></div>';
+                
+                document.getElementById('rsa-value').textContent = plaintext;
+                
+                incrementOperation();
+                addLog('crypto', 'RSA-OAEP 解密');
+                showToast('解密完成', 'success');
+            } catch (e) {
+                showToast('解密失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 签名验证 ====================
+        async function generateSignKey() {
+            try {
+                var algo = document.getElementById('sign-algo').value;
+                
+                if (algo === 'RSASSA-PKCS1-v1_5') {
+                    signKeyPair = await crypto.subtle.generateKey(
+                        { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+                        true,
+                        ['sign', 'verify']
+                    );
+                } else {
+                    signKeyPair = await crypto.subtle.generateKey(
+                        { name: 'ECDSA', namedCurve: 'P-256' },
+                        true,
+                        ['sign', 'verify']
+                    );
+                }
+                
+                document.getElementById('sign-result').style.display = 'block';
+                document.getElementById('sign-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已生成</div></div>' +
+                    '<div class="result-item"><div class="result-label">算法</div><div class="result-value">' + algo + '</div></div>';
+                
+                document.getElementById('sign-value').textContent = '签名密钥已生成，可进行签名操作';
+                
+                incrementKey();
+                addLog('crypto', '生成 ' + algo + ' 密钥对');
+                showToast('密钥对已生成', 'success');
+            } catch (e) {
+                showToast('生成失败: ' + e.message, 'error');
+            }
+        }
+
+        async function signData() {
+            if (!signKeyPair) {
+                showToast('请先生成密钥', 'warning');
+                return;
+            }
+            
+            var data = document.getElementById('sign-data').value;
+            if (!data) {
+                showToast('请输入数据', 'warning');
+                return;
+            }
+            
+            try {
+                var algo = document.getElementById('sign-algo').value;
+                var encoder = new TextEncoder();
+                var dataBytes = encoder.encode(data);
+                
+                if (algo === 'ECDSA') {
+                    signature = await crypto.subtle.sign(
+                        { name: 'ECDSA', hash: 'SHA-256' },
+                        signKeyPair.privateKey,
+                        dataBytes
+                    );
+                } else {
+                    signature = await crypto.subtle.sign(
+                        'RSASSA-PKCS1-v1_5',
+                        signKeyPair.privateKey,
+                        dataBytes
+                    );
+                }
+                
+                document.getElementById('sign-result').style.display = 'block';
+                document.getElementById('sign-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已签名</div></div>' +
+                    '<div class="result-item"><div class="result-label">签名长度</div><div class="result-value">' + signature.byteLength + ' 字节</div></div>';
+                
+                document.getElementById('sign-value').textContent = bufferToHex(signature);
+                
+                incrementOperation();
+                addLog('crypto', algo + ' 签名');
+                showToast('签名完成', 'success');
+            } catch (e) {
+                showToast('签名失败: ' + e.message, 'error');
+            }
+        }
+
+        async function verifySignature() {
+            if (!signKeyPair || !signature) {
+                showToast('请先签名数据', 'warning');
+                return;
+            }
+            
+            try {
+                var algo = document.getElementById('sign-algo').value;
+                var data = document.getElementById('sign-data').value;
+                var encoder = new TextEncoder();
+                var dataBytes = encoder.encode(data);
+                
+                var verified;
+                if (algo === 'ECDSA') {
+                    verified = await crypto.subtle.verify(
+                        { name: 'ECDSA', hash: 'SHA-256' },
+                        signKeyPair.publicKey,
+                        signature,
+                        dataBytes
+                    );
+                } else {
+                    verified = await crypto.subtle.verify(
+                        'RSASSA-PKCS1-v1_5',
+                        signKeyPair.publicKey,
+                        signature,
+                        dataBytes
+                    );
+                }
+                
+                document.getElementById('sign-result').style.display = 'block';
+                document.getElementById('sign-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: ' + (verified ? 'var(--success)' : 'var(--danger)') + ';">' + (verified ? '✓ 验证通过' : '✗ 验证失败') + '</div></div>';
+                
+                document.getElementById('sign-value').textContent = verified ? '签名验证成功，数据完整且来源可信' : '签名验证失败';
+                
+                incrementOperation();
+                addLog('crypto', algo + ' 验证: ' + (verified ? '通过' : '失败'));
+                showToast(verified ? '验证通过' : '验证失败', verified ? 'success' : 'error');
+            } catch (e) {
+                showToast('验证失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 密钥派生 ====================
+        async function deriveKey() {
+            try {
+                var password = document.getElementById('derive-password').value;
+                var salt = document.getElementById('derive-salt').value;
+                var iterations = parseInt(document.getElementById('derive-iterations').value);
+                var length = parseInt(document.getElementById('derive-length').value);
+                
+                var encoder = new TextEncoder();
+                var passwordBuffer = encoder.encode(password);
+                var saltBuffer = encoder.encode(salt);
+                
+                // 导入密码作为密钥
+                var baseKey = await crypto.subtle.importKey(
+                    'raw',
+                    passwordBuffer,
+                    'PBKDF2',
+                    false,
+                    ['deriveKey']
+                );
+                
+                // 派生密钥
+                var derivedKey = await crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt: saltBuffer, iterations: iterations, hash: 'SHA-256' },
+                    baseKey,
+                    { name: 'AES-GCM', length: length },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+                
+                // 导出派生密钥
+                var exported = await crypto.subtle.exportKey('raw', derivedKey);
+                
+                document.getElementById('derive-result').style.display = 'block';
+                document.getElementById('derive-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已派生</div></div>' +
+                    '<div class="result-item"><div class="result-label">算法</div><div class="result-value">PBKDF2</div></div>' +
+                    '<div class="result-item"><div class="result-label">迭代次数</div><div class="result-value">' + iterations + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">密钥长度</div><div class="result-value">' + length + ' 位</div></div>';
+                
+                document.getElementById('derive-value').textContent = bufferToHex(exported);
+                
+                incrementKey();
+                addLog('crypto', 'PBKDF2 派生密钥');
+                showToast('密钥派生完成', 'success');
+            } catch (e) {
+                showToast('派生失败: ' + e.message, 'error');
+            }
+        }
+
+        async function deriveBits() {
+            try {
+                var password = document.getElementById('derive-password').value;
+                var salt = document.getElementById('derive-salt').value;
+                var iterations = parseInt(document.getElementById('derive-iterations').value);
+                var length = parseInt(document.getElementById('derive-length').value);
+                
+                var encoder = new TextEncoder();
+                var passwordBuffer = encoder.encode(password);
+                var saltBuffer = encoder.encode(salt);
+                
+                // 导入密码作为密钥
+                var baseKey = await crypto.subtle.importKey(
+                    'raw',
+                    passwordBuffer,
+                    'PBKDF2',
+                    false,
+                    ['deriveBits']
+                );
+                
+                // 派生位
+                var bits = await crypto.subtle.deriveBits(
+                    { name: 'PBKDF2', salt: saltBuffer, iterations: iterations, hash: 'SHA-256' },
+                    baseKey,
+                    length
+                );
+                
+                document.getElementById('derive-result').style.display = 'block';
+                document.getElementById('derive-result-grid').innerHTML = 
+                    '<div class="result-item"><div class="result-label">状态</div><div class="result-value" style="color: var(--success);">✓ 已派生</div></div>' +
+                    '<div class="result-item"><div class="result-label">算法</div><div class="result-value">PBKDF2</div></div>' +
+                    '<div class="result-item"><div class="result-label">迭代次数</div><div class="result-value">' + iterations + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">位长度</div><div class="result-value">' + length + ' 位</div></div>';
+                
+                document.getElementById('derive-value').textContent = bufferToHex(bits);
+                
+                incrementOperation();
+                addLog('crypto', 'PBKDF2 派生位');
+                showToast('位派生完成', 'success');
+            } catch (e) {
+                showToast('派生失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

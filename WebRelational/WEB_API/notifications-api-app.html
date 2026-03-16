@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #e11d48;
+            --primary-dark: #be123c;
+            --secondary: #fb7185;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fff1f2;
+            --bg-card: #ffffff;
+            --border: #fecdd3;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fff1f2;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #4c0519;
+                --bg-card: #881337;
+                --border: #9f1239;
+            }
+        }
+        
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(225, 29, 72, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            padding-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        
+        .nav-item.active {
+            background: rgba(225, 29, 72, 0.1);
+            color: var(--primary);
+        }
+        
+        .nav-icon { font-size: 16px; }
+        
+        /* Content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        
+        .page-title-group h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .page-title-group p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Tab Panel */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(225, 29, 72, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Card */
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3); }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Result */
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        .result-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Notification Preview */
+        .notification-preview {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+        
+        .notification-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .notification-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .notification-title-area {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .notification-source {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .notification-body {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .notification-image {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+        
+        .notification-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .notification-action {
+            flex: 1;
+            padding: 8px;
+            background: var(--bg-main);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .notification-action:hover { background: var(--border); }
+        
+        /* Permission Status */
+        .permission-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+        }
+        
+        .permission-icon {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .permission-icon.granted { background: rgba(16, 185, 129, 0.2); }
+        .permission-icon.denied { background: rgba(239, 68, 68, 0.2); }
+        .permission-icon.default { background: rgba(245, 158, 11, 0.2); }
+        
+        .permission-info { flex: 1; }
+        
+        .permission-status-text {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .permission-detail {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* API Block */
+        .api-block {
+            background: rgba(225, 29, 72, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(225, 29, 72, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature {
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .api-description {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Code Block */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 3000;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        /* Log */
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.notif { background: rgba(225, 29, 72, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(225, 29, 72, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        /* Checkbox */
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .checkbox-item input { accent-color: var(--primary); }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+            
+            .sidebar.open { transform: translateX(0); }
+            
+            .content {
+                margin-left: 0;
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            
+            .card-tabs { padding: 0 12px; }
+            
+            .card-tab { padding: 12px; font-size: 12px; }
+            
+            .card-panel { padding: 16px; }
+            
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔔</div>
+            <div class="logo-text">Notifications <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">通知功能</div>
+                    <div class="nav-item" data-tab="permission" onclick="switchTab('permission')">
+                        <span class="nav-icon">🔐</span><span>权限管理</span>
+                    </div>
+                    <div class="nav-item" data-tab="create" onclick="switchTab('create')">
+                        <span class="nav-icon">✏️</span><span>创建通知</span>
+                    </div>
+                    <div class="nav-item" data-tab="templates" onclick="switchTab('templates')">
+                        <span class="nav-icon">📋</span><span>通知模板</span>
+                    </div>
+                    <div class="nav-item" data-tab="history" onclick="switchTab('history')">
+                        <span class="nav-icon">📜</span><span>通知历史</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>Notifications API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔔</div>
+                        <div class="stat-value" id="sent-count">0</div>
+                        <div class="stat-label">已发送通知</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="clicked-count">0</div>
+                        <div class="stat-label">已点击</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❌</div>
+                        <div class="stat-value" id="closed-count">0</div>
+                        <div class="stat-label">已关闭</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>Notification</span>
+                                        <span id="api-notification" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>requestPermission()</span>
+                                        <span id="api-request" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>permission</span>
+                                        <span id="api-permission" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>maxActions</span>
+                                        <span id="api-maxactions" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">当前权限状态</label>
+                                <div class="permission-status" id="permission-status-card">
+                                    <div class="permission-icon default" id="permission-icon">❓</div>
+                                    <div class="permission-info">
+                                        <div class="permission-status-text" id="permission-text">检测中...</div>
+                                        <div class="permission-detail" id="permission-detail">正在检查通知权限状态</div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="requestPermission()">🔐 请求权限</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            点击下方按钮快速发送测试通知
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <button class="btn btn-primary btn-lg" onclick="sendBasicNotification()">🔔 基础通知</button>
+                            <button class="btn btn-success btn-lg" onclick="sendRichNotification()">✨ 富媒体通知</button>
+                            <button class="btn btn-outline btn-lg" onclick="sendActionNotification()">⚡ 带操作通知</button>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">通知结果</div>
+                                <div id="demo-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 权限管理 -->
+            <div id="panel-permission" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>权限管理</h1>
+                        <p>管理通知权限状态</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>Notification.permission</strong> 返回当前权限状态：granted（已授权）、denied（已拒绝）、default（默认）。
+                    </div>
+                    
+                    <div class="permission-status" id="main-permission-status">
+                        <div class="permission-icon default" id="main-permission-icon">❓</div>
+                        <div class="permission-info">
+                            <div class="permission-status-text" id="main-permission-text">检测中...</div>
+                            <div class="permission-detail" id="main-permission-detail">正在检查通知权限状态</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="requestPermission()">🔐 请求权限</button>
+                        <button class="btn btn-outline" onclick="checkPermission()">🔄 刷新状态</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">权限说明</div>
+                        <table>
+                            <thead>
+                                <tr><th>状态</th><th>说明</th><th>行为</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>granted</code></td>
+                                    <td>用户已授权</td>
+                                    <td>可以显示通知</td>
+                                </tr>
+                                <tr>
+                                    <td><code>denied</code></td>
+                                    <td>用户已拒绝</td>
+                                    <td>无法显示通知，需用户手动更改设置</td>
+                                </tr>
+                                <tr>
+                                    <td><code>default</code></td>
+                                    <td>未询问</td>
+                                    <td>请求权限时会弹出询问框</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 创建通知 -->
+            <div id="panel-create" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>创建通知</h1>
+                        <p>自定义创建通知内容</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>new Notification(title, options)</strong> 创建并显示通知。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">通知标题 *</label>
+                            <input type="text" class="form-input" id="notif-title" placeholder="输入通知标题" value="测试通知">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">通知正文</label>
+                            <input type="text" class="form-input" id="notif-body" placeholder="输入通知正文" value="这是一条测试通知消息">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">标签 (tag)</label>
+                            <input type="text" class="form-input" id="notif-tag" placeholder="用于分组通知">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">图标 URL</label>
+                            <input type="text" class="form-input" id="notif-icon" placeholder="图标URL">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">图片 URL</label>
+                            <input type="text" class="form-input" id="notif-image" placeholder="大图URL">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">徽章 URL</label>
+                            <input type="text" class="form-input" id="notif-badge" placeholder="徽章图标URL">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">通知选项</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="notif-renotify">
+                                <span>重新通知 (renotify)</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="notif-require-interaction">
+                                <span>需要交互 (requireInteraction)</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="notif-silent">
+                                <span>静音 (silent)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">振动模式</label>
+                            <input type="text" class="form-input" id="notif-vibrate" placeholder="例如: 200,100,200">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">时间戳</label>
+                            <input type="datetime-local" class="form-input" id="notif-timestamp">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">自定义数据 (data)</label>
+                        <textarea class="form-textarea" id="notif-data" placeholder='JSON 格式数据'>{"key": "value"}</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary btn-lg" onclick="createNotification()">🔔 发送通知</button>
+                        <button class="btn btn-outline" onclick="previewNotification()">👁️ 预览</button>
+                    </div>
+                    
+                    <div id="notification-preview-container" style="display: none;">
+                        <div class="result-title">通知预览</div>
+                        <div class="notification-preview" id="notification-preview">
+                            <div class="notification-header">
+                                <div class="notification-icon">🔔</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title" id="preview-title">通知标题</div>
+                                    <div class="notification-source">notifications-api-app.html</div>
+                                </div>
+                            </div>
+                            <div class="notification-body" id="preview-body">通知正文</div>
+                            <div class="notification-image" id="preview-image" style="display: none;">图片</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 通知模板 -->
+            <div id="panel-templates" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>通知模板</h1>
+                        <p>预定义的通知模板</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        选择预设模板快速发送通知
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('welcome')">
+                            <div class="notification-header">
+                                <div class="notification-icon">👋</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">欢迎通知</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">欢迎使用我们的应用！感谢您的支持。</div>
+                        </div>
+                        
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('update')">
+                            <div class="notification-header">
+                                <div class="notification-icon">🔄</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">更新提醒</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">新版本已发布，点击查看更新内容。</div>
+                        </div>
+                        
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('message')">
+                            <div class="notification-header">
+                                <div class="notification-icon">💬</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">新消息</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">您有一条新消息，点击查看详情。</div>
+                        </div>
+                        
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('reminder')">
+                            <div class="notification-header">
+                                <div class="notification-icon">⏰</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">日程提醒</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">您有一个即将到来的日程安排。</div>
+                        </div>
+                        
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('alert')">
+                            <div class="notification-header">
+                                <div class="notification-icon">⚠️</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">安全警报</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">检测到异常登录，请确认是否为本人操作。</div>
+                        </div>
+                        
+                        <div class="notification-preview" style="cursor: pointer;" onclick="sendTemplate('promotion')">
+                            <div class="notification-header">
+                                <div class="notification-icon">🎉</div>
+                                <div class="notification-title-area">
+                                    <div class="notification-title">促销活动</div>
+                                    <div class="notification-source">点击发送</div>
+                                </div>
+                            </div>
+                            <div class="notification-body">限时优惠！全场商品8折起。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 通知历史 -->
+            <div id="panel-history" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>通知历史</h1>
+                        <p>查看已发送的通知记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearHistory()">🗑️ 清空历史</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div id="history-list">
+                        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            暂无通知历史
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>Notifications API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心方法</h3>
+                    <div class="api-block">
+                        <span class="api-method">STATIC</span>
+                        <span class="api-signature">Notification.requestPermission()</span>
+                        <p class="api-description">请求用户授权显示通知，返回 Promise。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">STATIC</span>
+                        <span class="api-signature">Notification.permission</span>
+                        <p class="api-description">返回当前权限状态：granted、denied 或 default。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">STATIC</span>
+                        <span class="api-signature">Notification.maxActions</span>
+                        <p class="api-description">返回通知支持的最大操作按钮数量。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">构造函数</h3>
+                    <div class="api-block">
+                        <span class="api-method">CONSTRUCTOR</span>
+                        <span class="api-signature">new Notification(title, options)</span>
+                        <p class="api-description">创建并显示一个通知。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">NotificationOptions</h3>
+                    <table>
+                        <thead>
+                            <tr><th>属性</th><th>类型</th><th>说明</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>body</code></td><td>string</td><td>通知正文</td></tr>
+                            <tr><td><code>icon</code></td><td>string</td><td>图标URL</td></tr>
+                            <tr><td><code>image</code></td><td>string</td><td>大图URL</td></tr>
+                            <tr><td><code>badge</code></td><td>string</td><td>徽章图标URL</td></tr>
+                            <tr><td><code>tag</code></td><td>string</td><td>通知标签</td></tr>
+                            <tr><td><code>renotify</code></td><td>boolean</td><td>是否重新通知</td></tr>
+                            <tr><td><code>requireInteraction</code></td><td>boolean</td><td>是否需要用户交互</td></tr>
+                            <tr><td><code>silent</code></td><td>boolean</td><td>是否静音</td></tr>
+                            <tr><td><code>vibrate</code></td><td>array</td><td>振动模式</td></tr>
+                            <tr><td><code>timestamp</code></td><td>number</td><td>时间戳</td></tr>
+                            <tr><td><code>actions</code></td><td>array</td><td>操作按钮</td></tr>
+                            <tr><td><code>data</code></td><td>any</td><td>自定义数据</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">事件</h3>
+                    <table>
+                        <thead><tr><th>事件</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>onclick</code></td><td>通知被点击时触发</td></tr>
+                            <tr><td><code>onclose</code></td><td>通知被关闭时触发</td></tr>
+                            <tr><td><code>onerror</code></td><td>通知发生错误时触发</td></tr>
+                            <tr><td><code>onshow</code></td><td>通知显示时触发</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 请求权限
+const permission = await Notification.requestPermission();
+if (permission === 'granted') {
+    // 创建基础通知
+    const notification = new Notification('标题', {
+        body: '通知正文',
+        icon: '/icon.png',
+        tag: 'my-notification'
+    });
+    
+    // 点击事件
+    notification.onclick = (event) => {
+        console.log('通知被点击');
+        window.focus();
+        notification.close();
+    };
+    
+    // 关闭事件
+    notification.onclose = (event) => {
+        console.log('通知被关闭');
+    };
+}
+
+// 带操作的通知
+new Notification('新消息', {
+    body: '您有一条新消息',
+    icon: '/icon.png',
+    actions: [
+        { action: 'reply', title: '回复' },
+        { action: 'ignore', title: '忽略' }
+    ]
+});</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        Notifications API 在所有现代浏览器中得到广泛支持，需要用户授权。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var history = [];
+        var sentCount = 0;
+        var clickedCount = 0;
+        var closedCount = 0;
+        var activeNotifications = {};
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            checkPermission();
+            loadHistory();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            var items = document.querySelectorAll('.nav-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            
+            var panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        function checkApiSupport() {
+            var notificationSupported = 'Notification' in window;
+            var requestSupported = notificationSupported && typeof Notification.requestPermission === 'function';
+            var permissionSupported = notificationSupported && 'permission' in Notification;
+            var maxActionsSupported = notificationSupported && 'maxActions' in Notification;
+            
+            document.getElementById('api-notification').textContent = notificationSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-notification').style.color = notificationSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-request').textContent = requestSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-request').style.color = requestSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-permission').textContent = permissionSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('api-permission').style.color = permissionSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-maxactions').textContent = maxActionsSupported ? Notification.maxActions : '✗ 不支持';
+            document.getElementById('api-maxactions').style.color = maxActionsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = notificationSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = notificationSupported ? 'var(--success)' : 'var(--danger)';
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        // ==================== 权限管理 ====================
+        function checkPermission() {
+            if (!('Notification' in window)) {
+                updatePermissionUI('unsupported');
+                return;
+            }
+            
+            var permission = Notification.permission;
+            updatePermissionUI(permission);
+        }
+
+        function updatePermissionUI(permission) {
+            var icon, text, detail, iconClass;
+            
+            if (permission === 'granted') {
+                icon = '✅';
+                text = '已授权';
+                detail = '可以正常发送通知';
+                iconClass = 'granted';
+            } else if (permission === 'denied') {
+                icon = '❌';
+                text = '已拒绝';
+                detail = '需要在浏览器设置中允许通知';
+                iconClass = 'denied';
+            } else if (permission === 'unsupported') {
+                icon = '⚠️';
+                text = '不支持';
+                detail = '当前浏览器不支持 Notifications API';
+                iconClass = 'default';
+            } else {
+                icon = '❓';
+                text = '未询问';
+                detail = '点击下方按钮请求权限';
+                iconClass = 'default';
+            }
+            
+            // 更新控制台
+            document.getElementById('permission-icon').textContent = icon;
+            document.getElementById('permission-icon').className = 'permission-icon ' + iconClass;
+            document.getElementById('permission-text').textContent = text;
+            document.getElementById('permission-detail').textContent = detail;
+            
+            // 更新权限页面
+            var mainIcon = document.getElementById('main-permission-icon');
+            if (mainIcon) {
+                mainIcon.textContent = icon;
+                mainIcon.className = 'permission-icon ' + iconClass;
+            }
+            var mainText = document.getElementById('main-permission-text');
+            if (mainText) mainText.textContent = text;
+            var mainDetail = document.getElementById('main-permission-detail');
+            if (mainDetail) mainDetail.textContent = detail;
+        }
+
+        async function requestPermission() {
+            if (!('Notification' in window)) {
+                showToast('当前浏览器不支持 Notifications API', 'error');
+                return;
+            }
+            
+            try {
+                var permission = await Notification.requestPermission();
+                updatePermissionUI(permission);
+                addLog('notif', '请求权限: ' + permission);
+                
+                if (permission === 'granted') {
+                    showToast('通知权限已授权', 'success');
+                } else if (permission === 'denied') {
+                    showToast('通知权限被拒绝', 'error');
+                } else {
+                    showToast('权限请求已取消', 'warning');
+                }
+            } catch (error) {
+                showToast('请求权限失败: ' + error.message, 'error');
+                addLog('notif', '请求权限失败: ' + error.message);
+            }
+        }
+
+        // ==================== 发送通知 ====================
+        function sendNotification(title, options) {
+            if (!('Notification' in window)) {
+                showToast('当前浏览器不支持 Notifications API', 'error');
+                return null;
+            }
+            
+            if (Notification.permission !== 'granted') {
+                showToast('请先授权通知权限', 'warning');
+                requestPermission();
+                return null;
+            }
+            
+            try {
+                var notification = new Notification(title, options);
+                
+                notification.onshow = function() {
+                    addLog('notif', '通知显示: ' + title);
+                };
+                
+                notification.onclick = function() {
+                    clickedCount++;
+                    document.getElementById('clicked-count').textContent = clickedCount;
+                    addLog('notif', '通知点击: ' + title);
+                    window.focus();
+                    notification.close();
+                };
+                
+                notification.onclose = function() {
+                    closedCount++;
+                    document.getElementById('closed-count').textContent = closedCount;
+                    addLog('notif', '通知关闭: ' + title);
+                };
+                
+                notification.onerror = function(e) {
+                    addLog('notif', '通知错误: ' + e);
+                };
+                
+                sentCount++;
+                document.getElementById('sent-count').textContent = sentCount;
+                
+                addHistory(title, options);
+                
+                return notification;
+            } catch (error) {
+                showToast('发送通知失败: ' + error.message, 'error');
+                addLog('notif', '发送失败: ' + error.message);
+                return null;
+            }
+        }
+
+        // ==================== 快速演示 ====================
+        function sendBasicNotification() {
+            sendNotification('基础通知', {
+                body: '这是一条基础通知消息',
+                tag: 'basic-notification'
+            });
+            showToast('基础通知已发送', 'success');
+        }
+
+        function sendRichNotification() {
+            sendNotification('富媒体通知', {
+                body: '这是一条包含图标的富媒体通知',
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔔</text></svg>',
+                tag: 'rich-notification'
+            });
+            showToast('富媒体通知已发送', 'success');
+        }
+
+        function sendActionNotification() {
+            sendNotification('带操作的通知', {
+                body: '点击下方按钮执行操作',
+                tag: 'action-notification',
+                requireInteraction: true,
+                actions: [
+                    { action: 'confirm', title: '确认' },
+                    { action: 'cancel', title: '取消' }
+                ]
+            });
+            showToast('带操作通知已发送', 'success');
+        }
+
+        // ==================== 创建通知 ====================
+        function createNotification() {
+            var title = document.getElementById('notif-title').value;
+            if (!title) {
+                showToast('请输入通知标题', 'warning');
+                return;
+            }
+            
+            var options = {};
+            
+            var body = document.getElementById('notif-body').value;
+            if (body) options.body = body;
+            
+            var tag = document.getElementById('notif-tag').value;
+            if (tag) options.tag = tag;
+            
+            var icon = document.getElementById('notif-icon').value;
+            if (icon) options.icon = icon;
+            
+            var image = document.getElementById('notif-image').value;
+            if (image) options.image = image;
+            
+            var badge = document.getElementById('notif-badge').value;
+            if (badge) options.badge = badge;
+            
+            if (document.getElementById('notif-renotify').checked) {
+                options.renotify = true;
+            }
+            
+            if (document.getElementById('notif-require-interaction').checked) {
+                options.requireInteraction = true;
+            }
+            
+            if (document.getElementById('notif-silent').checked) {
+                options.silent = true;
+            }
+            
+            var vibrate = document.getElementById('notif-vibrate').value;
+            if (vibrate) {
+                options.vibrate = vibrate.split(',').map(function(v) { return parseInt(v.trim()); });
+            }
+            
+            var timestamp = document.getElementById('notif-timestamp').value;
+            if (timestamp) {
+                options.timestamp = new Date(timestamp).getTime();
+            }
+            
+            var dataStr = document.getElementById('notif-data').value;
+            if (dataStr) {
+                try {
+                    options.data = JSON.parse(dataStr);
+                } catch (e) {
+                    options.data = dataStr;
+                }
+            }
+            
+            var notification = sendNotification(title, options);
+            
+            if (notification) {
+                showToast('通知已发送', 'success');
+            }
+        }
+
+        function previewNotification() {
+            var title = document.getElementById('notif-title').value || '通知标题';
+            var body = document.getElementById('notif-body').value || '通知正文';
+            var image = document.getElementById('notif-image').value;
+            
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-body').textContent = body;
+            
+            var imageEl = document.getElementById('preview-image');
+            if (image) {
+                imageEl.style.display = 'flex';
+                imageEl.innerHTML = '<img src="' + image + '" style="max-width:100%;max-height:100%;border-radius:var(--radius-sm);" onerror="this.parentElement.innerHTML=\'图片加载失败\'">';
+            } else {
+                imageEl.style.display = 'none';
+            }
+            
+            document.getElementById('notification-preview-container').style.display = 'block';
+        }
+
+        // ==================== 模板 ====================
+        function sendTemplate(type) {
+            var templates = {
+                welcome: {
+                    title: '👋 欢迎使用',
+                    options: { body: '欢迎使用我们的应用！感谢您的支持。', tag: 'welcome' }
+                },
+                update: {
+                    title: '🔄 更新提醒',
+                    options: { body: '新版本已发布，点击查看更新内容。', tag: 'update', requireInteraction: true }
+                },
+                message: {
+                    title: '💬 新消息',
+                    options: { body: '您有一条新消息，点击查看详情。', tag: 'message' }
+                },
+                reminder: {
+                    title: '⏰ 日程提醒',
+                    options: { body: '您有一个即将到来的日程安排。', tag: 'reminder', requireInteraction: true }
+                },
+                alert: {
+                    title: '⚠️ 安全警报',
+                    options: { body: '检测到异常登录，请确认是否为本人操作。', tag: 'alert', requireInteraction: true }
+                },
+                promotion: {
+                    title: '🎉 促销活动',
+                    options: { body: '限时优惠！全场商品8折起。', tag: 'promotion' }
+                }
+            };
+            
+            var template = templates[type];
+            if (template) {
+                sendNotification(template.title, template.options);
+                showToast('模板通知已发送', 'success');
+            }
+        }
+
+        // ==================== 历史记录 ====================
+        function loadHistory() {
+            try {
+                var saved = localStorage.getItem('notifications-history');
+                if (saved) {
+                    history = JSON.parse(saved);
+                    renderHistory();
+                }
+            } catch (e) {
+                history = [];
+            }
+        }
+
+        function saveHistory() {
+            try {
+                localStorage.setItem('notifications-history', JSON.stringify(history.slice(0, 50)));
+            } catch (e) {}
+        }
+
+        function addHistory(title, options) {
+            var entry = {
+                title: title,
+                body: options.body || '',
+                tag: options.tag || '',
+                time: new Date().toISOString()
+            };
+            
+            history.unshift(entry);
+            if (history.length > 50) history.pop();
+            
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            var container = document.getElementById('history-list');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">暂无通知历史</div>';
+                return;
+            }
+            
+            var html = '';
+            history.forEach(function(entry) {
+                var date = new Date(entry.time);
+                html += '<div class="notification-preview" style="margin-bottom: 12px;">';
+                html += '<div class="notification-header">';
+                html += '<div class="notification-icon">🔔</div>';
+                html += '<div class="notification-title-area">';
+                html += '<div class="notification-title">' + entry.title + '</div>';
+                html += '<div class="notification-source">' + date.toLocaleString() + '</div>';
+                html += '</div></div>';
+                if (entry.body) {
+                    html += '<div class="notification-body">' + entry.body + '</div>';
+                }
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function clearHistory() {
+            history = [];
+            saveHistory();
+            renderHistory();
+            showToast('历史已清空', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => {
+                t.style.opacity = '0';
+                setTimeout(() => t.remove(), 300);
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>
