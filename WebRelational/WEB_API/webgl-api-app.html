@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --secondary: #a78bfa;
+            --accent: #c4b5fd;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f5f3ff;
+            --bg-card: #ffffff;
+            --border: #ddd6fe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f5f3ff;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #1e1b4b;
+                --bg-card: #312e81;
+                --border: #4338ca;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(124, 58, 237, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(124, 58, 237, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; }
+        
+        .canvas-container {
+            background: #1a1a2e;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+        }
+        
+        .canvas-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .gl-info {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .gl-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gl-info-row:last-child { border-bottom: none; }
+        
+        .api-block {
+            background: rgba(124, 58, 237, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(124, 58, 237, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.gl { background: rgba(124, 58, 237, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .info-box {
+            background: rgba(124, 58, 237, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎮</div>
+            <div class="logo-text">WebGL <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkGLSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">2D 图形</div>
+                    <div class="nav-item" data-tab="2d-basics" onclick="switchTab('2d-basics')">
+                        <span class="nav-icon">🎨</span><span>基础2D</span>
+                    </div>
+                    <div class="nav-item" data-tab="2d-shapes" onclick="switchTab('2d-shapes')">
+                        <span class="nav-icon">⬛</span><span>图形绘制</span>
+                    </div>
+                    <div class="nav-item" data-tab="2d-textures" onclick="switchTab('2d-textures')">
+                        <span class="nav-icon">🖼️</span><span>纹理贴图</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">3D 图形</div>
+                    <div class="nav-item" data-tab="3d-basics" onclick="switchTab('3d-basics')">
+                        <span class="nav-icon">🎲</span><span>基础3D</span>
+                    </div>
+                    <div class="nav-item" data-tab="3d-transform" onclick="switchTab('3d-transform')">
+                        <span class="nav-icon">🔄</span><span>变换矩阵</span>
+                    </div>
+                    <div class="nav-item" data-tab="3d-lighting" onclick="switchTab('3d-lighting')">
+                        <span class="nav-icon">💡</span><span>光照效果</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebGL API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎨</div>
+                        <div class="stat-value" id="draw-calls">0</div>
+                        <div class="stat-label">绘制调用</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📐</div>
+                        <div class="stat-value" id="triangles">0</div>
+                        <div class="stat-label">三角形</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🖼️</div>
+                        <div class="stat-value" id="textures">0</div>
+                        <div class="stat-label">纹理</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebGL 支持状态</label>
+                                <div class="gl-info">
+                                    <div class="gl-info-row">
+                                        <span>WebGL 1.0</span>
+                                        <span id="webgl1-status" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gl-info-row">
+                                        <span>WebGL 2.0</span>
+                                        <span id="webgl2-status" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gl-info-row">
+                                        <span>渲染器</span>
+                                        <span id="gl-renderer" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gl-info-row">
+                                        <span>厂商</span>
+                                        <span id="gl-vendor" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gl-info-row">
+                                        <span>最大纹理尺寸</span>
+                                        <span id="gl-max-texture" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">WebGL 扩展</label>
+                                <div class="gl-info" style="max-height: 200px; overflow-y: auto;">
+                                    <div id="extensions-list" style="color: var(--text-muted);">检测中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebGL 提供 2D 和 3D 图形渲染能力，使用 GPU 加速
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="startDemo2D()">🎨 2D 演示</button>
+                            <button class="btn btn-success btn-lg" onclick="startDemo3D()">🎲 3D 演示</button>
+                            <button class="btn btn-outline btn-lg" onclick="stopDemo()">⏹️ 停止</button>
+                        </div>
+                        
+                        <div class="canvas-container">
+                            <canvas id="demo-canvas" width="640" height="360"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 基础2D -->
+            <div id="panel-2d-basics" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>基础 2D 图形</h1>
+                        <p>WebGL 2D 渲染基础</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebGL 使用顶点着色器和片段着色器进行渲染
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="drawTriangle()">🔺 三角形</button>
+                        <button class="btn btn-success" onclick="drawRectangle()">⬛ 矩形</button>
+                        <button class="btn btn-outline" onclick="drawCircle()">⭕ 圆形</button>
+                        <button class="btn btn-danger" onclick="clearCanvas2D()">🗑️ 清空</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-2d-basics" width="640" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图形绘制 -->
+            <div id="panel-2d-shapes" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>图形绘制</h1>
+                        <p>绘制各种 2D 图形</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">图形类型</label>
+                            <select class="form-select" id="shape-type">
+                                <option value="triangles">三角形 (gl.TRIANGLES)</option>
+                                <option value="triangle-strip">三角形带 (gl.TRIANGLE_STRIP)</option>
+                                <option value="triangle-fan">三角形扇 (gl.TRIANGLE_FAN)</option>
+                                <option value="lines">线段 (gl.LINES)</option>
+                                <option value="line-strip">线带 (gl.LINE_STRIP)</option>
+                                <option value="line-loop">线环 (gl.LINE_LOOP)</option>
+                                <option value="points">点 (gl.POINTS)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">颜色</label>
+                            <input type="color" class="form-input" id="shape-color" value="#7c3aed">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="drawShape()">🎨 绘制</button>
+                        <button class="btn btn-outline" onclick="animateShape()">▶️ 动画</button>
+                        <button class="btn btn-danger" onclick="stopAnimation()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-shapes" width="640" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 纹理贴图 -->
+            <div id="panel-2d-textures" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>纹理贴图</h1>
+                        <p>WebGL 纹理映射</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        纹理可以将图像映射到几何图形上
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createTexture()">🖼️ 创建纹理</button>
+                        <button class="btn btn-success" onclick="drawTexturedQuad()">🎨 绘制纹理</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-texture" width="640" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 基础3D -->
+            <div id="panel-3d-basics" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>基础 3D 图形</h1>
+                        <p>WebGL 3D 渲染基础</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        3D 渲染需要使用投影矩阵和模型视图矩阵。点击"创建几何体"按钮查看3D立方体！
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">几何体</label>
+                            <select class="form-select" id="geometry-type">
+                                <option value="cube">立方体</option>
+                                <option value="pyramid">金字塔</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">渲染模式</label>
+                            <select class="form-select" id="render-mode">
+                                <option value="solid">实体</option>
+                                <option value="wireframe">线框</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createGeometry3D()">🔧 创建几何体</button>
+                        <button class="btn btn-success" onclick="rotateGeometry()">🔄 旋转动画</button>
+                        <button class="btn btn-outline" onclick="resetView()">↩️ 重置视图</button>
+                        <button class="btn btn-danger" onclick="stopRotation()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-3d-basics" width="640" height="360"></canvas>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">3D 变换</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">旋转 X</div>
+                                <div class="result-value" id="rot-x">0°</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">旋转 Y</div>
+                                <div class="result-value" id="rot-y">0°</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">顶点数</div>
+                                <div class="result-value" id="vertex-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">三角形数</div>
+                                <div class="result-value" id="triangle-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 变换矩阵 -->
+            <div id="panel-3d-transform" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>变换矩阵</h1>
+                        <p>模型-视图-投影矩阵</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        3D 图形通过矩阵变换实现平移、旋转、缩放和投影
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">旋转 X</label>
+                            <input type="range" class="form-input" id="rotate-x" min="0" max="360" step="1" value="30" oninput="applyTransform()">
+                            <span id="rotate-x-val">30°</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">旋转 Y</label>
+                            <input type="range" class="form-input" id="rotate-y" min="0" max="360" step="1" value="45" oninput="applyTransform()">
+                            <span id="rotate-y-val">45°</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">旋转 Z</label>
+                            <input type="range" class="form-input" id="rotate-z" min="0" max="360" step="1" value="0" oninput="applyTransform()">
+                            <span id="rotate-z-val">0°</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">缩放</label>
+                            <input type="range" class="form-input" id="scale" min="0.1" max="2" step="0.1" value="1" oninput="applyTransform()">
+                            <span id="scale-val">1</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">距离</label>
+                            <input type="range" class="form-input" id="distance" min="2" max="10" step="0.1" value="5" oninput="applyTransform()">
+                            <span id="distance-val">5</span>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="applyTransform()">✅ 应用变换</button>
+                        <button class="btn btn-outline" onclick="autoRotate()">🔄 自动旋转</button>
+                        <button class="btn btn-danger" onclick="stopAutoRotate()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-transform" width="640" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 光照效果 -->
+            <div id="panel-3d-lighting" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>光照效果</h1>
+                        <p>Phong 光照模型</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        光照模型包含环境光、漫反射和镜面反射
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">光源位置 X</label>
+                            <input type="range" class="form-input" id="light-x" min="-5" max="5" step="0.1" value="2" oninput="applyLighting()">
+                            <span id="light-x-val">2</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">光源位置 Y</label>
+                            <input type="range" class="form-input" id="light-y" min="-5" max="5" step="0.1" value="2" oninput="applyLighting()">
+                            <span id="light-y-val">2</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">光源位置 Z</label>
+                            <input type="range" class="form-input" id="light-z" min="-5" max="5" step="0.1" value="3" oninput="applyLighting()">
+                            <span id="light-z-val">3</span>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="applyLighting()">💡 应用光照</button>
+                        <button class="btn btn-outline" onclick="animateLight()">🔄 动画光源</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="canvas-lighting" width="640" height="360"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebGL API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">WebGLRenderingContext</span>
+                        <p class="api-description">WebGL 1.0 渲染上下文，提供 2D/3D 渲染能力。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">WebGL2RenderingContext</span>
+                        <p class="api-description">WebGL 2.0 渲染上下文，提供更多高级特性。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">绘制方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>drawArrays(mode, first, count)</code></td><td>绘制基本图形</td></tr>
+                            <tr><td><code>drawElements(mode, count, type, offset)</code></td><td>使用索引绘制</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        WebGL 在所有现代浏览器中得到广泛支持。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var drawCalls = 0;
+        var triangleCount = 0;
+        var textureCount = 0;
+        var animationId = null;
+        var rotationAnimId = null;
+        var transformAnimId = null;
+        var lightingAnimId = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkGLSupport();
+            initAllCanvases();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== WebGL 检测 ====================
+        function checkGLSupport() {
+            var canvas = document.createElement('canvas');
+            var gl1 = canvas.getContext('webgl');
+            var gl2 = canvas.getContext('webgl2');
+            
+            document.getElementById('webgl1-status').textContent = gl1 ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('webgl1-status').style.color = gl1 ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('webgl2-status').textContent = gl2 ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('webgl2-status').style.color = gl2 ? 'var(--success)' : 'var(--danger)';
+            
+            var gl = gl2 || gl1;
+            if (gl) {
+                var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    document.getElementById('gl-renderer').textContent = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                    document.getElementById('gl-vendor').textContent = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                }
+                document.getElementById('gl-max-texture').textContent = gl.getParameter(gl.MAX_TEXTURE_SIZE) + 'px';
+                
+                var extensions = gl.getSupportedExtensions();
+                var extHtml = extensions.slice(0, 8).map(function(ext) {
+                    return '<div style="padding: 4px 0; font-size: 11px;">' + ext + '</div>';
+                }).join('');
+                extHtml += '<div style="padding: 4px 0; color: var(--text-muted);">... 共 ' + extensions.length + ' 个扩展</div>';
+                document.getElementById('extensions-list').innerHTML = extHtml;
+            }
+            
+            document.getElementById('api-status').textContent = gl ? '✓' : '✗';
+            document.getElementById('api-status').style.color = gl ? 'var(--success)' : 'var(--danger)';
+            
+            addLog('api', 'WebGL 支持检测完成');
+        }
+
+        // ==================== 初始化画布 ====================
+        function initAllCanvases() {
+            ['demo-canvas', 'canvas-2d-basics', 'canvas-shapes', 'canvas-texture', 
+             'canvas-3d-basics', 'canvas-transform', 'canvas-lighting'].forEach(function(id) {
+                var canvas = document.getElementById(id);
+                if (canvas) {
+                    var gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+                    if (gl) {
+                        gl.clearColor(0.1, 0.1, 0.18, 1.0);
+                        gl.clear(gl.COLOR_BUFFER_BIT);
+                    }
+                }
+            });
+        }
+
+        // ==================== 着色器工具 ====================
+        function createShader(gl, type, source) {
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        function createProgram(gl, vs, fs) {
+            var program = gl.createProgram();
+            gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vs));
+            gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fs));
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program error:', gl.getProgramInfoLog(program));
+                return null;
+            }
+            return program;
+        }
+
+        // ==================== 演示功能 ====================
+        function startDemo2D() {
+            var canvas = document.getElementById('demo-canvas');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec2 p;uniform float t;varying vec2 v;void main(){v=p;vec2 q=p;q.x+=sin(t+p.y*3.)*.1;gl_Position=vec4(q,0,1);}';
+            var fs = 'precision mediump float;varying vec2 v;uniform float t;void main(){gl_FragColor=vec4(.5+.5*sin(t+v.x*5.),.5+.5*sin(t+v.y*5.+2.),.5+.5*sin(t+(v.x+v.y)*3.+4.),1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-.8,-.8,.8,-.8,-.8,.8,-.8,.8,.8,-.8,.8,.8]), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            var tLoc = gl.getUniformLocation(prog, 't');
+            
+            function render(time) {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.uniform1f(tLoc, time * 0.001);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                drawCalls++;
+                document.getElementById('draw-calls').textContent = drawCalls;
+                animationId = requestAnimationFrame(render);
+            }
+            render(0);
+            addLog('gl', '2D 演示已启动');
+            showToast('2D 演示已启动', 'success');
+        }
+
+        function startDemo3D() {
+            var canvas = document.getElementById('demo-canvas');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec3 p;attribute vec3 c;uniform mat4 m;varying vec3 vc;void main(){gl_Position=m*vec4(p,1);vc=c;}';
+            var fs = 'precision mediump float;varying vec3 vc;void main(){gl_FragColor=vec4(vc,1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            // 立方体顶点
+            var pos = new Float32Array([
+                -1,-1,1, 1,-1,1, 1,1,1, -1,1,1,
+                -1,-1,-1, -1,1,-1, 1,1,-1, 1,-1,-1,
+                -1,1,-1, -1,1,1, 1,1,1, 1,1,-1,
+                -1,-1,-1, 1,-1,-1, 1,-1,1, -1,-1,1,
+                1,-1,-1, 1,1,-1, 1,1,1, 1,-1,1,
+                -1,-1,-1, -1,-1,1, -1,1,1, -1,1,-1
+            ]);
+            
+            var col = new Float32Array([
+                .5,.2,.9, .5,.2,.9, .5,.2,.9, .5,.2,.9,
+                .1,.7,.5, .1,.7,.5, .1,.7,.5, .1,.7,.5,
+                .2,.5,.9, .2,.5,.9, .2,.5,.9, .2,.5,.9,
+                .9,.6,.1, .9,.6,.1, .9,.6,.1, .9,.6,.1,
+                .9,.2,.2, .9,.2,.2, .9,.2,.2, .9,.2,.2,
+                .1,.8,.8, .1,.8,.8, .1,.8,.8, .1,.8,.8
+            ]);
+            
+            var idx = new Uint16Array([0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,13,14,12,14,15,16,17,18,16,18,19,20,21,22,20,22,23]);
+            
+            var posBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var colBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, col, gl.STATIC_DRAW);
+            var cLoc = gl.getAttribLocation(prog, 'c');
+            gl.enableVertexAttribArray(cLoc);
+            gl.vertexAttribPointer(cLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var idxBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+            
+            var mLoc = gl.getUniformLocation(prog, 'm');
+            gl.enable(gl.DEPTH_TEST);
+            
+            function render(time) {
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                var a = time * 0.001;
+                var ca = Math.cos(a), sa = Math.sin(a);
+                var cb = Math.cos(a * 0.7), sb = Math.sin(a * 0.7);
+                
+                // 简化的变换矩阵
+                var m = new Float32Array([
+                    ca, sa*sb, sa*cb, 0,
+                    -sa, ca*sb, ca*cb, 0,
+                    0, -cb, sb, 0,
+                    0, 0, -4, 1
+                ]);
+                
+                gl.uniformMatrix4fv(mLoc, false, m);
+                gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+                
+                drawCalls++;
+                triangleCount += 12;
+                document.getElementById('draw-calls').textContent = drawCalls;
+                document.getElementById('triangles').textContent = triangleCount;
+                
+                animationId = requestAnimationFrame(render);
+            }
+            render(0);
+            addLog('gl', '3D 演示已启动');
+            showToast('3D 演示已启动', 'success');
+        }
+
+        function stopDemo() {
+            if (animationId) cancelAnimationFrame(animationId);
+            if (rotationAnimId) cancelAnimationFrame(rotationAnimId);
+            if (transformAnimId) cancelAnimationFrame(transformAnimId);
+            if (lightingAnimId) cancelAnimationFrame(lightingAnimId);
+            animationId = rotationAnimId = transformAnimId = lightingAnimId = null;
+            showToast('演示已停止', 'success');
+        }
+
+        // ==================== 2D 基础图形 ====================
+        function drawTriangle() {
+            var canvas = document.getElementById('canvas-2d-basics');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}';
+            var fs = 'precision mediump float;uniform vec4 c;void main(){gl_FragColor=c;}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,.7,-.7,-.7,.7,-.7]), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform4f(gl.getUniformLocation(prog, 'c'), 0.486, 0.227, 0.929, 1);
+            
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            
+            drawCalls++;
+            triangleCount++;
+            updateStats();
+            addLog('gl', '绘制三角形');
+        }
+
+        function drawRectangle() {
+            var canvas = document.getElementById('canvas-2d-basics');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}';
+            var fs = 'precision mediump float;uniform vec4 c;void main(){gl_FragColor=c;}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-.6,-.4,.6,-.4,-.6,.4,-.6,.4,.6,-.4,.6,.4]), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform4f(gl.getUniformLocation(prog, 'c'), 0.059, 0.725, 0.506, 1);
+            
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            
+            drawCalls++;
+            triangleCount += 2;
+            updateStats();
+            addLog('gl', '绘制矩形');
+        }
+
+        function drawCircle() {
+            var canvas = document.getElementById('canvas-2d-basics');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}';
+            var fs = 'precision mediump float;uniform vec4 c;void main(){gl_FragColor=c;}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var segs = 64;
+            var pos = [];
+            for (var i = 0; i <= segs; i++) {
+                var a = i / segs * Math.PI * 2;
+                pos.push(0, 0, Math.cos(a) * .6, Math.sin(a) * .6, Math.cos(a + Math.PI / segs) * .6, Math.sin(a + Math.PI / segs) * .6);
+            }
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform4f(gl.getUniformLocation(prog, 'c'), 0.961, 0.620, 0.043, 1);
+            
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, (segs + 1) * 3);
+            
+            drawCalls++;
+            triangleCount += segs;
+            updateStats();
+            addLog('gl', '绘制圆形');
+        }
+
+        function clearCanvas2D() {
+            var canvas = document.getElementById('canvas-2d-basics');
+            var gl = canvas.getContext('webgl');
+            if (gl) {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                showToast('画布已清空', 'success');
+            }
+        }
+
+        // ==================== 图形绘制 ====================
+        function drawShape() {
+            var canvas = document.getElementById('canvas-shapes');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var type = document.getElementById('shape-type').value;
+            var hex = document.getElementById('shape-color').value;
+            var r = parseInt(hex.substr(1, 2), 16) / 255;
+            var g = parseInt(hex.substr(3, 2), 16) / 255;
+            var b = parseInt(hex.substr(5, 2), 16) / 255;
+            
+            var vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0,1);gl_PointSize=10.;}';
+            var fs = 'precision mediump float;uniform vec4 c;void main(){gl_FragColor=c;}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var pos, mode, count;
+            
+            if (type === 'triangles') {
+                pos = new Float32Array([0,.5,-.5,-.5,.5,-.5,0,-.1,-.3,-.6,.3,-.6]);
+                mode = gl.TRIANGLES; count = 6;
+            } else if (type === 'triangle-strip') {
+                pos = new Float32Array([-.6,.6,-.6,-.6,0,.6,0,-.6,.6,.6,.6,-.6]);
+                mode = gl.TRIANGLE_STRIP; count = 6;
+            } else if (type === 'triangle-fan') {
+                pos = new Float32Array([0,0,.6,0,.4,.4,0,.6,-.4,.4,-.6,0,-.4,-.4,0,-.6,.4,-.4]);
+                mode = gl.TRIANGLE_FAN; count = 9;
+            } else if (type === 'lines') {
+                pos = new Float32Array([-.6,.6,.6,.6,-.6,0,.6,0,-.6,-.6,.6,-.6]);
+                mode = gl.LINES; count = 6;
+            } else if (type === 'line-strip') {
+                pos = new Float32Array([-.6,.6,0,.6,.6,0,0,-.6,-.6,-.6]);
+                mode = gl.LINE_STRIP; count = 5;
+            } else if (type === 'line-loop') {
+                pos = new Float32Array([0,.6,.5,.3,.5,-.3,0,-.6,-.5,-.3,-.5,.3]);
+                mode = gl.LINE_LOOP; count = 6;
+            } else {
+                pos = new Float32Array([-.5,.5,0,.5,.5,.5,-.5,0,0,0,.5,0,-.5,-.5,0,-.5,.5,-.5]);
+                mode = gl.POINTS; count = 9;
+            }
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform4f(gl.getUniformLocation(prog, 'c'), r, g, b, 1);
+            
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(mode, 0, count);
+            
+            drawCalls++;
+            updateStats();
+            addLog('gl', '绘制: ' + type);
+        }
+
+        var shapeAnimId = null;
+        function animateShape() {
+            var canvas = document.getElementById('canvas-shapes');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var vs = 'attribute vec2 p;uniform float t;void main(){vec2 q=p;q.x+=sin(t+p.y*3.)*.2;q.y+=cos(t+p.x*3.)*.2;gl_Position=vec4(q,0,1);}';
+            var fs = 'precision mediump float;uniform float t;void main(){gl_FragColor=vec4(.5+.5*sin(t),.5+.5*cos(t),.486,1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,.5,-.5,-.5,.5,-.5]), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            var tLoc = gl.getUniformLocation(prog, 't');
+            
+            function render(time) {
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.uniform1f(tLoc, time * 0.002);
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+                shapeAnimId = requestAnimationFrame(render);
+            }
+            render(0);
+            addLog('gl', '开始动画');
+        }
+
+        function stopAnimation() {
+            if (shapeAnimId) cancelAnimationFrame(shapeAnimId);
+            shapeAnimId = null;
+            stopDemo();
+        }
+
+        // ==================== 纹理贴图 ====================
+        var currentTexture = null;
+
+        function createTexture() {
+            var canvas = document.getElementById('canvas-texture');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            currentTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+            
+            var size = 64;
+            var data = new Uint8Array(size * size * 4);
+            for (var y = 0; y < size; y++) {
+                for (var x = 0; x < size; x++) {
+                    var i = (y * size + x) * 4;
+                    data[i] = (x * 4) % 256;
+                    data[i + 1] = (y * 4) % 256;
+                    data[i + 2] = 124;
+                    data[i + 3] = 255;
+                }
+            }
+            
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            
+            textureCount++;
+            document.getElementById('textures').textContent = textureCount;
+            
+            addLog('gl', '创建纹理');
+            showToast('纹理已创建', 'success');
+        }
+
+        function drawTexturedQuad() {
+            var canvas = document.getElementById('canvas-texture');
+            var gl = canvas.getContext('webgl');
+            if (!gl || !currentTexture) {
+                showToast('请先创建纹理', 'warning');
+                return;
+            }
+            
+            var vs = 'attribute vec2 p;attribute vec2 t;varying vec2 vt;void main(){gl_Position=vec4(p,0,1);vt=t;}';
+            var fs = 'precision mediump float;varying vec2 vt;uniform sampler2D s;void main(){gl_FragColor=texture2D(s,vt);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var buf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-.7,-.7,0,0,.7,-.7,2,0,-.7,.7,0,2,.7,.7,2,2]), gl.STATIC_DRAW);
+            
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            var tLoc = gl.getAttribLocation(prog, 't');
+            
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 16, 0);
+            
+            gl.enableVertexAttribArray(tLoc);
+            gl.vertexAttribPointer(tLoc, 2, gl.FLOAT, false, 16, 8);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, currentTexture);
+            gl.uniform1i(gl.getUniformLocation(prog, 's'), 0);
+            
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            drawCalls++;
+            triangleCount += 2;
+            updateStats();
+            addLog('gl', '绘制纹理');
+        }
+
+        // ==================== 3D 基础 - 完整实现 ====================
+        var cube3D = { gl: null, prog: null, rotX: 0, rotY: 0 };
+
+        function createGeometry3D() {
+            var canvas = document.getElementById('canvas-3d-basics');
+            var gl = canvas.getContext('webgl');
+            if (!gl) {
+                showToast('WebGL 不支持', 'error');
+                return;
+            }
+            
+            cube3D.gl = gl;
+            cube3D.rotX = 0;
+            cube3D.rotY = 0;
+            
+            var type = document.getElementById('geometry-type').value;
+            var mode = document.getElementById('render-mode').value;
+            
+            // 简化的着色器
+            var vs = 'attribute vec3 p;attribute vec3 c;uniform mat4 m;varying vec3 vc;void main(){gl_Position=m*vec4(p,1);vc=c;}';
+            var fs = 'precision mediump float;varying vec3 vc;void main(){gl_FragColor=vec4(vc,1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            if (!prog) {
+                showToast('着色器编译失败', 'error');
+                return;
+            }
+            
+            cube3D.prog = prog;
+            gl.useProgram(prog);
+            
+            // 立方体顶点位置 (每个面4个顶点)
+            var pos = new Float32Array([
+                // 前面
+                -1,-1, 1,  1,-1, 1,  1, 1, 1, -1, 1, 1,
+                // 后面
+                -1,-1,-1, -1, 1,-1,  1, 1,-1,  1,-1,-1,
+                // 上面
+                -1, 1,-1, -1, 1, 1,  1, 1, 1,  1, 1,-1,
+                // 下面
+                -1,-1,-1,  1,-1,-1,  1,-1, 1, -1,-1, 1,
+                // 右面
+                 1,-1,-1,  1, 1,-1,  1, 1, 1,  1,-1, 1,
+                // 左面
+                -1,-1,-1, -1,-1, 1, -1, 1, 1, -1, 1,-1
+            ]);
+            
+            // 每个面的颜色
+            var col = new Float32Array([
+                // 前面 - 紫色
+                0.486, 0.227, 0.929,  0.486, 0.227, 0.929,  0.486, 0.227, 0.929,  0.486, 0.227, 0.929,
+                // 后面 - 绿色
+                0.059, 0.725, 0.506,  0.059, 0.725, 0.506,  0.059, 0.725, 0.506,  0.059, 0.725, 0.506,
+                // 上面 - 蓝色
+                0.231, 0.510, 0.965,  0.231, 0.510, 0.965,  0.231, 0.510, 0.965,  0.231, 0.510, 0.965,
+                // 下面 - 黄色
+                0.961, 0.620, 0.043,  0.961, 0.620, 0.043,  0.961, 0.620, 0.043,  0.961, 0.620, 0.043,
+                // 右面 - 红色
+                0.937, 0.243, 0.243,  0.937, 0.243, 0.243,  0.937, 0.243, 0.243,  0.937, 0.243, 0.243,
+                // 左面 - 青色
+                0.059, 0.847, 0.835,  0.059, 0.847, 0.835,  0.059, 0.847, 0.835,  0.059, 0.847, 0.835
+            ]);
+            
+            // 索引
+            var idx = new Uint16Array([
+                0, 1, 2,  0, 2, 3,    // 前
+                4, 5, 6,  4, 6, 7,    // 后
+                8, 9,10,  8,10,11,    // 上
+               12,13,14, 12,14,15,    // 下
+               16,17,18, 16,18,19,    // 右
+               20,21,22, 20,22,23     // 左
+            ]);
+            
+            // 创建缓冲区
+            var posBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var colBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, col, gl.STATIC_DRAW);
+            var cLoc = gl.getAttribLocation(prog, 'c');
+            gl.enableVertexAttribArray(cLoc);
+            gl.vertexAttribPointer(cLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var idxBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+            
+            cube3D.mLoc = gl.getUniformLocation(prog, 'm');
+            
+            gl.enable(gl.DEPTH_TEST);
+            
+            // 初始渲染 - 显示静态立方体
+            renderCube3D(0.3, 0.5);  // 给一个初始角度让用户能看到
+            
+            document.getElementById('vertex-count').textContent = '24';
+            document.getElementById('triangle-count').textContent = '12';
+            
+            addLog('gl', '创建 3D 几何体: ' + type);
+            showToast('3D 几何体已创建！', 'success');
+        }
+
+        function renderCube3D(rotX, rotY) {
+            var gl = cube3D.gl;
+            if (!gl) return;
+            
+            gl.clearColor(0.1, 0.1, 0.18, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            
+            // 计算旋转矩阵 (简化版本)
+            var cx = Math.cos(rotX), sx = Math.sin(rotX);
+            var cy = Math.cos(rotY), sy = Math.sin(rotY);
+            
+            // 组合变换矩阵: 透视 * 平移 * 旋转Y * 旋转X
+            var m = new Float32Array([
+                cy, sx*sy, -cx*sy, 0,
+                0, cx, sx, 0,
+                sy, -sx*cy, cx*cy, 0,
+                0, 0, -4, 1
+            ]);
+            
+            gl.uniformMatrix4fv(cube3D.mLoc, false, m);
+            gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+            
+            // 更新显示
+            var degX = Math.round(rotX * 180 / Math.PI) % 360;
+            var degY = Math.round(rotY * 180 / Math.PI) % 360;
+            document.getElementById('rot-x').textContent = degX + '°';
+            document.getElementById('rot-y').textContent = degY + '°';
+            
+            drawCalls++;
+            triangleCount += 12;
+            updateStats();
+        }
+
+        function rotateGeometry() {
+            if (!cube3D.gl) {
+                createGeometry3D();
+            }
+            
+            cube3D.rotX = 0;
+            cube3D.rotY = 0;
+            
+            function animate() {
+                cube3D.rotX += 0.01;
+                cube3D.rotY += 0.015;
+                renderCube3D(cube3D.rotX, cube3D.rotY);
+                rotationAnimId = requestAnimationFrame(animate);
+            }
+            animate();
+            addLog('gl', '开始旋转动画');
+            showToast('旋转动画已启动', 'success');
+        }
+
+        function stopRotation() {
+            if (rotationAnimId) {
+                cancelAnimationFrame(rotationAnimId);
+                rotationAnimId = null;
+                showToast('旋转已停止', 'success');
+            }
+        }
+
+        function resetView() {
+            stopRotation();
+            cube3D.rotX = 0;
+            cube3D.rotY = 0;
+            if (cube3D.gl) {
+                renderCube3D(0.3, 0.5);
+            }
+            showToast('视图已重置', 'success');
+        }
+
+        // ==================== 变换矩阵 ====================
+        function applyTransform() {
+            var canvas = document.getElementById('canvas-transform');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var rx = parseFloat(document.getElementById('rotate-x').value) * Math.PI / 180;
+            var ry = parseFloat(document.getElementById('rotate-y').value) * Math.PI / 180;
+            var rz = parseFloat(document.getElementById('rotate-z').value) * Math.PI / 180;
+            var s = parseFloat(document.getElementById('scale').value);
+            var d = parseFloat(document.getElementById('distance').value);
+            
+            document.getElementById('rotate-x-val').textContent = document.getElementById('rotate-x').value + '°';
+            document.getElementById('rotate-y-val').textContent = document.getElementById('rotate-y').value + '°';
+            document.getElementById('rotate-z-val').textContent = document.getElementById('rotate-z').value + '°';
+            document.getElementById('scale-val').textContent = s;
+            document.getElementById('distance-val').textContent = d;
+            
+            var vs = 'attribute vec3 p;attribute vec3 c;uniform mat4 m;varying vec3 vc;void main(){gl_Position=m*vec4(p,1);vc=c;}';
+            var fs = 'precision mediump float;varying vec3 vc;void main(){gl_FragColor=vec4(vc,1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            gl.useProgram(prog);
+            
+            var pos = new Float32Array([
+                -1,-1,1, 1,-1,1, 1,1,1, -1,1,1,
+                -1,-1,-1, -1,1,-1, 1,1,-1, 1,-1,-1,
+                -1,1,-1, -1,1,1, 1,1,1, 1,1,-1,
+                -1,-1,-1, 1,-1,-1, 1,-1,1, -1,-1,1,
+                1,-1,-1, 1,1,-1, 1,1,1, 1,-1,1,
+                -1,-1,-1, -1,-1,1, -1,1,1, -1,1,-1
+            ]);
+            
+            var col = new Float32Array([
+                .486,.227,.929, .486,.227,.929, .486,.227,.929, .486,.227,.929,
+                .059,.725,.506, .059,.725,.506, .059,.725,.506, .059,.725,.506,
+                .231,.510,.965, .231,.510,.965, .231,.510,.965, .231,.510,.965,
+                .961,.620,.043, .961,.620,.043, .961,.620,.043, .961,.620,.043,
+                .937,.243,.243, .937,.243,.243, .937,.243,.243, .937,.243,.243,
+                .059,.847,.835, .059,.847,.835, .059,.847,.835, .059,.847,.835
+            ]);
+            
+            var idx = new Uint16Array([
+                0,1,2,0,2,3, 4,5,6,4,6,7, 8,9,10,8,10,11,
+                12,13,14,12,14,15, 16,17,18,16,18,19, 20,21,22,20,22,23
+            ]);
+            
+            var posBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var colBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, colBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, col, gl.STATIC_DRAW);
+            var cLoc = gl.getAttribLocation(prog, 'c');
+            gl.enableVertexAttribArray(cLoc);
+            gl.vertexAttribPointer(cLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var idxBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+            
+            // 计算变换矩阵
+            var cx = Math.cos(rx), sx = Math.sin(rx);
+            var cy = Math.cos(ry), sy = Math.sin(ry);
+            var cz = Math.cos(rz), sz = Math.sin(rz);
+            
+            var m = new Float32Array([
+                cy*cz + sy*sx*sz, cx*sz, -sy*cz + cy*sx*sz, 0,
+                -cy*sz + sy*sx*cz, cx*cz, sy*sz + cy*sx*cz, 0,
+                sy*cx, -sx, cy*cx, 0,
+                0, 0, -d, 1
+            ]);
+            
+            // 应用缩放
+            for (var i = 0; i < 12; i++) m[i] *= s;
+            
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'm'), false, m);
+            
+            gl.enable(gl.DEPTH_TEST);
+            gl.clearColor(0.1, 0.1, 0.18, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+            
+            drawCalls++;
+            triangleCount += 12;
+            updateStats();
+            
+            addLog('gl', '应用变换');
+        }
+
+        function autoRotate() {
+            var angle = 0;
+            function animate() {
+                angle += 1;
+                document.getElementById('rotate-y').value = angle % 360;
+                applyTransform();
+                transformAnimId = requestAnimationFrame(animate);
+            }
+            animate();
+            showToast('自动旋转已启动', 'success');
+        }
+
+        function stopAutoRotate() {
+            if (transformAnimId) {
+                cancelAnimationFrame(transformAnimId);
+                transformAnimId = null;
+            }
+            stopDemo();
+        }
+
+        // ==================== 光照效果 ====================
+        function applyLighting() {
+            var canvas = document.getElementById('canvas-lighting');
+            var gl = canvas.getContext('webgl');
+            if (!gl) return;
+            
+            var lx = parseFloat(document.getElementById('light-x').value);
+            var ly = parseFloat(document.getElementById('light-y').value);
+            var lz = parseFloat(document.getElementById('light-z').value);
+            
+            document.getElementById('light-x-val').textContent = lx;
+            document.getElementById('light-y-val').textContent = ly;
+            document.getElementById('light-z-val').textContent = lz;
+            
+            // 带光照的着色器
+            var vs = 'attribute vec3 p;attribute vec3 n;uniform mat4 m;uniform mat3 nm;varying vec3 vn;varying vec3 vp;void main(){gl_Position=m*vec4(p,1);vn=nm*n;vp=(m*vec4(p,1)).xyz;}';
+            var fs = 'precision mediump float;varying vec3 vn;varying vec3 vp;uniform vec3 lp;void main(){vec3 n=normalize(vn);vec3 l=normalize(lp-vp);float d=max(dot(n,l),0.);vec3 c=vec3(.2+d*.8)*vec3(.486,.227,.929);gl_FragColor=vec4(c,1);}';
+            
+            var prog = createProgram(gl, vs, fs);
+            if (!prog) return;
+            
+            gl.useProgram(prog);
+            
+            // 球体
+            var lat = 20, lon = 20, r = 0.8;
+            var pos = [], norm = [], idx = [];
+            
+            for (var i = 0; i <= lat; i++) {
+                var th = i * Math.PI / lat;
+                var st = Math.sin(th), ct = Math.cos(th);
+                for (var j = 0; j <= lon; j++) {
+                    var ph = j * 2 * Math.PI / lon;
+                    var sp = Math.sin(ph), cp = Math.cos(ph);
+                    var x = cp * st, y = ct, z = sp * st;
+                    norm.push(x, y, z);
+                    pos.push(r * x, r * y, r * z);
+                }
+            }
+            
+            for (var i = 0; i < lat; i++) {
+                for (var j = 0; j < lon; j++) {
+                    var a = i * (lon + 1) + j;
+                    var b = a + lon + 1;
+                    idx.push(a, b, a + 1, b, b + 1, a + 1);
+                }
+            }
+            
+            var posBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+            var pLoc = gl.getAttribLocation(prog, 'p');
+            gl.enableVertexAttribArray(pLoc);
+            gl.vertexAttribPointer(pLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var normBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(norm), gl.STATIC_DRAW);
+            var nLoc = gl.getAttribLocation(prog, 'n');
+            gl.enableVertexAttribArray(nLoc);
+            gl.vertexAttribPointer(nLoc, 3, gl.FLOAT, false, 0, 0);
+            
+            var idxBuf = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+            
+            // 变换矩阵
+            var m = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-4,1]);
+            var nm = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+            
+            gl.uniformMatrix4fv(gl.getUniformLocation(prog, 'm'), false, m);
+            gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'nm'), false, nm);
+            gl.uniform3f(gl.getUniformLocation(prog, 'lp'), lx, ly, lz);
+            
+            gl.enable(gl.DEPTH_TEST);
+            gl.clearColor(0.1, 0.1, 0.18, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
+            
+            drawCalls++;
+            triangleCount += idx.length / 3;
+            updateStats();
+            
+            addLog('gl', '应用光照');
+        }
+
+        function animateLight() {
+            var angle = 0;
+            function animate() {
+                angle += 0.02;
+                document.getElementById('light-x').value = (3 * Math.cos(angle)).toFixed(1);
+                document.getElementById('light-z').value = (3 * Math.sin(angle)).toFixed(1);
+                applyLighting();
+                lightingAnimId = requestAnimationFrame(animate);
+            }
+            animate();
+            showToast('光源动画已启动', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function updateStats() {
+            document.getElementById('draw-calls').textContent = drawCalls;
+            document.getElementById('triangles').textContent = triangleCount;
+        }
+
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(l => 
+                '<div class="log-entry"><span class="log-time">' + l.time + '</span>' +
+                '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' + l.msg + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

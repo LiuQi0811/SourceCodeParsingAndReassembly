@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebHID API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #a78bfa;
+            --accent: #c4b5fd;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f5f3ff;
+            --bg-card: #ffffff;
+            --border: #ddd6fe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f5f3ff;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #1e1b4b;
+                --bg-card: #312e81;
+                --border: #4338ca;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(139, 92, 246, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .device-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .device-card:hover { border-color: var(--primary); }
+        .device-card.selected { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
+        
+        .device-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .device-icon { font-size: 24px; }
+        .device-name { font-weight: 600; font-size: 14px; }
+        .device-vendor { font-size: 12px; color: var(--text-secondary); }
+        
+        .device-info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 11px; }
+        .device-info-item { background: var(--bg-card); padding: 8px; border-radius: 6px; }
+        .device-info-label { color: var(--text-muted); }
+        .device-info-value { font-weight: 600; margin-top: 2px; }
+        
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-dot.connected { background: var(--success); }
+        .status-dot.disconnected { background: var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.event { background: rgba(16, 185, 129, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.data { background: rgba(139, 92, 246, 0.3); }
+        
+        .api-block {
+            background: rgba(139, 92, 246, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .info-box {
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .device-info-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎮</div>
+            <div class="logo-text">WebHID <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkHIDSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">设备管理</div>
+                    <div class="nav-item" data-tab="devices" onclick="switchTab('devices')">
+                        <span class="nav-icon">🔌</span><span>设备列表</span>
+                    </div>
+                    <div class="nav-item" data-tab="connect" onclick="switchTab('connect')">
+                        <span class="nav-icon">🔗</span><span>连接设备</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">数据通信</div>
+                    <div class="nav-item" data-tab="send" onclick="switchTab('send')">
+                        <span class="nav-icon">📤</span><span>发送数据</span>
+                    </div>
+                    <div class="nav-item" data-tab="receive" onclick="switchTab('receive')">
+                        <span class="nav-icon">📥</span><span>接收数据</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">高级功能</div>
+                    <div class="nav-item" data-tab="reports" onclick="switchTab('reports')">
+                        <span class="nav-icon">📋</span><span>报告描述符</span>
+                    </div>
+                    <div class="nav-item" data-tab="collections" onclick="switchTab('collections')">
+                        <span class="nav-icon">📁</span><span>集合</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebHID API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔌</div>
+                        <div class="stat-value" id="device-count">0</div>
+                        <div class="stat-label">已连接设备</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-value" id="send-count">0</div>
+                        <div class="stat-label">发送次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📥</div>
+                        <div class="stat-value" id="receive-count">0</div>
+                        <div class="stat-label">接收次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebHID 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">API 支持</div>
+                                            <div class="result-value" id="hid-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">安全上下文</div>
+                                            <div class="result-value" id="secure-context">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">权限策略</div>
+                                            <div class="result-value" id="permission-policy">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">已授权设备</div>
+                                            <div class="result-value" id="granted-devices">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebHID API 允许网页访问 Human Interface Devices (HID)，如游戏手柄、键盘、鼠标等。
+                        </div>
+                        
+                        <div class="warning-box">
+                            <strong>要求：</strong>HTTPS 环境 + 用户手势触发（点击按钮）
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="requestHIDDevice()">🎮 请求 HID 设备</button>
+                            <button class="btn btn-outline btn-lg" onclick="getGrantedDevices()">📋 获取已授权设备</button>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">执行结果</div>
+                                <div id="demo-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备列表 -->
+            <div id="panel-devices" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>设备列表</h1>
+                        <p>已连接的 HID 设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="refreshDevices()">🔄 刷新列表</button>
+                        <button class="btn btn-outline" onclick="requestHIDDevice()">➕ 添加设备</button>
+                    </div>
+                    
+                    <div id="device-list">
+                        <div class="info-box">
+                            暂无已连接设备。点击"添加设备"按钮请求 HID 设备访问权限。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连接设备 -->
+            <div id="panel-connect" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>连接设备</h1>
+                        <p>请求和连接 HID 设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        使用过滤器可以精确匹配特定类型的 HID 设备。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Vendor ID (十六进制)</label>
+                            <input type="text" class="form-input" id="filter-vendor-id" placeholder="例如: 0x054c">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product ID (十六进制)</label>
+                            <input type="text" class="form-input" id="filter-product-id" placeholder="例如: 0x0268">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Usage Page</label>
+                            <input type="text" class="form-input" id="filter-usage-page" placeholder="例如: 0x01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Usage</label>
+                            <input type="text" class="form-input" id="filter-usage" placeholder="例如: 0x04">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="requestHIDDeviceWithFilter()">🔍 按过滤器请求</button>
+                        <button class="btn btn-outline" onclick="requestHIDDevice()">🎮 请求任意设备</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">常用设备过滤器</div>
+                        <div class="result-grid">
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x054c', '0x0268')">
+                                <div class="result-label">PlayStation 控制器</div>
+                                <div class="result-value">Sony DualShock</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x045e', '0x02ea')">
+                                <div class="result-label">Xbox 控制器</div>
+                                <div class="result-value">Microsoft Xbox</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x057e', '0x2006')">
+                                <div class="result-label">Switch 控制器</div>
+                                <div class="result-value">Nintendo Joy-Con</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('', '', '0x01', '0x04')">
+                                <div class="result-label">键盘设备</div>
+                                <div class="result-value">Usage Page 0x01</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 发送数据 -->
+            <div id="panel-send" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>发送数据</h1>
+                        <p>向 HID 设备发送数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        选择设备后，可以发送 Feature Report 或 Output Report。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="send-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">报告类型</label>
+                            <select class="form-select" id="report-type">
+                                <option value="feature">Feature Report</option>
+                                <option value="output">Output Report</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">报告 ID</label>
+                            <input type="number" class="form-input" id="report-id" value="0" min="0" max="255">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">数据 (十六进制，空格分隔)</label>
+                        <input type="text" class="form-input" id="send-data" placeholder="例如: 01 02 03 04">
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="sendReport()">📤 发送报告</button>
+                        <button class="btn btn-outline" onclick="sendFeatureReport()">📋 发送 Feature Report</button>
+                    </div>
+                    
+                    <div id="send-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">发送结果</div>
+                            <div id="send-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 接收数据 -->
+            <div id="panel-receive" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>接收数据</h1>
+                        <p>从 HID 设备接收数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        接收设备发送的 Input Report 数据。需要先选择设备并开始监听。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="receive-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startListening()">▶️ 开始监听</button>
+                        <button class="btn btn-danger" onclick="stopListening()">⏹️ 停止监听</button>
+                        <button class="btn btn-outline" onclick="receiveFeatureReport()">📥 接收 Feature Report</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">接收日志</label>
+                        <div class="log-container" id="receive-log">
+                            <div class="log-entry">等待数据...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 报告描述符 -->
+            <div id="panel-reports" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>报告描述符</h1>
+                        <p>查看设备的 HID 报告描述符</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        报告描述符定义了设备支持的所有报告格式。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="report-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getReportDescriptor()">📋 获取描述符</button>
+                    </div>
+                    
+                    <div id="report-descriptor-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">报告描述符</div>
+                            <div id="report-descriptor-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 集合 -->
+            <div id="panel-collections" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>集合</h1>
+                        <p>查看设备的 HID 集合信息</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        HID 集合描述了设备的逻辑分组和功能。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="collection-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getCollections()">📁 获取集合</button>
+                    </div>
+                    
+                    <div id="collections-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">集合信息</div>
+                            <div id="collections-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebHID API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">HID</span>
+                        <p class="api-description">WebHID API 的主入口，通过 navigator.hid 访问。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">HIDDevice</span>
+                        <p class="api-description">代表一个已连接的 HID 设备。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">HIDDeviceFilter</span>
+                        <p class="api-description">用于过滤特定 HID 设备的配置对象。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">HIDConnectionEvent</span>
+                        <p class="api-description">设备连接/断开事件。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">HIDInputReportEvent</span>
+                        <p class="api-description">设备输入报告事件。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.hid.requestDevice(options)</code></td><td>请求 HID 设备访问权限</td></tr>
+                            <tr><td><code>navigator.hid.getDevices()</code></td><td>获取已授权的设备列表</td></tr>
+                            <tr><td><code>device.open()</code></td><td>打开设备连接</td></tr>
+                            <tr><td><code>device.close()</code></td><td>关闭设备连接</td></tr>
+                            <tr><td><code>device.sendReport(reportId, data)</code></td><td>发送输出报告</td></tr>
+                            <tr><td><code>device.sendFeatureReport(reportId, data)</code></td><td>发送特征报告</td></tr>
+                            <tr><td><code>device.receiveFeatureReport(reportId)</code></td><td>接收特征报告</td></tr>
+                            <tr><td><code>device.collections</code></td><td>获取设备集合</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">事件</h3>
+                    <table>
+                        <thead><tr><th>事件</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>connect</code></td><td>设备连接时触发</td></tr>
+                            <tr><td><code>disconnect</code></td><td>设备断开时触发</td></tr>
+                            <tr><td><code>inputreport</code></td><td>设备发送输入报告时触发</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="warning-box">
+                        <strong>最低版本要求：</strong>
+                        <ul style="margin-left: 16px; margin-top: 8px;">
+                            <li>Chrome 89+</li>
+                            <li>Edge 89+</li>
+                            <li>Opera 75+</li>
+                            <li>Firefox: 不支持</li>
+                            <li>Safari: 不支持</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var connectedDevices = [];
+        var selectedDevice = null;
+        var sendCount = 0;
+        var receiveCount = 0;
+        var isListening = false;
+        var inputReportHandler = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkHIDSupport();
+            setupHIDEventListeners();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== HID 支持检测 ====================
+        function checkHIDSupport() {
+            var hidSupported = 'hid' in navigator;
+            var isSecure = window.isSecureContext;
+            var permissionAllowed = hidSupported;
+            
+            document.getElementById('hid-support').textContent = hidSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('hid-support').style.color = hidSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('secure-context').textContent = isSecure ? '✓ 安全' : '✗ 不安全';
+            document.getElementById('secure-context').style.color = isSecure ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('permission-policy').textContent = permissionAllowed ? '✓ 允许' : '✗ 受限';
+            document.getElementById('permission-policy').style.color = permissionAllowed ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = hidSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = hidSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (hidSupported) {
+                getGrantedDevices();
+            }
+            
+            addLog('info', 'WebHID 支持检测完成');
+        }
+
+        // ==================== HID 事件监听 ====================
+        function setupHIDEventListeners() {
+            if (!('hid' in navigator)) return;
+            
+            navigator.hid.addEventListener('connect', function(e) {
+                addLog('event', '设备连接: ' + e.device.productName);
+                showToast('设备已连接: ' + e.device.productName, 'success');
+                refreshDevices();
+            });
+            
+            navigator.hid.addEventListener('disconnect', function(e) {
+                addLog('event', '设备断开: ' + e.device.productName);
+                showToast('设备已断开: ' + e.device.productName, 'warning');
+                refreshDevices();
+            });
+        }
+
+        // ==================== 请求 HID 设备 ====================
+        async function requestHIDDevice() {
+            if (!('hid' in navigator)) {
+                showToast('WebHID API 不支持', 'error');
+                return;
+            }
+            
+            try {
+                var devices = await navigator.hid.requestDevice({ filters: [] });
+                
+                if (devices && devices.length > 0) {
+                    for (var device of devices) {
+                        await connectDevice(device);
+                    }
+                    showToast('已选择 ' + devices.length + ' 个设备', 'success');
+                    addLog('info', '请求设备成功: ' + devices.length + ' 个');
+                    refreshDevices();
+                } else {
+                    showToast('未选择任何设备', 'warning');
+                }
+            } catch (e) {
+                if (e.name === 'NotFoundError') {
+                    showToast('未找到匹配的设备', 'warning');
+                } else {
+                    showToast('请求失败: ' + e.message, 'error');
+                    addLog('error', '请求设备失败: ' + e.message);
+                }
+            }
+        }
+
+        async function requestHIDDeviceWithFilter() {
+            if (!('hid' in navigator)) {
+                showToast('WebHID API 不支持', 'error');
+                return;
+            }
+            
+            var filters = [];
+            var filter = {};
+            
+            var vendorId = document.getElementById('filter-vendor-id').value.trim();
+            var productId = document.getElementById('filter-product-id').value.trim();
+            var usagePage = document.getElementById('filter-usage-page').value.trim();
+            var usage = document.getElementById('filter-usage').value.trim();
+            
+            if (vendorId) filter.vendorId = parseInt(vendorId, 16);
+            if (productId) filter.productId = parseInt(productId, 16);
+            if (usagePage) filter.usagePage = parseInt(usagePage, 16);
+            if (usage) filter.usage = parseInt(usage, 16);
+            
+            if (Object.keys(filter).length > 0) {
+                filters.push(filter);
+            }
+            
+            try {
+                var devices = await navigator.hid.requestDevice({ filters: filters });
+                
+                if (devices && devices.length > 0) {
+                    for (var device of devices) {
+                        await connectDevice(device);
+                    }
+                    showToast('已选择 ' + devices.length + ' 个设备', 'success');
+                    addLog('info', '按过滤器请求设备成功');
+                    refreshDevices();
+                } else {
+                    showToast('未选择任何设备', 'warning');
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+                addLog('error', '请求设备失败: ' + e.message);
+            }
+        }
+
+        function setFilter(vendorId, productId, usagePage, usage) {
+            document.getElementById('filter-vendor-id').value = vendorId;
+            document.getElementById('filter-product-id').value = productId;
+            document.getElementById('filter-usage-page').value = usagePage;
+            document.getElementById('filter-usage').value = usage;
+            showToast('过滤器已设置', 'success');
+        }
+
+        // ==================== 获取已授权设备 ====================
+        async function getGrantedDevices() {
+            if (!('hid' in navigator)) return;
+            
+            try {
+                var devices = await navigator.hid.getDevices();
+                document.getElementById('granted-devices').textContent = devices.length;
+                
+                connectedDevices = [];
+                for (var device of devices) {
+                    if (!device.opened) {
+                        try {
+                            await device.open();
+                        } catch (e) {
+                            console.log('无法打开设备:', e);
+                        }
+                    }
+                    connectedDevices.push(device);
+                }
+                
+                updateDeviceList();
+                updateDeviceSelects();
+                
+                addLog('info', '获取已授权设备: ' + devices.length + ' 个');
+            } catch (e) {
+                addLog('error', '获取设备失败: ' + e.message);
+            }
+        }
+
+        // ==================== 连接设备 ====================
+        async function connectDevice(device) {
+            try {
+                if (!device.opened) {
+                    await device.open();
+                }
+                
+                if (!connectedDevices.includes(device)) {
+                    connectedDevices.push(device);
+                }
+                
+                // 设置输入报告监听
+                device.addEventListener('inputreport', handleInputReport);
+                
+                addLog('info', '设备已连接: ' + device.productName);
+                return true;
+            } catch (e) {
+                addLog('error', '连接设备失败: ' + e.message);
+                return false;
+            }
+        }
+
+        // ==================== 刷新设备列表 ====================
+        async function refreshDevices() {
+            await getGrantedDevices();
+        }
+
+        // ==================== 更新设备列表 UI ====================
+        function updateDeviceList() {
+            var container = document.getElementById('device-list');
+            document.getElementById('device-count').textContent = connectedDevices.length;
+            
+            if (connectedDevices.length === 0) {
+                container.innerHTML = '<div class="info-box">暂无已连接设备。点击"添加设备"按钮请求 HID 设备访问权限。</div>';
+                return;
+            }
+            
+            var html = '';
+            connectedDevices.forEach(function(device, index) {
+                html += '<div class="device-card" onclick="selectDevice(' + index + ')">' +
+                    '<div class="device-header">' +
+                    '<span class="device-icon">🎮</span>' +
+                    '<div>' +
+                    '<div class="device-name">' + (device.productName || 'Unknown Device') + '</div>' +
+                    '<div class="device-vendor">' + (device.manufacturerName || 'Unknown Manufacturer') + '</div>' +
+                    '</div>' +
+                    '<span class="status-dot ' + (device.opened ? 'connected' : 'disconnected') + '"></span>' +
+                    '</div>' +
+                    '<div class="device-info-grid">' +
+                    '<div class="device-info-item"><div class="device-info-label">Vendor ID</div><div class="device-info-value">0x' + device.vendorId.toString(16).padStart(4, '0') + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">Product ID</div><div class="device-info-value">0x' + device.productId.toString(16).padStart(4, '0') + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">集合数</div><div class="device-info-value">' + device.collections.length + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">状态</div><div class="device-info-value">' + (device.opened ? '已打开' : '已关闭') + '</div></div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateDeviceSelects() {
+            var selects = ['send-device-select', 'receive-device-select', 'report-device-select', 'collection-device-select'];
+            
+            selects.forEach(function(selectId) {
+                var select = document.getElementById(selectId);
+                if (!select) return;
+                
+                select.innerHTML = '<option value="">-- 请选择设备 --</option>';
+                connectedDevices.forEach(function(device, index) {
+                    select.innerHTML += '<option value="' + index + '">' + 
+                        (device.productName || 'Unknown') + ' (0x' + device.vendorId.toString(16) + ':0x' + device.productId.toString(16) + ')</option>';
+                });
+            });
+        }
+
+        function selectDevice(index) {
+            selectedDevice = connectedDevices[index];
+            var cards = document.querySelectorAll('.device-card');
+            cards.forEach(function(card, i) {
+                card.classList.toggle('selected', i === index);
+            });
+            showToast('已选择设备: ' + (selectedDevice.productName || 'Unknown'), 'success');
+        }
+
+        // ==================== 发送数据 ====================
+        async function sendReport() {
+            var deviceIndex = document.getElementById('send-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var reportId = parseInt(document.getElementById('report-id').value) || 0;
+            var dataStr = document.getElementById('send-data').value.trim();
+            
+            try {
+                var data;
+                if (dataStr) {
+                    var bytes = dataStr.split(/\s+/).map(function(b) {
+                        return parseInt(b, 16);
+                    });
+                    data = new Uint8Array(bytes);
+                } else {
+                    data = new Uint8Array(0);
+                }
+                
+                var reportType = document.getElementById('report-type').value;
+                
+                if (reportType === 'feature') {
+                    await device.sendFeatureReport(reportId, data);
+                    addLog('data', '发送 Feature Report ID=' + reportId + ', 数据: ' + arrayToHex(data));
+                } else {
+                    await device.sendReport(reportId, data);
+                    addLog('data', '发送 Output Report ID=' + reportId + ', 数据: ' + arrayToHex(data));
+                }
+                
+                sendCount++;
+                document.getElementById('send-count').textContent = sendCount;
+                
+                showSendResult('success', '发送成功<br>Report ID: ' + reportId + '<br>数据: ' + arrayToHex(data));
+                showToast('数据已发送', 'success');
+                
+            } catch (e) {
+                showSendResult('error', '发送失败: ' + e.message);
+                showToast('发送失败: ' + e.message, 'error');
+                addLog('error', '发送失败: ' + e.message);
+            }
+        }
+
+        async function sendFeatureReport() {
+            var deviceIndex = document.getElementById('send-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var reportId = parseInt(document.getElementById('report-id').value) || 0;
+            var dataStr = document.getElementById('send-data').value.trim();
+            
+            try {
+                var data;
+                if (dataStr) {
+                    var bytes = dataStr.split(/\s+/).map(function(b) {
+                        return parseInt(b, 16);
+                    });
+                    data = new Uint8Array(bytes);
+                } else {
+                    data = new Uint8Array(0);
+                }
+                
+                await device.sendFeatureReport(reportId, data);
+                
+                sendCount++;
+                document.getElementById('send-count').textContent = sendCount;
+                
+                addLog('data', '发送 Feature Report ID=' + reportId);
+                showSendResult('success', 'Feature Report 发送成功');
+                showToast('Feature Report 已发送', 'success');
+                
+            } catch (e) {
+                showSendResult('error', '发送失败: ' + e.message);
+                showToast('发送失败: ' + e.message, 'error');
+            }
+        }
+
+        function showSendResult(type, content) {
+            document.getElementById('send-result').style.display = 'block';
+            var color = type === 'success' ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('send-result-content').innerHTML = 
+                '<div style="padding: 12px; background: rgba(0,0,0,0.05); border-radius: var(--radius-sm);">' +
+                '<strong style="color: ' + color + ';">' + content + '</strong></div>';
+        }
+
+        // ==================== 接收数据 ====================
+        function handleInputReport(event) {
+            var data = new Uint8Array(event.data.buffer);
+            receiveCount++;
+            document.getElementById('receive-count').textContent = receiveCount;
+            
+            var logEntry = '<span class="log-time">' + new Date().toLocaleTimeString() + '</span>' +
+                '<span class="log-type data">DATA</span>' +
+                '设备: ' + event.device.productName + ', Report ID: ' + event.reportId + 
+                ', 数据: ' + arrayToHex(data);
+            
+            var logContainer = document.getElementById('receive-log');
+            logContainer.innerHTML = '<div class="log-entry">' + logEntry + '</div>' + logContainer.innerHTML;
+            
+            addLog('data', '收到 Input Report ID=' + event.reportId + ', 数据: ' + arrayToHex(data));
+        }
+
+        function startListening() {
+            var deviceIndex = document.getElementById('receive-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            isListening = true;
+            showToast('开始监听设备输入', 'success');
+            addLog('info', '开始监听设备: ' + device.productName);
+        }
+
+        function stopListening() {
+            isListening = false;
+            showToast('已停止监听', 'success');
+            addLog('info', '停止监听设备');
+        }
+
+        async function receiveFeatureReport() {
+            var deviceIndex = document.getElementById('receive-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var reportId = 0;
+                var data = await device.receiveFeatureReport(reportId);
+                
+                receiveCount++;
+                document.getElementById('receive-count').textContent = receiveCount;
+                
+                var logEntry = '<span class="log-time">' + new Date().toLocaleTimeString() + '</span>' +
+                    '<span class="log-type data">DATA</span>' +
+                    'Feature Report ID: ' + reportId + ', 数据: ' + arrayToHex(new Uint8Array(data.buffer));
+                
+                var logContainer = document.getElementById('receive-log');
+                logContainer.innerHTML = '<div class="log-entry">' + logEntry + '</div>' + logContainer.innerHTML;
+                
+                showToast('Feature Report 已接收', 'success');
+                addLog('data', '接收 Feature Report 成功');
+                
+            } catch (e) {
+                showToast('接收失败: ' + e.message, 'error');
+                addLog('error', '接收 Feature Report 失败: ' + e.message);
+            }
+        }
+
+        // ==================== 报告描述符 ====================
+        function getReportDescriptor() {
+            var deviceIndex = document.getElementById('report-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device) {
+                showToast('设备不存在', 'error');
+                return;
+            }
+            
+            var collections = device.collections;
+            
+            var html = '<div style="font-size: 12px;">';
+            html += '<p><strong>设备:</strong> ' + (device.productName || 'Unknown') + '</p>';
+            html += '<p><strong>集合数量:</strong> ' + collections.length + '</p>';
+            
+            collections.forEach(function(collection, i) {
+                html += '<div style="margin: 12px 0; padding: 12px; background: var(--bg-card); border-radius: 8px;">';
+                html += '<p><strong>集合 ' + i + '</strong></p>';
+                html += '<p>Usage Page: 0x' + collection.usagePage.toString(16) + '</p>';
+                html += '<p>Usage: 0x' + collection.usage.toString(16) + '</p>';
+                html += '<p>类型: ' + collection.type + '</p>';
+                
+                if (collection.inputReports && collection.inputReports.length > 0) {
+                    html += '<p><strong>Input Reports:</strong> ' + collection.inputReports.length + '</p>';
+                }
+                if (collection.outputReports && collection.outputReports.length > 0) {
+                    html += '<p><strong>Output Reports:</strong> ' + collection.outputReports.length + '</p>';
+                }
+                if (collection.featureReports && collection.featureReports.length > 0) {
+                    html += '<p><strong>Feature Reports:</strong> ' + collection.featureReports.length + '</p>';
+                }
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            
+            document.getElementById('report-descriptor-result').style.display = 'block';
+            document.getElementById('report-descriptor-content').innerHTML = html;
+            
+            addLog('info', '获取报告描述符');
+            showToast('报告描述符已获取', 'success');
+        }
+
+        // ==================== 集合信息 ====================
+        function getCollections() {
+            var deviceIndex = document.getElementById('collection-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device) {
+                showToast('设备不存在', 'error');
+                return;
+            }
+            
+            var collections = device.collections;
+            
+            var html = '<div style="font-size: 12px;">';
+            
+            if (collections.length === 0) {
+                html += '<p>该设备没有集合信息</p>';
+            } else {
+                collections.forEach(function(collection, i) {
+                    html += '<div style="margin: 12px 0; padding: 12px; background: var(--bg-card); border-radius: 8px; border-left: 3px solid var(--primary);">';
+                    html += '<h4 style="margin-bottom: 8px;">集合 ' + (i + 1) + '</h4>';
+                    html += '<table style="width: 100%; font-size: 11px;">';
+                    html += '<tr><td>Usage Page</td><td>0x' + collection.usagePage.toString(16).padStart(4, '0') + '</td></tr>';
+                    html += '<tr><td>Usage</td><td>0x' + collection.usage.toString(16).padStart(4, '0') + '</td></tr>';
+                    html += '<tr><td>类型</td><td>' + collection.type + '</td></tr>';
+                    html += '</table>';
+                    html += '</div>';
+                });
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('collections-result').style.display = 'block';
+            document.getElementById('collections-content').innerHTML = html;
+            
+            addLog('info', '获取集合信息');
+            showToast('集合信息已获取', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function arrayToHex(arr) {
+            return Array.from(arr).map(function(b) {
+                return b.toString(16).padStart(2, '0');
+            }).join(' ');
+        }
+
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>

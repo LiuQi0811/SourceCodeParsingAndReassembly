@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #059669;
+            --primary-dark: #047857;
+            --secondary: #34d399;
+            --accent: #6ee7b7;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #ecfdf5;
+            --bg-card: #ffffff;
+            --border: #a7f3d0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #ecfdf5;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --bg-main: #022c22;
+                --bg-card: #064e3b;
+                --border: #065f46;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(5, 150, 105, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(5, 150, 105, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(5, 150, 105, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; }
+        
+        .canvas-container {
+            background: #0a0a0a;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+        }
+        
+        .canvas-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .gpu-info {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .gpu-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .gpu-info-row:last-child { border-bottom: none; }
+        
+        .api-block {
+            background: rgba(5, 150, 105, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(5, 150, 105, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.gpu { background: rgba(5, 150, 105, 0.3); }
+        .log-type.api { background: rgba(16, 185, 129, 0.3); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .info-box {
+            background: rgba(5, 150, 105, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">WebGPU <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkGPUSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">核心对象</div>
+                    <div class="nav-item" data-tab="adapter" onclick="switchTab('adapter')">
+                        <span class="nav-icon">🔌</span><span>GPU适配器</span>
+                    </div>
+                    <div class="nav-item" data-tab="device" onclick="switchTab('device')">
+                        <span class="nav-icon">💻</span><span>GPU设备</span>
+                    </div>
+                    <div class="nav-item" data-tab="buffer" onclick="switchTab('buffer')">
+                        <span class="nav-icon">📦</span><span>缓冲区</span>
+                    </div>
+                    <div class="nav-item" data-tab="texture" onclick="switchTab('texture')">
+                        <span class="nav-icon">🖼️</span><span>纹理</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">渲染管线</div>
+                    <div class="nav-item" data-tab="shader" onclick="switchTab('shader')">
+                        <span class="nav-icon">📝</span><span>着色器</span>
+                    </div>
+                    <div class="nav-item" data-tab="pipeline" onclick="switchTab('pipeline')">
+                        <span class="nav-icon">🔧</span><span>渲染管线</span>
+                    </div>
+                    <div class="nav-item" data-tab="render" onclick="switchTab('render')">
+                        <span class="nav-icon">🎨</span><span>渲染演示</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">计算</div>
+                    <div class="nav-item" data-tab="compute" onclick="switchTab('compute')">
+                        <span class="nav-icon">🧮</span><span>计算着色器</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebGPU API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎨</div>
+                        <div class="stat-value" id="draw-calls">0</div>
+                        <div class="stat-label">绘制调用</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-value" id="buffer-count">0</div>
+                        <div class="stat-label">缓冲区</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🖼️</div>
+                        <div class="stat-value" id="texture-count">0</div>
+                        <div class="stat-label">纹理</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebGPU 支持状态</label>
+                                <div class="gpu-info">
+                                    <div class="gpu-info-row">
+                                        <span>WebGPU API</span>
+                                        <span id="webgpu-status" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gpu-info-row">
+                                        <span>GPU 适配器</span>
+                                        <span id="adapter-status" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gpu-info-row">
+                                        <span>GPU 设备</span>
+                                        <span id="device-status" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gpu-info-row">
+                                        <span>适配器名称</span>
+                                        <span id="adapter-name" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="gpu-info-row">
+                                        <span>架构</span>
+                                        <span id="adapter-arch" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">GPU 特性</label>
+                                <div class="gpu-info" id="features-list" style="max-height: 200px; overflow-y: auto;">
+                                    <div style="color: var(--text-muted);">检测中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebGPU 是现代浏览器中的新一代图形 API，提供低级别 GPU 访问能力
+                        </div>
+                        
+                        <div class="warning-box">
+                            <strong>浏览器要求：</strong>Chrome 113+、Edge 113+ 或 Firefox Nightly（需开启标志）
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="initWebGPU()">⚡ 初始化 WebGPU</button>
+                            <button class="btn btn-success btn-lg" onclick="runRenderDemo()">🎨 渲染演示</button>
+                            <button class="btn btn-outline btn-lg" onclick="runComputeDemo()">🧮 计算演示</button>
+                        </div>
+                        
+                        <div class="canvas-container">
+                            <canvas id="demo-canvas" width="640" height="360"></canvas>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">执行结果</div>
+                                <div id="demo-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GPU适配器 -->
+            <div id="panel-adapter" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>GPU 适配器</h1>
+                        <p>GPUAdapter - GPU 硬件抽象</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GPUAdapter</strong> 代表一个 GPU 硬件适配器，通过 navigator.gpu.requestAdapter() 获取。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="requestAdapter()">🔌 请求适配器</button>
+                        <button class="btn btn-outline" onclick="getAdapterInfo()">📋 获取信息</button>
+                        <button class="btn btn-outline" onclick="checkAdapterFeatures()">✨ 检查特性</button>
+                        <button class="btn btn-outline" onclick="checkAdapterLimits()">📏 检查限制</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">适配器信息</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="adapter-info-status">未请求</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">厂商</div>
+                                <div class="result-value" id="adapter-info-vendor">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">架构</div>
+                                <div class="result-value" id="adapter-info-arch">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">设备</div>
+                                <div class="result-value" id="adapter-info-device">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box" id="adapter-features-result" style="display: none;">
+                        <div class="result-title">支持的特性</div>
+                        <div id="adapter-features-list"></div>
+                    </div>
+                    
+                    <div class="result-box" id="adapter-limits-result" style="display: none;">
+                        <div class="result-title">限制</div>
+                        <div id="adapter-limits-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GPU设备 -->
+            <div id="panel-device" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>GPU 设备</h1>
+                        <p>GPUDevice - GPU 逻辑设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GPUDevice</strong> 是 WebGPU 的核心对象，用于创建所有 GPU 资源。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="requestDevice()">💻 请求设备</button>
+                        <button class="btn btn-outline" onclick="getDeviceInfo()">📋 设备信息</button>
+                        <button class="btn btn-outline" onclick="getDeviceQueue()">📤 获取队列</button>
+                        <button class="btn btn-danger" onclick="destroyDevice()">💥 销毁设备</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">设备状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="device-info-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">标签</div>
+                                <div class="result-value" id="device-info-label">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">特性数</div>
+                                <div class="result-value" id="device-info-features">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">队列</div>
+                                <div class="result-value" id="device-info-queue">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 缓冲区 -->
+            <div id="panel-buffer" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>缓冲区</h1>
+                        <p>GPUBuffer - GPU 内存缓冲区</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GPUBuffer</strong> 用于在 GPU 上存储数据，如顶点、索引、uniform 等。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">缓冲区大小 (字节)</label>
+                            <input type="number" class="form-input" id="buffer-size" value="1024">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">用途</label>
+                            <select class="form-select" id="buffer-usage">
+                                <option value="vertex">顶点缓冲区</option>
+                                <option value="index">索引缓冲区</option>
+                                <option value="uniform">Uniform 缓冲区</option>
+                                <option value="storage">存储缓冲区</option>
+                                <option value="map-read">映射读取</option>
+                                <option value="map-write">映射写入</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createBuffer()">📦 创建缓冲区</button>
+                        <button class="btn btn-outline" onclick="writeBuffer()">✏️ 写入数据</button>
+                        <button class="btn btn-outline" onclick="mapBuffer()">🗺️ 映射缓冲区</button>
+                        <button class="btn btn-danger" onclick="destroyBuffer()">💥 销毁缓冲区</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">缓冲区状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="buffer-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">大小</div>
+                                <div class="result-value" id="buffer-size-info">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">用途</div>
+                                <div class="result-value" id="buffer-usage-info">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">映射状态</div>
+                                <div class="result-value" id="buffer-mapped">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 纹理 -->
+            <div id="panel-texture" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>纹理</h1>
+                        <p>GPUTexture - GPU 纹理资源</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GPUTexture</strong> 用于存储图像数据，可用于渲染目标或纹理采样。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">宽度</label>
+                            <input type="number" class="form-input" id="texture-width" value="256">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">高度</label>
+                            <input type="number" class="form-input" id="texture-height" value="256">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">格式</label>
+                            <select class="form-select" id="texture-format">
+                                <option value="rgba8unorm">RGBA8 Unorm</option>
+                                <option value="bgra8unorm">BGRA8 Unorm</option>
+                                <option value="rgba16float">RGBA16 Float</option>
+                                <option value="rgba32float">RGBA32 Float</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">用途</label>
+                            <select class="form-select" id="texture-usage">
+                                <option value="render">渲染目标</option>
+                                <option value="sampled">采样纹理</option>
+                                <option value="storage">存储纹理</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createTexture()">🖼️ 创建纹理</button>
+                        <button class="btn btn-outline" onclick="createTextureView()">👁️ 创建视图</button>
+                        <button class="btn btn-outline" onclick="writeTexture()">✏️ 写入数据</button>
+                        <button class="btn btn-danger" onclick="destroyTexture()">💥 销毁纹理</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">纹理状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="texture-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">尺寸</div>
+                                <div class="result-value" id="texture-dim">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">格式</div>
+                                <div class="result-value" id="texture-format-info">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">层级</div>
+                                <div class="result-value" id="texture-mips">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 着色器 -->
+            <div id="panel-shader" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>着色器</h1>
+                        <p>GPUShaderModule - WGSL 着色器模块</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebGPU 使用 <strong>WGSL</strong> (WebGPU Shading Language) 编写着色器。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">着色器类型</label>
+                        <select class="form-select" id="shader-type">
+                            <option value="vertex">顶点着色器</option>
+                            <option value="fragment">片段着色器</option>
+                            <option value="compute">计算着色器</option>
+                            <option value="full">完整管线</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createShaderModule()">📝 创建着色器</button>
+                        <button class="btn btn-outline" onclick="compileShader()">🔨 编译检查</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">WGSL 示例代码</div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>// 顶点着色器
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vertexMain(
+    @location(0) pos: vec2f,
+    @location(1) color: vec4f
+) -> VertexOutput {
+    var output: VertexOutput;
+    output.position = vec4f(pos, 0.0, 1.0);
+    output.color = color;
+    return output;
+}
+
+// 片段着色器
+@fragment
+fn fragmentMain(
+    @location(0) color: vec4f
+) -> @location(0) vec4f {
+    return color;
+}
+
+// 计算着色器
+@compute @workgroup_size(64)
+fn computeMain(
+    @builtin(global_invocation_id) id: vec3u
+) {
+    // 计算逻辑
+}</div>
+                    </div>
+                    
+                    <div id="shader-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">编译结果</div>
+                            <div id="shader-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 渲染管线 -->
+            <div id="panel-pipeline" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>渲染管线</h1>
+                        <p>GPURenderPipeline - 渲染管线配置</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>GPURenderPipeline</strong> 定义了完整的渲染流程，包括着色器、混合模式等。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">图元拓扑</label>
+                            <select class="form-select" id="primitive-topology">
+                                <option value="triangle-list">三角形列表</option>
+                                <option value="triangle-strip">三角形带</option>
+                                <option value="line-list">线段列表</option>
+                                <option value="point-list">点列表</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">混合模式</label>
+                            <select class="form-select" id="blend-mode">
+                                <option value="none">无混合</option>
+                                <option value="alpha">Alpha 混合</option>
+                                <option value="additive">加法混合</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createRenderPipeline()">🔧 创建管线</button>
+                        <button class="btn btn-outline" onclick="createBindGroup()">📦 创建绑定组</button>
+                        <button class="btn btn-outline" onclick="createCommandEncoder()">📝 创建编码器</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">管线状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="pipeline-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">绑定组数</div>
+                                <div class="result-value" id="bind-group-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">顶点缓冲区</div>
+                                <div class="result-value" id="vertex-buffers">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 渲染演示 -->
+            <div id="panel-render" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>渲染演示</h1>
+                        <p>完整的 WebGPU 渲染流程</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        点击下方按钮开始完整的 WebGPU 渲染演示
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary btn-lg" onclick="runFullRenderDemo()">🎨 运行渲染演示</button>
+                        <button class="btn btn-outline" onclick="runAnimatedDemo()">▶️ 动画演示</button>
+                        <button class="btn btn-danger" onclick="stopAnimatedDemo()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="render-canvas" width="640" height="360"></canvas>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">渲染统计</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">帧数</div>
+                                <div class="result-value" id="frame-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">FPS</div>
+                                <div class="result-value" id="fps-count">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">三角形</div>
+                                <div class="result-value" id="tri-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">绘制调用</div>
+                                <div class="result-value" id="draw-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 计算着色器 -->
+            <div id="panel-compute" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>计算着色器</h1>
+                        <p>GPUComputePipeline - GPU 通用计算</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>计算着色器</strong> 允许在 GPU 上执行通用计算任务，如物理模拟、图像处理等。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">工作组 X</label>
+                            <input type="number" class="form-input" id="workgroup-x" value="64">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">工作组 Y</label>
+                            <input type="number" class="form-input" id="workgroup-y" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">工作组 Z</label>
+                            <input type="number" class="form-input" id="workgroup-z" value="1">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createComputePipeline()">🧮 创建计算管线</button>
+                        <button class="btn btn-success" onclick="runComputePass()">▶️ 执行计算</button>
+                        <button class="btn btn-outline" onclick="readComputeResult()">📊 读取结果</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">计算示例 - 向量加法</div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">复制</button>@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+    let i = id.x;
+    if (i >= arrayLength(&inputA)) {
+        return;
+    }
+    output[i] = inputA[i] + inputB[i];
+}</div>
+                    </div>
+                    
+                    <div id="compute-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">计算结果</div>
+                            <div id="compute-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebGPU API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUAdapter</span>
+                        <p class="api-description">GPU 硬件适配器，代表物理 GPU 设备。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUDevice</span>
+                        <p class="api-description">GPU 逻辑设备，所有 GPU 资源的创建入口。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUBuffer</span>
+                        <p class="api-description">GPU 内存缓冲区，用于存储顶点、索引、uniform 等数据。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUTexture</span>
+                        <p class="api-description">GPU 纹理资源，用于图像数据和渲染目标。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUShaderModule</span>
+                        <p class="api-description">WGSL 着色器模块。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPURenderPipeline</span>
+                        <p class="api-description">渲染管线，配置完整的渲染流程。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">GPUComputePipeline</span>
+                        <p class="api-description">计算管线，用于 GPU 通用计算。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.gpu.requestAdapter()</code></td><td>请求 GPU 适配器</td></tr>
+                            <tr><td><code>adapter.requestDevice()</code></td><td>请求 GPU 设备</td></tr>
+                            <tr><td><code>device.createBuffer()</code></td><td>创建缓冲区</td></tr>
+                            <tr><td><code>device.createTexture()</code></td><td>创建纹理</td></tr>
+                            <tr><td><code>device.createShaderModule()</code></td><td>创建着色器模块</td></tr>
+                            <tr><td><code>device.createRenderPipeline()</code></td><td>创建渲染管线</td></tr>
+                            <tr><td><code>device.createComputePipeline()</code></td><td>创建计算管线</td></tr>
+                            <tr><td><code>device.createCommandEncoder()</code></td><td>创建命令编码器</td></tr>
+                            <tr><td><code>queue.submit()</code></td><td>提交命令队列</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="warning-box">
+                        <strong>最低版本要求：</strong>
+                        <ul style="margin-left: 16px; margin-top: 8px;">
+                            <li>Chrome 113+</li>
+                            <li>Edge 113+</li>
+                            <li>Firefox Nightly (需开启 dom.webgpu.enabled)</li>
+                            <li>Safari 17+ (部分支持)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var drawCalls = 0;
+        var bufferCount = 0;
+        var textureCount = 0;
+        var frameCount = 0;
+        var animationId = null;
+        
+        // WebGPU 对象
+        var gpuAdapter = null;
+        var gpuDevice = null;
+        var gpuBuffer = null;
+        var gpuTexture = null;
+        var gpuShaderModule = null;
+        var gpuPipeline = null;
+        var gpuComputePipeline = null;
+        var gpuBindGroup = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkGPUSupport();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== GPU 支持检测 ====================
+        async function checkGPUSupport() {
+            var webgpuSupported = 'gpu' in navigator;
+            
+            document.getElementById('webgpu-status').textContent = webgpuSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('webgpu-status').style.color = webgpuSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = webgpuSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = webgpuSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (webgpuSupported) {
+                try {
+                    var adapter = await navigator.gpu.requestAdapter();
+                    if (adapter) {
+                        gpuAdapter = adapter;
+                        document.getElementById('adapter-status').textContent = '✓ 可用';
+                        document.getElementById('adapter-status').style.color = 'var(--success)';
+                        
+                        var info = await adapter.requestAdapterInfo();
+                        document.getElementById('adapter-name').textContent = info.device || info.vendor || 'Unknown';
+                        document.getElementById('adapter-arch').textContent = info.architecture || 'Unknown';
+                        
+                        // 特性列表
+                        var features = Array.from(adapter.features);
+                        var featuresHtml = features.slice(0, 10).map(f => 
+                            '<div style="padding: 4px 0; font-size: 11px;">✓ ' + f + '</div>'
+                        ).join('');
+                        if (features.length > 10) {
+                            featuresHtml += '<div style="color: var(--text-muted);">... 共 ' + features.length + ' 个特性</div>';
+                        }
+                        document.getElementById('features-list').innerHTML = featuresHtml || '<div style="color: var(--text-muted);">无特殊特性</div>';
+                        
+                        // 尝试获取设备
+                        try {
+                            gpuDevice = await adapter.requestDevice();
+                            document.getElementById('device-status').textContent = '✓ 已创建';
+                            document.getElementById('device-status').style.color = 'var(--success)';
+                        } catch (e) {
+                            document.getElementById('device-status').textContent = '✗ 创建失败';
+                            document.getElementById('device-status').style.color = 'var(--danger)';
+                        }
+                    } else {
+                        document.getElementById('adapter-status').textContent = '✗ 不可用';
+                        document.getElementById('adapter-status').style.color = 'var(--danger)';
+                    }
+                } catch (e) {
+                    document.getElementById('adapter-status').textContent = '✗ 错误: ' + e.message;
+                    document.getElementById('adapter-status').style.color = 'var(--danger)';
+                }
+            } else {
+                document.getElementById('adapter-status').textContent = '✗ 不支持';
+                document.getElementById('device-status').textContent = '✗ 不支持';
+            }
+            
+            addLog('api', 'WebGPU 支持检测完成');
+        }
+
+        // ==================== 初始化 WebGPU ====================
+        async function initWebGPU() {
+            if (!('gpu' in navigator)) {
+                showToast('当前浏览器不支持 WebGPU', 'error');
+                showDemoResult('error', 'WebGPU 不支持。请使用 Chrome 113+ 或 Edge 113+');
+                return;
+            }
+            
+            try {
+                // 请求适配器
+                gpuAdapter = await navigator.gpu.requestAdapter();
+                if (!gpuAdapter) {
+                    showToast('无法获取 GPU 适配器', 'error');
+                    return;
+                }
+                
+                // 请求设备
+                gpuDevice = await gpuAdapter.requestDevice();
+                if (!gpuDevice) {
+                    showToast('无法获取 GPU 设备', 'error');
+                    return;
+                }
+                
+                // 设置错误处理
+                gpuDevice.lost.then(info => {
+                    console.error('WebGPU device lost:', info);
+                    showToast('GPU 设备丢失: ' + info.message, 'error');
+                });
+                
+                gpuDevice.pushErrorScope('validation');
+                
+                showToast('WebGPU 初始化成功', 'success');
+                showDemoResult('success', 
+                    'WebGPU 初始化成功！<br>' +
+                    '适配器: ' + (await gpuAdapter.requestAdapterInfo()).device + '<br>' +
+                    '设备已就绪');
+                
+                addLog('gpu', 'WebGPU 初始化成功');
+                
+            } catch (e) {
+                showToast('初始化失败: ' + e.message, 'error');
+                showDemoResult('error', '初始化失败: ' + e.message);
+            }
+        }
+
+        // ==================== GPU 适配器 ====================
+        async function requestAdapter() {
+            if (!('gpu' in navigator)) {
+                showToast('WebGPU 不支持', 'error');
+                return;
+            }
+            
+            try {
+                gpuAdapter = await navigator.gpu.requestAdapter({
+                    powerPreference: 'high-performance'
+                });
+                
+                if (gpuAdapter) {
+                    document.getElementById('adapter-info-status').textContent = '已获取';
+                    document.getElementById('adapter-info-status').style.color = 'var(--success)';
+                    showToast('适配器已获取', 'success');
+                    addLog('gpu', 'GPU 适配器已获取');
+                } else {
+                    document.getElementById('adapter-info-status').textContent = '不可用';
+                    showToast('无法获取适配器', 'error');
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+            }
+        }
+
+        async function getAdapterInfo() {
+            if (!gpuAdapter) {
+                showToast('请先请求适配器', 'warning');
+                return;
+            }
+            
+            try {
+                var info = await gpuAdapter.requestAdapterInfo();
+                document.getElementById('adapter-info-vendor').textContent = info.vendor || 'Unknown';
+                document.getElementById('adapter-info-arch').textContent = info.architecture || 'Unknown';
+                document.getElementById('adapter-info-device').textContent = info.device || 'Unknown';
+                showToast('适配器信息已获取', 'success');
+                addLog('gpu', '获取适配器信息');
+            } catch (e) {
+                showToast('获取信息失败: ' + e.message, 'error');
+            }
+        }
+
+        function checkAdapterFeatures() {
+            if (!gpuAdapter) {
+                showToast('请先请求适配器', 'warning');
+                return;
+            }
+            
+            var features = Array.from(gpuAdapter.features);
+            var html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
+            features.forEach(f => {
+                html += '<div style="padding: 8px; background: var(--bg-card); border-radius: 6px; font-size: 11px;">✓ ' + f + '</div>';
+            });
+            html += '</div>';
+            
+            document.getElementById('adapter-features-result').style.display = 'block';
+            document.getElementById('adapter-features-list').innerHTML = html;
+            showToast('共 ' + features.length + ' 个特性', 'success');
+            addLog('gpu', '检查适配器特性');
+        }
+
+        function checkAdapterLimits() {
+            if (!gpuAdapter) {
+                showToast('请先请求适配器', 'warning');
+                return;
+            }
+            
+            var limits = gpuAdapter.limits;
+            var html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 11px;">';
+            var keys = ['maxTextureDimension1D', 'maxTextureDimension2D', 'maxTextureDimension3D', 
+                       'maxTextureArrayLayers', 'maxBindGroups', 'maxBindingsPerBindGroup',
+                       'maxBufferSize', 'maxVertexBuffers', 'maxVertexAttributes'];
+            keys.forEach(k => {
+                html += '<div style="padding: 8px; background: var(--bg-card); border-radius: 6px;">' +
+                        '<span style="color: var(--text-muted);">' + k + ':</span> ' + limits[k] + '</div>';
+            });
+            html += '</div>';
+            
+            document.getElementById('adapter-limits-result').style.display = 'block';
+            document.getElementById('adapter-limits-list').innerHTML = html;
+            showToast('限制信息已获取', 'success');
+            addLog('gpu', '检查适配器限制');
+        }
+
+        // ==================== GPU 设备 ====================
+        async function requestDevice() {
+            if (!gpuAdapter) {
+                await requestAdapter();
+                if (!gpuAdapter) return;
+            }
+            
+            try {
+                gpuDevice = await gpuAdapter.requestDevice({
+                    requiredFeatures: [],
+                    requiredLimits: {
+                        maxBufferSize: gpuAdapter.limits.maxBufferSize
+                    }
+                });
+                
+                gpuDevice.lost.then(info => {
+                    showToast('设备丢失: ' + info.message, 'error');
+                    document.getElementById('device-info-status').textContent = '已丢失';
+                    document.getElementById('device-info-status').style.color = 'var(--danger)';
+                });
+                
+                document.getElementById('device-info-status').textContent = '已创建';
+                document.getElementById('device-info-status').style.color = 'var(--success)';
+                document.getElementById('device-info-label').textContent = gpuDevice.label || 'default';
+                document.getElementById('device-info-features').textContent = gpuDevice.features.size;
+                document.getElementById('device-info-queue').textContent = '可用';
+                
+                showToast('GPU 设备已创建', 'success');
+                addLog('gpu', 'GPU 设备已创建');
+                
+            } catch (e) {
+                showToast('创建设备失败: ' + e.message, 'error');
+            }
+        }
+
+        function getDeviceInfo() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            document.getElementById('device-info-label').textContent = gpuDevice.label || 'default';
+            document.getElementById('device-info-features').textContent = gpuDevice.features.size;
+            document.getElementById('device-info-queue').textContent = gpuDevice.queue ? '可用' : '不可用';
+            showToast('设备信息已更新', 'success');
+        }
+
+        function getDeviceQueue() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var queue = gpuDevice.queue;
+            if (queue) {
+                showToast('队列已获取', 'success');
+                addLog('gpu', '获取设备队列');
+            } else {
+                showToast('队列不可用', 'error');
+            }
+        }
+
+        function destroyDevice() {
+            if (!gpuDevice) {
+                showToast('设备不存在', 'warning');
+                return;
+            }
+            
+            gpuDevice.destroy();
+            gpuDevice = null;
+            
+            document.getElementById('device-info-status').textContent = '已销毁';
+            document.getElementById('device-info-status').style.color = 'var(--danger)';
+            
+            showToast('设备已销毁', 'success');
+            addLog('gpu', 'GPU 设备已销毁');
+        }
+
+        // ==================== 缓冲区 ====================
+        function createBuffer() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var size = parseInt(document.getElementById('buffer-size').value) || 1024;
+            var usageType = document.getElementById('buffer-usage').value;
+            
+            var usageFlags = {
+                'vertex': GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                'index': GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+                'uniform': GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                'storage': GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                'map-read': GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+                'map-write': GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_DST
+            };
+            
+            try {
+                gpuBuffer = gpuDevice.createBuffer({
+                    size: size,
+                    usage: usageFlags[usageType],
+                    mappedAtCreation: false
+                });
+                
+                bufferCount++;
+                document.getElementById('buffer-count').textContent = bufferCount;
+                
+                document.getElementById('buffer-status').textContent = '已创建';
+                document.getElementById('buffer-status').style.color = 'var(--success)';
+                document.getElementById('buffer-size-info').textContent = size + ' bytes';
+                document.getElementById('buffer-usage-info').textContent = usageType;
+                document.getElementById('buffer-mapped').textContent = '未映射';
+                
+                showToast('缓冲区已创建', 'success');
+                addLog('gpu', '创建缓冲区: ' + size + ' bytes');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function writeBuffer() {
+            if (!gpuDevice || !gpuBuffer) {
+                showToast('请先创建缓冲区', 'warning');
+                return;
+            }
+            
+            var data = new Float32Array([1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
+            gpuDevice.queue.writeBuffer(gpuBuffer, 0, data);
+            
+            showToast('数据已写入', 'success');
+            addLog('gpu', '写入缓冲区数据');
+        }
+
+        async function mapBuffer() {
+            if (!gpuBuffer) {
+                showToast('请先创建缓冲区', 'warning');
+                return;
+            }
+            
+            try {
+                await gpuBuffer.mapAsync(GPUMapMode.READ);
+                document.getElementById('buffer-mapped').textContent = '已映射';
+                showToast('缓冲区已映射', 'success');
+                addLog('gpu', '映射缓冲区');
+            } catch (e) {
+                showToast('映射失败: ' + e.message, 'error');
+            }
+        }
+
+        function destroyBuffer() {
+            if (!gpuBuffer) {
+                showToast('缓冲区不存在', 'warning');
+                return;
+            }
+            
+            gpuBuffer.destroy();
+            gpuBuffer = null;
+            
+            document.getElementById('buffer-status').textContent = '已销毁';
+            document.getElementById('buffer-status').style.color = 'var(--danger)';
+            
+            showToast('缓冲区已销毁', 'success');
+            addLog('gpu', '销毁缓冲区');
+        }
+
+        // ==================== 纹理 ====================
+        function createTexture() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var width = parseInt(document.getElementById('texture-width').value) || 256;
+            var height = parseInt(document.getElementById('texture-height').value) || 256;
+            var format = document.getElementById('texture-format').value;
+            var usageType = document.getElementById('texture-usage').value;
+            
+            var usageFlags = {
+                'render': GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
+                'sampled': GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+                'storage': GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST
+            };
+            
+            try {
+                gpuTexture = gpuDevice.createTexture({
+                    size: [width, height, 1],
+                    format: format,
+                    usage: usageFlags[usageType]
+                });
+                
+                textureCount++;
+                document.getElementById('texture-count').textContent = textureCount;
+                
+                document.getElementById('texture-status').textContent = '已创建';
+                document.getElementById('texture-status').style.color = 'var(--success)';
+                document.getElementById('texture-dim').textContent = width + 'x' + height;
+                document.getElementById('texture-format-info').textContent = format;
+                document.getElementById('texture-mips').textContent = '1';
+                
+                showToast('纹理已创建', 'success');
+                addLog('gpu', '创建纹理: ' + width + 'x' + height);
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function createTextureView() {
+            if (!gpuTexture) {
+                showToast('请先创建纹理', 'warning');
+                return;
+            }
+            
+            var view = gpuTexture.createView();
+            if (view) {
+                showToast('纹理视图已创建', 'success');
+                addLog('gpu', '创建纹理视图');
+            }
+        }
+
+        function writeTexture() {
+            if (!gpuDevice || !gpuTexture) {
+                showToast('请先创建纹理', 'warning');
+                return;
+            }
+            
+            var data = new Uint8Array(256 * 256 * 4);
+            for (var i = 0; i < data.length; i += 4) {
+                data[i] = Math.random() * 255;
+                data[i + 1] = Math.random() * 255;
+                data[i + 2] = Math.random() * 255;
+                data[i + 3] = 255;
+            }
+            
+            gpuDevice.queue.writeTexture(
+                { texture: gpuTexture },
+                data,
+                { bytesPerRow: 256 * 4, rowsPerImage: 256 },
+                { width: 256, height: 256 }
+            );
+            
+            showToast('纹理数据已写入', 'success');
+            addLog('gpu', '写入纹理数据');
+        }
+
+        function destroyTexture() {
+            if (!gpuTexture) {
+                showToast('纹理不存在', 'warning');
+                return;
+            }
+            
+            gpuTexture.destroy();
+            gpuTexture = null;
+            
+            document.getElementById('texture-status').textContent = '已销毁';
+            document.getElementById('texture-status').style.color = 'var(--danger)';
+            
+            showToast('纹理已销毁', 'success');
+            addLog('gpu', '销毁纹理');
+        }
+
+        // ==================== 着色器 ====================
+        function createShaderModule() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var shaderType = document.getElementById('shader-type').value;
+            
+            var shaderCode = '';
+            if (shaderType === 'vertex') {
+                shaderCode = `
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn main(@location(0) pos: vec2f, @location(1) color: vec4f) -> VertexOutput {
+    var output: VertexOutput;
+    output.position = vec4f(pos, 0.0, 1.0);
+    output.color = color;
+    return output;
+}`;
+            } else if (shaderType === 'fragment') {
+                shaderCode = `
+@fragment
+fn main(@location(0) color: vec4f) -> @location(0) vec4f {
+    return color;
+}`;
+            } else if (shaderType === 'compute') {
+                shaderCode = `
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+    let i = id.x;
+}`;
+            } else {
+                shaderCode = `
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vs_main(@location(0) pos: vec2f, @location(1) color: vec4f) -> VertexOutput {
+    var output: VertexOutput;
+    output.position = vec4f(pos, 0.0, 1.0);
+    output.color = color;
+    return output;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec4f) -> @location(0) vec4f {
+    return color;
+}`;
+            }
+            
+            try {
+                gpuShaderModule = gpuDevice.createShaderModule({
+                    code: shaderCode
+                });
+                
+                showToast('着色器模块已创建', 'success');
+                addLog('gpu', '创建着色器模块: ' + shaderType);
+                
+                showShaderResult('success', '着色器编译成功<br><pre style="font-size: 11px; white-space: pre-wrap;">' + shaderCode + '</pre>');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+                showShaderResult('error', '编译错误: ' + e.message);
+            }
+        }
+
+        async function compileShader() {
+            if (!gpuShaderModule) {
+                showToast('请先创建着色器', 'warning');
+                return;
+            }
+            
+            try {
+                var compilationInfo = await gpuShaderModule.getCompilationInfo();
+                var hasErrors = false;
+                var messages = '';
+                
+                for (var msg of compilationInfo.messages) {
+                    if (msg.type === 'error') hasErrors = true;
+                    messages += msg.type + ': ' + msg.message + '\n';
+                }
+                
+                if (hasErrors) {
+                    showShaderResult('error', '编译错误:\n' + messages);
+                } else {
+                    showShaderResult('success', '编译成功，无错误');
+                }
+            } catch (e) {
+                showShaderResult('error', '检查失败: ' + e.message);
+            }
+        }
+
+        function showShaderResult(type, content) {
+            document.getElementById('shader-result').style.display = 'block';
+            var color = type === 'success' ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('shader-result-content').innerHTML = 
+                '<div style="padding: 12px; background: rgba(0,0,0,0.05); border-radius: var(--radius-sm);">' +
+                '<strong style="color: ' + color + ';">' + content + '</strong></div>';
+        }
+
+        // ==================== 渲染管线 ====================
+        function createRenderPipeline() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var topology = document.getElementById('primitive-topology').value;
+            
+            var shaderCode = `
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vs_main(@location(0) pos: vec2f, @location(1) color: vec4f) -> VertexOutput {
+    var output: VertexOutput;
+    output.position = vec4f(pos, 0.0, 1.0);
+    output.color = color;
+    return output;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec4f) -> @location(0) vec4f {
+    return color;
+}`;
+            
+            try {
+                var shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
+                
+                gpuPipeline = gpuDevice.createRenderPipeline({
+                    layout: 'auto',
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vs_main',
+                        buffers: [{
+                            arrayStride: 24,
+                            attributes: [
+                                { shaderLocation: 0, offset: 0, format: 'float32x2' },
+                                { shaderLocation: 1, offset: 8, format: 'float32x4' }
+                            ]
+                        }]
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fs_main',
+                        targets: [{ format: 'bgra8unorm' }]
+                    },
+                    primitive: {
+                        topology: topology
+                    }
+                });
+                
+                document.getElementById('pipeline-status').textContent = '已创建';
+                document.getElementById('pipeline-status').style.color = 'var(--success)';
+                
+                showToast('渲染管线已创建', 'success');
+                addLog('gpu', '创建渲染管线');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function createBindGroup() {
+            if (!gpuDevice || !gpuPipeline) {
+                showToast('请先创建管线', 'warning');
+                return;
+            }
+            
+            try {
+                var bindGroupLayout = gpuPipeline.getBindGroupLayout(0);
+                gpuBindGroup = gpuDevice.createBindGroup({
+                    layout: bindGroupLayout,
+                    entries: []
+                });
+                
+                document.getElementById('bind-group-count').textContent = '1';
+                showToast('绑定组已创建', 'success');
+                addLog('gpu', '创建绑定组');
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function createCommandEncoder() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var encoder = gpuDevice.createCommandEncoder();
+            if (encoder) {
+                showToast('命令编码器已创建', 'success');
+                addLog('gpu', '创建命令编码器');
+            }
+        }
+
+        // ==================== 渲染演示 ====================
+        async function runFullRenderDemo() {
+            var canvas = document.getElementById('render-canvas');
+            
+            if (!('gpu' in navigator)) {
+                showToast('WebGPU 不支持', 'error');
+                return;
+            }
+            
+            try {
+                // 初始化
+                if (!gpuAdapter) {
+                    gpuAdapter = await navigator.gpu.requestAdapter();
+                }
+                if (!gpuDevice) {
+                    gpuDevice = await gpuAdapter.requestDevice();
+                }
+                
+                // 配置 Canvas
+                var context = canvas.getContext('webgpu');
+                var format = navigator.gpu.getPreferredCanvasFormat();
+                
+                context.configure({
+                    device: gpuDevice,
+                    format: format,
+                    alphaMode: 'premultiplied'
+                });
+                
+                // 创建着色器
+                var shaderCode = `
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    var pos = array<vec2f, 3>(
+        vec2f(0.0, 0.5),
+        vec2f(-0.5, -0.5),
+        vec2f(0.5, -0.5)
+    );
+    var col = array<vec4f, 3>(
+        vec4f(1.0, 0.0, 0.0, 1.0),
+        vec4f(0.0, 1.0, 0.0, 1.0),
+        vec4f(0.0, 0.0, 1.0, 1.0)
+    );
+    
+    var output: VertexOutput;
+    output.position = vec4f(pos[vertexIndex], 0.0, 1.0);
+    output.color = col[vertexIndex];
+    return output;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec4f) -> @location(0) vec4f {
+    return color;
+}`;
+                
+                var shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
+                
+                // 创建渲染管线
+                var pipeline = gpuDevice.createRenderPipeline({
+                    layout: 'auto',
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vs_main'
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fs_main',
+                        targets: [{ format: format }]
+                    },
+                    primitive: {
+                        topology: 'triangle-list'
+                    }
+                });
+                
+                // 创建命令编码器
+                var encoder = gpuDevice.createCommandEncoder();
+                
+                // 创建渲染通道
+                var renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: context.getCurrentTexture().createView(),
+                        clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1.0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }]
+                });
+                
+                renderPass.setPipeline(pipeline);
+                renderPass.draw(3);
+                renderPass.end();
+                
+                // 提交命令
+                gpuDevice.queue.submit([encoder.finish()]);
+                
+                drawCalls++;
+                document.getElementById('draw-calls').textContent = drawCalls;
+                document.getElementById('draw-count').textContent = drawCalls;
+                document.getElementById('tri-count').textContent = '1';
+                
+                showToast('渲染完成！三角形已绘制', 'success');
+                addLog('gpu', '渲染演示完成');
+                
+            } catch (e) {
+                showToast('渲染失败: ' + e.message, 'error');
+                console.error(e);
+            }
+        }
+
+        async function runAnimatedDemo() {
+            var canvas = document.getElementById('render-canvas');
+            
+            if (!('gpu' in navigator)) {
+                showToast('WebGPU 不支持', 'error');
+                return;
+            }
+            
+            try {
+                // 初始化
+                if (!gpuAdapter) gpuAdapter = await navigator.gpu.requestAdapter();
+                if (!gpuDevice) gpuDevice = await gpuAdapter.requestDevice();
+                
+                var context = canvas.getContext('webgpu');
+                var format = navigator.gpu.getPreferredCanvasFormat();
+                
+                context.configure({
+                    device: gpuDevice,
+                    format: format,
+                    alphaMode: 'premultiplied'
+                });
+                
+                // 创建带时间变量的着色器
+                var shaderCode = `
+struct Uniforms {
+    time: f32,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
+    var pos = array<vec2f, 3>(
+        vec2f(0.0, 0.5),
+        vec2f(-0.5, -0.5),
+        vec2f(0.5, -0.5)
+    );
+    
+    var angle = uniforms.time;
+    var c = cos(angle);
+    var s = sin(angle);
+    
+    var p = pos[vi];
+    p = vec2f(p.x * c - p.y * s, p.x * s + p.y * c);
+    
+    var output: VertexOutput;
+    output.position = vec4f(p, 0.0, 1.0);
+    output.color = vec4f(
+        0.5 + 0.5 * sin(uniforms.time),
+        0.5 + 0.5 * sin(uniforms.time + 2.0),
+        0.5 + 0.5 * sin(uniforms.time + 4.0),
+        1.0
+    );
+    return output;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec4f) -> @location(0) vec4f {
+    return color;
+}`;
+                
+                var shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
+                
+                // 创建 uniform 缓冲区
+                var uniformBuffer = gpuDevice.createBuffer({
+                    size: 16,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                });
+                
+                // 创建管线
+                var pipeline = gpuDevice.createRenderPipeline({
+                    layout: 'auto',
+                    vertex: {
+                        module: shaderModule,
+                        entryPoint: 'vs_main'
+                    },
+                    fragment: {
+                        module: shaderModule,
+                        entryPoint: 'fs_main',
+                        targets: [{ format: format }]
+                    },
+                    primitive: { topology: 'triangle-list' }
+                });
+                
+                // 创建绑定组
+                var bindGroup = gpuDevice.createBindGroup({
+                    layout: pipeline.getBindGroupLayout(0),
+                    entries: [{
+                        binding: 0,
+                        resource: { buffer: uniformBuffer }
+                    }]
+                });
+                
+                var startTime = performance.now();
+                var lastTime = startTime;
+                var frames = 0;
+                
+                function render() {
+                    var now = performance.now();
+                    var time = (now - startTime) / 1000;
+                    
+                    // 更新 uniform
+                    gpuDevice.queue.writeBuffer(uniformBuffer, 0, new Float32Array([time]));
+                    
+                    var encoder = gpuDevice.createCommandEncoder();
+                    var renderPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: context.getCurrentTexture().createView(),
+                            clearValue: { r: 0.05, g: 0.05, b: 0.1, a: 1.0 },
+                            loadOp: 'clear',
+                            storeOp: 'store'
+                        }]
+                    });
+                    
+                    renderPass.setPipeline(pipeline);
+                    renderPass.setBindGroup(0, bindGroup);
+                    renderPass.draw(3);
+                    renderPass.end();
+                    
+                    gpuDevice.queue.submit([encoder.finish()]);
+                    
+                    frames++;
+                    frameCount++;
+                    document.getElementById('frame-count').textContent = frameCount;
+                    document.getElementById('draw-count').textContent = frames;
+                    
+                    // 计算 FPS
+                    if (now - lastTime >= 1000) {
+                        document.getElementById('fps-count').textContent = frames;
+                        frames = 0;
+                        lastTime = now;
+                    }
+                    
+                    animationId = requestAnimationFrame(render);
+                }
+                
+                render();
+                showToast('动画演示已启动', 'success');
+                addLog('gpu', '动画演示启动');
+                
+            } catch (e) {
+                showToast('动画失败: ' + e.message, 'error');
+                console.error(e);
+            }
+        }
+
+        function stopAnimatedDemo() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+                showToast('动画已停止', 'success');
+            }
+        }
+
+        // ==================== 计算着色器 ====================
+        async function createComputePipeline() {
+            if (!gpuDevice) {
+                showToast('请先创建设备', 'warning');
+                return;
+            }
+            
+            var shaderCode = `
+@group(0) @binding(0) var<storage, read> inputA: array<f32>;
+@group(0) @binding(1) var<storage, read> inputB: array<f32>;
+@group(0) @binding(2) var<storage, read_write> output: array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+    let i = id.x;
+    output[i] = inputA[i] + inputB[i];
+}`;
+            
+            try {
+                var shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
+                
+                gpuComputePipeline = gpuDevice.createComputePipeline({
+                    layout: 'auto',
+                    compute: {
+                        module: shaderModule,
+                        entryPoint: 'main'
+                    }
+                });
+                
+                showToast('计算管线已创建', 'success');
+                addLog('gpu', '创建计算管线');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        async function runComputePass() {
+            if (!gpuDevice || !gpuComputePipeline) {
+                showToast('请先创建计算管线', 'warning');
+                return;
+            }
+            
+            try {
+                var dataSize = 64;
+                
+                // 创建输入缓冲区
+                var inputA = gpuDevice.createBuffer({
+                    size: dataSize * 4,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                });
+                
+                var inputB = gpuDevice.createBuffer({
+                    size: dataSize * 4,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                });
+                
+                var outputBuffer = gpuDevice.createBuffer({
+                    size: dataSize * 4,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+                });
+                
+                var readBuffer = gpuDevice.createBuffer({
+                    size: dataSize * 4,
+                    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                });
+                
+                // 写入输入数据
+                var dataA = new Float32Array(dataSize);
+                var dataB = new Float32Array(dataSize);
+                for (var i = 0; i < dataSize; i++) {
+                    dataA[i] = i;
+                    dataB[i] = i * 2;
+                }
+                
+                gpuDevice.queue.writeBuffer(inputA, 0, dataA);
+                gpuDevice.queue.writeBuffer(inputB, 0, dataB);
+                
+                // 创建绑定组
+                var bindGroup = gpuDevice.createBindGroup({
+                    layout: gpuComputePipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: inputA } },
+                        { binding: 1, resource: { buffer: inputB } },
+                        { binding: 2, resource: { buffer: outputBuffer } }
+                    ]
+                });
+                
+                // 执行计算
+                var encoder = gpuDevice.createCommandEncoder();
+                var computePass = encoder.beginComputePass();
+                computePass.setPipeline(gpuComputePipeline);
+                computePass.setBindGroup(0, bindGroup);
+                computePass.dispatchWorkgroups(1);
+                computePass.end();
+                
+                // 复制结果到读取缓冲区
+                encoder.copyBufferToBuffer(outputBuffer, 0, readBuffer, 0, dataSize * 4);
+                
+                gpuDevice.queue.submit([encoder.finish()]);
+                
+                // 读取结果
+                await readBuffer.mapAsync(GPUMapMode.READ);
+                var result = new Float32Array(readBuffer.getMappedRange().slice(0));
+                readBuffer.unmap();
+                
+                // 显示结果
+                var resultHtml = '<div style="font-family: monospace; font-size: 11px;">';
+                for (var i = 0; i < Math.min(10, dataSize); i++) {
+                    resultHtml += dataA[i] + ' + ' + dataB[i] + ' = ' + result[i] + '<br>';
+                }
+                resultHtml += '... (共 ' + dataSize + ' 个元素)</div>';
+                
+                document.getElementById('compute-result').style.display = 'block';
+                document.getElementById('compute-result-content').innerHTML = resultHtml;
+                
+                showToast('计算完成', 'success');
+                addLog('gpu', '执行计算通道');
+                
+                // 清理
+                inputA.destroy();
+                inputB.destroy();
+                outputBuffer.destroy();
+                readBuffer.destroy();
+                
+            } catch (e) {
+                showToast('计算失败: ' + e.message, 'error');
+                console.error(e);
+            }
+        }
+
+        function readComputeResult() {
+            showToast('结果已在上方显示', 'success');
+        }
+
+        // ==================== 演示功能 ====================
+        async function runRenderDemo() {
+            await runFullRenderDemo();
+        }
+
+        async function runComputeDemo() {
+            if (!gpuDevice) {
+                await initWebGPU();
+            }
+            await createComputePipeline();
+            await runComputePass();
+        }
+
+        function showDemoResult(type, message) {
+            document.getElementById('demo-result').style.display = 'block';
+            var color = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--warning)';
+            document.getElementById('demo-result-content').innerHTML = 
+                '<div style="padding: 12px; background: rgba(0,0,0,0.05); border-radius: var(--radius-sm);">' +
+                '<strong style="color: ' + color + ';">' + message + '</strong></div>';
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(l => 
+                '<div class="log-entry"><span class="log-time">' + l.time + '</span>' +
+                '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' + l.msg + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>

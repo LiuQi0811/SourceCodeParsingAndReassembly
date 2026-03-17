@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebCodecs API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #dc2626;
+            --primary-dark: #b91c1c;
+            --secondary: #f87171;
+            --accent: #fca5a5;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --bg-main: #fef2f2;
+            --bg-card: #ffffff;
+            --border: #fecaca;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fef2f2;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #450a0a;
+                --bg-card: #7f1d1d;
+                --border: #991b1b;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(220, 38, 38, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(220, 38, 38, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #15803d); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #b91c1c); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; }
+        
+        .canvas-container {
+            background: #000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+        
+        .canvas-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .codec-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+        }
+        
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.active { background: var(--success); }
+        .status-dot.inactive { background: var(--danger); }
+        .status-dot.pending { background: var(--warning); }
+        
+        .api-block {
+            background: rgba(220, 38, 38, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(220, 38, 38, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-right: 8px; }
+        .log-type.codec { background: rgba(220, 38, 38, 0.3); }
+        .log-type.api { background: rgba(22, 163, 74, 0.3); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .info-box {
+            background: rgba(220, 38, 38, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(202, 138, 4, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+            .result-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🎬</div>
+            <div class="logo-text">WebCodecs <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkApiSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">视频编解码</div>
+                    <div class="nav-item" data-tab="video-encoder" onclick="switchTab('video-encoder')">
+                        <span class="nav-icon">🎥</span><span>视频编码器</span>
+                    </div>
+                    <div class="nav-item" data-tab="video-decoder" onclick="switchTab('video-decoder')">
+                        <span class="nav-icon">📺</span><span>视频解码器</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">音频编解码</div>
+                    <div class="nav-item" data-tab="audio-encoder" onclick="switchTab('audio-encoder')">
+                        <span class="nav-icon">🎵</span><span>音频编码器</span>
+                    </div>
+                    <div class="nav-item" data-tab="audio-decoder" onclick="switchTab('audio-decoder')">
+                        <span class="nav-icon">🔊</span><span>音频解码器</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebCodecs API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎥</div>
+                        <div class="stat-value" id="video-frames">0</div>
+                        <div class="stat-label">视频帧处理</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎵</div>
+                        <div class="stat-value" id="audio-frames">0</div>
+                        <div class="stat-label">音频帧处理</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-value" id="encode-speed">-</div>
+                        <div class="stat-label">编码速度</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">API 支持状态</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-videoencoder"></span>
+                                        <span>VideoEncoder</span>
+                                        <span id="api-videoencoder" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-videodecoder"></span>
+                                        <span>VideoDecoder</span>
+                                        <span id="api-videodecoder" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-audioencoder"></span>
+                                        <span>AudioEncoder</span>
+                                        <span id="api-audioencoder" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-audiodecoder"></span>
+                                        <span>AudioDecoder</span>
+                                        <span id="api-audiodecoder" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-videoframe"></span>
+                                        <span>VideoFrame</span>
+                                        <span id="api-videoframe" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div class="codec-status">
+                                        <span class="status-dot" id="status-audiodata"></span>
+                                        <span>AudioData</span>
+                                        <span id="api-audiodata" style="margin-left: auto; color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">编解码能力</label>
+                                <div style="background: var(--bg-main); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>H.264 编码</span>
+                                        <span id="codec-h264-enc" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>H.264 解码</span>
+                                        <span id="codec-h264-dec" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                                        <span>VP8 编码</span>
+                                        <span id="codec-vp8-enc" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                                        <span>AAC 编码</span>
+                                        <span id="codec-aac-enc" style="color: var(--text-muted);">检测中...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebCodecs API 提供底层音视频编解码能力，支持高性能媒体处理
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <button class="btn btn-primary btn-lg" onclick="demoVideoEncode()">🎥 视频编码演示</button>
+                            <button class="btn btn-success btn-lg" onclick="demoVideoDecode()">📺 视频解码演示</button>
+                            <button class="btn btn-outline btn-lg" onclick="demoAudioEncode()">🎵 音频编码演示</button>
+                        </div>
+                        
+                        <div class="canvas-container" id="demo-canvas-container">
+                            <canvas id="demo-canvas" width="640" height="360"></canvas>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">处理结果</div>
+                                <div id="demo-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视频编码器 -->
+            <div id="panel-video-encoder" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>视频编码器</h1>
+                        <p>VideoEncoder - 将视频帧编码为压缩数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>VideoEncoder</strong> 将 VideoFrame 对象编码为 EncodedVideoChunk。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">编码格式</label>
+                            <select class="form-select" id="video-enc-codec">
+                                <option value="avc1.42E01E">H.264 (avc1.42E01E)</option>
+                                <option value="vp8">VP8</option>
+                                <option value="vp09.00.10.08">VP9</option>
+                                <option value="av01.0.04M.08">AV1</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">宽度</label>
+                            <input type="number" class="form-input" id="video-enc-width" value="640">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">高度</label>
+                            <input type="number" class="form-input" id="video-enc-height" value="360">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">比特率 (bps)</label>
+                            <input type="number" class="form-input" id="video-enc-bitrate" value="1000000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">帧率</label>
+                            <input type="number" class="form-input" id="video-enc-framerate" value="30">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">关键帧间隔</label>
+                            <input type="number" class="form-input" id="video-enc-keyint" value="60">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createVideoEncoder()">🔧 创建编码器</button>
+                        <button class="btn btn-success" onclick="encodeVideoFrame()">🎥 编码帧</button>
+                        <button class="btn btn-outline" onclick="flushVideoEncoder()">🔄 刷新</button>
+                        <button class="btn btn-danger" onclick="closeVideoEncoder()">⏹️ 关闭</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">编码器状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="ve-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">编码帧数</div>
+                                <div class="result-value" id="ve-frames">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">输出块数</div>
+                                <div class="result-value" id="ve-chunks">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">队列大小</div>
+                                <div class="result-value" id="ve-queue">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视频解码器 -->
+            <div id="panel-video-decoder" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>视频解码器</h1>
+                        <p>VideoDecoder - 将压缩数据解码为视频帧</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>VideoDecoder</strong> 将 EncodedVideoChunk 解码为 VideoFrame 对象。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">解码格式</label>
+                        <select class="form-select" id="video-dec-codec">
+                            <option value="avc1.42E01E">H.264 (avc1.42E01E)</option>
+                            <option value="vp8">VP8</option>
+                            <option value="vp09.00.10.08">VP9</option>
+                            <option value="av01.0.04M.08">AV1</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">宽度</label>
+                            <input type="number" class="form-input" id="video-dec-width" value="640">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">高度</label>
+                            <input type="number" class="form-input" id="video-dec-height" value="360">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createVideoDecoder()">🔧 创建解码器</button>
+                        <button class="btn btn-success" onclick="decodeVideoChunk()">📺 解码数据</button>
+                        <button class="btn btn-outline" onclick="flushVideoDecoder()">🔄 刷新</button>
+                        <button class="btn btn-danger" onclick="closeVideoDecoder()">⏹️ 关闭</button>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="video-dec-canvas" width="640" height="360"></canvas>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">解码器状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="vd-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">解码帧数</div>
+                                <div class="result-value" id="vd-frames">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">队列大小</div>
+                                <div class="result-value" id="vd-queue">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音频编码器 -->
+            <div id="panel-audio-encoder" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>音频编码器</h1>
+                        <p>AudioEncoder - 将音频数据编码为压缩格式</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>AudioEncoder</strong> 将 AudioData 对象编码为 EncodedAudioChunk。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">编码格式</label>
+                            <select class="form-select" id="audio-enc-codec">
+                                <option value="mp4a.40.2">AAC</option>
+                                <option value="opus">Opus</option>
+                                <option value="vorbis">Vorbis</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">采样率</label>
+                            <select class="form-select" id="audio-enc-samplerate">
+                                <option value="48000">48000 Hz</option>
+                                <option value="44100">44100 Hz</option>
+                                <option value="22050">22050 Hz</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">声道数</label>
+                            <select class="form-select" id="audio-enc-channels">
+                                <option value="1">单声道</option>
+                                <option value="2">立体声</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">比特率 (bps)</label>
+                            <input type="number" class="form-input" id="audio-enc-bitrate" value="128000">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createAudioEncoder()">🔧 创建编码器</button>
+                        <button class="btn btn-success" onclick="encodeAudioData()">🎵 编码数据</button>
+                        <button class="btn btn-outline" onclick="flushAudioEncoder()">🔄 刷新</button>
+                        <button class="btn btn-danger" onclick="closeAudioEncoder()">⏹️ 关闭</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">编码器状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="ae-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">编码帧数</div>
+                                <div class="result-value" id="ae-frames">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">输出块数</div>
+                                <div class="result-value" id="ae-chunks">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 音频解码器 -->
+            <div id="panel-audio-decoder" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>音频解码器</h1>
+                        <p>AudioDecoder - 将压缩音频解码为原始数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        <strong>AudioDecoder</strong> 将 EncodedAudioChunk 解码为 AudioData 对象。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">解码格式</label>
+                            <select class="form-select" id="audio-dec-codec">
+                                <option value="mp4a.40.2">AAC</option>
+                                <option value="opus">Opus</option>
+                                <option value="vorbis">Vorbis</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">采样率</label>
+                            <select class="form-select" id="audio-dec-samplerate">
+                                <option value="48000">48000 Hz</option>
+                                <option value="44100">44100 Hz</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">声道数</label>
+                            <select class="form-select" id="audio-dec-channels">
+                                <option value="1">单声道</option>
+                                <option value="2">立体声</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="createAudioDecoder()">🔧 创建解码器</button>
+                        <button class="btn btn-success" onclick="decodeAudioChunk()">🔊 解码数据</button>
+                        <button class="btn btn-outline" onclick="flushAudioDecoder()">🔄 刷新</button>
+                        <button class="btn btn-danger" onclick="closeAudioDecoder()">⏹️ 关闭</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">解码器状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="ad-status">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">解码帧数</div>
+                                <div class="result-value" id="ad-frames">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebCodecs API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">VideoEncoder</span>
+                        <p class="api-description">视频编码器，将 VideoFrame 编码为 EncodedVideoChunk。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">VideoDecoder</span>
+                        <p class="api-description">视频解码器，将 EncodedVideoChunk 解码为 VideoFrame。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">AudioEncoder</span>
+                        <p class="api-description">音频编码器，将 AudioData 编码为 EncodedAudioChunk。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CLASS</span>
+                        <span class="api-signature">AudioDecoder</span>
+                        <p class="api-description">音频解码器，将 EncodedAudioChunk 解码为 AudioData。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">编解码器通用方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>configure(config)</code></td><td>配置编解码器</td></tr>
+                            <tr><td><code>encode(frame/data)</code></td><td>编码帧/数据</td></tr>
+                            <tr><td><code>decode(chunk)</code></td><td>解码块</td></tr>
+                            <tr><td><code>flush()</code></td><td>刷新缓冲区</td></tr>
+                            <tr><td><code>close()</code></td><td>关闭编解码器</td></tr>
+                            <tr><td><code>reset()</code></td><td>重置编解码器</td></tr>
+                            <tr><td><code>isConfigSupported(config)</code></td><td>静态方法，检查配置支持</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">VideoFrame 属性/方法</h3>
+                    <table>
+                        <thead><tr><th>属性/方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>format</code></td><td>像素格式</td></tr>
+                            <tr><td><code>codedWidth/codedHeight</code></td><td>编码尺寸</td></tr>
+                            <tr><td><code>displayWidth/displayHeight</code></td><td>显示尺寸</td></tr>
+                            <tr><td><code>timestamp</code></td><td>时间戳</td></tr>
+                            <tr><td><code>duration</code></td><td>持续时间</td></tr>
+                            <tr><td><code>allocationSize()</code></td><td>获取所需内存大小</td></tr>
+                            <tr><td><code>copyTo(buffer)</code></td><td>复制数据到缓冲区</td></tr>
+                            <tr><td><code>close()</code></td><td>关闭帧</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">使用示例</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>// 创建视频编码器
+const encoder = new VideoEncoder({
+    output: (chunk, metadata) => {
+        console.log('编码块:', chunk);
+    },
+    error: (e) => console.error(e)
+});
+
+// 配置编码器
+await encoder.configure({
+    codec: 'avc1.42E01E',
+    width: 640,
+    height: 360,
+    bitrate: 1000000,
+    framerate: 30
+});
+
+// 创建视频帧并编码
+const canvas = document.createElement('canvas');
+canvas.width = 640;
+canvas.height = 360;
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = 'red';
+ctx.fillRect(0, 0, 640, 360);
+
+const frame = new VideoFrame(canvas, { timestamp: 0 });
+encoder.encode(frame);
+frame.close();
+
+// 刷新并关闭
+await encoder.flush();
+encoder.close();
+
+// 创建视频解码器
+const decoder = new VideoDecoder({
+    output: (frame) => {
+        console.log('解码帧:', frame);
+        frame.close();
+    },
+    error: (e) => console.error(e)
+});
+
+await decoder.configure({
+    codec: 'avc1.42E01E',
+    codedWidth: 640,
+    codedHeight: 360
+});</div>
+                    
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        WebCodecs API 需要 Chrome 94+ 或 Edge 94+，Firefox 和 Safari 支持有限。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry"><span class="log-time">--:--:--</span>等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var videoFramesCount = 0;
+        var audioFramesCount = 0;
+        var videoEncoder = null;
+        var videoDecoder = null;
+        var audioEncoder = null;
+        var audioDecoder = null;
+        var veFrames = 0;
+        var veChunks = 0;
+        var vdFrames = 0;
+        var aeFrames = 0;
+        var aeChunks = 0;
+        var adFrames = 0;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiSupport();
+            drawDemoCanvas();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== API 检测 ====================
+        async function checkApiSupport() {
+            var videoEncoderSupported = typeof VideoEncoder !== 'undefined';
+            var videoDecoderSupported = typeof VideoDecoder !== 'undefined';
+            var audioEncoderSupported = typeof AudioEncoder !== 'undefined';
+            var audioDecoderSupported = typeof AudioDecoder !== 'undefined';
+            var videoFrameSupported = typeof VideoFrame !== 'undefined';
+            var audioDataSupported = typeof AudioData !== 'undefined';
+            
+            updateApiStatus('videoencoder', videoEncoderSupported);
+            updateApiStatus('videodecoder', videoDecoderSupported);
+            updateApiStatus('audioencoder', audioEncoderSupported);
+            updateApiStatus('audiodecoder', audioDecoderSupported);
+            updateApiStatus('videoframe', videoFrameSupported);
+            updateApiStatus('audiodata', audioDataSupported);
+            
+            var allSupported = videoEncoderSupported && videoDecoderSupported;
+            document.getElementById('api-status').textContent = allSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = allSupported ? 'var(--success)' : 'var(--danger)';
+            
+            // 检查编解码能力
+            if (videoEncoderSupported) {
+                await checkCodecSupport('avc1.42E01E', 'h264-enc', 'encode');
+            }
+            if (videoDecoderSupported) {
+                await checkCodecSupport('avc1.42E01E', 'h264-dec', 'decode');
+            }
+            if (videoEncoderSupported) {
+                await checkCodecSupport('vp8', 'vp8-enc', 'encode');
+            }
+            if (audioEncoderSupported) {
+                await checkCodecSupport('mp4a.40.2', 'aac-enc', 'encode');
+            }
+
+            addLog('api', 'API 支持检测完成');
+        }
+
+        function updateApiStatus(name, supported) {
+            var statusEl = document.getElementById('status-' + name);
+            var textEl = document.getElementById('api-' + name);
+            
+            if (statusEl) {
+                statusEl.classList.add(supported ? 'active' : 'inactive');
+            }
+            if (textEl) {
+                textEl.textContent = supported ? '✓ 支持' : '✗ 不支持';
+                textEl.style.color = supported ? 'var(--success)' : 'var(--danger)';
+            }
+        }
+
+        async function checkCodecSupport(codec, elementId, type) {
+            var el = document.getElementById('codec-' + elementId);
+            if (!el) return;
+            
+            try {
+                var config = { codec: codec };
+                if (type === 'encode') {
+                    var result = await VideoEncoder.isConfigSupported(config);
+                } else {
+                    var result = await VideoDecoder.isConfigSupported(config);
+                }
+                el.textContent = result.supported ? '✓ 支持' : '✗ 不支持';
+                el.style.color = result.supported ? 'var(--success)' : 'var(--danger)';
+            } catch (e) {
+                el.textContent = '✗ 不支持';
+                el.style.color = 'var(--danger)';
+            }
+        }
+
+        // ==================== 演示画布 ====================
+        function drawDemoCanvas() {
+            var canvas = document.getElementById('demo-canvas');
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#dc2626';
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('WebCodecs API 演示', canvas.width / 2, canvas.height / 2);
+        }
+
+        // ==================== 视频编码器 ====================
+        async function createVideoEncoder() {
+            if (typeof VideoEncoder === 'undefined') {
+                showToast('当前浏览器不支持 VideoEncoder', 'error');
+                return;
+            }
+            
+            try {
+                var codec = document.getElementById('video-enc-codec').value;
+                var width = parseInt(document.getElementById('video-enc-width').value);
+                var height = parseInt(document.getElementById('video-enc-height').value);
+                var bitrate = parseInt(document.getElementById('video-enc-bitrate').value);
+                var framerate = parseInt(document.getElementById('video-enc-framerate').value);
+                
+                videoEncoder = new VideoEncoder({
+                    output: function(chunk, metadata) {
+                        veChunks++;
+                        document.getElementById('ve-chunks').textContent = veChunks;
+                        addLog('codec', '编码输出块 #' + veChunks + ', 大小: ' + chunk.byteLength + ' bytes');
+                    },
+                    error: function(e) {
+                        addLog('codec', '编码错误: ' + e.message);
+                        showToast('编码错误: ' + e.message, 'error');
+                    }
+                });
+                
+                await videoEncoder.configure({
+                    codec: codec,
+                    width: width,
+                    height: height,
+                    bitrate: bitrate,
+                    framerate: framerate
+                });
+                
+                document.getElementById('ve-status').textContent = '已配置';
+                document.getElementById('ve-status').style.color = 'var(--success)';
+                
+                addLog('codec', '视频编码器已创建');
+                showToast('视频编码器已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+                addLog('codec', '创建编码器失败: ' + e.message);
+            }
+        }
+
+        async function encodeVideoFrame() {
+            if (!videoEncoder) {
+                showToast('请先创建编码器', 'warning');
+                return;
+            }
+            
+            try {
+                var width = parseInt(document.getElementById('video-enc-width').value);
+                var height = parseInt(document.getElementById('video-enc-height').value);
+                
+                // 创建测试画布
+                var canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                var ctx = canvas.getContext('2d');
+                
+                // 绘制测试图案
+                ctx.fillStyle = 'hsl(' + (veFrames * 10 % 360) + ', 70%, 50%)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.fillStyle = 'white';
+                ctx.font = '32px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Frame ' + veFrames, width / 2, height / 2);
+                
+                // 创建 VideoFrame
+                var frame = new VideoFrame(canvas, { timestamp: veFrames * 33333 });
+                
+                // 编码
+                videoEncoder.encode(frame);
+                frame.close();
+                
+                veFrames++;
+                videoFramesCount++;
+                document.getElementById('ve-frames').textContent = veFrames;
+                document.getElementById('video-frames').textContent = videoFramesCount;
+                document.getElementById('ve-queue').textContent = videoEncoder.encodeQueueSize;
+                
+                addLog('codec', '编码帧 #' + veFrames);
+                
+            } catch (e) {
+                showToast('编码失败: ' + e.message, 'error');
+            }
+        }
+
+        async function flushVideoEncoder() {
+            if (!videoEncoder) return;
+            await videoEncoder.flush();
+            showToast('编码器已刷新', 'success');
+        }
+
+        function closeVideoEncoder() {
+            if (videoEncoder) {
+                videoEncoder.close();
+                videoEncoder = null;
+                document.getElementById('ve-status').textContent = '已关闭';
+                document.getElementById('ve-status').style.color = 'var(--danger)';
+                addLog('codec', '视频编码器已关闭');
+                showToast('编码器已关闭', 'success');
+            }
+        }
+
+        // ==================== 视频解码器 ====================
+        async function createVideoDecoder() {
+            if (typeof VideoDecoder === 'undefined') {
+                showToast('当前浏览器不支持 VideoDecoder', 'error');
+                return;
+            }
+            
+            try {
+                var codec = document.getElementById('video-dec-codec').value;
+                var width = parseInt(document.getElementById('video-dec-width').value);
+                var height = parseInt(document.getElementById('video-dec-height').value);
+                
+                videoDecoder = new VideoDecoder({
+                    output: function(frame) {
+                        vdFrames++;
+                        document.getElementById('vd-frames').textContent = vdFrames;
+                        
+                        // 绘制到画布
+                        var canvas = document.getElementById('video-dec-canvas');
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+                        
+                        frame.close();
+                        addLog('codec', '解码帧 #' + vdFrames);
+                    },
+                    error: function(e) {
+                        addLog('codec', '解码错误: ' + e.message);
+                    }
+                });
+                
+                await videoDecoder.configure({
+                    codec: codec,
+                    codedWidth: width,
+                    codedHeight: height
+                });
+                
+                document.getElementById('vd-status').textContent = '已配置';
+                document.getElementById('vd-status').style.color = 'var(--success)';
+                
+                addLog('codec', '视频解码器已创建');
+                showToast('视频解码器已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        async function decodeVideoChunk() {
+            if (!videoDecoder) {
+                showToast('请先创建解码器', 'warning');
+                return;
+            }
+            
+            showToast('需要实际的编码数据块进行解码', 'warning');
+            addLog('codec', '解码需要 EncodedVideoChunk 数据');
+        }
+
+        async function flushVideoDecoder() {
+            if (!videoDecoder) return;
+            await videoDecoder.flush();
+            showToast('解码器已刷新', 'success');
+        }
+
+        function closeVideoDecoder() {
+            if (videoDecoder) {
+                videoDecoder.close();
+                videoDecoder = null;
+                document.getElementById('vd-status').textContent = '已关闭';
+                document.getElementById('vd-status').style.color = 'var(--danger)';
+                addLog('codec', '视频解码器已关闭');
+                showToast('解码器已关闭', 'success');
+            }
+        }
+
+        // ==================== 音频编码器 ====================
+        async function createAudioEncoder() {
+            if (typeof AudioEncoder === 'undefined') {
+                showToast('当前浏览器不支持 AudioEncoder', 'error');
+                return;
+            }
+            
+            try {
+                var codec = document.getElementById('audio-enc-codec').value;
+                var sampleRate = parseInt(document.getElementById('audio-enc-samplerate').value);
+                var channels = parseInt(document.getElementById('audio-enc-channels').value);
+                var bitrate = parseInt(document.getElementById('audio-enc-bitrate').value);
+                
+                audioEncoder = new AudioEncoder({
+                    output: function(chunk, metadata) {
+                        aeChunks++;
+                        document.getElementById('ae-chunks').textContent = aeChunks;
+                        addLog('codec', '音频编码块 #' + aeChunks);
+                    },
+                    error: function(e) {
+                        addLog('codec', '音频编码错误: ' + e.message);
+                    }
+                });
+                
+                await audioEncoder.configure({
+                    codec: codec,
+                    sampleRate: sampleRate,
+                    numberOfChannels: channels,
+                    bitrate: bitrate
+                });
+                
+                document.getElementById('ae-status').textContent = '已配置';
+                document.getElementById('ae-status').style.color = 'var(--success)';
+                
+                addLog('codec', '音频编码器已创建');
+                showToast('音频编码器已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        async function encodeAudioData() {
+            if (!audioEncoder) {
+                showToast('请先创建编码器', 'warning');
+                return;
+            }
+            
+            showToast('需要 AudioData 对象进行编码', 'warning');
+            addLog('codec', '编码需要 AudioData 数据');
+        }
+
+        async function flushAudioEncoder() {
+            if (!audioEncoder) return;
+            await audioEncoder.flush();
+            showToast('编码器已刷新', 'success');
+        }
+
+        function closeAudioEncoder() {
+            if (audioEncoder) {
+                audioEncoder.close();
+                audioEncoder = null;
+                document.getElementById('ae-status').textContent = '已关闭';
+                document.getElementById('ae-status').style.color = 'var(--danger)';
+                addLog('codec', '音频编码器已关闭');
+                showToast('编码器已关闭', 'success');
+            }
+        }
+
+        // ==================== 音频解码器 ====================
+        async function createAudioDecoder() {
+            if (typeof AudioDecoder === 'undefined') {
+                showToast('当前浏览器不支持 AudioDecoder', 'error');
+                return;
+            }
+            
+            try {
+                var codec = document.getElementById('audio-dec-codec').value;
+                var sampleRate = parseInt(document.getElementById('audio-dec-samplerate').value);
+                var channels = parseInt(document.getElementById('audio-dec-channels').value);
+                
+                audioDecoder = new AudioDecoder({
+                    output: function(data) {
+                        adFrames++;
+                        document.getElementById('ad-frames').textContent = adFrames;
+                        addLog('codec', '音频解码帧 #' + adFrames);
+                        data.close();
+                    },
+                    error: function(e) {
+                        addLog('codec', '音频解码错误: ' + e.message);
+                    }
+                });
+                
+                await audioDecoder.configure({
+                    codec: codec,
+                    sampleRate: sampleRate,
+                    numberOfChannels: channels
+                });
+                
+                document.getElementById('ad-status').textContent = '已配置';
+                document.getElementById('ad-status').style.color = 'var(--success)';
+                
+                addLog('codec', '音频解码器已创建');
+                showToast('音频解码器已创建', 'success');
+                
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        async function decodeAudioChunk() {
+            if (!audioDecoder) {
+                showToast('请先创建解码器', 'warning');
+                return;
+            }
+            
+            showToast('需要 EncodedAudioChunk 进行解码', 'warning');
+            addLog('codec', '解码需要 EncodedAudioChunk 数据');
+        }
+
+        async function flushAudioDecoder() {
+            if (!audioDecoder) return;
+            await audioDecoder.flush();
+            showToast('解码器已刷新', 'success');
+        }
+
+        function closeAudioDecoder() {
+            if (audioDecoder) {
+                audioDecoder.close();
+                audioDecoder = null;
+                document.getElementById('ad-status').textContent = '已关闭';
+                document.getElementById('ad-status').style.color = 'var(--danger)';
+                addLog('codec', '音频解码器已关闭');
+                showToast('解码器已关闭', 'success');
+            }
+        }
+
+        // ==================== 演示功能 ====================
+        async function demoVideoEncode() {
+            if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
+                showDemoResult('error', '当前浏览器不支持 WebCodecs API');
+                return;
+            }
+            
+            var startTime = performance.now();
+            var encodedChunks = 0;
+            
+            try {
+                var encoder = new VideoEncoder({
+                    output: function(chunk) { encodedChunks++; },
+                    error: function(e) { console.error(e); }
+                });
+                
+                await encoder.configure({
+                    codec: 'avc1.42E01E',
+                    width: 640,
+                    height: 360,
+                    bitrate: 1000000,
+                    framerate: 30
+                });
+                
+                var canvas = document.getElementById('demo-canvas');
+                var ctx = canvas.getContext('2d');
+                
+                // 编码10帧
+                for (var i = 0; i < 10; i++) {
+                    ctx.fillStyle = 'hsl(' + (i * 36) + ', 70%, 50%)';
+                    ctx.fillRect(0, 0, 640, 360);
+                    ctx.fillStyle = 'white';
+                    ctx.font = '32px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Frame ' + i, 320, 180);
+                    
+                    var frame = new VideoFrame(canvas, { timestamp: i * 33333 });
+                    encoder.encode(frame);
+                    frame.close();
+                }
+                
+                await encoder.flush();
+                encoder.close();
+                
+                var duration = (performance.now() - startTime).toFixed(1);
+                
+                videoFramesCount += 10;
+                document.getElementById('video-frames').textContent = videoFramesCount;
+                document.getElementById('encode-speed').textContent = duration + 'ms';
+                
+                showDemoResult('success', 
+                    '编码完成！<br>' +
+                    '编码帧数: 10<br>' +
+                    '输出块数: ' + encodedChunks + '<br>' +
+                    '耗时: ' + duration + 'ms');
+                
+                addLog('codec', '视频编码演示完成');
+                
+            } catch (e) {
+                showDemoResult('error', '编码失败: ' + e.message);
+            }
+        }
+
+        async function demoVideoDecode() {
+            if (typeof VideoDecoder === 'undefined') {
+                showDemoResult('error', '当前浏览器不支持 VideoDecoder');
+                return;
+            }
+            
+            showDemoResult('warning', 
+                '视频解码演示需要实际的编码数据。<br>' +
+                '请使用 VideoEncoder 生成 EncodedVideoChunk 后进行解码。');
+        }
+
+        async function demoAudioEncode() {
+            if (typeof AudioEncoder === 'undefined') {
+                showDemoResult('error', '当前浏览器不支持 AudioEncoder');
+                return;
+            }
+            
+            showDemoResult('warning', 
+                '音频编码演示需要 AudioData 对象。<br>' +
+                '可以从 AudioContext 或音频文件创建 AudioData。');
+        }
+
+        function showDemoResult(type, message) {
+            document.getElementById('demo-result').style.display = 'block';
+            var color = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--warning)';
+            document.getElementById('demo-result-content').innerHTML = 
+                '<div style="padding: 12px; background: rgba(0,0,0,0.05); border-radius: var(--radius-sm);">' +
+                '<strong style="color: ' + color + ';">' + message + '</strong></div>';
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, message) {
+            var now = new Date();
+            logs.unshift({ type: type, message: message, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            var container = document.getElementById('log-container');
+            container.innerHTML = logs.map(log => 
+                '<div class="log-entry"><span class="log-time">' + log.time + '</span>' +
+                '<span class="log-type ' + log.type + '">' + log.type.toUpperCase() + '</span>' +
+                log.message + '</div>'
+            ).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(() => btn.textContent = '复制', 2000);
+        }
+    </script>
+</body>
+</html>
