@@ -1,0 +1,2019 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas API - 完全优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-optimized {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 性能监控 */
+        .performance-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .perf-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .perf-label {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .perf-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .canvas-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        canvas {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        canvas:active {
+            transform: scale(1.02);
+        }
+
+        .canvas-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            pointer-events: none;
+        }
+
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        .code-block {
+            background: #1e1e2f;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 15px 0;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .code-comment {
+            color: #81c784;
+        }
+
+        .code-keyword {
+            color: #64b5f6;
+        }
+
+        .code-string {
+            color: #ffb74d;
+        }
+
+        .code-number {
+            color: #f06292;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>🎨 Canvas API - 完全优化版</span>
+                <span class="status-badge status-optimized">✓ 性能优化</span>
+            </h1>
+            <p>2D绘图、像素操作、变换、动画 - 包含性能监控、错误处理、响应式设计</p>
+
+            <!-- 性能监控 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">FPS</div>
+                    <div class="perf-value" id="fpsCounter">60</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">绘制次数</div>
+                    <div class="perf-value" id="drawCount">0</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">内存使用</div>
+                    <div class="perf-value" id="memoryUsage">0 MB</div>
+                </div>
+            </div>
+
+            <!-- 错误提示区 -->
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('basic')">📐 基础图形</div>
+                <div class="tab" onclick="switchTab('transform')">🔄 变换操作</div>
+                <div class="tab" onclick="switchTab('pixel')">🎨 像素操作</div>
+                <div class="tab" onclick="switchTab('animation')">⏱️ 动画演示</div>
+                <div class="tab" onclick="switchTab('text')">📝 文本绘制</div>
+                <div class="tab" onclick="switchTab('composite')">🔀 合成模式</div>
+            </div>
+
+            <!-- 基础图形标签页 -->
+            <div id="basicTab" class="tab-content active">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="basicCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="drawRectangles()">📦 绘制矩形</button>
+                    <button class="btn btn-success" onclick="drawCircles()">⚪ 绘制圆形</button>
+                    <button class="btn btn-warning" onclick="drawLines()">📏 绘制线条</button>
+                    <button class="btn btn-danger" onclick="drawPaths()">🔀 绘制路径</button>
+                    <button class="btn btn-primary" onclick="clearCanvas('basic')">🗑️ 清空</button>
+                </div>
+            </div>
+
+            <!-- 变换操作标签页 -->
+            <div id="transformTab" class="tab-content">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="transformCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="control-panel">
+                    <div class="control-group">
+                        <label>旋转角度: <span class="value-badge" id="rotateValue">0°</span></label>
+                        <input type="range" id="rotateSlider" min="0" max="360" value="0" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>缩放比例: <span class="value-badge" id="scaleValue">1.0</span></label>
+                        <input type="range" id="scaleSlider" min="0.2" max="3" value="1" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>透明度: <span class="value-badge" id="alphaValue">1.0</span></label>
+                        <input type="range" id="alphaSlider" min="0" max="1" value="1" step="0.1">
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="drawTransform()">✨ 应用变换</button>
+                    <button class="btn btn-success" onclick="resetTransform()">🔄 重置变换</button>
+                    <button class="btn btn-warning" onclick="randomTransform()">🎲 随机变换</button>
+                </div>
+            </div>
+
+            <!-- 像素操作标签页 -->
+            <div id="pixelTab" class="tab-content">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="pixelCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="drawGradient()">🌈 绘制渐变</button>
+                    <button class="btn btn-success" onclick="invertColors()">🎨 反转颜色</button>
+                    <button class="btn btn-warning" onclick="grayscale()">⚫ 灰度处理</button>
+                    <button class="btn btn-danger" onclick="sepia()">🟫 复古效果</button>
+                    <button class="btn btn-primary" onclick="brightness()">✨ 亮度调整</button>
+                    <button class="btn btn-success" onclick="contrast()">🌓 对比度调整</button>
+                    <button class="btn btn-warning" onclick="blur()">🌀 模糊效果</button>
+                    <button class="btn btn-danger" onclick="clearCanvas('pixel')">🗑️ 清空</button>
+                </div>
+            </div>
+
+            <!-- 动画演示标签页 -->
+            <div id="animationTab" class="tab-content">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="animationCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="fps">0</div>
+                        <div class="stat-label">当前FPS</div>
+                    </div>
+                    <div class="stat-card" style="background:#4CAF50">
+                        <div class="stat-value" id="objects">0</div>
+                        <div class="stat-label">对象数量</div>
+                    </div>
+                    <div class="stat-card" style="background:#2196F3">
+                        <div class="stat-value" id="animTime">0</div>
+                        <div class="stat-label">运行时间(s)</div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="startAnimation()">▶️ 开始动画</button>
+                    <button class="btn btn-danger" onclick="stopAnimation()">⏹️ 停止动画</button>
+                    <button class="btn btn-success" onclick="bounceAnimation()">⚡ 弹跳球</button>
+                    <button class="btn btn-warning" onclick="clockAnimation()">🕐 时钟动画</button>
+                    <button class="btn btn-primary" onclick="particleAnimation()">✨ 粒子系统</button>
+                    <button class="btn btn-success" onclick="waveAnimation()">🌊 波浪效果</button>
+                </div>
+            </div>
+
+            <!-- 文本绘制标签页 -->
+            <div id="textTab" class="tab-content">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="textCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="control-panel">
+                    <div class="control-group">
+                        <label>文本内容: <input type="text" id="textInput" value="Hello Canvas"
+                                style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;"></label>
+                    </div>
+                    <div class="control-group">
+                        <label>字体大小: <span class="value-badge" id="fontSizeValue">30px</span></label>
+                        <input type="range" id="fontSizeSlider" min="10" max="80" value="30" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>字体颜色: <input type="color" id="textColor" value="#667eea"></label>
+                    </div>
+                    <div class="control-group">
+                        <label>背景颜色: <input type="color" id="bgColor" value="#ffffff"></label>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="drawText()">📝 填充文本</button>
+                    <button class="btn btn-success" onclick="drawOutlineText()">🖋️ 描边文本</button>
+                    <button class="btn btn-warning" onclick="drawShadowText()">🌑 阴影文本</button>
+                    <button class="btn btn-danger" onclick="drawGradientText()">🌈 渐变文本</button>
+                    <button class="btn btn-primary" onclick="clearCanvas('text')">🗑️ 清空</button>
+                </div>
+            </div>
+
+            <!-- 合成模式标签页 -->
+            <div id="compositeTab" class="tab-content">
+                <div class="canvas-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="compositeCanvas" width="600" height="400"></canvas>
+                        <span class="canvas-info">600x400</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>合成模式:
+                        <select id="compositeMode" style="width:100%; padding:8px;">
+                            <option value="source-over">source-over (默认)</option>
+                            <option value="source-in">source-in</option>
+                            <option value="source-out">source-out</option>
+                            <option value="source-atop">source-atop</option>
+                            <option value="destination-over">destination-over</option>
+                            <option value="destination-in">destination-in</option>
+                            <option value="destination-out">destination-out</option>
+                            <option value="destination-atop">destination-atop</option>
+                            <option value="lighter">lighter</option>
+                            <option value="copy">copy</option>
+                            <option value="xor">xor</option>
+                            <option value="multiply">multiply</option>
+                            <option value="screen">screen</option>
+                            <option value="overlay">overlay</option>
+                            <option value="darken">darken</option>
+                            <option value="lighten">lighten</option>
+                            <option value="color-dodge">color-dodge</option>
+                            <option value="color-burn">color-burn</option>
+                            <option value="hard-light">hard-light</option>
+                            <option value="soft-light">soft-light</option>
+                            <option value="difference">difference</option>
+                            <option value="exclusion">exclusion</option>
+                            <option value="hue">hue</option>
+                            <option value="saturation">saturation</option>
+                            <option value="color">color</option>
+                            <option value="luminosity">luminosity</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="drawComposite()">🎨 测试合成</button>
+                    <button class="btn btn-success" onclick="clearCanvas('composite')">🗑️ 清空</button>
+                </div>
+            </div>
+
+            <!-- 代码示例 -->
+            <h2>📝 当前代码示例</h2>
+            <div class="code-block" id="codeExample">
+                <span class="code-comment">// 点击按钮查看对应代码</span>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // Canvas 上下文
+            const canvases = {
+                basic: document.getElementById('basicCanvas').getContext('2d'),
+                transform: document.getElementById('transformCanvas').getContext('2d'),
+                pixel: document.getElementById('pixelCanvas').getContext('2d'),
+                animation: document.getElementById('animationCanvas').getContext('2d'),
+                text: document.getElementById('textCanvas').getContext('2d'),
+                composite: document.getElementById('compositeCanvas').getContext('2d')
+            };
+
+            // 性能监控
+            let fps = 60;
+            let frameCount = 0;
+            let lastTime = performance.now();
+            let drawCount = 0;
+
+            // 动画相关
+            let animationId = null;
+            let animationType = null;
+            let animationStartTime = null;
+
+            // 物理对象
+            let balls = [];
+            let particles = [];
+            let waveOffset = 0;
+
+            // 变换相关
+            let rotateAngle = 0;
+            let scale = 1;
+            let alpha = 1;
+
+            // 初始化
+            function init() {
+                try {
+                    // 设置滑块事件
+                    document.getElementById('rotateSlider').addEventListener('input', (e) => {
+                        rotateAngle = e.target.value;
+                        document.getElementById('rotateValue').textContent = rotateAngle + '°';
+                    });
+
+                    document.getElementById('scaleSlider').addEventListener('input', (e) => {
+                        scale = e.target.value;
+                        document.getElementById('scaleValue').textContent = scale;
+                    });
+
+                    document.getElementById('alphaSlider').addEventListener('input', (e) => {
+                        alpha = e.target.value;
+                        document.getElementById('alphaValue').textContent = alpha;
+                    });
+
+                    document.getElementById('fontSizeSlider').addEventListener('input', (e) => {
+                        document.getElementById('fontSizeValue').textContent = e.target.value + 'px';
+                    });
+
+                    // 绘制初始图形
+                    drawRectangles();
+                    drawTransform();
+                    drawGradient();
+                    drawText();
+                    drawComposite();
+
+                    // 启动性能监控
+                    startPerformanceMonitor();
+
+                    log('Canvas 系统初始化完成', 'success');
+                    updateCodeExample('basic');
+                } catch (error) {
+                    showError('初始化失败: ' + error.message);
+                }
+            }
+
+            // 性能监控
+            function startPerformanceMonitor() {
+                setInterval(() => {
+                    document.getElementById('fpsCounter').textContent = fps;
+
+                    // 估算内存使用（仅Chromium）
+                    if (performance.memory) {
+                        const used = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                        document.getElementById('memoryUsage').textContent = used + ' MB';
+                    }
+
+                    document.getElementById('drawCount').textContent = drawCount;
+                }, 1000);
+            }
+
+            function updateFPS() {
+                frameCount++;
+                const now = performance.now();
+                const delta = now - lastTime;
+
+                if (delta >= 1000) {
+                    fps = Math.round((frameCount * 1000) / delta);
+                    frameCount = 0;
+                    lastTime = now;
+
+                    if (animationType) {
+                        document.getElementById('fps').textContent = fps;
+                        const elapsed = Math.round((now - animationStartTime) / 1000);
+                        document.getElementById('animTime').textContent = elapsed;
+                    }
+                }
+            }
+
+            // 错误处理
+            function showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.style.display = 'block';
+                errorEl.textContent = message;
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 3000);
+            }
+
+            // 基础图形绘制
+            window.drawRectangles = function () {
+                try {
+                    const ctx = canvases.basic;
+                    clearCanvas('basic');
+
+                    // 填充矩形
+                    ctx.fillStyle = '#667eea';
+                    ctx.fillRect(50, 50, 100, 80);
+
+                    // 描边矩形
+                    ctx.strokeStyle = '#764ba2';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(200, 50, 100, 80);
+
+                    // 带透明度的矩形
+                    ctx.fillStyle = 'rgba(102, 126, 234, 0.5)';
+                    ctx.fillRect(350, 50, 100, 80);
+
+                    // 圆角矩形
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.beginPath();
+                    ctx.roundRect(50, 200, 100, 80, 20);
+                    ctx.fill();
+
+                    // 渐变矩形
+                    const gradient = ctx.createLinearGradient(200, 200, 300, 280);
+                    gradient.addColorStop(0, '#ff9800');
+                    gradient.addColorStop(1, '#f44336');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(200, 200, 100, 80);
+
+                    drawCount++;
+                    log('绘制矩形', 'success');
+                    updateCodeExample('rect');
+                } catch (error) {
+                    log('❌ 绘制矩形失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawCircles = function () {
+                try {
+                    const ctx = canvases.basic;
+                    clearCanvas('basic');
+
+                    // 实心圆
+                    ctx.beginPath();
+                    ctx.arc(100, 100, 50, 0, Math.PI * 2);
+                    ctx.fillStyle = '#667eea';
+                    ctx.fill();
+
+                    // 描边圆
+                    ctx.beginPath();
+                    ctx.arc(250, 100, 50, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#764ba2';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    // 半圆
+                    ctx.beginPath();
+                    ctx.arc(400, 100, 50, 0, Math.PI);
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fill();
+
+                    // 多个圆形
+                    for (let i = 0; i < 5; i++) {
+                        ctx.beginPath();
+                        ctx.arc(100 + i * 70, 250, 25, 0, Math.PI * 2);
+                        ctx.fillStyle = `hsl(${i * 60}, 70%, 60%)`;
+                        ctx.fill();
+                    }
+
+                    drawCount++;
+                    log('绘制圆形', 'success');
+                    updateCodeExample('circle');
+                } catch (error) {
+                    log('❌ 绘制圆形失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawLines = function () {
+                try {
+                    const ctx = canvases.basic;
+                    clearCanvas('basic');
+
+                    ctx.beginPath();
+                    ctx.moveTo(50, 50);
+                    ctx.lineTo(200, 50);
+                    ctx.lineTo(200, 200);
+                    ctx.lineTo(50, 200);
+                    ctx.closePath();
+                    ctx.strokeStyle = '#667eea';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // 虚线
+                    ctx.beginPath();
+                    ctx.setLineDash([10, 5]);
+                    ctx.moveTo(300, 50);
+                    ctx.lineTo(500, 300);
+                    ctx.strokeStyle = '#f44336';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // 重置虚线
+                    ctx.setLineDash([]);
+
+                    // 多条线
+                    for (let i = 0; i < 10; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(350 + i * 20, 50);
+                        ctx.lineTo(350 + i * 20, 200);
+                        ctx.strokeStyle = `hsl(${i * 36}, 70%, 60%)`;
+                        ctx.stroke();
+                    }
+
+                    drawCount++;
+                    log('绘制线条', 'success');
+                    updateCodeExample('line');
+                } catch (error) {
+                    log('❌ 绘制线条失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawPaths = function () {
+                try {
+                    const ctx = canvases.basic;
+                    clearCanvas('basic');
+
+                    // 绘制心形
+                    ctx.beginPath();
+                    ctx.moveTo(200, 150);
+                    ctx.bezierCurveTo(150, 100, 100, 200, 200, 250);
+                    ctx.bezierCurveTo(300, 200, 250, 100, 200, 150);
+                    ctx.fillStyle = '#f44336';
+                    ctx.fill();
+                    ctx.strokeStyle = '#d32f2f';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // 绘制二次贝塞尔曲线
+                    ctx.beginPath();
+                    ctx.moveTo(400, 150);
+                    ctx.quadraticCurveTo(450, 50, 500, 150);
+                    ctx.strokeStyle = '#4CAF50';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    drawCount++;
+                    log('绘制路径', 'success');
+                    updateCodeExample('path');
+                } catch (error) {
+                    log('❌ 绘制路径失败: ' + error.message, 'error');
+                }
+            };
+
+            // 变换操作
+            window.drawTransform = function () {
+                try {
+                    const ctx = canvases.transform;
+                    clearCanvas('transform');
+
+                    ctx.save();
+
+                    // 平移到中心
+                    ctx.translate(300, 200);
+
+                    // 应用旋转和缩放
+                    ctx.rotate(rotateAngle * Math.PI / 180);
+                    ctx.scale(scale, scale);
+                    ctx.globalAlpha = alpha;
+
+                    // 绘制矩形
+                    ctx.fillStyle = '#667eea';
+                    ctx.fillRect(-50, -50, 100, 100);
+
+                    // 绘制圆形
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fill();
+
+                    // 绘制文本
+                    ctx.fillStyle = 'white';
+                    ctx.font = '14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Canvas', 0, 0);
+
+                    ctx.restore();
+
+                    // 绘制坐标轴
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#999';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 3]);
+                    ctx.moveTo(0, 200);
+                    ctx.lineTo(600, 200);
+                    ctx.moveTo(300, 0);
+                    ctx.lineTo(300, 400);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    drawCount++;
+                    log(`应用变换: 旋转 ${rotateAngle}°, 缩放 ${scale}, 透明度 ${alpha}`, 'success');
+                    updateCodeExample('transform');
+                } catch (error) {
+                    log('❌ 变换操作失败: ' + error.message, 'error');
+                }
+            };
+
+            window.resetTransform = function () {
+                rotateAngle = 0;
+                scale = 1;
+                alpha = 1;
+                document.getElementById('rotateSlider').value = 0;
+                document.getElementById('scaleSlider').value = 1;
+                document.getElementById('alphaSlider').value = 1;
+                document.getElementById('rotateValue').textContent = '0°';
+                document.getElementById('scaleValue').textContent = '1.0';
+                document.getElementById('alphaValue').textContent = '1.0';
+                drawTransform();
+                log('重置变换', 'info');
+            };
+
+            window.randomTransform = function () {
+                rotateAngle = Math.floor(Math.random() * 360);
+                scale = (Math.random() * 2.5 + 0.5).toFixed(1);
+                alpha = (Math.random() * 0.8 + 0.2).toFixed(1);
+
+                document.getElementById('rotateSlider').value = rotateAngle;
+                document.getElementById('scaleSlider').value = scale;
+                document.getElementById('alphaSlider').value = alpha;
+                document.getElementById('rotateValue').textContent = rotateAngle + '°';
+                document.getElementById('scaleValue').textContent = scale;
+                document.getElementById('alphaValue').textContent = alpha;
+
+                drawTransform();
+                log('应用随机变换', 'success');
+            };
+
+            // 像素操作
+            window.drawGradient = function () {
+                try {
+                    const ctx = canvases.pixel;
+                    clearCanvas('pixel');
+
+                    // 线性渐变
+                    const gradient1 = ctx.createLinearGradient(0, 0, 600, 0);
+                    gradient1.addColorStop(0, '#667eea');
+                    gradient1.addColorStop(0.5, '#764ba2');
+                    gradient1.addColorStop(1, '#f44336');
+                    ctx.fillStyle = gradient1;
+                    ctx.fillRect(0, 0, 600, 150);
+
+                    // 径向渐变
+                    const gradient2 = ctx.createRadialGradient(300, 250, 30, 300, 250, 100);
+                    gradient2.addColorStop(0, '#4CAF50');
+                    gradient2.addColorStop(0.5, '#ff9800');
+                    gradient2.addColorStop(1, '#f44336');
+                    ctx.fillStyle = gradient2;
+                    ctx.fillRect(0, 150, 600, 250);
+
+                    drawCount++;
+                    log('绘制渐变', 'success');
+                    updateCodeExample('gradient');
+                } catch (error) {
+                    log('❌ 绘制渐变失败: ' + error.message, 'error');
+                }
+            };
+
+            window.invertColors = function () {
+                try {
+                    applyPixelFilter((r, g, b) => {
+                        return [255 - r, 255 - g, 255 - b];
+                    });
+                    log('反转颜色', 'success');
+                } catch (error) {
+                    log('❌ 反转颜色失败: ' + error.message, 'error');
+                }
+            };
+
+            window.grayscale = function () {
+                try {
+                    applyPixelFilter((r, g, b) => {
+                        const avg = (r + g + b) / 3;
+                        return [avg, avg, avg];
+                    });
+                    log('灰度处理', 'success');
+                } catch (error) {
+                    log('❌ 灰度处理失败: ' + error.message, 'error');
+                }
+            };
+
+            window.sepia = function () {
+                try {
+                    applyPixelFilter((r, g, b) => {
+                        return [
+                            Math.min(255, r * 0.393 + g * 0.769 + b * 0.189),
+                            Math.min(255, r * 0.349 + g * 0.686 + b * 0.168),
+                            Math.min(255, r * 0.272 + g * 0.534 + b * 0.131)
+                        ];
+                    });
+                    log('复古效果', 'success');
+                } catch (error) {
+                    log('❌ 复古效果失败: ' + error.message, 'error');
+                }
+            };
+
+            window.brightness = function () {
+                try {
+                    const factor = 1.2;
+                    applyPixelFilter((r, g, b) => {
+                        return [
+                            Math.min(255, r * factor),
+                            Math.min(255, g * factor),
+                            Math.min(255, b * factor)
+                        ];
+                    });
+                    log('亮度增加', 'success');
+                } catch (error) {
+                    log('❌ 亮度调整失败: ' + error.message, 'error');
+                }
+            };
+
+            window.contrast = function () {
+                try {
+                    const factor = 1.5;
+                    applyPixelFilter((r, g, b) => {
+                        return [
+                            Math.min(255, Math.max(0, 128 + (r - 128) * factor)),
+                            Math.min(255, Math.max(0, 128 + (g - 128) * factor)),
+                            Math.min(255, Math.max(0, 128 + (b - 128) * factor))
+                        ];
+                    });
+                    log('对比度增强', 'success');
+                } catch (error) {
+                    log('❌ 对比度调整失败: ' + error.message, 'error');
+                }
+            };
+
+            window.blur = function () {
+                try {
+                    // 简单模糊：降低对比度
+                    applyPixelFilter((r, g, b) => {
+                        const avg = (r + g + b) / 3;
+                        return [
+                            Math.min(255, (r + avg) / 2),
+                            Math.min(255, (g + avg) / 2),
+                            Math.min(255, (b + avg) / 2)
+                        ];
+                    });
+                    log('模糊效果', 'success');
+                } catch (error) {
+                    log('❌ 模糊效果失败: ' + error.message, 'error');
+                }
+            };
+
+            function applyPixelFilter(callback) {
+                const ctx = canvases.pixel;
+                const canvas = document.getElementById('pixelCanvas');
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const [r, g, b] = callback(data[i], data[i + 1], data[i + 2]);
+                    data[i] = r;
+                    data[i + 1] = g;
+                    data[i + 2] = b;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                drawCount++;
+            }
+
+            // 动画演示
+            window.startAnimation = function () {
+                if (animationId) cancelAnimationFrame(animationId);
+                animationType = 'rotate';
+                animationStartTime = performance.now();
+                animate();
+                log('▶️ 开始旋转动画', 'success');
+                updateCodeExample('rotate-animation');
+            };
+
+            window.bounceAnimation = function () {
+                if (animationId) cancelAnimationFrame(animationId);
+                animationType = 'bounce';
+                animationStartTime = performance.now();
+
+                // 创建多个球
+                balls = [];
+                for (let i = 0; i < 5; i++) {
+                    balls.push({
+                        x: Math.random() * 500 + 50,
+                        y: Math.random() * 300 + 50,
+                        vx: (Math.random() - 0.5) * 5,
+                        vy: (Math.random() - 0.5) * 5,
+                        radius: Math.random() * 15 + 10,
+                        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                    });
+                }
+                document.getElementById('objects').textContent = balls.length;
+
+                animate();
+                log('⚡ 开始弹跳球动画', 'success');
+                updateCodeExample('bounce-animation');
+            };
+
+            window.clockAnimation = function () {
+                if (animationId) cancelAnimationFrame(animationId);
+                animationType = 'clock';
+                animationStartTime = performance.now();
+                animate();
+                log('🕐 开始时钟动画', 'success');
+                updateCodeExample('clock-animation');
+            };
+
+            window.particleAnimation = function () {
+                if (animationId) cancelAnimationFrame(animationId);
+                animationType = 'particle';
+                animationStartTime = performance.now();
+
+                // 创建粒子系统
+                particles = [];
+                for (let i = 0; i < 50; i++) {
+                    particles.push({
+                        x: Math.random() * 600,
+                        y: Math.random() * 400,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        size: Math.random() * 3 + 1,
+                        life: Math.random() * 100
+                    });
+                }
+                document.getElementById('objects').textContent = particles.length;
+
+                animate();
+                log('✨ 开始粒子动画', 'success');
+                updateCodeExample('particle-animation');
+            };
+
+            window.waveAnimation = function () {
+                if (animationId) cancelAnimationFrame(animationId);
+                animationType = 'wave';
+                animationStartTime = performance.now();
+                waveOffset = 0;
+                animate();
+                log('🌊 开始波浪动画', 'success');
+                updateCodeExample('wave-animation');
+            };
+
+            window.stopAnimation = function () {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                    animationType = null;
+                    log('⏹️ 停止动画', 'info');
+                }
+            };
+
+            function animate() {
+                try {
+                    const ctx = canvases.animation;
+                    const canvas = document.getElementById('animationCanvas');
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    switch (animationType) {
+                        case 'rotate':
+                            drawRotatingShape(ctx);
+                            break;
+                        case 'bounce':
+                            drawBouncingBalls(ctx);
+                            break;
+                        case 'clock':
+                            drawClock(ctx);
+                            break;
+                        case 'particle':
+                            drawParticles(ctx);
+                            break;
+                        case 'wave':
+                            drawWave(ctx);
+                            break;
+                    }
+
+                    updateFPS();
+                    animationId = requestAnimationFrame(animate);
+                } catch (error) {
+                    log('❌ 动画错误: ' + error.message, 'error');
+                    stopAnimation();
+                }
+            }
+
+            let angle = 0;
+            function drawRotatingShape(ctx) {
+                const canvas = document.getElementById('animationCanvas');
+
+                ctx.save();
+                ctx.translate(300, 200);
+                ctx.rotate(angle);
+
+                // 绘制旋转的矩形
+                ctx.fillStyle = '#667eea';
+                ctx.fillRect(-50, -50, 100, 100);
+
+                // 绘制旋转的圆形
+                ctx.beginPath();
+                ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                ctx.fillStyle = '#4CAF50';
+                ctx.fill();
+
+                ctx.restore();
+
+                angle += 0.02;
+            }
+
+            function drawBouncingBalls(ctx) {
+                const canvas = document.getElementById('animationCanvas');
+
+                balls.forEach(ball => {
+                    // 更新位置
+                    ball.x += ball.vx;
+                    ball.y += ball.vy;
+
+                    // 边界碰撞检测
+                    if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+                        ball.vx *= -0.9;
+                        ball.x = Math.max(ball.radius, Math.min(canvas.width - ball.radius, ball.x));
+                    }
+                    if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                        ball.vy *= -0.9;
+                        ball.y = Math.max(ball.radius, Math.min(canvas.height - ball.radius, ball.y));
+                    }
+
+                    // 绘制球
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+
+                    // 渐变填充
+                    const gradient = ctx.createRadialGradient(
+                        ball.x - 5, ball.y - 5, 5,
+                        ball.x, ball.y, ball.radius
+                    );
+                    gradient.addColorStop(0, ball.color);
+                    gradient.addColorStop(1, '#333');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+
+                    // 绘制高光
+                    ctx.beginPath();
+                    ctx.arc(ball.x - 5, ball.y - 5, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fill();
+                });
+            }
+
+            function drawClock(ctx) {
+                const now = new Date();
+                const canvas = document.getElementById('animationCanvas');
+
+                ctx.save();
+                ctx.translate(300, 200);
+
+                // 绘制表盘
+                ctx.beginPath();
+                ctx.arc(0, 0, 100, 0, Math.PI * 2);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 绘制刻度
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i * 30 - 90) * Math.PI / 180;
+                    const startX = 80 * Math.cos(angle);
+                    const startY = 80 * Math.sin(angle);
+                    const endX = 90 * Math.cos(angle);
+                    const endY = 90 * Math.sin(angle);
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.strokeStyle = i % 3 === 0 ? '#333' : '#999';
+                    ctx.lineWidth = i % 3 === 0 ? 3 : 1;
+                    ctx.stroke();
+                }
+
+                // 绘制数字
+                ctx.font = '12px Arial';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let i = 1; i <= 12; i++) {
+                    const angle = (i * 30 - 90) * Math.PI / 180;
+                    const x = 70 * Math.cos(angle);
+                    const y = 70 * Math.sin(angle);
+                    ctx.fillText(i.toString(), x, y);
+                }
+
+                // 绘制时针
+                const hours = now.getHours() % 12;
+                const hourAngle = (hours * 30 - 90 + now.getMinutes() * 0.5) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(50 * Math.cos(hourAngle), 50 * Math.sin(hourAngle));
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // 绘制分针
+                const minuteAngle = (now.getMinutes() * 6 - 90) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(70 * Math.cos(minuteAngle), 70 * Math.sin(minuteAngle));
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 绘制秒针
+                const secondAngle = (now.getSeconds() * 6 - 90) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(80 * Math.cos(secondAngle), 80 * Math.sin(secondAngle));
+                ctx.strokeStyle = '#f44336';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 中心点
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            function drawParticles(ctx) {
+                const canvas = document.getElementById('animationCanvas');
+
+                particles.forEach(p => {
+                    // 更新位置
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    // 边界环绕
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+
+                    // 更新生命
+                    p.life += 0.5;
+
+                    // 绘制粒子
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsl(${p.life % 360}, 70%, 60%)`;
+                    ctx.fill();
+                });
+            }
+
+            function drawWave(ctx) {
+                const canvas = document.getElementById('animationCanvas');
+
+                waveOffset += 0.05;
+
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height / 2);
+
+                for (let x = 0; x <= canvas.width; x += 10) {
+                    const y = canvas.height / 2 +
+                        Math.sin(x * 0.02 + waveOffset) * 50 +
+                        Math.cos(x * 0.01 + waveOffset * 2) * 30;
+                    ctx.lineTo(x, y);
+                }
+
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 填充波浪
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.lineTo(0, canvas.height);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(102, 126, 234, 0.3)';
+                ctx.fill();
+            }
+
+            // 文本绘制
+            window.drawText = function () {
+                try {
+                    const ctx = canvases.text;
+                    const text = document.getElementById('textInput').value;
+                    const fontSize = document.getElementById('fontSizeSlider').value;
+                    const color = document.getElementById('textColor').value;
+                    const bgColor = document.getElementById('bgColor').value;
+
+                    clearCanvas('text');
+
+                    // 绘制背景
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, 600, 400);
+
+                    ctx.font = fontSize + 'px Arial';
+                    ctx.fillStyle = color;
+                    ctx.fillText(text, 50, 100);
+
+                    ctx.font = 'italic bold ' + fontSize + 'px Arial';
+                    ctx.fillText('Italic Bold', 50, 200);
+
+                    ctx.font = fontSize + 'px "Microsoft YaHei"';
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fillText('中文文本', 50, 300);
+
+                    drawCount++;
+                    log('绘制文本: ' + text, 'success');
+                    updateCodeExample('text-fill');
+                } catch (error) {
+                    log('❌ 绘制文本失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawOutlineText = function () {
+                try {
+                    const ctx = canvases.text;
+                    const text = document.getElementById('textInput').value;
+                    const fontSize = document.getElementById('fontSizeSlider').value;
+                    const bgColor = document.getElementById('bgColor').value;
+
+                    clearCanvas('text');
+
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, 600, 400);
+
+                    ctx.font = 'bold ' + fontSize + 'px Arial';
+                    ctx.strokeStyle = '#667eea';
+                    ctx.lineWidth = 2;
+                    ctx.strokeText(text, 50, 100);
+
+                    ctx.strokeStyle = '#4CAF50';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText('Outline Text', 50, 200);
+
+                    drawCount++;
+                    log('绘制描边文本', 'success');
+                    updateCodeExample('text-stroke');
+                } catch (error) {
+                    log('❌ 绘制描边文本失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawShadowText = function () {
+                try {
+                    const ctx = canvases.text;
+                    const text = document.getElementById('textInput').value;
+                    const fontSize = document.getElementById('fontSizeSlider').value;
+                    const bgColor = document.getElementById('bgColor').value;
+
+                    clearCanvas('text');
+
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, 600, 400);
+
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetX = 5;
+                    ctx.shadowOffsetY = 5;
+
+                    ctx.font = 'bold ' + fontSize + 'px Arial';
+                    ctx.fillStyle = '#667eea';
+                    ctx.fillText(text, 50, 100);
+
+                    ctx.shadowColor = 'rgba(244, 67, 54, 0.5)';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowOffsetX = -5;
+                    ctx.shadowOffsetY = 5;
+
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fillText('Shadow Effect', 50, 200);
+
+                    // 重置阴影
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+
+                    drawCount++;
+                    log('绘制阴影文本', 'success');
+                    updateCodeExample('text-shadow');
+                } catch (error) {
+                    log('❌ 绘制阴影文本失败: ' + error.message, 'error');
+                }
+            };
+
+            window.drawGradientText = function () {
+                try {
+                    const ctx = canvases.text;
+                    const text = document.getElementById('textInput').value;
+                    const fontSize = document.getElementById('fontSizeSlider').value;
+
+                    clearCanvas('text');
+
+                    const gradient = ctx.createLinearGradient(50, 100, 400, 100);
+                    gradient.addColorStop(0, '#667eea');
+                    gradient.addColorStop(0.5, '#764ba2');
+                    gradient.addColorStop(1, '#f44336');
+
+                    ctx.font = 'bold ' + fontSize + 'px Arial';
+                    ctx.fillStyle = gradient;
+                    ctx.fillText(text, 50, 100);
+
+                    const gradient2 = ctx.createLinearGradient(50, 200, 400, 200);
+                    gradient2.addColorStop(0, '#4CAF50');
+                    gradient2.addColorStop(1, '#ff9800');
+
+                    ctx.fillStyle = gradient2;
+                    ctx.fillText('Gradient Text', 50, 200);
+
+                    drawCount++;
+                    log('绘制渐变文本', 'success');
+                    updateCodeExample('text-gradient');
+                } catch (error) {
+                    log('❌ 绘制渐变文本失败: ' + error.message, 'error');
+                }
+            };
+
+            // 合成模式
+            window.drawComposite = function () {
+                try {
+                    const ctx = canvases.composite;
+                    const mode = document.getElementById('compositeMode').value;
+
+                    clearCanvas('composite');
+
+                    // 绘制背景
+                    ctx.fillStyle = '#667eea';
+                    ctx.fillRect(100, 100, 200, 200);
+
+                    // 设置合成模式
+                    ctx.globalCompositeOperation = mode;
+
+                    // 绘制前景
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.beginPath();
+                    ctx.arc(250, 200, 100, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 重置合成模式
+                    ctx.globalCompositeOperation = 'source-over';
+
+                    // 显示当前模式
+                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#333';
+                    ctx.fillText('合成模式: ' + mode, 50, 50);
+
+                    drawCount++;
+                    log('测试合成模式: ' + mode, 'success');
+                    updateCodeExample('composite');
+                } catch (error) {
+                    log('❌ 合成模式测试失败: ' + error.message, 'error');
+                }
+            };
+
+            // 辅助函数
+            window.clearCanvas = function (type) {
+                try {
+                    const canvas = document.getElementById(type + 'Canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 重置变换和样式
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.globalAlpha = 1;
+                    ctx.globalCompositeOperation = 'source-over';
+
+                    if (type !== 'animation') {
+                        log('清空 ' + type + ' 画布', 'info');
+                    }
+                } catch (error) {
+                    log('❌ 清空画布失败: ' + error.message, 'error');
+                }
+            };
+
+            // 添加 roundRect 方法
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.moveTo(x + r, y);
+                this.lineTo(x + w - r, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r);
+                this.lineTo(x + w, y + h - r);
+                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                this.lineTo(x + r, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r);
+                this.lineTo(x, y + r);
+                this.quadraticCurveTo(x, y, x + r, y);
+                return this;
+            };
+
+            // 标签页切换
+            window.switchTab = function (tabName) {
+                try {
+                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                    event.target.classList.add('active');
+                    document.getElementById(tabName + 'Tab').classList.add('active');
+
+                    updateCodeExample(tabName);
+                } catch (error) {
+                    log('❌ 标签页切换失败: ' + error.message, 'error');
+                }
+            };
+
+            // 更新代码示例
+            function updateCodeExample(type) {
+                const examples = {
+                    basic: `// 基础图形示例
+const ctx = canvas.getContext('2d');
+
+// 绘制矩形
+ctx.fillStyle = '#667eea';
+ctx.fillRect(50, 50, 100, 80);
+
+// 绘制圆形
+ctx.beginPath();
+ctx.arc(100, 100, 50, 0, Math.PI * 2);
+ctx.fillStyle = '#4CAF50';
+ctx.fill();`,
+
+                    rect: `// 绘制矩形
+ctx.fillStyle = '#667eea';
+ctx.fillRect(x, y, width, height);
+
+// 描边矩形
+ctx.strokeStyle = '#764ba2';
+ctx.lineWidth = 3;
+ctx.strokeRect(x, y, width, height);
+
+// 圆角矩形
+ctx.roundRect(x, y, width, height, radius);
+ctx.fill();`,
+
+                    circle: `// 绘制圆形
+ctx.beginPath();
+ctx.arc(x, y, radius, startAngle, endAngle);
+ctx.fillStyle = '#667eea';
+ctx.fill();
+
+// 描边圆形
+ctx.strokeStyle = '#764ba2';
+ctx.lineWidth = 3;
+ctx.stroke();`,
+
+                    line: `// 绘制线条
+ctx.beginPath();
+ctx.moveTo(50, 50);
+ctx.lineTo(200, 50);
+ctx.strokeStyle = '#667eea';
+ctx.lineWidth = 2;
+ctx.stroke();
+
+// 虚线
+ctx.setLineDash([10, 5]);
+ctx.stroke();`,
+
+                    path: `// 绘制贝塞尔曲线
+ctx.beginPath();
+ctx.moveTo(200, 150);
+ctx.bezierCurveTo(150, 100, 100, 200, 200, 250);
+ctx.fillStyle = '#f44336';
+ctx.fill();`,
+
+                    transform: `// 变换操作
+ctx.save();
+ctx.translate(300, 200);
+ctx.rotate(angle * Math.PI / 180);
+ctx.scale(scale, scale);
+ctx.globalAlpha = alpha;
+
+// 绘制图形
+ctx.fillStyle = '#667eea';
+ctx.fillRect(-50, -50, 100, 100);
+
+ctx.restore();`,
+
+                    gradient: `// 线性渐变
+const gradient = ctx.createLinearGradient(0, 0, 600, 0);
+gradient.addColorStop(0, '#667eea');
+gradient.addColorStop(1, '#f44336');
+ctx.fillStyle = gradient;
+ctx.fillRect(0, 0, 600, 150);
+
+// 径向渐变
+const gradient2 = ctx.createRadialGradient(300, 250, 30, 300, 250, 100);
+gradient2.addColorStop(0, '#4CAF50');
+gradient2.addColorStop(1, '#f44336');
+ctx.fillStyle = gradient2;
+ctx.fillRect(0, 150, 600, 250);`,
+
+                    'rotate-animation': `// 旋转动画
+function animate() {
+    ctx.clearRect(0, 0, width, height);
+    
+    ctx.save();
+    ctx.translate(300, 200);
+    ctx.rotate(angle);
+    
+    // 绘制图形
+    ctx.fillStyle = '#667eea';
+    ctx.fillRect(-50, -50, 100, 100);
+    
+    ctx.restore();
+    
+    angle += 0.02;
+    requestAnimationFrame(animate);
+}`,
+
+                    'bounce-animation': `// 弹跳球动画
+balls.forEach(ball => {
+    // 更新位置
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    
+    // 碰撞检测
+    if (ball.x < 0 || ball.x > width) ball.vx *= -1;
+    if (ball.y < 0 || ball.y > height) ball.vy *= -1;
+    
+    // 绘制球
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fillStyle = ball.color;
+    ctx.fill();
+});`,
+
+                    'clock-animation': `// 时钟动画
+const now = new Date();
+
+// 绘制表盘
+ctx.beginPath();
+ctx.arc(300, 200, 100, 0, Math.PI * 2);
+ctx.stroke();
+
+// 绘制时针
+const hourAngle = (hours * 30 - 90) * Math.PI / 180;
+ctx.moveTo(300, 200);
+ctx.lineTo(300 + 50 * Math.cos(hourAngle), 
+           200 + 50 * Math.sin(hourAngle));
+ctx.stroke();`,
+
+                    'particle-animation': `// 粒子系统
+particles.forEach(p => {
+    // 更新位置
+    p.x += p.vx;
+    p.y += p.vy;
+    
+    // 边界环绕
+    if (p.x < 0) p.x = width;
+    if (p.x > width) p.x = 0;
+    
+    // 绘制粒子
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = \`hsl(\${p.life % 360}, 70%, 60%)\`;
+    ctx.fill();
+});`,
+
+                    'wave-animation': `// 波浪效果
+ctx.beginPath();
+ctx.moveTo(0, height / 2);
+
+for (let x = 0; x <= width; x += 10) {
+    const y = height / 2 + 
+              Math.sin(x * 0.02 + offset) * 50;
+    ctx.lineTo(x, y);
+}
+
+ctx.strokeStyle = '#667eea';
+ctx.stroke();`,
+
+                    'text-fill': `// 填充文本
+ctx.font = '30px Arial';
+ctx.fillStyle = '#667eea';
+ctx.fillText('Hello Canvas', 50, 100);`,
+
+                    'text-stroke': `// 描边文本
+ctx.font = 'bold 30px Arial';
+ctx.strokeStyle = '#667eea';
+ctx.lineWidth = 2;
+ctx.strokeText('Hello Canvas', 50, 100);`,
+
+                    'text-shadow': `// 阴影文本
+ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+ctx.shadowBlur = 10;
+ctx.shadowOffsetX = 5;
+ctx.shadowOffsetY = 5;
+ctx.fillStyle = '#667eea';
+ctx.fillText('Hello Canvas', 50, 100);
+
+// 重置阴影
+ctx.shadowColor = 'transparent';`,
+
+                    'text-gradient': `// 渐变文本
+const gradient = ctx.createLinearGradient(50, 100, 400, 100);
+gradient.addColorStop(0, '#667eea');
+gradient.addColorStop(1, '#f44336');
+
+ctx.font = 'bold 30px Arial';
+ctx.fillStyle = gradient;
+ctx.fillText('Hello Canvas', 50, 100);`,
+
+                    composite: `// 合成模式
+// 绘制背景
+ctx.fillStyle = '#667eea';
+ctx.fillRect(100, 100, 200, 200);
+
+// 设置合成模式
+ctx.globalCompositeOperation = mode;
+
+// 绘制前景
+ctx.fillStyle = '#4CAF50';
+ctx.beginPath();
+ctx.arc(250, 200, 100, 0, Math.PI * 2);
+ctx.fill();
+
+// 重置合成模式
+ctx.globalCompositeOperation = 'source-over';`
+                };
+
+                document.getElementById('codeExample').innerHTML =
+                    `<span class="code-comment">// ${type} 示例</span>\n` +
+                    (examples[type] || examples.basic).split('\n').map(line => {
+                        if (line.includes('//')) {
+                            return `<span class="code-comment">${line}</span>`;
+                        } else if (line.includes('function') || line.includes('const') || line.includes('let')) {
+                            return `<span class="code-keyword">${line}</span>`;
+                        } else if (line.includes("'") || line.includes('"')) {
+                            return `<span class="code-string">${line}</span>`;
+                        } else if (line.match(/\d+/)) {
+                            return `<span class="code-number">${line}</span>`;
+                        }
+                        return line;
+                    }).join('<br>');
+            }
+
+            // 日志
+            function log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+
+                const now = new Date();
+                const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                entry.textContent = `${time} ${message}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+
+                // 限制日志条数
+                while (logPanel.children.length > 50) {
+                    logPanel.removeChild(logPanel.children[0]);
+                }
+            }
+
+            // 初始化
+            window.onload = init;
+        })();
+    </script>
+</body>
+
+</html>

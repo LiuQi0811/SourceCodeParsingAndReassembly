@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broadcast Channel API 完整演示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        h2 {
+            color: #555;
+            margin: 20px 0 15px;
+            font-size: 18px;
+        }
+
+        h3 {
+            color: #666;
+            margin: 15px 0 10px;
+            font-size: 16px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .channel-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .channel-name {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .channel-status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            background: #4CAF50;
+            color: white;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .input-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .message-list {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+        }
+
+        .message-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
+            background: #f5f5f5;
+            word-break: break-all;
+        }
+
+        .message-item.self {
+            border-left-color: #2196F3;
+            background: #e3f2fd;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .message-sender {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .message-time {
+            color: #999;
+        }
+
+        .message-content {
+            font-size: 14px;
+        }
+
+        .message-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-right: 5px;
+        }
+
+        .type-text {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .type-object {
+            background: #2196F3;
+            color: white;
+        }
+
+        .type-array {
+            background: #ff9800;
+            color: white;
+        }
+
+        .type-blob {
+            background: #9C27B0;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .compat-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .compat-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .compat-table td:first-child {
+            font-weight: 600;
+            width: 30%;
+        }
+
+        .yes {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .no {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .channel-control {
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .worker-demo {
+            background: #1e1e2f;
+            color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .worker-message {
+            background: #2a2a3a;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📡 Broadcast Channel API</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>在同源的不同窗口、标签页、iframe、Worker之间通信</p>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalMessages">0</div>
+                    <div class="stat-label">总消息数</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="activeChannels">1</div>
+                    <div class="stat-label">活跃频道</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="connectedTabs">1</div>
+                    <div class="stat-label">连接标签页</div>
+                </div>
+            </div>
+
+            <!-- 标签页切换 -->
+            <div class="tab-container" id="tabContainer">
+                <div class="tab active" data-tab="basic">基础通信</div>
+                <div class="tab" data-tab="multi">多标签页</div>
+                <div class="tab" data-tab="worker">Web Worker</div>
+            </div>
+
+            <!-- 基础通信面板 -->
+            <div id="basicTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 频道A -->
+                    <div class="channel-panel">
+                        <div class="channel-header">
+                            <span class="channel-name">📻 频道 A</span>
+                            <span class="channel-status" id="channelAStatus">活跃</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label>消息内容：</label>
+                            <input type="text" id="channelAInput" value="Hello from Channel A" placeholder="输入消息">
+                        </div>
+
+                        <div class="input-group">
+                            <label>消息类型：</label>
+                            <select id="channelAType">
+                                <option value="text">文本消息</option>
+                                <option value="object">对象消息</option>
+                                <option value="array">数组消息</option>
+                            </select>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="channelASend">📤 发送</button>
+                            <button class="btn btn-danger" id="channelAClose">🔒 关闭频道</button>
+                        </div>
+
+                        <h4>📥 接收的消息</h4>
+                        <div class="message-list" id="channelAMessages"></div>
+                    </div>
+
+                    <!-- 频道B -->
+                    <div class="channel-panel">
+                        <div class="channel-header">
+                            <span class="channel-name">📻 频道 B</span>
+                            <span class="channel-status" id="channelBStatus">活跃</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label>消息内容：</label>
+                            <input type="text" id="channelBInput" value="Hello from Channel B" placeholder="输入消息">
+                        </div>
+
+                        <div class="input-group">
+                            <label>消息类型：</label>
+                            <select id="channelBType">
+                                <option value="text">文本消息</option>
+                                <option value="object">对象消息</option>
+                                <option value="array">数组消息</option>
+                            </select>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="channelBSend">📤 发送</button>
+                            <button class="btn btn-danger" id="channelBClose">🔒 关闭频道</button>
+                        </div>
+
+                        <h4>📥 接收的消息</h4>
+                        <div class="message-list" id="channelBMessages"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多标签页面板 -->
+            <div id="multiTab" class="tab-content" style="display: none;">
+                <div class="channel-panel">
+                    <h3>🖥️ 多标签页通信</h3>
+                    <p>打开新标签页测试跨标签页通信</p>
+
+                    <div class="button-group">
+                        <button class="btn btn-success" id="openNewTab">📂 打开新标签页</button>
+                        <button class="btn btn-primary" id="sendToAllTabs">📢 发送到所有标签页</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>广播消息：</label>
+                        <input type="text" id="broadcastMessage" value="Hello all tabs!" placeholder="输入要广播的消息">
+                    </div>
+
+                    <h4>🌍 跨标签页消息</h4>
+                    <div class="message-list" id="multiTabMessages"></div>
+                </div>
+            </div>
+
+            <!-- Web Worker 面板 -->
+            <div id="workerTab" class="tab-content" style="display: none;">
+                <div class="worker-demo">
+                    <h3 style="color: white;">👷 Web Worker 通信</h3>
+
+                    <div class="worker-message" id="workerStatus">
+                        Worker 状态: 初始化中...
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="startWorker">▶️ 启动 Worker</button>
+                        <button class="btn btn-danger" id="stopWorker">⏹️ 停止 Worker</button>
+                        <button class="btn btn-success" id="sendToWorker">📤 发送到 Worker</button>
+                    </div>
+
+                    <div class="input-group" style="margin-top: 15px;">
+                        <label>发送给 Worker 的消息：</label>
+                        <input type="text" id="workerMessage" value="Hello Worker!" placeholder="输入消息">
+                    </div>
+
+                    <h4 style="color: white; margin-top: 15px;">📥 Worker 消息</h4>
+                    <div class="message-list" id="workerMessages" style="background: #2a2a3a;"></div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+
+            <!-- 兼容性表格 -->
+            <h2>🌐 浏览器兼容性</h2>
+            <table class="compat-table">
+                <tr>
+                    <td>Chrome</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Edge</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Firefox</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Safari</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+                <tr>
+                    <td>Opera</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+                <tr>
+                    <td>iOS Safari</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            class BroadcastChannelDemo {
+                constructor() {
+                    this.channelA = null;
+                    this.channelB = null;
+                    this.multiChannel = null;
+                    this.worker = null;
+
+                    this.stats = {
+                        totalMessages: 0,
+                        activeChannels: 0,
+                        connectedTabs: 1
+                    };
+
+                    this.messages = {
+                        channelA: [],
+                        channelB: [],
+                        multi: [],
+                        worker: []
+                    };
+
+                    this.elements = {
+                        apiStatus: document.getElementById('apiStatus'),
+                        totalMessages: document.getElementById('totalMessages'),
+                        activeChannels: document.getElementById('activeChannels'),
+                        connectedTabs: document.getElementById('connectedTabs'),
+                        tabContainer: document.getElementById('tabContainer'),
+                        basicTab: document.getElementById('basicTab'),
+                        multiTab: document.getElementById('multiTab'),
+                        workerTab: document.getElementById('workerTab'),
+
+                        channelAInput: document.getElementById('channelAInput'),
+                        channelAType: document.getElementById('channelAType'),
+                        channelASend: document.getElementById('channelASend'),
+                        channelAClose: document.getElementById('channelAClose'),
+                        channelAStatus: document.getElementById('channelAStatus'),
+                        channelAMessages: document.getElementById('channelAMessages'),
+
+                        channelBInput: document.getElementById('channelBInput'),
+                        channelBType: document.getElementById('channelBType'),
+                        channelBSend: document.getElementById('channelBSend'),
+                        channelBClose: document.getElementById('channelBClose'),
+                        channelBStatus: document.getElementById('channelBStatus'),
+                        channelBMessages: document.getElementById('channelBMessages'),
+
+                        openNewTab: document.getElementById('openNewTab'),
+                        sendToAllTabs: document.getElementById('sendToAllTabs'),
+                        broadcastMessage: document.getElementById('broadcastMessage'),
+                        multiTabMessages: document.getElementById('multiTabMessages'),
+
+                        startWorker: document.getElementById('startWorker'),
+                        stopWorker: document.getElementById('stopWorker'),
+                        sendToWorker: document.getElementById('sendToWorker'),
+                        workerMessage: document.getElementById('workerMessage'),
+                        workerMessages: document.getElementById('workerMessages'),
+                        workerStatus: document.getElementById('workerStatus'),
+
+                        logPanel: document.getElementById('logPanel')
+                    };
+
+                    this.init();
+                }
+
+                init() {
+                    this.checkSupport();
+                    this.setupTabs();
+                    this.setupChannels();
+                    this.setupEventListeners();
+
+                    // 检测其他标签页
+                    this.detectOtherTabs();
+
+                    this.log('系统初始化完成', 'success');
+                }
+
+                checkSupport() {
+                    const supported = 'BroadcastChannel' in window;
+
+                    if (supported) {
+                        this.elements.apiStatus.textContent = '✓ 支持';
+                        this.elements.apiStatus.className = 'status-badge status-supported';
+                        this.log('✅ Broadcast Channel API 可用', 'success');
+                    } else {
+                        this.elements.apiStatus.textContent = '✗ 不支持';
+                        this.elements.apiStatus.className = 'status-badge status-unsupported';
+                        this.log('❌ 当前浏览器不支持', 'error');
+
+                        // 禁用所有按钮
+                        document.querySelectorAll('button').forEach(btn => {
+                            btn.disabled = true;
+                        });
+                    }
+                }
+
+                setupTabs() {
+                    const tabs = this.elements.tabContainer.querySelectorAll('.tab');
+
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', () => {
+                            // 移除所有active类
+                            tabs.forEach(t => t.classList.remove('active'));
+                            tab.classList.add('active');
+
+                            // 显示对应内容
+                            const tabName = tab.dataset.tab;
+                            this.elements.basicTab.style.display = tabName === 'basic' ? 'block' : 'none';
+                            this.elements.multiTab.style.display = tabName === 'multi' ? 'block' : 'none';
+                            this.elements.workerTab.style.display = tabName === 'worker' ? 'block' : 'none';
+                        });
+                    });
+                }
+
+                setupChannels() {
+                    // 创建频道A
+                    this.createChannel('A');
+
+                    // 创建频道B
+                    this.createChannel('B');
+
+                    // 创建多标签页频道
+                    this.multiChannel = new BroadcastChannel('multi_channel');
+                    this.multiChannel.onmessage = (event) => {
+                        this.addMessage('multi', {
+                            data: event.data,
+                            time: new Date().toLocaleTimeString(),
+                            from: '其他标签页'
+                        });
+                        this.updateStats();
+                        this.log(`📥 收到跨标签页消息: ${this.formatMessage(event.data)}`, 'info');
+                    };
+
+                    this.stats.activeChannels = 3;
+                    this.updateStats();
+                }
+
+                createChannel(name) {
+                    const channel = new BroadcastChannel(`channel_${name}`);
+
+                    channel.onmessage = (event) => {
+                        this.addMessage(name, {
+                            data: event.data,
+                            time: new Date().toLocaleTimeString(),
+                            from: name === 'A' ? '频道B' : '频道A'
+                        });
+                        this.updateStats();
+                        this.log(`📥 频道${name}收到消息: ${this.formatMessage(event.data)}`, 'info');
+                    };
+
+                    if (name === 'A') {
+                        this.channelA = channel;
+                    } else {
+                        this.channelB = channel;
+                    }
+
+                    return channel;
+                }
+
+                setupEventListeners() {
+                    // 频道A发送
+                    this.elements.channelASend.addEventListener('click', () => {
+                        this.sendMessage('A');
+                    });
+
+                    // 频道A关闭
+                    this.elements.channelAClose.addEventListener('click', () => {
+                        this.closeChannel('A');
+                    });
+
+                    // 频道B发送
+                    this.elements.channelBSend.addEventListener('click', () => {
+                        this.sendMessage('B');
+                    });
+
+                    // 频道B关闭
+                    this.elements.channelBClose.addEventListener('click', () => {
+                        this.closeChannel('B');
+                    });
+
+                    // 打开新标签页
+                    this.elements.openNewTab.addEventListener('click', () => {
+                        window.open(window.location.href, '_blank');
+                    });
+
+                    // 发送到所有标签页
+                    this.elements.sendToAllTabs.addEventListener('click', () => {
+                        const message = this.elements.broadcastMessage.value;
+                        this.multiChannel.postMessage(message);
+                        this.addMessage('multi', {
+                            data: message,
+                            time: new Date().toLocaleTimeString(),
+                            from: '本页'
+                        });
+                        this.log(`📢 广播消息: ${message}`, 'success');
+                    });
+
+                    // Web Worker 按钮
+                    this.elements.startWorker.addEventListener('click', () => this.startWorker());
+                    this.elements.stopWorker.addEventListener('click', () => this.stopWorker());
+                    this.elements.sendToWorker.addEventListener('click', () => this.sendToWorker());
+                }
+
+                sendMessage(channelName) {
+                    try {
+                        const input = channelName === 'A' ? this.elements.channelAInput : this.elements.channelBInput;
+                        const type = channelName === 'A' ? this.elements.channelAType : this.elements.channelBType;
+
+                        const text = input.value.trim();
+                        if (!text) {
+                            this.log('⚠️ 请输入消息内容', 'warning');
+                            return;
+                        }
+
+                        let data;
+                        switch (type.value) {
+                            case 'text':
+                                data = text;
+                                break;
+                            case 'object':
+                                data = {
+                                    text: text,
+                                    type: 'object',
+                                    timestamp: Date.now(),
+                                    random: Math.random()
+                                };
+                                break;
+                            case 'array':
+                                data = [text, Date.now(), Math.random()];
+                                break;
+                        }
+
+                        const channel = channelName === 'A' ? this.channelA : this.channelB;
+                        channel.postMessage(data);
+
+                        this.addMessage(channelName, {
+                            data: data,
+                            time: new Date().toLocaleTimeString(),
+                            from: '自己'
+                        });
+
+                        this.log(`📤 频道${channelName}发送: ${this.formatMessage(data)}`, 'success');
+
+                    } catch (err) {
+                        this.log(`❌ 发送失败: ${err.message}`, 'error');
+                    }
+                }
+
+                closeChannel(channelName) {
+                    try {
+                        if (channelName === 'A' && this.channelA) {
+                            this.channelA.close();
+                            this.channelA = null;
+                            this.elements.channelAStatus.textContent = '已关闭';
+                            this.elements.channelAStatus.style.background = '#f44336';
+                            this.elements.channelASend.disabled = true;
+                        } else if (channelName === 'B' && this.channelB) {
+                            this.channelB.close();
+                            this.channelB = null;
+                            this.elements.channelBStatus.textContent = '已关闭';
+                            this.elements.channelBStatus.style.background = '#f44336';
+                            this.elements.channelBSend.disabled = true;
+                        }
+
+                        this.stats.activeChannels--;
+                        this.updateStats();
+                        this.log(`🔒 频道${channelName}已关闭`, 'info');
+
+                    } catch (err) {
+                        this.log(`❌ 关闭失败: ${err.message}`, 'error');
+                    }
+                }
+
+                addMessage(channel, message) {
+                    const list = this.messages[channel === 'A' ? 'channelA' :
+                        channel === 'B' ? 'channelB' :
+                            channel === 'multi' ? 'multi' : 'worker'];
+
+                    list.push(message);
+
+                    // 限制消息数量
+                    if (list.length > 20) {
+                        list.shift();
+                    }
+
+                    this.renderMessages(channel);
+                    this.stats.totalMessages++;
+                    this.updateStats();
+                }
+
+                renderMessages(channel) {
+                    let container;
+                    let messages;
+
+                    if (channel === 'A') {
+                        container = this.elements.channelAMessages;
+                        messages = this.messages.channelA;
+                    } else if (channel === 'B') {
+                        container = this.elements.channelBMessages;
+                        messages = this.messages.channelB;
+                    } else if (channel === 'multi') {
+                        container = this.elements.multiTabMessages;
+                        messages = this.messages.multi;
+                    } else if (channel === 'worker') {
+                        container = this.elements.workerMessages;
+                        messages = this.messages.worker;
+                    } else {
+                        return;
+                    }
+
+                    if (!container) return;
+
+                    container.innerHTML = messages.map(msg => {
+                        const typeClass = this.getMessageTypeClass(msg.data);
+                        const displayData = this.formatMessage(msg.data, true);
+
+                        return `
+                            <div class="message-item ${msg.from === '自己' ? 'self' : ''}">
+                                <div class="message-header">
+                                    <span class="message-sender">${msg.from}</span>
+                                    <span class="message-time">${msg.time}</span>
+                                </div>
+                                <div class="message-content">
+                                    <span class="message-type type-${typeClass}">${typeClass}</span>
+                                    ${displayData}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                getMessageTypeClass(data) {
+                    if (typeof data === 'string') return 'text';
+                    if (Array.isArray(data)) return 'array';
+                    if (data instanceof Blob) return 'blob';
+                    if (typeof data === 'object') return 'object';
+                    return 'text';
+                }
+
+                formatMessage(data, truncate = false) {
+                    try {
+                        if (typeof data === 'string') {
+                            return truncate && data.length > 50 ? data.substring(0, 50) + '...' : data;
+                        }
+                        if (Array.isArray(data)) {
+                            const str = JSON.stringify(data);
+                            return truncate && str.length > 50 ? str.substring(0, 50) + '...' : str;
+                        }
+                        if (data instanceof Blob) {
+                            return `[Blob 大小: ${data.size} 字节]`;
+                        }
+                        if (typeof data === 'object') {
+                            const str = JSON.stringify(data);
+                            return truncate && str.length > 50 ? str.substring(0, 50) + '...' : str;
+                        }
+                        return String(data);
+                    } catch {
+                        return '[无法显示]';
+                    }
+                }
+
+                detectOtherTabs() {
+                    // 尝试检测其他标签页
+                    const detectionChannel = new BroadcastChannel('detection');
+                    let tabCount = 1;
+
+                    detectionChannel.onmessage = (event) => {
+                        if (event.data === 'ping') {
+                            detectionChannel.postMessage('pong');
+                        } else if (event.data === 'pong') {
+                            tabCount++;
+                            this.stats.connectedTabs = tabCount;
+                            this.updateStats();
+                        }
+                    };
+
+                    // 发送ping消息
+                    detectionChannel.postMessage('ping');
+
+                    // 1秒后关闭检测频道
+                    setTimeout(() => {
+                        detectionChannel.close();
+                    }, 1000);
+                }
+
+                updateStats() {
+                    this.elements.totalMessages.textContent = this.stats.totalMessages;
+                    this.elements.activeChannels.textContent = this.stats.activeChannels;
+                    this.elements.connectedTabs.textContent = this.stats.connectedTabs;
+                }
+
+                startWorker() {
+                    if (this.worker) {
+                        this.log('⚠️ Worker 已经在运行', 'warning');
+                        return;
+                    }
+
+                    try {
+                        // 创建 Worker
+                        const workerCode = `
+                            // Worker 中的广播频道
+                            const workerChannel = new BroadcastChannel('worker_channel');
+                            
+                            // 监听主线程消息
+                            self.addEventListener('message', (event) => {
+                                console.log('Worker 收到主线程消息:', event.data);
+                                
+                                // 通过广播频道发送
+                                workerChannel.postMessage({
+                                    from: 'worker',
+                                    data: event.data,
+                                    time: Date.now(),
+                                    reply: 'Worker收到: ' + event.data
+                                });
+                                
+                                // 回复主线程
+                                self.postMessage('Worker已收到: ' + event.data);
+                            });
+                            
+                            // 监听广播频道
+                            workerChannel.addEventListener('message', (event) => {
+                                console.log('Worker 收到广播:', event.data);
+                                self.postMessage('广播消息: ' + JSON.stringify(event.data));
+                            });
+                            
+                            // 通知主线程 Worker 已启动
+                            self.postMessage('Worker 已启动');
+                        `;
+
+                        const blob = new Blob([workerCode], { type: 'application/javascript' });
+                        const workerUrl = URL.createObjectURL(blob);
+                        this.worker = new Worker(workerUrl);
+
+                        this.elements.workerStatus.textContent = 'Worker 状态: 运行中';
+                        this.elements.workerStatus.style.color = '#4CAF50';
+
+                        // 监听 Worker 消息
+                        this.worker.addEventListener('message', (event) => {
+                            this.addMessage('worker', {
+                                data: event.data,
+                                time: new Date().toLocaleTimeString(),
+                                from: 'Worker'
+                            });
+                            this.log(`📥 收到 Worker 消息: ${event.data}`, 'info');
+                        });
+
+                        this.worker.addEventListener('error', (error) => {
+                            this.log(`❌ Worker 错误: ${error.message}`, 'error');
+                        });
+
+                        // 创建 Worker 广播频道
+                        const workerChannel = new BroadcastChannel('worker_channel');
+                        workerChannel.onmessage = (event) => {
+                            this.addMessage('worker', {
+                                data: event.data,
+                                time: new Date().toLocaleTimeString(),
+                                from: 'Worker广播'
+                            });
+                        };
+
+                        this.log('✅ Worker 已启动', 'success');
+
+                    } catch (err) {
+                        this.log(`❌ 启动 Worker 失败: ${err.message}`, 'error');
+                    }
+                }
+
+                stopWorker() {
+                    if (this.worker) {
+                        this.worker.terminate();
+                        this.worker = null;
+                        this.elements.workerStatus.textContent = 'Worker 状态: 已停止';
+                        this.elements.workerStatus.style.color = '#f44336';
+                        this.log('⏹️ Worker 已停止', 'info');
+                    }
+                }
+
+                sendToWorker() {
+                    if (!this.worker) {
+                        this.log('⚠️ Worker 未启动', 'warning');
+                        return;
+                    }
+
+                    const message = this.elements.workerMessage.value.trim();
+                    if (!message) {
+                        this.log('⚠️ 请输入消息', 'warning');
+                        return;
+                    }
+
+                    this.worker.postMessage(message);
+                    this.addMessage('worker', {
+                        data: '发送: ' + message,
+                        time: new Date().toLocaleTimeString(),
+                        from: '自己'
+                    });
+                    this.log(`📤 发送到 Worker: ${message}`, 'success');
+                }
+
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+                    entry.textContent = `${time} ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    while (this.elements.logPanel.children.length > 50) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+            }
+
+            // 启动
+            window.addEventListener('load', () => {
+                new BroadcastChannelDemo();
+            });
+        })();
+    </script>
+</body>
+
+</html>

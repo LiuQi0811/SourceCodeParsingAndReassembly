@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Device Posture API - 旗舰优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --gray-light: #94a3b8;
+            --border: #e2e8f0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.25);
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 28px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --light: #1e293b;
+                --dark: #f8fafc;
+                --border: #334155;
+                --gray: #94a3b8;
+                --gray-light: #64748b;
+            }
+
+            body {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+
+            .card,
+            .control-panel {
+                background: #2d3a4f;
+                color: #e2e8f0;
+            }
+
+            .code-block {
+                background: #0f172a;
+                border: 1px solid #334155;
+            }
+
+            input,
+            select,
+            textarea {
+                background: #1e293b;
+                color: #e2e8f0;
+                border-color: #475569;
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+            transition: background 0.3s;
+        }
+
+        /* 折叠状态特定样式 */
+        body.posture-folded {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部卡片 - 3D效果增强 */
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .badge-success {
+            background: var(--success);
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .badge-danger {
+            background: var(--danger);
+        }
+
+        /* 网格布局优化 */
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* 卡片通用 - 玻璃态增强 */
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            color: var(--dark);
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .card-header .icon {
+            font-size: 28px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+        }
+
+        /* 姿势展示区 - 3D效果增强 */
+        .posture-display {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 64px;
+            padding: 48px;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px solid var(--primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .posture-display::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent);
+            pointer-events: none;
+        }
+
+        .posture-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 20px 30px rgba(99, 102, 241, 0.4));
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .posture-value {
+            font-size: 72px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .posture-label {
+            font-size: 18px;
+            color: var(--gray);
+            margin-top: 16px;
+        }
+
+        /* 折叠屏模拟器 - 3D增强 */
+        .fold-simulator {
+            position: relative;
+            width: 340px;
+            height: 440px;
+            margin: 40px auto;
+            perspective: 1200px;
+            cursor: pointer;
+        }
+
+        .fold-device {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .fold-device.folded {
+            transform: rotateY(15deg) rotateX(5deg);
+        }
+
+        .device-half {
+            position: absolute;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: 3px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            backface-visibility: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .device-left {
+            left: 0;
+            border-radius: 30px 0 0 30px;
+            transform-origin: right center;
+        }
+
+        .device-right {
+            right: 0;
+            border-radius: 0 30px 30px 0;
+            transform-origin: left center;
+        }
+
+        .fold-device.folded .device-left {
+            transform: rotateY(40deg) translateX(10px);
+        }
+
+        .fold-device.folded .device-right {
+            transform: rotateY(-40deg) translateX(-10px);
+        }
+
+        .hinge {
+            position: absolute;
+            left: 50%;
+            width: 14px;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2));
+            transform: translateX(-50%);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+            z-index: 2;
+        }
+
+        /* 姿势卡片 - 增强 */
+        .posture-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.1));
+            border-radius: 24px;
+            padding: 24px;
+            margin: 16px 0;
+            border-left: 6px solid var(--primary);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .posture-card:hover {
+            transform: translateX(12px);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(236, 72, 153, 0.15));
+        }
+
+        .posture-card-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .posture-card-content {
+            color: var(--gray);
+            line-height: 1.8;
+        }
+
+        /* 控制面板 - 玻璃态 */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin: 16px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* 按钮系统 - 3D效果 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #15803d);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #b45309);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #b91c1c);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info), #1d4ed8);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* 特性检测 - 增强 */
+        .feature-check {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            margin: 10px 0;
+            transition: var(--transition);
+        }
+
+        .feature-check:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(8px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .feature-icon.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .feature-icon.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .feature-icon.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .feature-name {
+            flex: 1;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 1rem;
+        }
+
+        .feature-value {
+            font-family: 'Fira Code', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.15);
+            padding: 6px 16px;
+            border-radius: 40px;
+        }
+
+        /* CSS姿势媒体查询演示 - 增强 */
+        .css-demo {
+            padding: 24px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 20px;
+            margin: 16px 0;
+            transition: all 0.3s;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* 使用CSS媒体查询检测姿势 */
+        @media (device-posture: folded) {
+            .css-demo {
+                background: linear-gradient(135deg, var(--warning), var(--danger));
+                color: white;
+                transform: scale(1.02) translateY(-4px);
+                box-shadow: 0 15px 40px rgba(245, 158, 11, 0.4);
+                border-color: var(--warning);
+            }
+
+            .css-demo::before {
+                content: "📱 当前姿势: folded (通过CSS检测) ✓";
+                display: block;
+                font-weight: bold;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (device-posture: continuous) {
+            .css-demo::before {
+                content: "📱 当前姿势: continuous (通过CSS检测) ✓";
+                display: block;
+                font-weight: bold;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* 折叠区域模拟 */
+        .folded-layout {
+            display: flex;
+            gap: 24px;
+            margin: 20px 0;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 折叠状态下的布局调整 */
+        body.posture-folded .folded-layout {
+            flex-direction: column;
+        }
+
+        .fold-panel {
+            flex: 1;
+            padding: 30px;
+            background: rgba(99, 102, 241, 0.15);
+            border-radius: 20px;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(4px);
+        }
+
+        /* 环境变量演示 */
+        .env-demo {
+            padding: 24px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 20px;
+            margin: 16px 0;
+            text-align: center;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .env-demo div {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .env-demo strong {
+            color: var(--dark);
+        }
+
+        .env-demo span {
+            font-family: monospace;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .fold-gutter {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 24px;
+            border-radius: 20px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        /* 代码块 - 终端风格 */
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #334155;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        /* 日志面板 - 终端风格 */
+        .log-panel {
+            background: #0f172a;
+            border-radius: 32px;
+            padding: 24px;
+            margin-top: 32px;
+            color: #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            box-shadow: inset 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+
+        .log-entry {
+            padding: 10px 16px;
+            margin: 6px 0;
+            border-radius: 12px;
+            border-left: 6px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            transition: var(--transition);
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--success);
+            color: #86efac;
+        }
+
+        .log-entry.info {
+            border-left-color: var(--primary);
+            color: #93c5fd;
+        }
+
+        .log-entry.warning {
+            border-left-color: var(--warning);
+            color: #fcd34d;
+        }
+
+        .log-entry.error {
+            border-left-color: var(--danger);
+            color: #fca5a5;
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 13px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 进度条 */
+        .progress-container {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.3s;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1024px) {
+
+            .grid-2,
+            .grid-3,
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .posture-value {
+                font-size: 40px;
+            }
+
+            .posture-icon {
+                font-size: 80px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .fold-simulator {
+                width: 280px;
+                height: 360px;
+            }
+        }
+
+        /* 打印样式 */
+        @media print {
+
+            .btn,
+            .btn-group,
+            .log-panel {
+                display: none;
+            }
+
+            .card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+        }
+
+        /* 动画效果 */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card,
+        .posture-display,
+        .feature-check {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* 徽章动画 */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .badge-pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+    <!-- 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 头部 - 3D效果 -->
+        <div class="header-card">
+            <h1>
+                <span>📱 Device Posture API - 旗舰优化版</span>
+                <span class="badge" id="apiSupportBadge">检测中...</span>
+            </h1>
+            <p style="color: var(--gray); font-size: 16px; line-height: 1.8; max-width: 800px;">
+                检测折叠屏设备的物理姿势 · 连续/折叠状态 · CSS媒体查询 · 环境变量 · 自适应布局 · 姿势历史记录 · 趋势图表 · 性能监控
+            </p>
+        </div>
+
+        <!-- 姿势展示区 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">📊</span>
+                <h2>当前设备姿势</h2>
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+                    <span class="tooltip" data-tooltip="设备物理姿势状态">ⓘ</span>
+                    <span class="badge badge-pulse" id="postureStatus" style="background: var(--primary);">检测中...</span>
+                </div>
+            </div>
+
+            <div class="posture-display">
+                <div class="posture-icon" id="postureIcon">📱</div>
+                <div class="posture-value" id="postureValue">--</div>
+                <div class="posture-label" id="postureDescription">等待设备姿势数据...</div>
+            </div>
+
+            <!-- 折叠屏模拟器 (用于演示) -->
+            <div class="fold-simulator" onclick="devicePostureAPI.toggleSimulator()">
+                <div class="fold-device" id="foldDevice">
+                    <div class="device-half device-left">左侧屏幕</div>
+                    <div class="device-half device-right">右侧屏幕</div>
+                    <div class="hinge"></div>
+                </div>
+                <p style="text-align: center; margin-top: 16px; color: var(--gray);">点击模拟折叠/展开</p>
+            </div>
+        </div>
+
+        <!-- API信息和CSS演示 -->
+        <div class="grid-2">
+            <!-- API详细信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">ℹ️</span>
+                    <h2>API 详细信息</h2>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="apiIcon">❓</div>
+                    <span class="feature-name">navigator.devicePosture</span>
+                    <span class="feature-value" id="apiCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="postureTypeIcon">❓</div>
+                    <span class="feature-name">当前姿势类型</span>
+                    <span class="feature-value" id="postureType">--</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="cssMediaIcon">❓</div>
+                    <span class="feature-name">CSS @media 支持</span>
+                    <span class="feature-value" id="cssMediaCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="envIcon">❓</div>
+                    <span class="feature-name">env(fold-*) 支持</span>
+                    <span class="feature-value" id="envCheck">检测中</span>
+                </div>
+
+                <div class="posture-card">
+                    <div class="posture-card-title">
+                        <span>📋 姿势定义</span>
+                        <span class="badge" style="font-size: 10px;">W3C候选推荐</span>
+                    </div>
+                    <div class="posture-card-content">
+                        <p><strong>continuous</strong> - 连续平面状态（完全展开或完全闭合）</p>
+                        <p><strong>folded</strong> - 折叠状态（书本式或笔记本式）</p>
+                        <p>非折叠屏设备始终为 continuous</p>
+                    </div>
+                </div>
+
+                <!-- 姿势历史记录 -->
+                <div class="posture-card">
+                    <div class="posture-card-title">
+                        <span>📜 姿势历史记录</span>
+                        <span class="badge" id="historyCount" style="font-size: 10px;">0</span>
+                    </div>
+                    <div id="postureHistory" class="code-block" style="max-height: 120px;">
+                        暂无历史记录
+                    </div>
+                    <div class="btn-group" style="margin-top: 8px;">
+                        <button class="btn btn-small btn-outline"
+                            onclick="devicePostureAPI.clearHistory()">清空历史</button>
+                        <button class="btn btn-small btn-info" onclick="devicePostureAPI.exportHistory()">导出历史</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSS姿势媒体查询演示 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎨</span>
+                    <h2>CSS 姿势检测</h2>
+                </div>
+
+                <div class="css-demo" id="cssDemo">
+                    <!-- 内容通过CSS伪元素动态显示 -->
+                </div>
+
+                <div class="code-block">
+                    <pre>/* CSS 媒体查询示例 */
+@media (device-posture: folded) {
+  .element {
+    flex-direction: column;
+    background: var(--warning);
+  }
+}
+
+@media (device-posture: continuous) {
+  .element {
+    flex-direction: row;
+    background: var(--success);
+  }
+}</pre>
+                </div>
+
+                <div class="posture-card" style="border-left-color: var(--info);">
+                    <div class="posture-card-title">✅ CSS 检测状态</div>
+                    <div class="posture-card-content" id="cssDetectionStatus">
+                        等待检测...
+                    </div>
+                </div>
+
+                <!-- 姿势趋势图表 -->
+                <div class="posture-card" style="border-left-color: var(--purple);">
+                    <div class="posture-card-title">📈 姿势变化趋势</div>
+                    <div style="height: 150px; margin-top: 16px;">
+                        <canvas id="postureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 布局演示和环境变量 -->
+        <div class="grid-2">
+            <!-- 自适应布局演示 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔄</span>
+                    <h2>自适应布局演示</h2>
+                </div>
+
+                <div class="folded-layout" id="adaptiveLayout">
+                    <div class="fold-panel">📋 列表区域</div>
+                    <div class="fold-panel">📝 详情区域</div>
+                </div>
+
+                <p style="color: var(--gray);">折叠状态下布局会变为垂直排列</p>
+
+                <div class="btn-group">
+                    <button class="btn btn-small btn-info" onclick="devicePostureAPI.toggleLayout()">🔄 切换布局演示</button>
+                    <button class="btn btn-small btn-outline" onclick="devicePostureAPI.resetLayout()">↩️ 重置</button>
+                </div>
+
+                <!-- 折叠区域避让演示 -->
+                <div class="fold-gutter" id="foldGutter">
+                    折叠区域避让演示 (添加 margin 避开折叠)
+                </div>
+
+                <!-- 性能指标 -->
+                <div class="progress-container" style="margin-top: 20px;">
+                    <div class="progress-bar" id="performanceBar" style="width: 0%;"></div>
+                </div>
+                <p style="color: var(--gray);">事件处理性能: <span id="performanceText">0 ms</span></p>
+            </div>
+
+            <!-- 环境变量演示 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔧</span>
+                    <h2>环境变量 env()</h2>
+                </div>
+
+                <div class="env-demo">
+                    <div><strong>env(fold-top)</strong> <span id="foldTop">--</span></div>
+                    <div><strong>env(fold-right)</strong> <span id="foldRight">--</span></div>
+                    <div><strong>env(fold-bottom)</strong> <span id="foldBottom">--</span></div>
+                    <div><strong>env(fold-left)</strong> <span id="foldLeft">--</span></div>
+                    <div><strong>env(fold-width)</strong> <span id="foldWidth">--</span></div>
+                    <div><strong>env(fold-height)</strong> <span id="foldHeight">--</span></div>
+                </div>
+
+                <div class="code-block" style="margin-top: 16px;">
+                    <pre>/* 避让折叠区域 */
+.element {
+  margin-left: env(fold-left);
+  margin-right: env(fold-right);
+}</pre>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" id="foldProgress" style="width: 0%;"></div>
+                </div>
+                <p style="color: var(--gray);">折叠区域宽度占比: <span id="foldPercent">0%</span></p>
+
+                <!-- 折叠方向检测 -->
+                <div class="posture-card" style="border-left-color: var(--success); margin-top: 16px;">
+                    <div class="posture-card-title">🧭 折叠方向</div>
+                    <div class="posture-card-content" id="foldDirection">
+                        未检测
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">⚙️</span>
+                <h2>控制与模拟</h2>
+                <div style="margin-left: auto;">
+                    <span class="badge" id="simulationMode" style="background: var(--gray);">实际模式</span>
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <!-- 姿势模拟 -->
+                <div class="control-panel">
+                    <h3 style="margin-bottom: 16px;">姿势模拟</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="devicePostureAPI.simulatePosture('continuous')">📱 模拟
+                            continuous</button>
+                        <button class="btn btn-warning" onclick="devicePostureAPI.simulatePosture('folded')">📚 模拟
+                            folded</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-outline" onclick="devicePostureAPI.toggleSimulator()">🔄 切换模拟器</button>
+                        <button class="btn btn-danger" onclick="devicePostureAPI.resetSimulation()">↩️ 重置模拟</button>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>模拟持续时间</label>
+                        <select id="simulationDuration">
+                            <option value="3000">3秒</option>
+                            <option value="5000" selected>5秒</option>
+                            <option value="10000">10秒</option>
+                            <option value="0">永久</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 事件监听控制 -->
+                <div class="control-panel">
+                    <h3 style="margin-bottom: 16px;">事件监听</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="devicePostureAPI.startListening()">▶️ 开始监听</button>
+                        <button class="btn btn-danger" onclick="devicePostureAPI.stopListening()">⏹️ 停止监听</button>
+                        <button class="btn btn-info" onclick="devicePostureAPI.clearLog()">🗑️ 清空日志</button>
+                    </div>
+                    <p style="color: var(--gray); margin-top: 12px;">📊 已触发 <span id="eventCount">0</span> 次姿势变化</p>
+                    <p style="color: var(--gray);">⏱️ 最后变化: <span id="lastEventTime">--</span></p>
+                </div>
+
+                <!-- 开发者选项 -->
+                <div class="control-panel">
+                    <h3 style="margin-bottom: 16px;">开发者选项</h3>
+                    <div class="form-group">
+                        <label>姿势覆盖 (模拟)</label>
+                        <select id="devtoolsPosture" onchange="devicePostureAPI.setDevToolsPosture(this.value)">
+                            <option value="">默认 (实际设备)</option>
+                            <option value="continuous">continuous</option>
+                            <option value="folded">folded</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>日志级别</label>
+                        <select id="logLevel" onchange="devicePostureAPI.setLogLevel(this.value)">
+                            <option value="all">全部</option>
+                            <option value="info" selected>信息</option>
+                            <option value="warning">警告</option>
+                            <option value="error">错误</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-small btn-outline" onclick="devicePostureAPI.exportConfig()">📥
+                            导出配置</button>
+                        <button class="btn btn-small btn-info" onclick="devicePostureAPI.importConfig()">📤
+                            导入配置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry info">📝 Device Posture API 旗舰版初始化完成</div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            /**
+             * Device Posture API 管理器 - 旗舰优化版
+             * 
+             * 新增优化特性：
+             * 1. 姿势趋势图表 (Chart.js)
+             * 2. 性能监控 (事件处理耗时)
+             * 3. 历史记录导出/导入
+             * 4. 折叠方向检测
+             * 5. 最后事件时间戳
+             * 6. 徽章脉冲动画
+             * 7. 更完善的错误处理
+             */
+            class DevicePostureAPI {
+                constructor() {
+                    // DOM 元素缓存
+                    this.elements = {
+                        logPanel: document.getElementById('logPanel'),
+                        apiSupportBadge: document.getElementById('apiSupportBadge'),
+                        postureStatus: document.getElementById('postureStatus'),
+                        postureIcon: document.getElementById('postureIcon'),
+                        postureValue: document.getElementById('postureValue'),
+                        postureDescription: document.getElementById('postureDescription'),
+                        postureHistory: document.getElementById('postureHistory'),
+                        historyCount: document.getElementById('historyCount'),
+                        foldDevice: document.getElementById('foldDevice'),
+                        apiIcon: document.getElementById('apiIcon'),
+                        apiCheck: document.getElementById('apiCheck'),
+                        postureType: document.getElementById('postureType'),
+                        cssMediaIcon: document.getElementById('cssMediaIcon'),
+                        cssMediaCheck: document.getElementById('cssMediaCheck'),
+                        envIcon: document.getElementById('envIcon'),
+                        envCheck: document.getElementById('envCheck'),
+                        cssDetectionStatus: document.getElementById('cssDetectionStatus'),
+                        simulationMode: document.getElementById('simulationMode'),
+                        eventCount: document.getElementById('eventCount'),
+                        lastEventTime: document.getElementById('lastEventTime'),
+                        foldTop: document.getElementById('foldTop'),
+                        foldRight: document.getElementById('foldRight'),
+                        foldBottom: document.getElementById('foldBottom'),
+                        foldLeft: document.getElementById('foldLeft'),
+                        foldWidth: document.getElementById('foldWidth'),
+                        foldHeight: document.getElementById('foldHeight'),
+                        foldGutter: document.getElementById('foldGutter'),
+                        foldProgress: document.getElementById('foldProgress'),
+                        foldPercent: document.getElementById('foldPercent'),
+                        foldDirection: document.getElementById('foldDirection'),
+                        performanceBar: document.getElementById('performanceBar'),
+                        performanceText: document.getElementById('performanceText')
+                    };
+
+                    // 状态管理
+                    this.state = {
+                        supported: false,
+                        currentPosture: 'continuous',
+                        isListening: true,
+                        isSimulating: false,
+                        simulatedPosture: null,
+                        devicePosture: null,
+                        eventCount: 0,
+                        lastEventTimestamp: null,
+                        history: [],
+                        logLevel: 'info',
+                        simulationTimeout: null,
+                        performanceMetrics: {
+                            totalTime: 0,
+                            eventCount: 0
+                        }
+                    };
+
+                    // 配置
+                    this.config = {
+                        maxLogEntries: 300,
+                        maxHistoryEntries: 20,
+                        defaultSimulationDuration: 5000,
+                        maxChartDataPoints: 20
+                    };
+
+                    // 日志级别
+                    this.logLevels = {
+                        all: ['success', 'info', 'warning', 'error'],
+                        info: ['success', 'info'],
+                        warning: ['warning', 'error'],
+                        error: ['error']
+                    };
+
+                    // 图表实例
+                    this.chart = null;
+
+                    this.init();
+                }
+
+                // ==================== 初始化 ====================
+                init() {
+                    try {
+                        this.checkSupport();
+                        this.setupPostureListener();
+                        this.updateEnvVars();
+                        this.updateCssDetectionStatus();
+                        this.initChart();
+                        this.log('✅ Device Posture API 旗舰版初始化完成', 'success');
+                    } catch (error) {
+                        this.log(`❌ 初始化失败: ${error.message}`, 'error');
+                        console.error('DevicePostureAPI initialization error:', error);
+                    }
+                }
+
+                // ==================== 初始化图表 ====================
+                initChart() {
+                    const ctx = document.getElementById('postureChart')?.getContext('2d');
+                    if (!ctx) return;
+
+                    this.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                {
+                                    label: 'continuous',
+                                    data: [],
+                                    borderColor: '#22c55e',
+                                    backgroundColor: 'rgba(34,197,94,0.1)',
+                                    tension: 0.4,
+                                    fill: false
+                                },
+                                {
+                                    label: 'folded',
+                                    data: [],
+                                    borderColor: '#f59e0b',
+                                    backgroundColor: 'rgba(245,158,11,0.1)',
+                                    tension: 0.4,
+                                    fill: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 300 },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 1,
+                                    ticks: {
+                                        callback: (value) => value === 1 ? '是' : '否'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return context.raw === 1 ? '是' : '否';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // ==================== 更新图表 ====================
+                updateChart() {
+                    if (!this.chart) return;
+
+                    const timestamps = this.state.history.slice(-this.config.maxChartDataPoints).map(h => h.timestamp);
+                    const continuousData = this.state.history.slice(-this.config.maxChartDataPoints).map(h =>
+                        h.posture === 'continuous' ? 1 : 0
+                    );
+                    const foldedData = this.state.history.slice(-this.config.maxChartDataPoints).map(h =>
+                        h.posture === 'folded' ? 1 : 0
+                    );
+
+                    this.chart.data.labels = timestamps;
+                    this.chart.data.datasets[0].data = continuousData;
+                    this.chart.data.datasets[1].data = foldedData;
+                    this.chart.update();
+                }
+
+                // ==================== 日志系统 ====================
+                log(message, type = 'info') {
+                    // 检查日志级别
+                    if (!this.logLevels[this.state.logLevel].includes(type)) {
+                        return;
+                    }
+
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+                    entry.textContent = `${time} ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    while (this.elements.logPanel.children.length > this.config.maxLogEntries) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+
+                // ==================== 设置日志级别 ====================
+                setLogLevel(level) {
+                    this.state.logLevel = level;
+                    this.log(`日志级别设置为: ${level}`, 'info');
+                }
+
+                // ==================== 检测 API 支持 ====================
+                checkSupport() {
+                    try {
+                        // 检测 navigator.devicePosture
+                        const hasDevicePosture = 'devicePosture' in navigator;
+
+                        if (hasDevicePosture) {
+                            this.state.supported = true;
+                            this.state.devicePosture = navigator.devicePosture;
+
+                            // 获取初始姿势
+                            const initialPosture = this.state.devicePosture.type;
+                            this.state.currentPosture = initialPosture;
+
+                            this.elements.apiIcon.innerHTML = '✅';
+                            this.elements.apiIcon.className = 'feature-icon success';
+                            this.elements.apiCheck.textContent = '支持';
+
+                            this.elements.apiSupportBadge.textContent = '✅ 支持 Device Posture API';
+                            this.elements.apiSupportBadge.className = 'badge badge-success';
+
+                            this.updatePostureDisplay(initialPosture);
+                            this.addToHistory(initialPosture, '实际设备');
+                            this.log(`API 支持，初始姿势: ${initialPosture}`, 'success');
+                        } else {
+                            this.state.supported = false;
+
+                            this.elements.apiIcon.innerHTML = '❌';
+                            this.elements.apiIcon.className = 'feature-icon error';
+                            this.elements.apiCheck.textContent = '不支持';
+
+                            this.elements.apiSupportBadge.textContent = '⚠️ 不支持 (使用模拟模式)';
+                            this.elements.apiSupportBadge.className = 'badge badge-warning';
+
+                            // 默认显示 continuous
+                            this.updatePostureDisplay('continuous');
+
+                            this.log('Device Posture API 不支持，将使用模拟模式', 'warning');
+                        }
+
+                        // 检测 CSS @media 支持
+                        this.checkCSSMediaSupport();
+
+                        // 检测 env() 支持
+                        this.checkEnvSupport();
+
+                    } catch (error) {
+                        this.log(`检测失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 检测 CSS 媒体查询支持 ====================
+                checkCSSMediaSupport() {
+                    try {
+                        // 检测是否支持 device-posture 媒体特性
+                        const supportsFolded = CSS.supports('(device-posture: folded)');
+                        const supportsContinuous = CSS.supports('(device-posture: continuous)');
+
+                        if (supportsFolded || supportsContinuous) {
+                            this.elements.cssMediaIcon.innerHTML = '✅';
+                            this.elements.cssMediaIcon.className = 'feature-icon success';
+                            this.elements.cssMediaCheck.textContent = '支持';
+                            this.log('CSS device-posture 媒体查询支持', 'success');
+                        } else {
+                            this.elements.cssMediaIcon.innerHTML = '⚠️';
+                            this.elements.cssMediaIcon.className = 'feature-icon warning';
+                            this.elements.cssMediaCheck.textContent = '部分支持';
+                        }
+                    } catch (e) {
+                        this.elements.cssMediaIcon.innerHTML = '❌';
+                        this.elements.cssMediaIcon.className = 'feature-icon error';
+                        this.elements.cssMediaCheck.textContent = '不支持';
+                    }
+                }
+
+                // ==================== 检测环境变量支持 ====================
+                checkEnvSupport() {
+                    try {
+                        // 检测 env() 是否支持折叠区域变量
+                        const div = document.createElement('div');
+                        div.style.marginLeft = 'env(fold-left)';
+
+                        // 简单检测，实际无法完美检测，这里假设支持
+                        this.elements.envIcon.innerHTML = '✅';
+                        this.elements.envIcon.className = 'feature-icon success';
+                        this.elements.envCheck.textContent = '支持 (模拟)';
+                    } catch (e) {
+                        this.elements.envIcon.innerHTML = '⚠️';
+                        this.elements.envIcon.className = 'feature-icon warning';
+                        this.elements.envCheck.textContent = '可能不支持';
+                    }
+                }
+
+                // ==================== 更新 CSS 检测状态 ====================
+                updateCssDetectionStatus() {
+                    const status = this.elements.cssDetectionStatus;
+                    try {
+                        if (window.matchMedia('(device-posture: folded)').matches) {
+                            status.innerHTML = '✅ CSS 检测到 folded 状态';
+                        } else if (window.matchMedia('(device-posture: continuous)').matches) {
+                            status.innerHTML = '✅ CSS 检测到 continuous 状态';
+                        } else {
+                            status.innerHTML = '⚠️ CSS 无法检测姿势 (浏览器不支持)';
+                        }
+                    } catch (e) {
+                        status.innerHTML = '⚠️ CSS 检测失败';
+                    }
+                }
+
+                // ==================== 设置姿势监听 ====================
+                setupPostureListener() {
+                    if (!this.state.supported || !this.state.devicePosture) return;
+
+                    try {
+                        // 添加 change 事件监听 
+                        this.state.devicePosture.addEventListener('change', (e) => {
+                            if (!this.state.isListening) return;
+
+                            const startTime = performance.now();
+                            const newPosture = this.state.devicePosture.type;
+                            this.handlePostureChange(newPosture, '实际设备');
+
+                            // 性能监控
+                            const endTime = performance.now();
+                            const duration = endTime - startTime;
+                            this.updatePerformanceMetrics(duration);
+                        });
+
+                        this.log('姿势变化监听已启动', 'info');
+                    } catch (error) {
+                        this.log(`监听设置失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 更新性能指标 ====================
+                updatePerformanceMetrics(duration) {
+                    this.state.performanceMetrics.totalTime += duration;
+                    this.state.performanceMetrics.eventCount++;
+
+                    const avgTime = this.state.performanceMetrics.totalTime / this.state.performanceMetrics.eventCount;
+                    const maxTime = 50; // 假设50ms为最大值
+                    const percent = Math.min(100, (avgTime / maxTime) * 100);
+
+                    this.elements.performanceBar.style.width = `${percent}%`;
+                    this.elements.performanceText.textContent = `${avgTime.toFixed(2)} ms`;
+
+                    if (avgTime > 30) {
+                        this.elements.performanceBar.style.background = 'var(--warning)';
+                    } else {
+                        this.elements.performanceBar.style.background = 'var(--success)';
+                    }
+                }
+
+                // ==================== 处理姿势变化 ====================
+                handlePostureChange(posture, source = '实际设备') {
+                    this.state.currentPosture = posture;
+                    this.state.eventCount++;
+                    this.state.lastEventTimestamp = Date.now();
+
+                    this.elements.eventCount.textContent = this.state.eventCount;
+                    this.elements.lastEventTime.textContent = new Date().toLocaleTimeString();
+
+                    this.updatePostureDisplay(posture);
+                    this.addToHistory(posture, source);
+                    this.updateChart();
+
+                    this.log(`📱 姿势变化: ${posture} (来源: ${source})`, 'success');
+                }
+
+                // ==================== 添加到历史记录 ====================
+                addToHistory(posture, source) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    this.state.history.unshift({
+                        posture,
+                        source,
+                        timestamp
+                    });
+
+                    if (this.state.history.length > this.config.maxHistoryEntries) {
+                        this.state.history.pop();
+                    }
+
+                    this.updateHistoryDisplay();
+                }
+
+                // ==================== 更新历史显示 ====================
+                updateHistoryDisplay() {
+                    if (this.state.history.length === 0) {
+                        this.elements.postureHistory.innerHTML = '暂无历史记录';
+                        this.elements.historyCount.textContent = '0';
+                        return;
+                    }
+
+                    let html = '';
+                    this.state.history.forEach(item => {
+                        const icon = item.posture === 'folded' ? '📚' : '📱';
+                        html += `<div>${icon} ${item.timestamp} - ${item.posture} (${item.source})</div>`;
+                    });
+                    this.elements.postureHistory.innerHTML = html;
+                    this.elements.historyCount.textContent = this.state.history.length;
+                }
+
+                // ==================== 清空历史 ====================
+                clearHistory() {
+                    this.state.history = [];
+                    this.updateHistoryDisplay();
+                    this.updateChart();
+                    this.log('历史记录已清空', 'info');
+                }
+
+                // ==================== 导出历史 ====================
+                exportHistory() {
+                    const data = {
+                        timestamp: new Date().toISOString(),
+                        history: this.state.history,
+                        stats: {
+                            totalEvents: this.state.eventCount,
+                            continuous: this.state.history.filter(h => h.posture === 'continuous').length,
+                            folded: this.state.history.filter(h => h.posture === 'folded').length
+                        }
+                    };
+
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `posture-history-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    this.log('📥 历史记录已导出', 'success');
+                }
+
+                // ==================== 更新姿势显示 ====================
+                updatePostureDisplay(posture) {
+                    this.state.currentPosture = posture;
+
+                    // 更新显示
+                    this.elements.postureValue.textContent = posture;
+                    this.elements.postureType.textContent = posture;
+
+                    // 更新图标和描述
+                    if (posture === 'folded') {
+                        this.elements.postureIcon.textContent = '📚';
+                        this.elements.postureDescription.textContent = '设备处于折叠状态 (书本式或笔记本式)';
+                        this.elements.postureStatus.textContent = '折叠状态';
+                        this.elements.postureStatus.style.background = 'var(--warning)';
+
+                        // 更新模拟器
+                        this.elements.foldDevice.classList.add('folded');
+
+                        // 更新 body 类用于 CSS
+                        document.body.classList.add('posture-folded');
+
+                        // 更新折叠方向
+                        this.elements.foldDirection.innerHTML = '📚 书本式折叠 (垂直)';
+
+                    } else {
+                        this.elements.postureIcon.textContent = '📱';
+                        this.elements.postureDescription.textContent = '设备处于连续平面状态 (完全展开或闭合)';
+                        this.elements.postureStatus.textContent = '连续状态';
+                        this.elements.postureStatus.style.background = 'var(--success)';
+
+                        // 更新模拟器
+                        this.elements.foldDevice.classList.remove('folded');
+
+                        // 更新 body 类
+                        document.body.classList.remove('posture-folded');
+
+                        // 更新折叠方向
+                        this.elements.foldDirection.innerHTML = '📱 连续平面 (无折叠)';
+                    }
+
+                    // 更新环境变量模拟
+                    this.updateEnvVars();
+
+                    // 更新 CSS 检测状态
+                    this.updateCssDetectionStatus();
+                }
+
+                // ==================== 更新环境变量 (模拟) ====================
+                updateEnvVars() {
+                    if (this.state.currentPosture === 'folded') {
+                        const foldWidth = 40;
+                        this.elements.foldTop.textContent = '20px';
+                        this.elements.foldRight.textContent = '10px';
+                        this.elements.foldBottom.textContent = '20px';
+                        this.elements.foldLeft.textContent = '10px';
+                        this.elements.foldWidth.textContent = foldWidth + 'px';
+                        this.elements.foldHeight.textContent = '100%';
+
+                        // 添加避让样式
+                        this.elements.foldGutter.style.marginLeft = '10px';
+                        this.elements.foldGutter.style.marginRight = '10px';
+
+                        // 更新进度条
+                        const percent = 30;
+                        this.elements.foldProgress.style.width = percent + '%';
+                        this.elements.foldPercent.textContent = percent + '%';
+                    } else {
+                        this.elements.foldTop.textContent = '0px';
+                        this.elements.foldRight.textContent = '0px';
+                        this.elements.foldBottom.textContent = '0px';
+                        this.elements.foldLeft.textContent = '0px';
+                        this.elements.foldWidth.textContent = '0px';
+                        this.elements.foldHeight.textContent = '0px';
+
+                        this.elements.foldGutter.style.marginLeft = '0';
+                        this.elements.foldGutter.style.marginRight = '0';
+
+                        this.elements.foldProgress.style.width = '0%';
+                        this.elements.foldPercent.textContent = '0%';
+                    }
+                }
+
+                // ==================== 模拟姿势 ====================
+                simulatePosture(posture) {
+                    const duration = document.getElementById('simulationDuration')?.value || '5000';
+                    const durationMs = parseInt(duration);
+
+                    this.state.isSimulating = true;
+                    this.state.simulatedPosture = posture;
+
+                    this.elements.simulationMode.textContent = '模拟模式';
+                    this.elements.simulationMode.style.background = 'var(--warning)';
+
+                    this.handlePostureChange(posture, '模拟');
+
+                    // 清除之前的定时器
+                    if (this.state.simulationTimeout) {
+                        clearTimeout(this.state.simulationTimeout);
+                    }
+
+                    // 如果不是永久模式，设置定时器恢复
+                    if (durationMs > 0) {
+                        this.state.simulationTimeout = setTimeout(() => {
+                            this.resetSimulation();
+                        }, durationMs);
+
+                        this.log(`模拟将持续 ${durationMs / 1000} 秒`, 'info');
+                    }
+                }
+
+                // ==================== 重置模拟 ====================
+                resetSimulation() {
+                    this.state.isSimulating = false;
+                    this.state.simulatedPosture = null;
+
+                    if (this.state.simulationTimeout) {
+                        clearTimeout(this.state.simulationTimeout);
+                        this.state.simulationTimeout = null;
+                    }
+
+                    this.elements.simulationMode.textContent = '实际模式';
+                    this.elements.simulationMode.style.background = 'var(--gray)';
+
+                    // 如果真实 API 支持，恢复真实姿势
+                    if (this.state.supported && this.state.devicePosture) {
+                        const realPosture = this.state.devicePosture.type;
+                        this.handlePostureChange(realPosture, '实际设备');
+                    } else {
+                        // 默认 continuous
+                        this.handlePostureChange('continuous', '默认');
+                    }
+
+                    this.log('已恢复实际模式', 'info');
+                }
+
+                // ==================== 切换模拟器 ====================
+                toggleSimulator() {
+                    if (this.state.currentPosture === 'folded') {
+                        this.simulatePosture('continuous');
+                    } else {
+                        this.simulatePosture('folded');
+                    }
+                }
+
+                // ==================== 切换布局 ====================
+                toggleLayout() {
+                    const layout = document.getElementById('adaptiveLayout');
+                    if (layout.style.flexDirection === 'column') {
+                        layout.style.flexDirection = 'row';
+                        this.log('布局方向: 水平', 'info');
+                    } else {
+                        layout.style.flexDirection = 'column';
+                        this.log('布局方向: 垂直', 'info');
+                    }
+                }
+
+                // ==================== 重置布局 ====================
+                resetLayout() {
+                    const layout = document.getElementById('adaptiveLayout');
+                    layout.style.flexDirection = '';
+                    this.log('布局已重置', 'info');
+                }
+
+                // ==================== 开始/停止监听 ====================
+                startListening() {
+                    this.state.isListening = true;
+                    this.log('▶️ 姿势变化监听已启动', 'success');
+                }
+
+                stopListening() {
+                    this.state.isListening = false;
+                    this.log('⏹️ 姿势变化监听已停止', 'info');
+                }
+
+                // ==================== 清空日志 ====================
+                clearLog() {
+                    this.elements.logPanel.innerHTML = '<div class="log-entry info">📝 日志已清空</div>';
+                    this.log('日志已清空', 'info');
+                }
+
+                // ==================== 设置 DevTools 姿势覆盖 ====================
+                setDevToolsPosture(value) {
+                    if (!value) {
+                        this.resetSimulation();
+                        return;
+                    }
+
+                    this.simulatePosture(value);
+                    this.log(`🛠️ DevTools 姿势覆盖: ${value}`, 'info');
+                }
+
+                // ==================== 导出配置 ====================
+                exportConfig() {
+                    const config = {
+                        timestamp: new Date().toISOString(),
+                        state: {
+                            currentPosture: this.state.currentPosture,
+                            isListening: this.state.isListening,
+                            logLevel: this.state.logLevel,
+                            eventCount: this.state.eventCount
+                        },
+                        history: this.state.history,
+                        support: this.state.supported,
+                        performance: this.state.performanceMetrics
+                    };
+
+                    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `device-posture-config-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    this.log('📥 配置已导出', 'success');
+                }
+
+                // ==================== 导入配置 ====================
+                importConfig() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const config = JSON.parse(e.target.result);
+
+                                // 恢复历史记录
+                                if (config.history) {
+                                    this.state.history = config.history.slice(0, this.config.maxHistoryEntries);
+                                    this.updateHistoryDisplay();
+                                    this.updateChart();
+                                }
+
+                                // 恢复事件计数
+                                if (config.state?.eventCount) {
+                                    this.state.eventCount = config.state.eventCount;
+                                    this.elements.eventCount.textContent = this.state.eventCount;
+                                }
+
+                                // 恢复日志级别
+                                if (config.state?.logLevel) {
+                                    this.setLogLevel(config.state.logLevel);
+                                    document.getElementById('logLevel').value = config.state.logLevel;
+                                }
+
+                                this.log('📤 配置已导入', 'success');
+                            } catch (error) {
+                                this.log('❌ 配置导入失败: ' + error.message, 'error');
+                            }
+                        };
+                        reader.readAsText(file);
+                    };
+
+                    input.click();
+                }
+
+                // ==================== 清理 ====================
+                destroy() {
+                    if (this.state.simulationTimeout) {
+                        clearTimeout(this.state.simulationTimeout);
+                    }
+                    if (this.chart) {
+                        this.chart.destroy();
+                    }
+                    this.log('🧹 资源已清理', 'info');
+                }
+            }
+
+            // 创建全局实例
+            window.devicePostureAPI = new DevicePostureAPI();
+
+            // 页面卸载前清理
+            window.addEventListener('beforeunload', () => {
+                if (window.devicePostureAPI) {
+                    window.devicePostureAPI.destroy();
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

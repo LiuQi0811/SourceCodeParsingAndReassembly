@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Store API - 企业级优化版</title>
+    <style>
+        /* 样式系统优化：增加深色模式、动画流畅度、可访问性 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --success: #4CAF50;
+            --success-dark: #45a049;
+            --danger: #f44336;
+            --danger-dark: #da190b;
+            --warning: #ff9800;
+            --info: #00bcd4;
+            --dark-bg: #1e1e2f;
+            --card-bg: #ffffff;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-light: #e0e0e0;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 深色模式支持 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --card-bg: #2d2d3a;
+                --text-primary: #f0f0f0;
+                --text-secondary: #b0b0b0;
+                --border-light: #444;
+                --shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            }
+
+            body {
+                background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
+            }
+
+            .card,
+            .control-panel,
+            .cookie-card,
+            .perf-item,
+            .stats-grid .stat-card {
+                background: var(--card-bg);
+                color: var(--text-primary);
+            }
+
+            .cookie-value {
+                background: #3a3a4a;
+                color: #ddd;
+                border-color: #555;
+            }
+
+            .btn-info {
+                background: #0097a7;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            transition: background 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .status-supported {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-partial {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-unsupported {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* 性能面板 */
+        .performance-panel {
+            background: rgba(248, 249, 250, 0.8);
+            backdrop-filter: blur(4px);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .perf-item {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border-left: 4px solid var(--primary);
+            transition: transform 0.2s;
+        }
+
+        .perf-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .perf-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .perf-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary);
+            line-height: 1.2;
+        }
+
+        .perf-unit {
+            font-size: 12px;
+            color: #999;
+            margin-left: 2px;
+        }
+
+        /* 统计卡片 - 毛玻璃效果 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        /* Cookie卡片优化 */
+        .cookie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 24px;
+            margin: 24px 0;
+        }
+
+        .cookie-card {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid var(--border-light);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cookie-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .cookie-card:hover::before {
+            opacity: 1;
+        }
+
+        .cookie-card:hover {
+            transform: translateY(-6px) scale(1.01);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .cookie-card.expiring-soon {
+            border-left: 4px solid var(--warning);
+        }
+
+        .cookie-card.expired {
+            border-left: 4px solid var(--danger);
+            opacity: 0.7;
+        }
+
+        .cookie-delete {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            border: none;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+        }
+
+        .cookie-card:hover .cookie-delete {
+            opacity: 1;
+        }
+
+        .cookie-delete:hover {
+            transform: scale(1.15);
+            background: var(--danger-dark);
+        }
+
+        /* 表单控件优化 */
+        .control-group input,
+        .control-group select,
+        .control-group textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .control-group input:focus,
+        .control-group select:focus,
+        .control-group textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+            outline: none;
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        /* 按钮组优化 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--success-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* 进度条优化 */
+        .progress-container {
+            height: 24px;
+            background: #f0f0f0;
+            border-radius: 40px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* 日志面板优化 */
+        .event-panel,
+        .log-panel {
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .event-list {
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #0ff;
+            padding: 15px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            max-height: 160px;
+        }
+
+        /* 消息提示现代化 */
+        .error-message,
+        .success-message,
+        .info-message,
+        .warning-message {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 16px 28px;
+            border-radius: 50px;
+            color: white;
+            font-weight: 500;
+            z-index: 9999;
+            animation: slideIn 0.3s, fadeOut 0.3s 2.7s forwards;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            padding: 80px 20px;
+            background: rgba(248, 249, 250, 0.5);
+            border-radius: 24px;
+            border: 2px dashed #ccc;
+        }
+
+        .empty-state-icon {
+            font-size: 80px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+
+            .stats-grid,
+            .performance-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .btn-group .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>🍪 Cookie Store API - 企业级优化版</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>⚡ 异步批量 | 🔔 变化监听 | 🛡️ 路径隔离 | 📊 实时性能 | 💾 备份恢复 | 🧪 降级兼容</p>
+
+            <!-- 性能监控区域 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">操作速度</div>
+                    <div class="perf-value" id="opSpeed">0</div><span class="perf-unit">ops/s</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">响应时间</div>
+                    <div class="perf-value" id="responseTime">0</div><span class="perf-unit">ms</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">成功率</div>
+                    <div class="perf-value" id="successRate">100</div><span class="perf-unit">%</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">总大小</div>
+                    <div class="perf-value" id="totalSize">0</div><span class="perf-unit">KB</span>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="cookieCount">0</div>
+                    <div class="stat-label">总数</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="sessionCount">0</div>
+                    <div class="stat-label">会话</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="persistentCount">0</div>
+                    <div class="stat-label">持久</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="secureCount">0</div>
+                    <div class="stat-label">Secure</div>
+                </div>
+            </div>
+
+            <!-- 兼容性提示 -->
+            <div id="compatWarning" class="control-panel"
+                style="background:#fff3e0; border-left:4px solid #ff9800; display:none;">⚠️ 当前浏览器不支持 Cookie Store
+                API，将使用 document.cookie 降级方案</div>
+
+            <!-- 搜索和过滤 -->
+            <div class="search-section" style="display:flex; gap:12px; margin:20px 0;">
+                <input type="text" class="search-box" id="searchInput" placeholder="🔍 搜索名称/值..."
+                    style="flex:1; padding:14px; border-radius:40px; border:2px solid #ddd;"
+                    oninput="cookieManager.search()">
+                <button class="btn btn-info" onclick="cookieManager.toggleSearch()">🔎 高级</button>
+            </div>
+            <div class="filter-tabs" id="filterTabs" style="display:flex; gap:10px; flex-wrap:wrap; margin:15px 0;">
+                <span class="filter-tab active" onclick="cookieManager.filterBy('all')">📋 全部</span>
+                <span class="filter-tab" onclick="cookieManager.filterBy('session')">⏳ 会话</span>
+                <span class="filter-tab" onclick="cookieManager.filterBy('persistent')">📅 持久</span>
+                <span class="filter-tab" onclick="cookieManager.filterBy('secure')">🔒 安全</span>
+                <span class="filter-tab" onclick="cookieManager.filterBy('expiring')">⚠️ 即将过期</span>
+            </div>
+
+            <!-- 添加 Cookie 表单 -->
+            <div class="control-panel">
+                <h3>➕ 添加 / 编辑 Cookie</h3>
+                <div class="control-group">
+                    <input type="text" id="cookieName" placeholder="名称 (如: username)" value="username">
+                    <textarea id="cookieValue" placeholder="值" rows="2">张三</textarea>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <input type="text" id="cookieDomain" placeholder="Domain (可选)" value="">
+                        <select id="cookiePath">
+                            <option value="/">根路径 (/)</option>
+                            <option value="/admin">/admin</option>
+                            <option value="/user">/user</option>
+                        </select>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <input type="number" id="cookieExpires" placeholder="过期秒数 (留空为会话)">
+                        <select id="cookieSameSite">
+                            <option value="lax">Lax (默认)</option>
+                            <option value="strict">Strict</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item"><input type="checkbox" id="cookieSecure"> Secure (仅HTTPS)</label>
+                        <label class="checkbox-item"><input type="checkbox" id="cookieHttpOnly" disabled>
+                            HttpOnly</label>
+                        <label class="checkbox-item"><input type="checkbox" id="cookiePartitioned"> Partitioned</label>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="cookieManager.addCookie()">📝 添加 Cookie</button>
+                    <button class="btn btn-success" onclick="cookieManager.refresh()">🔄 刷新列表</button>
+                    <button class="btn btn-warning" onclick="cookieManager.addSampleCookies()">📊 添加示例</button>
+                    <button class="btn btn-info" onclick="cookieManager.validateAll()">✅ 验证</button>
+                </div>
+            </div>
+
+            <!-- 批量操作面板 -->
+            <div class="control-panel">
+                <h3>⚡ 批量 & 维护</h3>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="cookieManager.exportCookies()">📥 导出</button>
+                    <button class="btn btn-success" onclick="cookieManager.importCookies()">📤 导入</button>
+                    <button class="btn btn-info" onclick="cookieManager.clearExpired()">🧹 清除过期</button>
+                    <button class="btn btn-warning" onclick="cookieManager.backupCookies()">💾 备份</button>
+                    <button class="btn btn-danger" onclick="cookieManager.deleteAll()">🗑️ 删除所有</button>
+                </div>
+                <div id="batchProgress" class="progress-container" style="display:none;">
+                    <div class="progress-bar" id="batchProgressBar">0%</div>
+                </div>
+            </div>
+
+            <!-- Cookie 列表标题 -->
+            <h2>📋 Cookie 列表 (<span id="displayCount">0</span>)</h2>
+            <div id="cookieList" class="cookie-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🍪</div>
+                    <div class="empty-state-title">暂无 Cookie</div>
+                    <div class="empty-state-text">点击"添加示例"开始</div>
+                </div>
+            </div>
+
+            <!-- 事件监听日志 -->
+            <div class="event-panel" style="background:#2d2d3a; margin-top:24px;">
+                <div class="event-header"
+                    style="display:flex; justify-content:space-between; align-items:center; padding:10px; color:white;">
+                    <span class="event-title">📡 Cookie 变化事件</span>
+                    <div><button class="btn btn-info" onclick="cookieManager.pauseEvents()" style="padding:6px 12px;"
+                            id="pauseEventsBtn">⏸️ 暂停</button><button class="btn btn-danger"
+                            onclick="cookieManager.clearEvents()" style="padding:6px 12px;">🗑️ 清空</button></div>
+                </div>
+                <div class="event-list" id="eventList" style="background:#1a1a2a; color:#ccc;">
+                    <div class="event-item">等待 Cookie 变化...</div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // ==================== 增强工具函数 ====================
+            const escapeHtml = (text) => {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+
+            // 深拷贝简单对象
+            const safeCopy = (obj) => JSON.parse(JSON.stringify(obj));
+
+            // ==================== CookieManager 重构优化版 ====================
+            class CookieManager {
+                constructor() {
+                    this.useModernAPI = 'cookieStore' in window;
+                    this.cookies = [];
+                    this.filteredCookies = [];
+                    this.events = [];
+                    this.stats = { operations: 0, successes: 0, errors: 0, totalTime: 0, opTimes: [] };
+                    this.currentFilter = 'all';
+                    this.searchTerm = '';
+                    this.paused = false;
+                    this.messageTimeout = null;
+                    this.init();
+                }
+
+                init() {
+                    this.checkSupport();
+                    this.setupEventListener();
+                    this.startPerformanceMonitor();
+                    this.refresh().catch(e => this.log('初始化刷新失败: ' + e.message, 'error'));
+                }
+
+                startPerformanceMonitor() {
+                    setInterval(() => {
+                        const total = this.stats.operations || 1;
+                        document.getElementById('successRate').textContent = ((this.stats.successes / total) * 100).toFixed(1);
+                        if (this.stats.opTimes.length) {
+                            const avg = this.stats.opTimes.reduce((a, b) => a + b, 0) / this.stats.opTimes.length;
+                            document.getElementById('responseTime').textContent = avg.toFixed(1);
+                        }
+                        document.getElementById('opSpeed').textContent = this.stats.operations;
+                    }, 1000);
+                }
+
+                recordOperation(type, time, success = true) {
+                    this.stats.operations++;
+                    success ? this.stats.successes++ : this.stats.errors++;
+                    this.stats.opTimes.push(time);
+                    if (this.stats.opTimes.length > 50) this.stats.opTimes.shift();
+                }
+
+                checkSupport() {
+                    const el = document.getElementById('apiStatus');
+                    const warn = document.getElementById('compatWarning');
+                    if (this.useModernAPI) {
+                        el.textContent = '✓ 支持'; el.className = 'status-badge status-supported';
+                        warn.style.display = 'none';
+                        this.log('✅ Cookie Store API 可用', 'success');
+                    } else {
+                        el.textContent = '✗ 降级模式'; el.className = 'status-badge status-partial';
+                        warn.style.display = 'block';
+                        this.log('⚠️ 使用传统 document.cookie 降级', 'warning');
+                    }
+                }
+
+                setupEventListener() {
+                    if (!this.useModernAPI) return;
+                    try {
+                        cookieStore.addEventListener('change', (event) => {
+                            if (this.paused) return;
+                            const time = new Date().toLocaleTimeString();
+                            event.changed.forEach(c => this.addEvent(`✅ [${time}] 更改: ${c.name}`, 'change'));
+                            event.deleted.forEach(c => this.addEvent(`❌ [${time}] 删除: ${c.name}`, 'delete'));
+                            this.refresh();
+                        });
+                    } catch (e) {
+                        this.log('事件监听设置失败: ' + e.message, 'error');
+                    }
+                }
+
+                addEvent(message, type = 'change') {
+                    this.events.unshift({ message, type, time: Date.now() });
+                    if (this.events.length > 50) this.events.pop();
+                    document.getElementById('eventList').innerHTML = this.events.map(e =>
+                        `<div class="event-item ${e.type}">${escapeHtml(e.message)}</div>`
+                    ).join('');
+                }
+
+                pauseEvents() {
+                    this.paused = !this.paused;
+                    document.getElementById('pauseEventsBtn').textContent = this.paused ? '▶️ 恢复' : '⏸️ 暂停';
+                    this.log(this.paused ? '⏸️ 监听已暂停' : '▶️ 监听已恢复', 'info');
+                }
+
+                clearEvents() {
+                    this.events = [];
+                    document.getElementById('eventList').innerHTML = '<div class="event-item">等待 Cookie 变化...</div>';
+                    this.log('🗑️ 事件日志已清空', 'info');
+                }
+
+                // 获取所有Cookie (增强降级解析)
+                async getAllCookies() {
+                    const start = performance.now();
+                    try {
+                        let cookies = [];
+                        if (this.useModernAPI) {
+                            cookies = await cookieStore.getAll();
+                        } else {
+                            const raw = document.cookie.split('; ');
+                            for (let pair of raw) {
+                                if (!pair) continue;
+                                const eqIdx = pair.indexOf('=');
+                                if (eqIdx === -1) continue;
+                                const name = decodeURIComponent(pair.substring(0, eqIdx).trim());
+                                const value = decodeURIComponent(pair.substring(eqIdx + 1).trim());
+                                // 降级模式无法获取高级属性，填充默认值
+                                cookies.push({ name, value, path: '/', sameSite: 'lax', secure: false, expires: undefined });
+                            }
+                        }
+                        // 统一计算size
+                        cookies = cookies.map(c => {
+                            const size = new Blob([`${c.name}=${c.value}`]).size;
+                            return { ...c, size, path: c.path || '/', sameSite: c.sameSite || 'lax' };
+                        });
+                        const time = performance.now() - start;
+                        this.recordOperation('getAll', time, true);
+                        return cookies;
+                    } catch (err) {
+                        const time = performance.now() - start;
+                        this.recordOperation('getAll', time, false);
+                        this.showMessage(`获取失败: ${err.message}`, 'error');
+                        return [];
+                    }
+                }
+
+                // 验证名称/值
+                validateCookie(name, value) {
+                    if (!name || !value) return false;
+                    if (name.length > 1024 || value.length > 4096) return false;
+                    return !/[;,\s=]/.test(name); // 名称不能有特殊字符
+                }
+
+                async validateAll() {
+                    let valid = 0, invalid = 0;
+                    for (let c of this.cookies) {
+                        this.validateCookie(c.name, c.value) ? valid++ : invalid++;
+                    }
+                    this.showMessage(`验证: ${valid}有效, ${invalid}无效`, 'info');
+                }
+
+                // 设置Cookie (统一接口)
+                async setCookie(name, value, options = {}) {
+                    const start = performance.now();
+                    try {
+                        if (!this.validateCookie(name, value)) throw new Error('名称或值非法');
+                        if (this.useModernAPI) {
+                            await cookieStore.set({ name, value, ...options });
+                        } else {
+                            let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+                            if (options.expires) {
+                                const date = new Date(Date.now() + options.expires * 1000);
+                                cookie += `; expires=${date.toUTCString()}`;
+                            }
+                            if (options.path) cookie += `; path=${options.path}`;
+                            if (options.domain) cookie += `; domain=${options.domain}`;
+                            if (options.secure) cookie += `; secure`;
+                            if (options.sameSite) cookie += `; samesite=${options.sameSite}`;
+                            document.cookie = cookie;
+                        }
+                        const time = performance.now() - start;
+                        this.recordOperation('set', time, true);
+                        this.showMessage(`已设置: ${name}`, 'success');
+                        this.log(`✅ 设置 ${name}`, 'success');
+                        await this.refresh();
+                        return true;
+                    } catch (err) {
+                        const time = performance.now() - start;
+                        this.recordOperation('set', time, false);
+                        this.showMessage(`设置失败: ${err.message}`, 'error');
+                        this.log(`❌ 设置失败: ${err.message}`, 'error');
+                        return false;
+                    }
+                }
+
+                async deleteCookie(name, path = '/', domain = '') {
+                    const start = performance.now();
+                    try {
+                        if (this.useModernAPI) {
+                            await cookieStore.delete({ name, path, domain });
+                        } else {
+                            let cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}`;
+                            if (domain) cookie += `; domain=${domain}`;
+                            document.cookie = cookie;
+                        }
+                        const time = performance.now() - start;
+                        this.recordOperation('delete', time, true);
+                        this.showMessage(`已删除: ${name}`, 'success');
+                        this.log(`🗑️ 删除 ${name}`, 'info');
+                        await this.refresh();
+                        return true;
+                    } catch (err) {
+                        const time = performance.now() - start;
+                        this.recordOperation('delete', time, false);
+                        this.showMessage(`删除失败: ${err.message}`, 'error');
+                        return false;
+                    }
+                }
+
+                async refresh() {
+                    this.cookies = await this.getAllCookies();
+                    let totalBytes = 0;
+                    this.cookies.forEach(c => totalBytes += c.size || 0);
+                    document.getElementById('totalSize').textContent = (totalBytes / 1024).toFixed(2);
+                    this.applyFilter();
+                    this.updateStats();
+                }
+
+                applyFilter() {
+                    let filtered = [...this.cookies];
+                    const now = Date.now();
+                    switch (this.currentFilter) {
+                        case 'session': filtered = filtered.filter(c => !c.expires); break;
+                        case 'persistent': filtered = filtered.filter(c => !!c.expires); break;
+                        case 'secure': filtered = filtered.filter(c => c.secure); break;
+                        case 'expiring':
+                            filtered = filtered.filter(c => {
+                                if (!c.expires) return false;
+                                const left = new Date(c.expires).getTime() - now;
+                                return left > 0 && left < 86400000;
+                            }); break;
+                        default: break;
+                    }
+                    if (this.searchTerm) {
+                        const term = this.searchTerm.toLowerCase();
+                        filtered = filtered.filter(c => c.name.toLowerCase().includes(term) || c.value.toLowerCase().includes(term));
+                    }
+                    this.filteredCookies = filtered;
+                    this.renderCookies();
+                }
+
+                search() {
+                    this.searchTerm = document.getElementById('searchInput').value;
+                    this.applyFilter();
+                }
+
+                filterBy(type) {
+                    this.currentFilter = type;
+                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                    event.target.classList.add('active');
+                    this.applyFilter();
+                }
+
+                toggleSearch() { this.log('🔎 高级搜索 (可扩展)', 'info'); }
+
+                renderCookies() {
+                    const container = document.getElementById('cookieList');
+                    document.getElementById('displayCount').textContent = this.filteredCookies.length;
+                    if (!this.filteredCookies.length) {
+                        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🍪</div><div class="empty-state-title">无匹配Cookie</div><div class="empty-state-text">${this.searchTerm ? '调整搜索词' : (this.currentFilter !== 'all' ? '切换分类' : '点击"添加示例"')}</div></div>`;
+                        return;
+                    }
+                    let html = '';
+                    const now = Date.now();
+                    for (let cookie of this.filteredCookies) {
+                        const expires = cookie.expires ? new Date(cookie.expires).toLocaleString() : '会话';
+                        const expired = cookie.expires && new Date(cookie.expires).getTime() < now;
+                        const expiringSoon = cookie.expires && !expired && (new Date(cookie.expires).getTime() - now < 86400000);
+                        let cardClass = 'cookie-card';
+                        if (expired) cardClass += ' expired';
+                        else if (expiringSoon) cardClass += ' expiring-soon';
+
+                        html += `<div class="${cardClass}">
+                            <button class="cookie-delete" onclick="cookieManager.deleteCookie('${cookie.name}', '${cookie.path || '/'}', '${cookie.domain || ''}')" ${expired ? 'style="opacity:1;"' : ''}>✕</button>
+                            <div class="cookie-header"><div class="cookie-icon">🍪</div><div class="cookie-info"><div class="cookie-name" title="${escapeHtml(cookie.name)}">${escapeHtml(cookie.name)}</div><div class="cookie-domain">${cookie.domain || '当前域'}</div></div></div>
+                            <div class="cookie-value">${escapeHtml(cookie.value.substring(0, 100))}${cookie.value.length > 100 ? '...' : ''}</div>
+                            <div class="cookie-meta">
+                                <span class="cookie-tag tag-path">📁 ${cookie.path || '/'}</span>
+                                <span class="cookie-tag tag-expires">⏰ ${expired ? '已过期' : expires}</span>
+                                ${cookie.secure ? '<span class="cookie-tag tag-secure">🔒 Secure</span>' : ''}
+                                <span class="cookie-tag tag-samesite">🔄 ${cookie.sameSite || 'lax'}</span>
+                                <span class="cookie-tag tag-size">📦 ${cookie.size}B</span>
+                            </div>
+                            <div class="cookie-actions" style="display:flex; gap:6px; margin-top:12px;">
+                                <button class="btn btn-info" style="flex:1;" onclick="cookieManager.copyValue('${cookie.name}')">📋 复制</button>
+                                <button class="btn btn-warning" style="flex:1;" onclick="cookieManager.extendCookie('${cookie.name}')">⏰ 延长7天</button>
+                                <button class="btn btn-primary" style="flex:1;" onclick="cookieManager.editCookie('${cookie.name}')">✏️ 编辑</button>
+                            </div>
+                        </div>`;
+                    }
+                    container.innerHTML = html;
+                }
+
+                updateStats() {
+                    document.getElementById('cookieCount').textContent = this.cookies.length;
+                    document.getElementById('sessionCount').textContent = this.cookies.filter(c => !c.expires).length;
+                    document.getElementById('persistentCount').textContent = this.cookies.filter(c => c.expires).length;
+                    document.getElementById('secureCount').textContent = this.cookies.filter(c => c.secure).length;
+                }
+
+                async addCookie() {
+                    const name = document.getElementById('cookieName').value.trim();
+                    const value = document.getElementById('cookieValue').value.trim();
+                    const domain = document.getElementById('cookieDomain').value.trim() || undefined;
+                    const path = document.getElementById('cookiePath').value;
+                    const expires = document.getElementById('cookieExpires').value;
+                    const sameSite = document.getElementById('cookieSameSite').value;
+                    const secure = document.getElementById('cookieSecure').checked;
+                    const partitioned = document.getElementById('cookiePartitioned').checked;
+
+                    if (!name || !value) return this.showMessage('名称和值不能为空', 'error');
+                    const options = { path, sameSite };
+                    if (domain) options.domain = domain;
+                    if (expires) options.expires = parseInt(expires);
+                    if (secure) options.secure = true;
+                    if (partitioned && this.useModernAPI) options.partitioned = true;
+                    await this.setCookie(name, value, options);
+                }
+
+                async editCookie(name) {
+                    const cookie = this.cookies.find(c => c.name === name);
+                    if (!cookie) return;
+                    document.getElementById('cookieName').value = cookie.name;
+                    document.getElementById('cookieValue').value = cookie.value;
+                    document.getElementById('cookieDomain').value = cookie.domain || '';
+                    document.getElementById('cookiePath').value = cookie.path || '/';
+                    document.getElementById('cookieSecure').checked = cookie.secure || false;
+                    await this.deleteCookie(name, cookie.path, cookie.domain);
+                    this.showMessage(`正在编辑: ${name}`, 'info');
+                }
+
+                async copyValue(name) {
+                    const cookie = this.cookies.find(c => c.name === name);
+                    if (cookie && navigator.clipboard) {
+                        await navigator.clipboard.writeText(cookie.value);
+                        this.showMessage('值已复制', 'success');
+                    } else this.showMessage('复制失败', 'error');
+                }
+
+                async extendCookie(name) {
+                    const cookie = this.cookies.find(c => c.name === name);
+                    if (cookie) {
+                        const newExpires = cookie.expires ? (new Date(cookie.expires).getTime() + 86400000 * 7) / 1000 : 86400 * 7;
+                        await this.setCookie(name, cookie.value, { ...cookie, expires: newExpires });
+                    }
+                }
+
+                async addSampleCookies() {
+                    const samples = [
+                        { name: 'username', value: '李四' }, { name: 'theme', value: 'dark', expires: 86400 * 30 },
+                        { name: 'session_id', value: 'xyz789', secure: true }, { name: 'lang', value: 'zh-CN' }
+                    ];
+                    let success = 0;
+                    for (let s of samples) {
+                        if (await this.setCookie(s.name, s.value, s)) success++;
+                    }
+                    this.showMessage(`添加了 ${success} 个示例`, 'success');
+                }
+
+                async clearExpired() {
+                    const expired = this.cookies.filter(c => c.expires && new Date(c.expires).getTime() < Date.now());
+                    for (let c of expired) await this.deleteCookie(c.name, c.path, c.domain);
+                    this.showMessage(`清除 ${expired.length} 个过期Cookie`, 'success');
+                }
+
+                backupCookies() {
+                    localStorage.setItem('cookieBackup', JSON.stringify({ timestamp: new Date(), cookies: this.cookies }));
+                    this.showMessage('已备份到 localStorage', 'success');
+                }
+
+                exportCookies() {
+                    const dataStr = JSON.stringify({ export: new Date(), cookies: this.cookies }, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `cookies-${Date.now()}.json`; a.click();
+                    URL.revokeObjectURL(url);
+                }
+
+                async importCookies() {
+                    const input = document.createElement('input');
+                    input.type = 'file'; input.accept = '.json';
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = async (ev) => {
+                            try {
+                                const data = JSON.parse(ev.target.result);
+                                const cookies = data.cookies || [];
+                                const progress = document.getElementById('batchProgress');
+                                const bar = document.getElementById('batchProgressBar');
+                                progress.style.display = 'block';
+                                let succ = 0;
+                                for (let i = 0; i < cookies.length; i++) {
+                                    const c = cookies[i];
+                                    if (await this.setCookie(c.name, c.value, c)) succ++;
+                                    bar.style.width = `${((i + 1) / cookies.length * 100).toFixed(1)}%`;
+                                    bar.textContent = `${((i + 1) / cookies.length * 100).toFixed(1)}%`;
+                                }
+                                progress.style.display = 'none';
+                                this.showMessage(`导入 ${succ}/${cookies.length} 成功`, 'success');
+                            } catch (er) { this.showMessage('解析失败', 'error'); }
+                        };
+                        reader.readAsText(file);
+                    };
+                    input.click();
+                }
+
+                async deleteAll() {
+                    if (!confirm(`删除全部 ${this.cookies.length} 个Cookie?`)) return;
+                    const progress = document.getElementById('batchProgress');
+                    const bar = document.getElementById('batchProgressBar');
+                    progress.style.display = 'block';
+                    let succ = 0;
+                    for (let i = 0; i < this.cookies.length; i++) {
+                        const c = this.cookies[i];
+                        if (await this.deleteCookie(c.name, c.path, c.domain)) succ++;
+                        bar.style.width = `${((i + 1) / this.cookies.length * 100).toFixed(1)}%`;
+                        bar.textContent = `${((i + 1) / this.cookies.length * 100).toFixed(1)}%`;
+                    }
+                    progress.style.display = 'none';
+                    this.showMessage(`已删除 ${succ} 个`, 'success');
+                }
+
+                showMessage(msg, type = 'success') {
+                    if (this.messageTimeout) clearTimeout(this.messageTimeout);
+                    const div = document.createElement('div');
+                    div.className = type + '-message';
+                    div.textContent = (type === 'success' ? '✅ ' : type === 'error' ? '❌ ' : type === 'warning' ? '⚠️ ' : 'ℹ️ ') + msg;
+                    document.body.appendChild(div);
+                    this.messageTimeout = setTimeout(() => div.remove(), 3000);
+                }
+
+                log(msg, type = 'info') {
+                    const panel = document.getElementById('logPanel');
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    const now = new Date();
+                    entry.textContent = `[${now.toLocaleTimeString()}.${now.getMilliseconds()}] ${msg}`;
+                    panel.appendChild(entry);
+                    panel.scrollTop = panel.scrollHeight;
+                    if (panel.children.length > 100) panel.removeChild(panel.children[0]);
+                }
+            }
+
+            window.cookieManager = new CookieManager();
+        })();
+    </script>
+</body>
+
+</html>

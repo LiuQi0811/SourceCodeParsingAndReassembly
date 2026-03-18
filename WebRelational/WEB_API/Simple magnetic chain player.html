@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单磁力链播放器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            font-size: 16px;
+        }
+
+        input {
+            width: 70%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #e3f2fd;
+            display: none;
+        }
+
+        video {
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .file-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .file-item:hover {
+            background: #f0f0f0;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+    <!-- 引入 WebTorrent 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎬 简单磁力链播放器</h1>
+        <p>输入磁力链接或种子文件URL，直接在线播放视频</p>
+
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="magnetLink" placeholder="输入磁力链接 (magnet:?xt=urn:btih:...)"
+                value="magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel-1024-surround.mp4">
+            <button onclick="startTorrent()" id="startBtn">开始解析</button>
+        </div>
+
+        <div style="margin-top: 10px;">
+            <small>✨ 示例磁力链已预填（Sintel开源电影），你也可以粘贴自己的磁力链</small>
+        </div>
+
+        <div id="status">
+            <div id="statusMessage">初始化中...</div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <video id="videoPlayer" controls></video>
+
+        <div id="fileList" class="file-list" style="display: none;">
+            <h3 style="margin: 10px; padding: 10px; background: #f8f9fa;">选择要播放的文件：</h3>
+            <div id="files"></div>
+        </div>
+    </div>
+
+    <script>
+        let client;
+
+        // 初始化 WebTorrent 客户端
+        function initClient() {
+            if (!client) {
+                client = new WebTorrent();
+                console.log('WebTorrent 客户端已初始化');
+            }
+            return client;
+        }
+
+        function startTorrent() {
+            const magnetInput = document.getElementById('magnetLink');
+            const magnetURI = magnetInput.value.trim();
+            const startBtn = document.getElementById('startBtn');
+
+            if (!magnetURI) {
+                alert('请输入磁力链接');
+                return;
+            }
+
+            // 更新UI状态
+            startBtn.disabled = true;
+            document.getElementById('status').style.display = 'block';
+            document.getElementById('statusMessage').textContent = '正在连接DHT网络，获取种子信息...';
+            document.getElementById('videoPlayer').style.display = 'none';
+            document.getElementById('fileList').style.display = 'none';
+
+            try {
+                const client = initClient();
+
+                // 添加磁力链接
+                client.add(magnetURI, { announce: [] }, onTorrentAdded);
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+        function onTorrentAdded(torrent) {
+            console.log('种子已添加:', torrent);
+
+            document.getElementById('statusMessage').textContent = '种子信息获取成功！正在准备文件列表...';
+
+            // 监听下载进度
+            torrent.on('download', function (bytes) {
+                const progress = (torrent.progress * 100).toFixed(1);
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('statusMessage').textContent =
+                    `下载中: ${progress}% (速度: ${formatBytes(torrent.downloadSpeed)}/s)`;
+            });
+
+            // 显示文件列表
+            const filesContainer = document.getElementById('files');
+            filesContainer.innerHTML = '';
+
+            // 过滤出视频和音频文件
+            const mediaFiles = torrent.files.filter(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                return ['mp4', 'webm', 'ogg', 'mp3', 'm4a', 'mkv', 'avi'].includes(ext);
+            });
+
+            if (mediaFiles.length === 0) {
+                document.getElementById('statusMessage').textContent = '未找到可播放的媒体文件';
+                return;
+            }
+
+            mediaFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+
+                // 文件大小格式化
+                const size = formatBytes(file.length);
+
+                fileItem.innerHTML = `
+                    <strong>${file.name}</strong><br>
+                    <small>大小: ${size}</small>
+                `;
+
+                fileItem.onclick = () => playFile(file);
+
+                filesContainer.appendChild(fileItem);
+            });
+
+            document.getElementById('fileList').style.display = 'block';
+            document.getElementById('statusMessage').textContent = '点击文件开始播放';
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        function playFile(file) {
+            document.getElementById('status').style.display = 'block';
+            document.getElementById('statusMessage').textContent = '正在缓冲，准备播放...';
+
+            // 生成播放URL
+            file.streamTo(document.getElementById('videoPlayer'));
+
+            document.getElementById('videoPlayer').style.display = 'block';
+
+            // 当视频开始播放时隐藏状态
+            document.getElementById('videoPlayer').onplaying = function () {
+                document.getElementById('status').style.display = 'none';
+            };
+        }
+
+        function handleError(error) {
+            console.error('错误:', error);
+            document.getElementById('statusMessage').textContent = '出错了: ' + error.message;
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        // 格式化字节大小
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 清理函数（可选）
+        window.onbeforeunload = function () {
+            if (client) {
+                client.destroy();
+            }
+        };
+    </script>
+</body>
+
+</html>

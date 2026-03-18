@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级加密媒体扩展(EME) · 完整优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0b1a2c;
+            --bg-secondary: #122f45;
+            --bg-panel: #0f283f;
+            --bg-input: #0d263b;
+            --border: #2d6090;
+            --accent: #4f9eff;
+            --text-primary: #ecf5ff;
+            --text-secondary: #c0deff;
+            --success: #4cd964;
+            --error: #ff6b6b;
+            --warning: #ffb347;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, var(--bg-primary), #142f42);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .app-container {
+            max-width: 1600px;
+            width: 100%;
+            background: rgba(18, 35, 50, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 2.5rem;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(64, 160, 255, 0.3);
+            padding: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #c0e0ff;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 2px solid #306a9c;
+            padding-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        h1 small {
+            font-size: 0.95rem;
+            font-weight: 400;
+            background: #1e5280;
+            color: white;
+            padding: 0.25rem 1.5rem;
+            border-radius: 40px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 1.8rem;
+            font-size: 1.1rem;
+            background: #1d3d5cb0;
+            padding: 0.4rem 1.8rem;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        /* 网格布局 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.8rem;
+            margin-top: 1.5rem;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 800px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 2rem;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 15px 30px -10px #000000cc;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+
+        .panel:hover {
+            box-shadow: 0 20px 40px -5px black;
+        }
+
+        .panel-header {
+            padding: 1.2rem 1.5rem;
+            background: #1b3f60;
+            border-bottom: 1px solid #3270aa;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-header h2 {
+            font-size: 1.4rem;
+            font-weight: 450;
+            color: #d2eaff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            background: #256fb3;
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+        }
+
+        .section {
+            margin-bottom: 1.8rem;
+            border-bottom: 1px dashed #2d5a80;
+            padding-bottom: 1.5rem;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.7rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        textarea,
+        input,
+        select {
+            width: 100%;
+            padding: 0.8rem 1.2rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 1.5rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #d9f0ff;
+            resize: vertical;
+        }
+
+        textarea:focus,
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px #1f4a80;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin: 0.8rem 0 0.5rem;
+        }
+
+        .btn {
+            background: #1e4a75;
+            border: 1px solid #3178b8;
+            padding: 0.5rem 1.3rem;
+            border-radius: 3rem;
+            font-weight: 500;
+            color: #eaf3ff;
+            cursor: pointer;
+            transition: 0.15s;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            box-shadow: 0 4px 8px #00000066;
+        }
+
+        .btn-primary {
+            background: #1f6db0;
+            border-color: #3890e6;
+            color: white;
+            box-shadow: 0 6px 12px #00000099;
+        }
+
+        .btn-primary:hover {
+            background: #2a85d0;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-box {
+            background: var(--bg-input);
+            border-radius: 1.5rem;
+            padding: 1rem 1.3rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-top: 0.8rem;
+            color: #c9e2ff;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .key-status {
+            background: #144b6e;
+            padding: 0.6rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            color: #b7e0ff;
+            margin-top: 0.5rem;
+        }
+
+        /* 第二行布局 */
+        .media-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.8rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 1000px) {
+            .media-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .media-box {
+            background: var(--bg-panel);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        video {
+            width: 100%;
+            max-height: 180px;
+            border-radius: 1.2rem;
+            background: black;
+        }
+
+        /* 状态指示器 */
+        .eme-state-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: #0d263b;
+            border-radius: 2rem;
+        }
+
+        .state-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            transition: background-color 0.3s;
+        }
+
+        /* 安全警告 */
+        .security-warning {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff6b6b;
+            color: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideDown 0.3s;
+        }
+
+        .security-warning .warning-content h4 {
+            margin-bottom: 0.5rem;
+        }
+
+        .security-warning .warning-content p {
+            margin: 0.2rem 0;
+            font-size: 0.9rem;
+        }
+
+        .security-warning .warning-content p.error {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .security-warning .warning-content p.warning {
+            color: #ffe68f;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* 错误对话框 */
+        .error-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+        }
+
+        .error-content {
+            background: #1e3f60;
+            padding: 2rem;
+            border-radius: 2rem;
+            max-width: 500px;
+            border-left: 5px solid var(--error);
+        }
+
+        .error-content h3 {
+            color: var(--error);
+            margin-bottom: 1rem;
+        }
+
+        .error-content p {
+            margin: 0.5rem 0;
+        }
+
+        .error-content .error-code {
+            color: #ffb347;
+        }
+
+        .error-content button {
+            margin-top: 1rem;
+            padding: 0.5rem 2rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 2rem;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* 调试面板 */
+        .eme-debug-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 400px;
+            background: #1a2f42;
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            z-index: 9998;
+            box-shadow: 0 10px 30px black;
+        }
+
+        .debug-header {
+            padding: 0.8rem 1rem;
+            background: #1b3f60;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        .debug-header .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .debug-content {
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .debug-section {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #2d5a80;
+        }
+
+        .debug-section h5 {
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .debug-section pre {
+            background: #0d263b;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+        }
+
+        /* Toast 通知 */
+        .toast-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e3f60;
+            color: white;
+            padding: 0.8rem 1.6rem;
+            border-radius: 50px;
+            box-shadow: 0 12px 28px black;
+            border-left: 5px solid var(--accent);
+            margin-top: 10px;
+            animation: slideIn 0.2s;
+            max-width: 350px;
+        }
+
+        .toast.error {
+            border-left-color: var(--error);
+            background: #4a2f2f;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+            background: #1e4a3a;
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+            background: #4a3f2f;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: #1d3c58;
+            border-radius: 3px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #9acdff);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* 快捷键提示 */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            z-index: 9997;
+            border: 1px solid var(--accent);
+        }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: #8fb4da;
+        }
+
+        .note {
+            font-size: 0.75rem;
+            background: #1e405e;
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+            display: inline-block;
+            color: #c6defa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <h1>
+            🔒 加密媒体扩展 · 企业级完整实现
+            <small>优化版 · 全接口 + 容错 + 监控 + 调试</small>
+        </h1>
+        <div class="subtitle">MediaKeySystemAccess · MediaKeys · MediaKeySession · 许可证管理 · 降级策略 · 监控看板 · 调试面板</div>
+
+        <!-- 进度条 -->
+        <div class="progress-container" id="globalProgress">
+            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+        </div>
+
+        <!-- 状态指示器 -->
+        <div class="eme-state-indicator" id="stateIndicator">
+            <div class="state-dot" id="stateDot"></div>
+            <span class="state-text" id="stateText">初始化</span>
+        </div>
+
+        <!-- 主面板：三栏核心接口 -->
+        <div class="dashboard-grid">
+            <!-- 面板1: MediaKeySystemAccess -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🔑 1. 密钥系统访问</h2>
+                    <span class="badge">requestMediaKeySystemAccess</span>
+                </div>
+                <div class="panel-content">
+                    <div class="section">
+                        <div class="label">密钥系统</div>
+                        <select id="keySystemSelect">
+                            <option value="org.w3.clearkey" selected>org.w3.clearkey (Clear Key)</option>
+                            <option value="com.widevine.alpha">com.widevine.alpha (Widevine)</option>
+                            <option value="com.microsoft.playready">com.microsoft.playready (PlayReady)</option>
+                            <option value="com.apple.fairplay">com.apple.fairplay (FairPlay)</option>
+                        </select>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">配置 (JSON数组)</div>
+                        <textarea id="configInput" rows="4">[
+  {
+    "initDataTypes": ["cenc", "keyids"],
+    "audioCapabilities": [
+      { "contentType": "audio/mp4;codecs=\"mp4a.40.2\"", "robustness": "" }
+    ],
+    "videoCapabilities": [
+      { "contentType": "video/mp4;codecs=\"avc1.4d4015\"", "robustness": "" }
+    ],
+    "persistentState": "optional",
+    "distinctiveIdentifier": "optional",
+    "sessionTypes": ["temporary"]
+  }
+]</textarea>
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="btnRequestAccess">📡 请求访问</button>
+                            <button class="btn" id="btnGetConfig">🔍 获取配置</button>
+                            <button class="btn" id="btnTestCompatibility">🧪 测试兼容性</button>
+                        </div>
+                        <div class="result-box" id="accessResult">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 面板2: MediaKeys 创建与管理 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🔨 2. MediaKeys</h2>
+                    <span class="badge">createMediaKeys · 证书</span>
+                </div>
+                <div class="panel-content">
+                    <div class="section">
+                        <div class="label">从访问对象创建</div>
+                        <button class="btn btn-primary" id="btnCreateMediaKeys">⚒️ createMediaKeys()</button>
+                        <button class="btn" id="btnCreateMediaKeysWithFallback">🔄 带降级的创建</button>
+                        <div class="result-box" id="mediaKeysResult">MediaKeys 实例信息</div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">服务器证书 (setServerCertificate)</div>
+                        <input type="text" id="serverCertInput"
+                            value="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCYZMpUVa7"
+                            placeholder="Base64 证书">
+                        <div class="button-group">
+                            <button class="btn" id="btnSetCert">📤 设置证书</button>
+                            <button class="btn" id="btnCheckCert">🔎 检查证书状态</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 面板3: MediaKeySession 核心 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🎫 3. MediaKeySession</h2>
+                    <span class="badge">generateRequest · update · 事件</span>
+                </div>
+                <div class="panel-content">
+                    <div class="section">
+                        <div class="label">创建会话</div>
+                        <select id="sessionTypeSelect" style="width: auto; display: inline-block;">
+                            <option value="temporary">temporary</option>
+                            <option value="persistent-license">persistent-license</option>
+                        </select>
+                        <button class="btn" id="btnCreateSession" style="margin-left:0.5rem;">➕ 创建</button>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">初始化数据 (initData)</div>
+                        <textarea id="initDataInput" rows="2">{"kids":["LwVHf8JLqPrvaciR6rI4BA"]}</textarea>
+                        <div class="button-group">
+                            <button class="btn" id="btnGenerateRequest">📨 generateRequest</button>
+                            <button class="btn" id="btnLoadSession">📂 load (持久)</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="label">许可证响应 (update)</div>
+                        <textarea id="licenseMessageInput"
+                            rows="2">{"keys":[{"kty":"oct","k":"LwVHf8JLqPrvaciR6rI4BA","kid":"LwVHf8JLqPrvaciR6rI4BA"}]}</textarea>
+                        <div class="button-group">
+                            <button class="btn" id="btnUpdateSession">🔄 update</button>
+                            <button class="btn" id="btnCloseSession">❌ close</button>
+                            <button class="btn" id="btnRemoveSession">🗑️ remove</button>
+                        </div>
+                    </div>
+
+                    <div class="result-box" id="sessionResult">会话详情</div>
+                    <div class="key-status" id="keyStatusMap">keyStatuses 将显示于此</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二行：媒体元素 + 监控 + 工具 -->
+        <div class="media-row">
+            <!-- 媒体元素绑定 -->
+            <div class="media-box">
+                <h3 style="color:#c0e0ff; margin-bottom:1rem;">🎥 媒体元素</h3>
+                <video id="videoElement" controls
+                    poster="https://via.placeholder.com/640x360?text=Encrypted+Video+Demo"></video>
+                <div class="button-group" style="margin-top:1rem;">
+                    <button class="btn" id="btnSetMediaKeys">🔗 setMediaKeys</button>
+                    <button class="btn" id="btnSetNullMediaKeys">❌ 解除绑定</button>
+                </div>
+                <div class="note" id="mediaKeysStatus">MediaKeys 未关联</div>
+            </div>
+
+            <!-- 监控看板 -->
+            <div class="media-box">
+                <h3 style="color:#c0e0ff; margin-bottom:1rem;">📊 性能监控</h3>
+                <div style="background:#0d263b; border-radius:1.5rem; padding:1rem;">
+                    <div>平均许可证获取: <span id="avgLicenseTime">0</span> ms</div>
+                    <div>活跃会话: <span id="activeSessions">0</span></div>
+                    <div>错误计数: <span id="errorCount">0</span></div>
+                    <div>成功率: <span id="successRate">100</span>%</div>
+                </div>
+                <div class="button-group" style="margin-top:1rem;">
+                    <button class="btn" id="btnResetMetrics">🔄 重置指标</button>
+                </div>
+            </div>
+
+            <!-- 工具和日志 -->
+            <div class="media-box">
+                <h3 style="color:#c0e0ff; margin-bottom:1rem;">📋 事件日志</h3>
+                <div style="background:#0d263b; border-radius:1.5rem; padding:0.8rem; height:180px; overflow-y:auto;"
+                    id="logPanel">
+                    <div style="color:#9acdff;">✨ 系统就绪</div>
+                </div>
+                <div class="button-group" style="margin-top:0.8rem;">
+                    <button class="btn" id="btnClearLog">🧹 清空日志</button>
+                    <button class="btn" id="btnFillSample">📋 填充示例</button>
+                    <button class="btn" id="btnRunStress">⚡ 压力测试</button>
+                    <button class="btn" id="btnToggleDebug">🔧 调试面板</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            ⚡ 完整 EME 企业级实现 · 包含重试、降级、监控、许可证缓存、会话池、断路器、错误边界、调试面板 · 基于 ClearKey 可完全运行
+            <div class="shortcut-hint" id="shortcutHint" style="display: none;">快捷键提示</div>
+        </footer>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        (function () {
+            // ==================== 企业级 EME 完整实现 ====================
+
+            // --- 常量配置 ---
+            const CONFIG = {
+                maxRetries: 3,
+                retryDelay: 1000,
+                licenseCacheSize: 10,
+                sessionPoolSize: 5,
+                metricsWindow: 100,
+                circuitBreakerThreshold: 5,
+                circuitBreakerTimeout: 60000
+            };
+
+            // --- 状态定义 ---
+            const SessionState = {
+                CREATED: 'created',
+                PENDING_REQUEST: 'pending_request',
+                WAITING_LICENSE: 'waiting_license',
+                LICENSE_READY: 'license_ready',
+                KEY_READY: 'key_ready',
+                ERROR: 'error',
+                CLOSED: 'closed'
+            };
+
+            const IndicatorState = {
+                INIT: { text: '初始化', color: '#666' },
+                ACCESSING: { text: '验证DRM系统', color: '#4f9eff' },
+                CREATING_KEYS: { text: '创建密钥对象', color: '#4f9eff' },
+                CREATING_SESSION: { text: '建立安全会话', color: '#4f9eff' },
+                REQUESTING_LICENSE: { text: '获取许可证', color: '#4f9eff' },
+                LICENSE_READY: { text: '许可证就绪', color: '#4cd964' },
+                DECRYPTING: { text: '解密媒体', color: '#4cd964' },
+                ERROR: { text: '错误', color: '#ff6b6b' }
+            };
+
+            // --- 工具函数 ---
+            function toast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                container.appendChild(toast);
+                setTimeout(() => toast.remove(), 4000);
+            }
+
+            function log(message, level = 'info') {
+                const panel = document.getElementById('logPanel');
+                const entry = document.createElement('div');
+                entry.style.color = level === 'error' ? '#ffaeae' : level === 'warn' ? '#ffb347' : '#b3dcff';
+                entry.style.padding = '0.2rem 0';
+                entry.style.borderBottom = '1px solid #1f4766';
+                entry.textContent = `> ${message}`;
+                panel.appendChild(entry);
+                panel.scrollTop = panel.scrollHeight;
+                console.log(`[EME] ${message}`);
+            }
+
+            function arrayBufferToBase64(buffer) {
+                let binary = String.fromCharCode(...new Uint8Array(buffer));
+                return btoa(binary);
+            }
+
+            function base64ToArrayBuffer(base64) {
+                let binary = atob(base64);
+                let bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return bytes.buffer;
+            }
+
+            // --- 状态指示器 ---
+            class StateIndicator {
+                constructor() {
+                    this.dot = document.getElementById('stateDot');
+                    this.text = document.getElementById('stateText');
+                }
+
+                setState(state) {
+                    if (IndicatorState[state]) {
+                        this.dot.style.backgroundColor = IndicatorState[state].color;
+                        this.text.textContent = IndicatorState[state].text;
+                    }
+                }
+            }
+
+            // --- 指标收集器 ---
+            class MetricsCollector {
+                constructor() {
+                    this.licenseTimes = [];
+                    this.errors = [];
+                    this.sessionsCreated = 0;
+                    this.sessionsClosed = 0;
+                    this.successCount = 0;
+                    this.failureCount = 0;
+                }
+
+                recordLicenseTime(time) {
+                    this.licenseTimes.push(time);
+                    if (this.licenseTimes.length > CONFIG.metricsWindow) {
+                        this.licenseTimes.shift();
+                    }
+                    this.updateUI();
+                }
+
+                recordError(error, context) {
+                    this.errors.push({ time: Date.now(), error: error.message, context });
+                    this.failureCount++;
+                    this.updateUI();
+                }
+
+                recordSuccess() {
+                    this.successCount++;
+                    this.updateUI();
+                }
+
+                getAvgLicenseTime() {
+                    if (this.licenseTimes.length === 0) return 0;
+                    const sum = this.licenseTimes.reduce((a, b) => a + b, 0);
+                    return Math.round(sum / this.licenseTimes.length);
+                }
+
+                getSuccessRate() {
+                    const total = this.successCount + this.failureCount;
+                    if (total === 0) return 100;
+                    return Math.round((this.successCount / total) * 100);
+                }
+
+                getActiveSessions() {
+                    return this.sessionsCreated - this.sessionsClosed;
+                }
+
+                updateUI() {
+                    document.getElementById('avgLicenseTime').textContent = this.getAvgLicenseTime();
+                    document.getElementById('activeSessions').textContent = this.getActiveSessions();
+                    document.getElementById('errorCount').textContent = this.errors.length;
+                    document.getElementById('successRate').textContent = this.getSuccessRate();
+                }
+
+                reset() {
+                    this.licenseTimes = [];
+                    this.errors = [];
+                    this.sessionsCreated = 0;
+                    this.sessionsClosed = 0;
+                    this.successCount = 0;
+                    this.failureCount = 0;
+                    this.updateUI();
+                }
+            }
+
+            // --- 许可证缓存 ---
+            class LicenseCache {
+                constructor(maxSize = 10) {
+                    this.cache = new Map();
+                    this.maxSize = maxSize;
+                }
+
+                get(key) {
+                    const item = this.cache.get(key);
+                    if (item && Date.now() - item.timestamp < 3600000) { // 1小时过期
+                        return item.license;
+                    }
+                    return null;
+                }
+
+                set(key, license) {
+                    if (this.cache.size >= this.maxSize) {
+                        const oldest = this.cache.keys().next().value;
+                        this.cache.delete(oldest);
+                    }
+                    this.cache.set(key, {
+                        license,
+                        timestamp: Date.now()
+                    });
+                }
+
+                generateKey(initData) {
+                    if (typeof initData === 'string') return initData.substring(0, 64);
+                    return Array.from(new Uint8Array(initData)).slice(0, 32).join(',');
+                }
+
+                getSize() { return this.cache.size; }
+            }
+
+            // --- 重试机制 ---
+            async function withRetry(fn, context = '', maxRetries = CONFIG.maxRetries) {
+                let lastError;
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        return await fn();
+                    } catch (error) {
+                        lastError = error;
+                        log(`重试 ${i + 1}/${maxRetries}: ${context} - ${error.message}`, 'warn');
+                        if (i < maxRetries - 1) {
+                            await new Promise(r => setTimeout(r, CONFIG.retryDelay * Math.pow(2, i)));
+                        }
+                    }
+                }
+                throw lastError;
+            }
+
+            // --- 断路器 ---
+            class CircuitBreaker {
+                constructor(name, failureThreshold = CONFIG.circuitBreakerThreshold, timeout = CONFIG.circuitBreakerTimeout) {
+                    this.name = name;
+                    this.failureCount = 0;
+                    this.failureThreshold = failureThreshold;
+                    this.timeout = timeout;
+                    this.state = 'CLOSED';
+                    this.nextAttempt = Date.now();
+                    this.lastError = null;
+                }
+
+                async call(fn) {
+                    if (this.state === 'OPEN') {
+                        if (Date.now() > this.nextAttempt) {
+                            this.state = 'HALF_OPEN';
+                            log(`断路器 ${this.name} 进入半开状态`, 'warn');
+                        } else {
+                            throw new Error(`断路器 ${this.name} 开启: ${this.lastError?.message}`);
+                        }
+                    }
+
+                    try {
+                        const result = await fn();
+                        if (this.state === 'HALF_OPEN') {
+                            this.reset();
+                            log(`断路器 ${this.name} 重置为关闭`, 'success');
+                        }
+                        return result;
+                    } catch (error) {
+                        this.recordFailure(error);
+                        throw error;
+                    }
+                }
+
+                recordFailure(error) {
+                    this.failureCount++;
+                    this.lastError = error;
+
+                    if (this.failureCount >= this.failureThreshold) {
+                        this.state = 'OPEN';
+                        this.nextAttempt = Date.now() + this.timeout;
+                        log(`断路器 ${this.name} 开启，超时 ${this.timeout}ms`, 'error');
+                    }
+                }
+
+                reset() {
+                    this.failureCount = 0;
+                    this.state = 'CLOSED';
+                    this.lastError = null;
+                }
+            }
+
+            // --- 会话状态机 ---
+            class SessionStateMachine {
+                constructor(session) {
+                    this.session = session;
+                    this.state = SessionState.CREATED;
+                    this.listeners = new Set();
+                    this.setupListeners();
+                }
+
+                setupListeners() {
+                    this.session.addEventListener('keystatuseschange', () => {
+                        this.handleKeyStatusChange();
+                    });
+                }
+
+                transition(newState) {
+                    const validTransitions = {
+                        [SessionState.CREATED]: [SessionState.PENDING_REQUEST, SessionState.ERROR],
+                        [SessionState.PENDING_REQUEST]: [SessionState.WAITING_LICENSE, SessionState.ERROR],
+                        [SessionState.WAITING_LICENSE]: [SessionState.LICENSE_READY, SessionState.ERROR],
+                        [SessionState.LICENSE_READY]: [SessionState.KEY_READY, SessionState.ERROR],
+                        [SessionState.KEY_READY]: [SessionState.CLOSED, SessionState.WAITING_LICENSE, SessionState.ERROR],
+                        [SessionState.ERROR]: [SessionState.CLOSED]
+                    };
+
+                    if (!validTransitions[this.state]?.includes(newState)) {
+                        log(`非法状态转换: ${this.state} -> ${newState}`, 'error');
+                        return false;
+                    }
+
+                    this.state = newState;
+                    this.notifyListeners();
+                    return true;
+                }
+
+                handleKeyStatusChange() {
+                    if (this.session.keyStatuses.size > 0) {
+                        this.transition(SessionState.KEY_READY);
+                    }
+                }
+
+                addListener(listener) { this.listeners.add(listener); }
+                notifyListeners() { this.listeners.forEach(l => l(this.state)); }
+            }
+
+            // --- 会话池 ---
+            class SessionPool {
+                constructor(mediaKeys, maxSize = CONFIG.sessionPoolSize) {
+                    this.mediaKeys = mediaKeys;
+                    this.pool = [];
+                    this.inUse = new Set();
+                    this.maxSize = maxSize;
+                }
+
+                async acquire() {
+                    if (this.pool.length > 0) {
+                        const session = this.pool.pop();
+                        this.inUse.add(session);
+                        return session;
+                    }
+
+                    if (this.inUse.size < this.maxSize) {
+                        const session = this.mediaKeys.createSession('temporary');
+                        this.inUse.add(session);
+                        return session;
+                    }
+
+                    throw new Error('会话池已满');
+                }
+
+                release(session) {
+                    this.inUse.delete(session);
+
+                    if (this.pool.length < this.maxSize) {
+                        session.keyStatuses.clear();
+                        this.pool.push(session);
+                    } else {
+                        session.close();
+                    }
+                }
+
+                async cleanup() {
+                    for (const session of this.pool) {
+                        await session.close();
+                    }
+                    for (const session of this.inUse) {
+                        await session.close();
+                    }
+                    this.pool = [];
+                    this.inUse.clear();
+                }
+            }
+
+            // --- 错误边界 ---
+            class ErrorBoundary {
+                constructor() {
+                    this.setupGlobalHandlers();
+                }
+
+                setupGlobalHandlers() {
+                    window.addEventListener('unhandledrejection', (event) => {
+                        this.handleError(event.reason, 'unhandledrejection');
+                    });
+
+                    window.addEventListener('error', (event) => {
+                        this.handleError(event.error, 'global');
+                    });
+                }
+
+                handleError(error, context) {
+                    log(`全局错误 [${context}]: ${error.message}`, 'error');
+                    metrics.recordError(error, context);
+
+                    // 显示错误对话框
+                    this.showErrorDialog(error, context);
+                }
+
+                showErrorDialog(error, context) {
+                    const dialog = document.createElement('div');
+                    dialog.className = 'error-dialog';
+                    dialog.innerHTML = `
+                        <div class="error-content">
+                            <h3>⚠️ 播放错误</h3>
+                            <p>${error.message}</p>
+                            <p class="error-code">错误类型: ${error.name || '未知'}</p>
+                            <p class="error-context">上下文: ${context}</p>
+                            <button onclick="this.closest('.error-dialog').remove()">关闭</button>
+                        </div>
+                    `;
+                    document.body.appendChild(dialog);
+                }
+            }
+
+            // --- 安全检测 ---
+            class SecurityChecker {
+                static check() {
+                    const issues = [];
+
+                    if (!window.isSecureContext) {
+                        issues.push({
+                            level: 'error',
+                            message: '需要HTTPS或localhost环境'
+                        });
+                    }
+
+                    if (document.featurePolicy) {
+                        const allowed = document.featurePolicy.allowsFeature('encrypted-media');
+                        if (!allowed) {
+                            issues.push({
+                                level: 'warning',
+                                message: 'Feature-Policy可能限制EME使用'
+                            });
+                        }
+                    }
+
+                    return issues;
+                }
+
+                static showWarning() {
+                    const issues = this.check();
+                    if (issues.length > 0) {
+                        const warning = document.createElement('div');
+                        warning.className = 'security-warning';
+                        warning.innerHTML = `
+                            <div class="warning-content">
+                                <h4>🔒 安全警告</h4>
+                                ${issues.map(i => `<p class="${i.level}">${i.message}</p>`).join('')}
+                            </div>
+                        `;
+                        document.body.appendChild(warning);
+                        setTimeout(() => warning.remove(), 5000);
+                    }
+                }
+            }
+
+            // --- 许可证验证 ---
+            class LicenseValidator {
+                static async validate(license, keySystem) {
+                    if (keySystem === 'org.w3.clearkey') {
+                        return this.validateClearKey(license);
+                    }
+                    return true;
+                }
+
+                static validateClearKey(license) {
+                    try {
+                        const data = typeof license === 'string' ?
+                            JSON.parse(license) :
+                            JSON.parse(new TextDecoder().decode(license));
+
+                        if (!data.keys || !Array.isArray(data.keys)) {
+                            throw new Error('无效的许可证格式');
+                        }
+
+                        for (const key of data.keys) {
+                            if (!key.k || !key.kid) {
+                                throw new Error('密钥缺少必要字段');
+                            }
+
+                            if (!this.isValidBase64(key.k) || !this.isValidBase64(key.kid)) {
+                                throw new Error('无效的Base64编码');
+                            }
+
+                            const keyData = atob(key.k);
+                            if (keyData.length !== 16 && keyData.length !== 32) {
+                                throw new Error('密钥长度无效');
+                            }
+                        }
+
+                        return true;
+                    } catch (error) {
+                        log(`许可证验证失败: ${error.message}`, 'error');
+                        return false;
+                    }
+                }
+
+                static isValidBase64(str) {
+                    try {
+                        atob(str);
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }
+            }
+
+            // --- 调试面板 ---
+            class DebugPanel {
+                constructor() {
+                    this.enabled = false;
+                    this.panel = null;
+                }
+
+                toggle() {
+                    if (this.enabled) {
+                        this.disable();
+                    } else {
+                        this.enable();
+                    }
+                }
+
+                enable() {
+                    this.enabled = true;
+                    this.createPanel();
+                    toast('调试面板已开启', 'info');
+                }
+
+                disable() {
+                    this.enabled = false;
+                    if (this.panel) {
+                        this.panel.remove();
+                        this.panel = null;
+                    }
+                }
+
+                createPanel() {
+                    this.panel = document.createElement('div');
+                    this.panel.className = 'eme-debug-panel';
+                    this.panel.innerHTML = `
+                        <div class="debug-header">
+                            <h4>🔧 EME调试面板</h4>
+                            <button class="close-btn">×</button>
+                        </div>
+                        <div class="debug-content">
+                            <div class="debug-section">
+                                <h5>会话信息</h5>
+                                <pre id="debugSessionInfo">无活跃会话</pre>
+                            </div>
+                            <div class="debug-section">
+                                <h5>许可证缓存</h5>
+                                <pre id="debugCacheInfo">缓存大小: 0</pre>
+                            </div>
+                            <div class="debug-section">
+                                <h5>性能指标</h5>
+                                <div id="debugMetrics"></div>
+                            </div>
+                            <div class="debug-section">
+                                <h5>断路器状态</h5>
+                                <pre id="debugBreakerInfo">无</pre>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(this.panel);
+                    this.panel.querySelector('.close-btn').onclick = () => this.disable();
+                    this.update();
+                }
+
+                update() {
+                    if (!this.enabled || !this.panel) return;
+
+                    const sessionInfo = document.getElementById('debugSessionInfo');
+                    const cacheInfo = document.getElementById('debugCacheInfo');
+                    const metricsDiv = document.getElementById('debugMetrics');
+                    const breakerInfo = document.getElementById('debugBreakerInfo');
+
+                    if (sessionInfo) {
+                        sessionInfo.textContent = activeSession ?
+                            `会话ID: ${activeSession.sessionId || '未初始化'}\n状态: ${sessionState?.state || 'unknown'}` :
+                            '无活跃会话';
+                    }
+
+                    if (cacheInfo) {
+                        cacheInfo.textContent = `缓存大小: ${licenseCache.getSize()}/${CONFIG.licenseCacheSize}`;
+                    }
+
+                    if (metricsDiv) {
+                        metricsDiv.innerHTML = `
+                            <div>平均许可证时间: ${metrics.getAvgLicenseTime()}ms</div>
+                            <div>成功率: ${metrics.getSuccessRate()}%</div>
+                            <div>活跃会话: ${metrics.getActiveSessions()}</div>
+                            <div>错误数: ${metrics.errors.length}</div>
+                        `;
+                    }
+
+                    if (breakerInfo) {
+                        breakerInfo.textContent = circuitBreaker ?
+                            `状态: ${circuitBreaker.state}\n失败次数: ${circuitBreaker.failureCount}` :
+                            '未启用';
+                    }
+
+                    setTimeout(() => this.update(), 1000);
+                }
+            }
+
+            // --- 键盘快捷键 ---
+            class KeyboardShortcuts {
+                constructor() {
+                    this.shortcuts = new Map([
+                        ['alt+1', () => document.getElementById('keySystemSelect').focus()],
+                        ['alt+2', () => document.getElementById('btnRequestAccess').click()],
+                        ['alt+3', () => document.getElementById('btnCreateMediaKeys').click()],
+                        ['alt+4', () => document.getElementById('btnCreateSession').click()],
+                        ['alt+5', () => document.getElementById('btnGenerateRequest').click()],
+                        ['alt+6', () => document.getElementById('btnUpdateSession').click()],
+                        ['alt+r', () => resetAll()],
+                        ['alt+l', () => clearLog()],
+                        ['alt+d', () => debugPanel.toggle()]
+                    ]);
+
+                    this.init();
+                }
+
+                init() {
+                    document.addEventListener('keydown', (e) => {
+                        const key = this.getKeyCombo(e);
+                        const action = this.shortcuts.get(key);
+
+                        if (action) {
+                            e.preventDefault();
+                            action();
+                            this.showHint(key);
+                        }
+                    });
+                }
+
+                getKeyCombo(e) {
+                    const parts = [];
+                    if (e.altKey) parts.push('alt');
+                    if (e.ctrlKey) parts.push('ctrl');
+                    if (e.shiftKey) parts.push('shift');
+                    parts.push(e.key.toLowerCase());
+                    return parts.join('+');
+                }
+
+                showHint(key) {
+                    const hint = document.getElementById('shortcutHint');
+                    hint.textContent = `快捷键: ${key} 已执行`;
+                    hint.style.display = 'block';
+                    setTimeout(() => hint.style.display = 'none', 2000);
+                }
+            }
+
+            // --- 降级策略 ---
+            const robustnessLevels = [
+                { robustness: '', quality: '高清' },
+                { robustness: 'SW_SECURE_CRYPTO', quality: '标清' },
+                { robustness: 'HW_SECURE_CRYPTO', quality: '高清' },
+                { robustness: 'HW_SECURE_ALL', quality: '4K' }
+            ];
+
+            async function findOptimalConfig(keySystem, baseConfig) {
+                for (const level of robustnessLevels) {
+                    try {
+                        const testConfig = JSON.parse(JSON.stringify(baseConfig));
+                        if (testConfig.videoCapabilities) {
+                            testConfig.videoCapabilities = testConfig.videoCapabilities.map(cap => ({
+                                ...cap,
+                                robustness: level.robustness
+                            }));
+                        }
+                        const access = await navigator.requestMediaKeySystemAccess(keySystem, [testConfig]);
+                        log(`降级测试成功: ${level.quality} (${level.robustness || '无要求'})`);
+                        return { access, quality: level.quality };
+                    } catch (e) {
+                        log(`降级级别 ${level.quality} 不可用`, 'warn');
+                    }
+                }
+                throw new Error('无可用的密钥系统配置');
+            }
+
+            // --- 全局状态 ---
+            const stateIndicator = new StateIndicator();
+            const metrics = new MetricsCollector();
+            const licenseCache = new LicenseCache(CONFIG.licenseCacheSize);
+            const errorBoundary = new ErrorBoundary();
+            const debugPanel = new DebugPanel();
+            const circuitBreaker = new CircuitBreaker('EME操作');
+            const shortcuts = new KeyboardShortcuts();
+
+            let mediaKeySystemAccess = null;
+            let mediaKeys = null;
+            let activeSession = null;
+            let sessionState = null;
+            let sessionPool = null;
+            const sessions = new Map();
+
+            // DOM 元素
+            const videoElement = document.getElementById('videoElement');
+
+            // --- 核心功能实现 ---
+
+            async function requestAccess() {
+                const keySystem = document.getElementById('keySystemSelect').value;
+                let configs;
+                try {
+                    configs = JSON.parse(document.getElementById('configInput').value);
+                } catch (e) {
+                    toast('配置JSON解析错误', 'error');
+                    return;
+                }
+
+                try {
+                    stateIndicator.setState('ACCESSING');
+                    metrics.startMeasure = performance.now();
+
+                    mediaKeySystemAccess = await withRetry(
+                        () => circuitBreaker.call(() => navigator.requestMediaKeySystemAccess(keySystem, configs)),
+                        'requestMediaKeySystemAccess'
+                    );
+
+                    const time = performance.now() - metrics.startMeasure;
+
+                    const config = mediaKeySystemAccess.getConfiguration();
+                    document.getElementById('accessResult').innerText =
+                        `✅ 成功 (${time.toFixed(0)}ms)\n密钥系统: ${mediaKeySystemAccess.keySystem}\n` +
+                        `视频能力: ${JSON.stringify(config.videoCapabilities)}`;
+
+                    metrics.recordSuccess();
+                    metrics.recordLicenseTime(time);
+                    toast('密钥系统访问成功', 'success');
+                    updateProgress(20);
+                } catch (error) {
+                    document.getElementById('accessResult').innerText = `❌ 失败: ${error.message}`;
+                    metrics.recordError(error, 'requestAccess');
+                    stateIndicator.setState('ERROR');
+                    toast(`访问失败: ${error.message}`, 'error');
+                }
+            }
+
+            async function createMediaKeys() {
+                if (!mediaKeySystemAccess) {
+                    toast('请先获取密钥系统访问', 'error');
+                    return;
+                }
+
+                try {
+                    stateIndicator.setState('CREATING_KEYS');
+                    metrics.startMeasure = performance.now();
+
+                    mediaKeys = await withRetry(
+                        () => circuitBreaker.call(() => mediaKeySystemAccess.createMediaKeys()),
+                        'createMediaKeys'
+                    );
+
+                    const time = performance.now() - metrics.startMeasure;
+
+                    document.getElementById('mediaKeysResult').innerText =
+                        `✅ MediaKeys 创建成功 (${time.toFixed(0)}ms)\n` +
+                        `实现: ${mediaKeys.constructor.name}`;
+
+                    metrics.recordSuccess();
+
+                    // 创建会话池
+                    sessionPool = new SessionPool(mediaKeys);
+
+                    toast('MediaKeys 已创建', 'success');
+                    updateProgress(40);
+                } catch (error) {
+                    document.getElementById('mediaKeysResult').innerText = `❌ 失败: ${error.message}`;
+                    metrics.recordError(error, 'createMediaKeys');
+                    stateIndicator.setState('ERROR');
+                }
+            }
+
+            async function createMediaKeysWithFallback() {
+                if (!mediaKeySystemAccess) {
+                    toast('请先获取密钥系统访问', 'error');
+                    return;
+                }
+
+                try {
+                    const keySystem = document.getElementById('keySystemSelect').value;
+                    const baseConfig = JSON.parse(document.getElementById('configInput').value)[0];
+
+                    const { access, quality } = await findOptimalConfig(keySystem, baseConfig);
+                    mediaKeySystemAccess = access;
+
+                    mediaKeys = await mediaKeySystemAccess.createMediaKeys();
+
+                    document.getElementById('mediaKeysResult').innerText =
+                        `✅ 降级成功 (${quality})\n密钥系统: ${mediaKeySystemAccess.keySystem}`;
+
+                    toast(`使用降级策略: ${quality}`, 'success');
+                    updateProgress(40);
+                } catch (error) {
+                    document.getElementById('mediaKeysResult').innerText = `❌ 降级失败: ${error.message}`;
+                    metrics.recordError(error, 'fallback');
+                }
+            }
+
+            async function setCertificate() {
+                if (!mediaKeys) {
+                    toast('请先创建 MediaKeys', 'error');
+                    return;
+                }
+
+                const certBase64 = document.getElementById('serverCertInput').value.trim();
+                if (!certBase64) return;
+
+                try {
+                    const certBuffer = base64ToArrayBuffer(certBase64);
+                    const result = await mediaKeys.setServerCertificate(certBuffer);
+                    log(`设置证书: ${result ? '成功' : '失败或忽略'}`);
+                    toast(result ? '证书设置成功' : '证书被忽略', result ? 'success' : 'info');
+                } catch (error) {
+                    log(`证书错误: ${error.message}`, 'error');
+                    metrics.recordError(error, 'setCertificate');
+                }
+            }
+
+            async function createSession() {
+                if (!mediaKeys) {
+                    toast('请先创建 MediaKeys', 'error');
+                    return;
+                }
+
+                const sessionType = document.getElementById('sessionTypeSelect').value;
+                try {
+                    activeSession = mediaKeys.createSession(sessionType);
+                    sessionState = new SessionStateMachine(activeSession);
+
+                    sessions.set(activeSession.sessionId || Date.now().toString(), activeSession);
+                    metrics.sessionsCreated++;
+
+                    // 设置事件监听
+                    activeSession.addEventListener('message', handleSessionMessage);
+
+                    log(`会话创建: type=${sessionType}`);
+                    document.getElementById('sessionResult').innerText =
+                        `会话已创建 (${sessionType})\n等待 generateRequest`;
+
+                    metrics.updateUI();
+                    stateIndicator.setState('CREATING_SESSION');
+                    updateProgress(60);
+                } catch (error) {
+                    log(`创建会话失败: ${error.message}`, 'error');
+                    metrics.recordError(error, 'createSession');
+                }
+            }
+
+            async function handleSessionMessage(event) {
+                const messageB64 = arrayBufferToBase64(event.message);
+                log(`📨 message: type=${event.messageType}, 大小=${event.message.byteLength}`);
+                document.getElementById('licenseMessageInput').value = messageB64;
+
+                // 验证消息
+                try {
+                    const isValid = await LicenseValidator.validate(messageB64, document.getElementById('keySystemSelect').value);
+                    if (!isValid) {
+                        log('许可证消息验证失败', 'error');
+                        return;
+                    }
+                } catch (e) {
+                    log(`验证错误: ${e.message}`, 'error');
+                }
+
+                // 自动尝试缓存
+                const initData = document.getElementById('initDataInput').value;
+                const cacheKey = licenseCache.generateKey(initData);
+                const cached = licenseCache.get(cacheKey);
+
+                if (cached) {
+                    log('使用缓存的许可证', 'info');
+                    activeSession.update(cached).catch(e => log('缓存更新失败', 'error'));
+                }
+            }
+
+            async function generateRequest() {
+                if (!activeSession) {
+                    toast('请先创建会话', 'error');
+                    return;
+                }
+
+                let initDataStr = document.getElementById('initDataInput').value.trim();
+                let initData;
+                try {
+                    if (initDataStr.startsWith('{') || initDataStr.startsWith('[')) {
+                        initData = new TextEncoder().encode(initDataStr);
+                    } else {
+                        initData = new Uint8Array(base64ToArrayBuffer(initDataStr));
+                    }
+                } catch (e) {
+                    toast('initData 格式错误', 'error');
+                    return;
+                }
+
+                try {
+                    stateIndicator.setState('REQUESTING_LICENSE');
+                    metrics.startMeasure = performance.now();
+
+                    await activeSession.generateRequest('keyids', initData);
+
+                    const time = performance.now() - metrics.startMeasure;
+
+                    log(`generateRequest 成功 (${time.toFixed(0)}ms)`);
+                    metrics.recordLicenseTime(time);
+                    sessionState?.transition(SessionState.PENDING_REQUEST);
+                    updateProgress(80);
+                } catch (error) {
+                    log(`generateRequest 失败: ${error.message}`, 'error');
+                    metrics.recordError(error, 'generateRequest');
+                    sessionState?.transition(SessionState.ERROR);
+                }
+            }
+
+            async function updateSession() {
+                if (!activeSession) {
+                    toast('无活跃会话', 'error');
+                    return;
+                }
+
+                let response = document.getElementById('licenseMessageInput').value.trim();
+                let responseBuffer;
+                try {
+                    if (response.startsWith('{')) {
+                        responseBuffer = new TextEncoder().encode(response);
+                    } else {
+                        responseBuffer = new Uint8Array(base64ToArrayBuffer(response));
+                    }
+                } catch (e) {
+                    toast('响应格式错误', 'error');
+                    return;
+                }
+
+                try {
+                    await activeSession.update(responseBuffer);
+                    log('update 成功');
+
+                    // 验证并缓存许可证
+                    const isValid = await LicenseValidator.validate(response, document.getElementById('keySystemSelect').value);
+                    if (isValid) {
+                        const initData = document.getElementById('initDataInput').value;
+                        const cacheKey = licenseCache.generateKey(initData);
+                        licenseCache.set(cacheKey, responseBuffer);
+                        log('许可证已缓存', 'success');
+                    }
+
+                    metrics.recordSuccess();
+                    sessionState?.transition(SessionState.LICENSE_READY);
+                    stateIndicator.setState('LICENSE_READY');
+                    updateProgress(100);
+                    setTimeout(() => updateProgress(0), 1000);
+                } catch (error) {
+                    log(`update 失败: ${error.message}`, 'error');
+                    metrics.recordError(error, 'update');
+                    sessionState?.transition(SessionState.ERROR);
+                }
+            }
+
+            async function closeSession() {
+                if (!activeSession) return;
+                try {
+                    await activeSession.close();
+                    metrics.sessionsClosed++;
+                    sessionState?.transition(SessionState.CLOSED);
+                    activeSession = null;
+                    sessionState = null;
+                    log('会话已关闭');
+                    document.getElementById('sessionResult').innerText = '会话已关闭';
+                    updateKeyStatusUI();
+                    metrics.updateUI();
+                } catch (error) {
+                    log(`关闭失败: ${error.message}`, 'error');
+                }
+            }
+
+            async function setMediaKeys(reset = false) {
+                if (reset) {
+                    await videoElement.setMediaKeys(null);
+                    document.getElementById('mediaKeysStatus').innerText = 'MediaKeys 已解除';
+                    return;
+                }
+
+                if (!mediaKeys) {
+                    toast('请先创建 MediaKeys', 'error');
+                    return;
+                }
+
+                try {
+                    await videoElement.setMediaKeys(mediaKeys);
+                    document.getElementById('mediaKeysStatus').innerText = 'MediaKeys 已绑定';
+                    log('setMediaKeys 成功');
+                    stateIndicator.setState('DECRYPTING');
+                } catch (error) {
+                    log(`setMediaKeys 失败: ${error.message}`, 'error');
+                    metrics.recordError(error, 'setMediaKeys');
+                }
+            }
+
+            function updateKeyStatusUI() {
+                if (!activeSession) {
+                    document.getElementById('keyStatusMap').innerText = '无活跃会话';
+                    return;
+                }
+
+                const map = activeSession.keyStatuses;
+                if (!map || map.size === 0) {
+                    document.getElementById('keyStatusMap').innerText = 'keyStatuses 为空';
+                    return;
+                }
+
+                let text = '';
+                for (let [keyId, status] of map.entries()) {
+                    let idStr = Array.from(new Uint8Array(keyId)).slice(0, 4).map(b => b.toString(16)).join('');
+                    text += `密钥[${idStr}…]: ${status}  `;
+                }
+                document.getElementById('keyStatusMap').innerText = text;
+            }
+
+            function updateProgress(percent) {
+                document.getElementById('progressBar').style.width = `${percent}%`;
+            }
+
+            function getConfig() {
+                if (!mediaKeySystemAccess) return;
+                const cfg = mediaKeySystemAccess.getConfiguration();
+                document.getElementById('accessResult').innerText = JSON.stringify(cfg, null, 2);
+            }
+
+            async function testCompatibility() {
+                const keySystems = [
+                    'org.w3.clearkey',
+                    'com.widevine.alpha',
+                    'com.microsoft.playready',
+                    'com.apple.fairplay'
+                ];
+
+                const results = [];
+                for (const ks of keySystems) {
+                    try {
+                        const access = await navigator.requestMediaKeySystemAccess(ks, [
+                            { initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4;codecs="avc1.4d4015"' }] }
+                        ]);
+                        results.push(`${ks}: ✅ 支持`);
+                    } catch {
+                        results.push(`${ks}: ❌ 不支持`);
+                    }
+                }
+
+                document.getElementById('accessResult').innerText = results.join('\n');
+            }
+
+            function clearLog() {
+                document.getElementById('logPanel').innerHTML = '<div style="color:#9acdff;">✨ 日志已清空</div>';
+            }
+
+            function fillSample() {
+                document.getElementById('keySystemSelect').value = 'org.w3.clearkey';
+                document.getElementById('initDataInput').value = '{"kids":["LwVHf8JLqPrvaciR6rI4BA"]}';
+                document.getElementById('licenseMessageInput').value = '{"keys":[{"kty":"oct","k":"LwVHf8JLqPrvaciR6rI4BA","kid":"LwVHf8JLqPrvaciR6rI4BA"}]}';
+                toast('示例数据已填充', 'success');
+            }
+
+            async function runStressTest() {
+                if (!mediaKeys) {
+                    toast('请先创建 MediaKeys', 'error');
+                    return;
+                }
+
+                toast('开始压力测试 (创建10个会话)', 'info');
+                for (let i = 0; i < 10; i++) {
+                    try {
+                        const session = mediaKeys.createSession('temporary');
+                        log(`压力测试: 创建会话 ${i + 1}`);
+                        metrics.sessionsCreated++;
+                    } catch (e) {
+                        log(`压力测试错误: ${e.message}`, 'error');
+                        metrics.recordError(e, 'stress');
+                    }
+                }
+                metrics.updateUI();
+            }
+
+            function loadSession() {
+                toast('load 需要持久会话，演示未实现', 'info');
+            }
+
+            function removeSession() {
+                if (!activeSession) return;
+                activeSession.remove().then(() => log('remove 调用成功')).catch(e => log(e.message, 'error'));
+            }
+
+            function checkCertificate() {
+                log('证书状态: 需要浏览器内部支持，无法直接查询');
+            }
+
+            function resetAll() {
+                if (activeSession) closeSession();
+                mediaKeySystemAccess = null;
+                mediaKeys = null;
+                sessionPool = null;
+                metrics.reset();
+                licenseCache.cache.clear();
+                document.getElementById('accessResult').innerText = '等待操作...';
+                document.getElementById('mediaKeysResult').innerText = 'MediaKeys 实例信息';
+                document.getElementById('sessionResult').innerText = '会话详情';
+                document.getElementById('keyStatusMap').innerText = 'keyStatuses 将显示于此';
+                document.getElementById('mediaKeysStatus').innerText = 'MediaKeys 未关联';
+                updateProgress(0);
+                stateIndicator.setState('INIT');
+                toast('所有状态已重置', 'success');
+            }
+
+            // 事件绑定
+            document.getElementById('btnRequestAccess').addEventListener('click', requestAccess);
+            document.getElementById('btnGetConfig').addEventListener('click', getConfig);
+            document.getElementById('btnTestCompatibility').addEventListener('click', testCompatibility);
+            document.getElementById('btnCreateMediaKeys').addEventListener('click', createMediaKeys);
+            document.getElementById('btnCreateMediaKeysWithFallback').addEventListener('click', createMediaKeysWithFallback);
+            document.getElementById('btnSetCert').addEventListener('click', setCertificate);
+            document.getElementById('btnCheckCert').addEventListener('click', checkCertificate);
+            document.getElementById('btnCreateSession').addEventListener('click', createSession);
+            document.getElementById('btnGenerateRequest').addEventListener('click', generateRequest);
+            document.getElementById('btnLoadSession').addEventListener('click', loadSession);
+            document.getElementById('btnUpdateSession').addEventListener('click', updateSession);
+            document.getElementById('btnCloseSession').addEventListener('click', closeSession);
+            document.getElementById('btnRemoveSession').addEventListener('click', removeSession);
+            document.getElementById('btnSetMediaKeys').addEventListener('click', () => setMediaKeys(false));
+            document.getElementById('btnSetNullMediaKeys').addEventListener('click', () => setMediaKeys(true));
+            document.getElementById('btnResetMetrics').addEventListener('click', () => metrics.reset());
+            document.getElementById('btnClearLog').addEventListener('click', clearLog);
+            document.getElementById('btnFillSample').addEventListener('click', fillSample);
+            document.getElementById('btnRunStress').addEventListener('click', runStressTest);
+            document.getElementById('btnToggleDebug').addEventListener('click', () => debugPanel.toggle());
+
+            // 监听 video encrypted 事件
+            videoElement.addEventListener('encrypted', (e) => {
+                log(`🔐 encrypted: initDataType=${e.initDataType}`);
+                if (e.initData) {
+                    document.getElementById('initDataInput').value = arrayBufferToBase64(e.initData);
+                }
+            });
+
+            // 初始化安全检查
+            SecurityChecker.showWarning();
+
+            log('企业级 EME 完整演示已启动，所有优化功能已集成');
+            log('快捷键: Alt+1~6 快速操作, Alt+R 重置, Alt+L 清空日志, Alt+D 调试面板');
+        })();
+    </script>
+</body>
+
+</html>

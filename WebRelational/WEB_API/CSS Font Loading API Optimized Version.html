@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Font Loading API - 优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2 {
+            color: #555;
+            margin: 20px 0 15px;
+            font-size: 18px;
+        }
+
+        h3 {
+            color: #666;
+            margin: 15px 0 10px;
+            font-size: 16px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-partial {
+            background: #ff9800;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .warning-panel {
+            background: #fff3e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+
+        .preview-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+        }
+
+        .preview-text {
+            font-size: 24px;
+            line-height: 1.6;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            min-height: 150px;
+            transition: font-family 0.3s;
+            word-break: break-word;
+        }
+
+        .preview-text.small {
+            font-size: 16px;
+        }
+
+        .preview-text.medium {
+            font-size: 24px;
+        }
+
+        .preview-text.large {
+            font-size: 32px;
+        }
+
+        .font-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .font-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .font-card.loaded {
+            border-left: 4px solid #4CAF50;
+        }
+
+        .font-card.error {
+            border-left: 4px solid #f44336;
+        }
+
+        .font-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .font-name {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .font-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-loading {
+            background: #ff9800;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-loaded {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-error {
+            background: #f44336;
+            color: white;
+        }
+
+        .status-inactive {
+            background: #9e9e9e;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .font-demo {
+            font-size: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            transition: font-family 0.3s;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 80px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .font-weight-demo {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .weight-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .weight-value {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .progress-container {
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .compat-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .compat-table td:first-child {
+            font-weight: 600;
+        }
+
+        .yes {
+            color: #4CAF50;
+        }
+
+        .no {
+            color: #f44336;
+        }
+
+        .fallback-note {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>🔤 CSS Font Loading API</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>动态加载和管理字体，支持多种字体格式和权重</p>
+
+            <!-- 兼容性提示 -->
+            <div class="warning-panel" id="compatWarning" style="display: none;">
+                <strong>⚠️ 当前浏览器不支持 Font Loading API</strong><br>
+                将使用传统 @font-face 方式加载字体
+            </div>
+
+            <!-- 字体预览 -->
+            <div class="preview-box">
+                <h3>📝 字体预览</h3>
+                <div class="preview-text" id="previewText">
+                    ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>
+                    abcdefghijklmnopqrstuvwxyz<br>
+                    0123456789 !@#$%^&*()
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-success" id="smallTextBtn">小</button>
+                    <button class="btn btn-primary" id="normalTextBtn">中</button>
+                    <button class="btn btn-success" id="largeTextBtn">大</button>
+                </div>
+            </div>
+
+            <!-- Google Fonts - Roboto -->
+            <div class="font-card" id="robotoCard">
+                <div class="font-header">
+                    <span class="font-name">🎯 Roboto (Google Fonts)</span>
+                    <span class="font-status" id="robotoStatus">未加载</span>
+                </div>
+
+                <div class="font-demo" id="robotoDemo" style="font-family: sans-serif;">
+                    The quick brown fox jumps over the lazy dog
+                </div>
+
+                <div class="font-weight-demo" id="robotoWeights" style="display: none;">
+                    <div class="weight-item">
+                        <div class="weight-value" style="font-family: 'Roboto', sans-serif; font-weight: 300;">Light
+                        </div>
+                        <div>300</div>
+                    </div>
+                    <div class="weight-item">
+                        <div class="weight-value" style="font-family: 'Roboto', sans-serif; font-weight: 400;">Regular
+                        </div>
+                        <div>400</div>
+                    </div>
+                    <div class="weight-item">
+                        <div class="weight-value" style="font-family: 'Roboto', sans-serif; font-weight: 500;">Medium
+                        </div>
+                        <div>500</div>
+                    </div>
+                    <div class="weight-item">
+                        <div class="weight-value" style="font-family: 'Roboto', sans-serif; font-weight: 700;">Bold
+                        </div>
+                        <div>700</div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="loadRobotoBtn">⬇️ 加载字体</button>
+                    <button class="btn btn-danger" id="unloadRobotoBtn" disabled>🗑️ 卸载</button>
+                    <button class="btn btn-success" id="checkRobotoBtn">🔍 检查</button>
+                </div>
+            </div>
+
+            <!-- Open Sans -->
+            <div class="font-card" id="opensansCard">
+                <div class="font-header">
+                    <span class="font-name">📖 Open Sans</span>
+                    <span class="font-status" id="opensansStatus">未加载</span>
+                </div>
+
+                <div class="font-demo" id="opensansDemo" style="font-family: sans-serif;">
+                    The quick brown fox jumps over the lazy dog
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="loadOpenSansBtn">⬇️ 加载字体</button>
+                    <button class="btn btn-danger" id="unloadOpenSansBtn" disabled>🗑️ 卸载</button>
+                    <button class="btn btn-success" id="checkOpenSansBtn">🔍 检查</button>
+                </div>
+            </div>
+
+            <!-- 系统字体检测 -->
+            <div class="font-card">
+                <div class="font-header">
+                    <span class="font-name">💻 系统字体</span>
+                    <span class="font-status" id="systemStatus">检测中...</span>
+                </div>
+
+                <div class="font-demo" id="systemFontsDemo"></div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" id="checkSystemBtn">🔍 检测系统字体</button>
+                </div>
+            </div>
+
+            <!-- 加载进度 -->
+            <h3>📊 加载进度</h3>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="info-panel" id="statsPanel">
+                <div>📦 已加载字体: <span id="loadedCount">0</span></div>
+                <div>⏳ 加载中: <span id="loadingCount">0</span></div>
+                <div>❌ 加载失败: <span id="errorCount">0</span></div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+
+            <!-- 兼容性表格 -->
+            <h3>🌐 浏览器支持</h3>
+            <table class="compat-table">
+                <tr>
+                    <td>Chrome 35+</td>
+                    <td class="yes">✅</td>
+                </tr>
+                <tr>
+                    <td>Edge 79+</td>
+                    <td class="yes">✅</td>
+                </tr>
+                <tr>
+                    <td>Firefox 41+</td>
+                    <td class="yes">✅</td>
+                </tr>
+                <tr>
+                    <td>Safari 10+</td>
+                    <td class="yes">✅</td>
+                </tr>
+                <tr>
+                    <td>Opera 22+</td>
+                    <td class="yes">✅</td>
+                </tr>
+            </table>
+
+            <div class="fallback-note">
+                💡 如果不支持API，会自动使用 @font-face 降级方案
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            class FontManager {
+                constructor() {
+                    this.supported = 'fonts' in document;
+                    this.fonts = new Map(); // 存储加载的字体
+                    this.stats = { loaded: 0, loading: 0, error: 0 };
+
+                    // 字体配置
+                    this.fontConfigs = {
+                        roboto: {
+                            name: 'Roboto',
+                            weights: [300, 400, 500, 700],
+                            urls: {
+                                300: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmSU5fBBc4.woff2',
+                                400: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxK.woff2',
+                                500: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmEU9fBBc4.woff2',
+                                700: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlfBBc4.woff2'
+                            }
+                        },
+                        opensans: {
+                            name: 'Open Sans',
+                            weights: [400, 600, 700],
+                            urls: {
+                                400: 'https://fonts.gstatic.com/s/opensans/v35/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0B4gaVI.woff2',
+                                600: 'https://fonts.gstatic.com/s/opensans/v35/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsgH1x4gaVI.woff2',
+                                700: 'https://fonts.gstatic.com/s/opensans/v35/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsg-1x4gaVI.woff2'
+                            }
+                        }
+                    };
+
+                    this.elements = {
+                        apiStatus: document.getElementById('apiStatus'),
+                        compatWarning: document.getElementById('compatWarning'),
+                        previewText: document.getElementById('previewText'),
+                        robotoStatus: document.getElementById('robotoStatus'),
+                        robotoDemo: document.getElementById('robotoDemo'),
+                        robotoWeights: document.getElementById('robotoWeights'),
+                        opensansStatus: document.getElementById('opensansStatus'),
+                        opensansDemo: document.getElementById('opensansDemo'),
+                        systemStatus: document.getElementById('systemStatus'),
+                        systemFontsDemo: document.getElementById('systemFontsDemo'),
+                        loadRobotoBtn: document.getElementById('loadRobotoBtn'),
+                        unloadRobotoBtn: document.getElementById('unloadRobotoBtn'),
+                        checkRobotoBtn: document.getElementById('checkRobotoBtn'),
+                        loadOpenSansBtn: document.getElementById('loadOpenSansBtn'),
+                        unloadOpenSansBtn: document.getElementById('unloadOpenSansBtn'),
+                        checkOpenSansBtn: document.getElementById('checkOpenSansBtn'),
+                        checkSystemBtn: document.getElementById('checkSystemBtn'),
+                        smallTextBtn: document.getElementById('smallTextBtn'),
+                        normalTextBtn: document.getElementById('normalTextBtn'),
+                        largeTextBtn: document.getElementById('largeTextBtn'),
+                        progressBar: document.getElementById('progressBar'),
+                        loadedCount: document.getElementById('loadedCount'),
+                        loadingCount: document.getElementById('loadingCount'),
+                        errorCount: document.getElementById('errorCount'),
+                        logPanel: document.getElementById('logPanel')
+                    };
+
+                    this.init();
+                }
+
+                init() {
+                    this.checkSupport();
+                    this.setupEventListeners();
+                    this.setupFontEvents();
+                    this.checkSystemFonts();
+
+                    // 检查是否已加载系统字体
+                    setTimeout(() => this.updateStats(), 500);
+
+                    this.log('系统初始化完成', 'success');
+                }
+
+                checkSupport() {
+                    if (this.supported) {
+                        this.elements.apiStatus.textContent = '✓ 支持';
+                        this.elements.apiStatus.className = 'status-badge status-supported';
+                        this.log('✅ Font Loading API 可用', 'success');
+                    } else {
+                        this.elements.apiStatus.textContent = '✗ 降级模式';
+                        this.elements.apiStatus.className = 'status-badge status-partial';
+                        this.elements.compatWarning.style.display = 'block';
+                        this.log('⚠️ 使用 @font-face 降级方案', 'warning');
+                    }
+                }
+
+                setupEventListeners() {
+                    // Roboto 按钮
+                    this.elements.loadRobotoBtn.addEventListener('click', () => this.loadFont('roboto'));
+                    this.elements.unloadRobotoBtn.addEventListener('click', () => this.unloadFont('roboto'));
+                    this.elements.checkRobotoBtn.addEventListener('click', () => this.checkFont('roboto'));
+
+                    // Open Sans 按钮
+                    this.elements.loadOpenSansBtn.addEventListener('click', () => this.loadFont('opensans'));
+                    this.elements.unloadOpenSansBtn.addEventListener('click', () => this.unloadFont('opensans'));
+                    this.elements.checkOpenSansBtn.addEventListener('click', () => this.checkFont('opensans'));
+
+                    // 系统字体检测
+                    this.elements.checkSystemBtn.addEventListener('click', () => this.checkSystemFonts());
+
+                    // 文本大小控制
+                    this.elements.smallTextBtn.addEventListener('click', () => {
+                        this.elements.previewText.className = 'preview-text small';
+                    });
+
+                    this.elements.normalTextBtn.addEventListener('click', () => {
+                        this.elements.previewText.className = 'preview-text medium';
+                    });
+
+                    this.elements.largeTextBtn.addEventListener('click', () => {
+                        this.elements.previewText.className = 'preview-text large';
+                    });
+                }
+
+                setupFontEvents() {
+                    if (!this.supported) return;
+
+                    // 字体加载开始
+                    document.fonts.addEventListener('loading', () => {
+                        this.stats.loading++;
+                        this.updateStats();
+                    });
+
+                    // 字体加载完成
+                    document.fonts.addEventListener('loadingdone', (event) => {
+                        this.stats.loading -= event.fontfaces.length;
+                        this.stats.loaded += event.fontfaces.length;
+                        this.updateStats();
+
+                        event.fontfaces.forEach(face => {
+                            this.log(`✅ 字体加载成功: ${face.family}`, 'success');
+                        });
+                    });
+
+                    // 字体加载失败
+                    document.fonts.addEventListener('loadingerror', (event) => {
+                        this.stats.loading -= event.fontfaces.length;
+                        this.stats.error += event.fontfaces.length;
+                        this.updateStats();
+
+                        event.fontfaces.forEach(face => {
+                            this.log(`❌ 字体加载失败: ${face.family}`, 'error');
+                        });
+                    });
+
+                    // 所有字体加载完成
+                    document.fonts.ready.then(() => {
+                        this.log('🎉 所有字体加载完成', 'success');
+                        this.updateProgress(100);
+                    });
+                }
+
+                async loadFont(fontKey) {
+                    const config = this.fontConfigs[fontKey];
+                    if (!config) return;
+
+                    this.updateStatus(fontKey, 'loading', '⏳ 加载中...');
+
+                    if (this.supported) {
+                        // 使用 Font Loading API
+                        try {
+                            const promises = config.weights.map(weight => {
+                                const font = new FontFace(config.name, `url(${config.urls[weight]})`, {
+                                    weight: weight.toString(),
+                                    style: 'normal',
+                                    display: 'swap'
+                                });
+                                return font.load().then(loadedFont => {
+                                    document.fonts.add(loadedFont);
+                                    this.fonts.set(`${fontKey}-${weight}`, loadedFont);
+                                    return loadedFont;
+                                });
+                            });
+
+                            await Promise.all(promises);
+
+                            this.updateStatus(fontKey, 'loaded', '✅ 已加载');
+                            this.enableUnloadButton(fontKey, true);
+                            this.updateFontDemo(fontKey);
+                            this.log(`✅ ${config.name} 字体加载成功 (${config.weights.join(', ')}权重)`, 'success');
+
+                        } catch (error) {
+                            this.updateStatus(fontKey, 'error', '❌ 加载失败');
+                            this.log(`❌ ${config.name} 加载失败: ${error.message}`, 'error');
+                        }
+                    } else {
+                        // 降级方案：使用 @font-face
+                        this.loadFontWithFallback(fontKey);
+                    }
+                }
+
+                loadFontWithFallback(fontKey) {
+                    const config = this.fontConfigs[fontKey];
+
+                    // 创建 style 标签
+                    const style = document.createElement('style');
+                    let css = '';
+
+                    config.weights.forEach(weight => {
+                        css += `
+                            @font-face {
+                                font-family: '${config.name}';
+                                font-style: normal;
+                                font-weight: ${weight};
+                                src: url(${config.urls[weight]}) format('woff2');
+                                font-display: swap;
+                            }
+                        `;
+                    });
+
+                    style.textContent = css;
+                    document.head.appendChild(style);
+
+                    // 保存引用
+                    this.fonts.set(fontKey, { type: 'fallback', style });
+
+                    this.updateStatus(fontKey, 'loaded', '✅ 已加载(降级)');
+                    this.enableUnloadButton(fontKey, true);
+                    this.updateFontDemo(fontKey);
+                    this.log(`✅ ${config.name} 使用降级方案加载成功`, 'success');
+                }
+
+                unloadFont(fontKey) {
+                    const config = this.fontConfigs[fontKey];
+
+                    if (this.supported) {
+                        // 对于原生API，无法真正卸载字体，但可以清除引用
+                        config.weights.forEach(weight => {
+                            this.fonts.delete(`${fontKey}-${weight}`);
+                        });
+                    } else {
+                        // 对于降级方案，移除 style 标签
+                        const font = this.fonts.get(fontKey);
+                        if (font && font.style) {
+                            font.style.remove();
+                        }
+                        this.fonts.delete(fontKey);
+                    }
+
+                    this.updateStatus(fontKey, 'inactive', '未加载');
+                    this.enableUnloadButton(fontKey, false);
+                    this.resetFontDemo(fontKey);
+
+                    this.log(`🗑️ ${config.name} 字体已卸载`, 'info');
+                }
+
+                checkFont(fontKey) {
+                    if (!this.supported) return;
+
+                    const config = this.fontConfigs[fontKey];
+                    let allLoaded = true;
+
+                    config.weights.forEach(weight => {
+                        const testString = `12px "${config.name}"`;
+                        const loaded = document.fonts.check(testString);
+
+                        if (loaded) {
+                            this.log(`✅ ${config.name} ${weight} 可用`, 'success');
+                        } else {
+                            this.log(`❌ ${config.name} ${weight} 不可用`, 'error');
+                            allLoaded = false;
+                        }
+                    });
+
+                    if (allLoaded) {
+                        this.updateStatus(fontKey, 'loaded', '✅ 已加载');
+                    } else if (this.fonts.has(fontKey)) {
+                        this.updateStatus(fontKey, 'partial', '⚠️ 部分加载');
+                    }
+                }
+
+                checkSystemFonts() {
+                    if (!this.supported) {
+                        this.elements.systemStatus.textContent = '无法检测';
+                        this.elements.systemFontsDemo.innerHTML = '当前浏览器不支持字体检测';
+                        return;
+                    }
+
+                    const systemFonts = [
+                        'Arial', 'Verdana', 'Helvetica', 'Times New Roman',
+                        'Courier New', 'Georgia', 'Palatino', 'Garamond',
+                        'Comic Sans MS', 'Trebuchet MS', 'Arial Black', 'Impact'
+                    ];
+
+                    let available = [];
+                    let html = '<div style="display: grid; grid-template-columns: repeat(3,1fr); gap:5px;">';
+
+                    systemFonts.forEach(font => {
+                        const testString = `12px "${font}", sans-serif`;
+                        const isAvailable = document.fonts.check(testString);
+
+                        if (isAvailable) {
+                            available.push(font);
+                            html += `<div style="background:#e8f5e8; padding:5px; border-radius:4px;">✅ ${font}</div>`;
+                        } else {
+                            html += `<div style="background:#ffebee; padding:5px; border-radius:4px;">❌ ${font}</div>`;
+                        }
+                    });
+
+                    html += '</div>';
+
+                    this.elements.systemFontsDemo.innerHTML = html;
+                    this.elements.systemStatus.textContent = `可用: ${available.length}/${systemFonts.length}`;
+
+                    this.log(`📋 系统字体检测完成，可用 ${available.length} 种`, 'info');
+                }
+
+                updateStatus(fontKey, status, text) {
+                    const element = fontKey === 'roboto' ? this.elements.robotoStatus : this.elements.opensansStatus;
+                    const card = fontKey === 'roboto' ? document.getElementById('robotoCard') : document.getElementById('opensansCard');
+
+                    element.textContent = text;
+                    element.className = `font-status status-${status}`;
+
+                    if (status === 'loaded') {
+                        card.classList.add('loaded');
+                        card.classList.remove('error');
+                    } else if (status === 'error') {
+                        card.classList.add('error');
+                        card.classList.remove('loaded');
+                    }
+                }
+
+                enableUnloadButton(fontKey, enable) {
+                    const btn = fontKey === 'roboto' ? this.elements.unloadRobotoBtn : this.elements.unloadOpenSansBtn;
+                    btn.disabled = !enable;
+                }
+
+                updateFontDemo(fontKey) {
+                    const config = this.fontConfigs[fontKey];
+                    const demo = fontKey === 'roboto' ? this.elements.robotoDemo : this.elements.opensansDemo;
+                    const weights = fontKey === 'roboto' ? this.elements.robotoWeights : null;
+
+                    demo.style.fontFamily = `"${config.name}", sans-serif`;
+
+                    if (weights) {
+                        weights.style.display = 'grid';
+                    }
+                }
+
+                resetFontDemo(fontKey) {
+                    const demo = fontKey === 'roboto' ? this.elements.robotoDemo : this.elements.opensansDemo;
+                    const weights = fontKey === 'roboto' ? this.elements.robotoWeights : null;
+
+                    demo.style.fontFamily = 'sans-serif';
+
+                    if (weights) {
+                        weights.style.display = 'none';
+                    }
+                }
+
+                updateProgress(value) {
+                    if (value !== undefined) {
+                        this.elements.progressBar.style.width = value + '%';
+                        this.elements.progressBar.textContent = value + '%';
+                    } else if (this.supported) {
+                        const total = this.stats.loaded + this.stats.loading + this.stats.error;
+                        const percent = total > 0 ? Math.round((this.stats.loaded / total) * 100) : 0;
+                        this.elements.progressBar.style.width = percent + '%';
+                        this.elements.progressBar.textContent = percent + '%';
+                    }
+                }
+
+                updateStats() {
+                    this.elements.loadedCount.textContent = this.stats.loaded;
+                    this.elements.loadingCount.textContent = this.stats.loading;
+                    this.elements.errorCount.textContent = this.stats.error;
+                    this.updateProgress();
+                }
+
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+                    entry.textContent = `${time} ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    // 限制日志条数
+                    while (this.elements.logPanel.children.length > 30) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+            }
+
+            // 启动
+            window.addEventListener('load', () => {
+                new FontManager();
+            });
+        })();
+    </script>
+</body>
+
+</html>

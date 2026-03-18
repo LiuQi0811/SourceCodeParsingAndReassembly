@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备内存 API - 企业级优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --gray-light: #94a3b8;
+            --border: #e2e8f0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.25);
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 28px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --light: #1e293b;
+                --dark: #f8fafc;
+                --border: #334155;
+                --gray: #94a3b8;
+                --gray-light: #64748b;
+            }
+
+            body {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+
+            .card,
+            .demo-panel,
+            .control-panel {
+                background: #2d3a4f;
+                color: #e2e8f0;
+            }
+
+            .code-block {
+                background: #0f172a;
+                border: 1px solid #334155;
+            }
+
+            input,
+            select,
+            textarea {
+                background: #1e293b;
+                color: #e2e8f0;
+                border-color: #475569;
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部卡片 - 增强视觉效果 */
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .badge-success {
+            background: var(--success);
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .badge-danger {
+            background: var(--danger);
+        }
+
+        /* 网格布局优化 */
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* 卡片通用 - 毛玻璃效果增强 */
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            color: var(--dark);
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .card-header .icon {
+            font-size: 28px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+        }
+
+        /* 内存仪表盘 - 3D效果 */
+        .memory-gauge {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 48px;
+            padding: 48px;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px solid var(--primary);
+            box-shadow: inset 0 2px 30px rgba(0, 0, 0, 0.03), 0 20px 40px rgba(99, 102, 241, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .memory-gauge::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .memory-value {
+            font-size: 7rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            text-shadow: 0 15px 40px rgba(99, 102, 241, 0.3);
+            letter-spacing: -4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .memory-unit {
+            font-size: 2.5rem;
+            color: var(--gray);
+            margin-left: 8px;
+        }
+
+        .memory-label {
+            font-size: 1.3rem;
+            color: var(--gray);
+            margin-top: 12px;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .memory-badge {
+            display: inline-block;
+            padding: 12px 40px;
+            border-radius: 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 24px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 设备信息卡片 - 增强交互 */
+        .device-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .info-item {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2));
+            backdrop-filter: blur(8px);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-item::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .info-item:hover::before {
+            opacity: 1;
+        }
+
+        .info-item:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.15);
+        }
+
+        .info-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.2;
+        }
+
+        .info-unit {
+            font-size: 1.1rem;
+            color: var(--gray);
+            margin-left: 4px;
+        }
+
+        .info-desc {
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-top: 12px;
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+            padding-top: 12px;
+        }
+
+        /* 内存等级指示器 - 增强 */
+        .memory-level {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            border-radius: 40px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .level-bar {
+            flex: 1;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .level-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+            border-radius: 30px;
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .level-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        .level-text {
+            font-weight: 700;
+            min-width: 100px;
+            text-align: right;
+            color: var(--dark);
+            font-size: 1.1rem;
+        }
+
+        /* 性能建议卡片 - 玻璃态 */
+        .suggestion-card {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            border-radius: 24px;
+            padding: 24px;
+            margin: 16px 0;
+            border-left: 6px solid var(--primary);
+            transition: var(--transition);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .suggestion-card:hover {
+            transform: translateX(8px);
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .suggestion-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--dark);
+            font-size: 1.2rem;
+        }
+
+        .suggestion-text {
+            color: var(--gray);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        /* 控制面板 - 玻璃态 */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 32px;
+            padding: 28px;
+            margin: 16px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            font-size: 15px;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.2);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* 按钮系统 - 3D效果 */
+        .btn-group {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin: 24px 0;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-small {
+            padding: 10px 22px;
+            font-size: 13px;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #15803d);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #b45309);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #b91c1c);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info), #1d4ed8);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        .btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* 图片质量演示 - 卡片式 */
+        .image-demo {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+        }
+
+        .image-card {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 24px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            transition: var(--transition);
+            border: 4px solid transparent;
+        }
+
+        .image-card:hover img {
+            transform: scale(1.05) translateY(-8px);
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-card.selected img {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.3);
+        }
+
+        .image-label {
+            margin-top: 16px;
+            font-weight: 700;
+            color: var(--dark);
+            font-size: 1.1rem;
+        }
+
+        .image-size {
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-top: 6px;
+        }
+
+        /* 特性检测 - 增强 */
+        .feature-check {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            margin: 12px 0;
+            transition: var(--transition);
+        }
+
+        .feature-check:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(8px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .feature-icon.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .feature-icon.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .feature-icon.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .feature-name {
+            flex: 1;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 1rem;
+        }
+
+        .feature-value {
+            font-family: 'Fira Code', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.15);
+            padding: 6px 16px;
+            border-radius: 30px;
+        }
+
+        /* 日志面板 - 终端风格 */
+        .log-panel {
+            background: #0f172a;
+            border-radius: 32px;
+            padding: 24px;
+            margin-top: 32px;
+            color: #e2e8f0;
+            font-family: 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            box-shadow: inset 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+
+        .log-entry {
+            padding: 10px 16px;
+            margin: 6px 0;
+            border-radius: 12px;
+            border-left: 6px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            transition: var(--transition);
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--success);
+            color: #86efac;
+        }
+
+        .log-entry.info {
+            border-left-color: var(--primary);
+            color: #93c5fd;
+        }
+
+        .log-entry.warning {
+            border-left-color: var(--warning);
+            color: #fcd34d;
+        }
+
+        .log-entry.error {
+            border-left-color: var(--danger);
+            color: #fca5a5;
+        }
+
+        /* 代码块 - 终端风格 */
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #334155;
+            max-height: 180px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-size: 13px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 加载动画 */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1024px) {
+
+            .grid-2,
+            .grid-3,
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .device-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .memory-value {
+                font-size: 5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .memory-gauge {
+                padding: 30px;
+            }
+
+            .memory-value {
+                font-size: 3.5rem;
+            }
+
+            .memory-unit {
+                font-size: 1.8rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .memory-level {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .level-text {
+                align-self: flex-end;
+            }
+        }
+
+        /* 打印样式 */
+        @media print {
+
+            .btn,
+            .btn-group,
+            .log-panel {
+                display: none;
+            }
+
+            .card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 头部 - 增强信息展示 -->
+        <div class="header-card">
+            <h1>
+                <span>💾 设备内存 API - 企业级优化版</span>
+                <span class="badge" id="apiSupportBadge">检测中...</span>
+            </h1>
+            <p style="color: var(--gray); font-size: 16px; line-height: 1.8; max-width: 800px;">
+                实时获取设备物理内存 · 智能性能优化建议 · 自适应资源加载 · 内存压力测试 · 跨浏览器兼容 · 报告导出
+            </p>
+
+            <!-- 内存仪表盘 - 3D效果 -->
+            <div class="memory-gauge">
+                <span class="memory-value" id="deviceMemory">--</span>
+                <span class="memory-unit">GB</span>
+                <div class="memory-label">设备物理内存</div>
+                <div class="memory-badge" id="memoryLevelBadge" style="background: var(--primary); color: white;">检测中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 设备信息概览 -->
+        <div class="grid-2">
+            <!-- 内存详细信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📊</span>
+                    <h2>内存详细信息</h2>
+                    <span class="tooltip" data-tooltip="基于Device Memory API和Performance API">ⓘ</span>
+                </div>
+
+                <div class="device-info-grid">
+                    <div class="info-item">
+                        <div class="info-label">设备内存</div>
+                        <div class="info-value" id="detailDeviceMemory">--</div>
+                        <div class="info-unit">GB</div>
+                        <div class="info-desc" id="memoryDesc">navigator.deviceMemory</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">内存等级</div>
+                        <div class="info-value" id="memoryTier">--</div>
+                        <div class="info-unit">级别</div>
+                        <div class="info-desc" id="tierDesc">基于内存大小的分类</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">JS堆内存限制</div>
+                        <div class="info-value" id="jsHeapLimit">--</div>
+                        <div class="info-unit">MB</div>
+                        <div class="info-desc" id="heapLimitDesc">浏览器JS堆上限</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">已用堆内存</div>
+                        <div class="info-value" id="jsHeapUsed">--</div>
+                        <div class="info-unit">MB</div>
+                        <div class="info-desc" id="heapUsedDesc">当前页面占用</div>
+                    </div>
+                </div>
+
+                <div class="memory-level">
+                    <span style="font-weight: 700; font-size: 1.1rem;">内存使用率</span>
+                    <div class="level-bar">
+                        <div class="level-fill" id="memoryUsageBar" style="width: 0%;"></div>
+                    </div>
+                    <span class="level-text" id="memoryUsageText">0%</span>
+                </div>
+            </div>
+
+            <!-- 特性检测与兼容性 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔍</span>
+                    <h2>特性检测</h2>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="deviceMemoryIcon">❓</div>
+                    <span class="feature-name">navigator.deviceMemory</span>
+                    <span class="feature-value" id="deviceMemoryCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="performanceMemoryIcon">❓</div>
+                    <span class="feature-name">performance.memory</span>
+                    <span class="feature-value" id="performanceMemoryCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="hardwareConcurrencyIcon">❓</div>
+                    <span class="feature-name">CPU核心数</span>
+                    <span class="feature-value" id="hardwareConcurrency">--</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="connectionIcon">❓</div>
+                    <span class="feature-name">网络类型</span>
+                    <span class="feature-value" id="connectionType">--</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="deviceClassIcon">❓</div>
+                    <span class="feature-name">设备等级</span>
+                    <span class="feature-value" id="deviceClass">--</span>
+                </div>
+
+                <div class="btn-group" style="justify-content: center;">
+                    <button class="btn btn-small btn-info" onclick="deviceMemoryAPI.checkCompatibility()">🔄
+                        重新检测</button>
+                    <button class="btn btn-small btn-success" onclick="deviceMemoryAPI.exportReport()">📋 导出报告</button>
+                    <button class="btn btn-small btn-outline" onclick="deviceMemoryAPI.shareReport()">📤 分享报告</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内存等级与优化建议 -->
+        <div class="grid-3">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎯</span>
+                    <h2>内存等级</h2>
+                </div>
+
+                <div style="text-align: center; margin: 20px 0;">
+                    <span
+                        style="font-size: 4.5rem; font-weight: 800; background: linear-gradient(135deg, var(--success), var(--warning), var(--danger)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));"
+                        id="tierDisplay">--</span>
+                </div>
+
+                <div class="suggestion-card" style="border-left-color: var(--success);" id="tierSuggestion">
+                    <div class="suggestion-title">等待检测...</div>
+                    <div class="suggestion-text">正在获取设备内存信息</div>
+                </div>
+
+                <div style="margin-top: 28px;">
+                    <div
+                        style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 0.95rem; color: var(--gray); font-weight: 500;">
+                        <span>低端 (≤2GB)</span>
+                        <span>中端 (4GB)</span>
+                        <span>高端 (8GB)</span>
+                        <span>旗舰 (≥8GB)</span>
+                    </div>
+                    <div
+                        style="height: 12px; background: linear-gradient(90deg, var(--danger), var(--warning), var(--success), var(--primary)); border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">💡</span>
+                    <h2>优化建议</h2>
+                </div>
+
+                <div id="optimizationSuggestions">
+                    <div class="suggestion-card">
+                        <div class="suggestion-title">🖼️ 图片质量</div>
+                        <div class="suggestion-text" id="imageSuggestion">根据内存调整图片质量</div>
+                    </div>
+                    <div class="suggestion-card">
+                        <div class="suggestion-title">🎬 视频清晰度</div>
+                        <div class="suggestion-text" id="videoSuggestion">根据内存选择清晰度</div>
+                    </div>
+                    <div class="suggestion-card">
+                        <div class="suggestion-title">💾 缓存策略</div>
+                        <div class="suggestion-text" id="cacheSuggestion">根据内存调整缓存大小</div>
+                    </div>
+                    <div class="suggestion-card">
+                        <div class="suggestion-title">🔄 并发请求</div>
+                        <div class="suggestion-text" id="requestSuggestion">根据内存控制并发数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🖼️</span>
+                    <h2>自适应图片演示</h2>
+                </div>
+
+                <div class="image-demo">
+                    <div class="image-card" id="lowQualityCard" onclick="deviceMemoryAPI.selectImageQuality('low')">
+                        <img id="lowQualityImg"
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%236366f1'/%3E%3Ccircle cx='100' cy='100' r='40' fill='white' opacity='0.3'/%3E%3Ccircle cx='300' cy='100' r='40' fill='white' opacity='0.3'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='24' font-family='Arial' font-weight='bold'%3E低质量%3C/text%3E%3Ctext x='50%25' y='70%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='16' font-family='Arial'%3E20KB%3C/text%3E%3C/svg%3E"
+                            alt="低质量">
+                        <div class="image-label">低质量</div>
+                        <div class="image-size" id="lowQualitySize">20KB</div>
+                    </div>
+                    <div class="image-card" id="mediumQualityCard"
+                        onclick="deviceMemoryAPI.selectImageQuality('medium')">
+                        <img id="mediumQualityImg"
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%2322c55e'/%3E%3Ccircle cx='100' cy='100' r='40' fill='white' opacity='0.4'/%3E%3Ccircle cx='300' cy='100' r='40' fill='white' opacity='0.4'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='24' font-family='Arial' font-weight='bold'%3E中等质量%3C/text%3E%3Ctext x='50%25' y='70%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='16' font-family='Arial'%3E50KB%3C/text%3E%3C/svg%3E"
+                            alt="中等质量">
+                        <div class="image-label">中等质量</div>
+                        <div class="image-size" id="mediumQualitySize">50KB</div>
+                    </div>
+                    <div class="image-card" id="highQualityCard" onclick="deviceMemoryAPI.selectImageQuality('high')">
+                        <img id="highQualityImg"
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200' viewBox='0 0 400 200'%3E%3Crect width='400' height='200' fill='%23ec4899'/%3E%3Ccircle cx='100' cy='100' r='40' fill='white' opacity='0.5'/%3E%3Ccircle cx='300' cy='100' r='40' fill='white' opacity='0.5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='24' font-family='Arial' font-weight='bold'%3E高质量%3C/text%3E%3Ctext x='50%25' y='70%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='16' font-family='Arial'%3E120KB%3C/text%3E%3C/svg%3E"
+                            alt="高质量">
+                        <div class="image-label">高质量</div>
+                        <div class="image-size" id="highQualitySize">120KB</div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <span class="badge" id="selectedImageQuality"
+                        style="background: var(--primary); padding: 10px 30px;">根据内存自动选择</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实践演示区 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">⚙️</span>
+                <h2>内存自适应实践</h2>
+                <div style="margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-small btn-success" onclick="deviceMemoryAPI.applyOptimizations()">✨
+                        应用优化</button>
+                    <button class="btn btn-small btn-outline" onclick="deviceMemoryAPI.simulateMemory('low')">📱
+                        模拟低端</button>
+                    <button class="btn btn-small btn-outline" onclick="deviceMemoryAPI.simulateMemory('medium')">📱
+                        模拟中端</button>
+                    <button class="btn btn-small btn-outline" onclick="deviceMemoryAPI.simulateMemory('high')">📱
+                        模拟高端</button>
+                    <button class="btn btn-small btn-danger" onclick="deviceMemoryAPI.resetSimulation()">🔄
+                        重置模拟</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- 资源加载策略 -->
+                <div class="control-panel">
+                    <h3 style="margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+                        <span>📦 资源加载策略</span>
+                        <span class="badge" id="currentMemoryStrategy" style="font-size: 12px;">实时</span>
+                        <span class="tooltip" data-tooltip="基于当前内存等级的推荐策略">ⓘ</span>
+                    </h3>
+                    <div id="loadStrategy">
+                        <div class="suggestion-card" style="margin: 12px 0; padding: 20px;">
+                            <div class="suggestion-title" style="font-size: 1.1rem;">🖼️ 图片加载</div>
+                            <div class="suggestion-text" id="imageStrategy">加载高质量图片</div>
+                        </div>
+                        <div class="suggestion-card" style="margin: 12px 0; padding: 20px;">
+                            <div class="suggestion-title" style="font-size: 1.1rem;">🎬 视频清晰度</div>
+                            <div class="suggestion-text" id="videoStrategy">1080p 高清</div>
+                        </div>
+                        <div class="suggestion-card" style="margin: 12px 0; padding: 20px;">
+                            <div class="suggestion-title" style="font-size: 1.1rem;">💾 缓存大小</div>
+                            <div class="suggestion-text" id="cacheStrategy">100MB 缓存</div>
+                        </div>
+                        <div class="suggestion-card" style="margin: 12px 0; padding: 20px;">
+                            <div class="suggestion-title" style="font-size: 1.1rem;">🔄 并发请求</div>
+                            <div class="suggestion-text" id="requestStrategy">6 个并发</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能测试 -->
+                <div class="control-panel">
+                    <h3 style="margin-bottom: 24px;">⏱️ 内存压力测试</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-small btn-warning" onclick="deviceMemoryAPI.testMemoryAllocation(10)">分配
+                            10MB</button>
+                        <button class="btn btn-small btn-warning" onclick="deviceMemoryAPI.testMemoryAllocation(50)">分配
+                            50MB</button>
+                        <button class="btn btn-small btn-danger" onclick="deviceMemoryAPI.testMemoryAllocation(100)">分配
+                            100MB</button>
+                        <button class="btn btn-small btn-success" onclick="deviceMemoryAPI.testMemoryAllocation(200)">分配
+                            200MB</button>
+                        <button class="btn btn-small btn-info" onclick="deviceMemoryAPI.clearMemory()">🧹 释放内存</button>
+                    </div>
+
+                    <div class="memory-level" style="margin-top: 24px;">
+                        <span style="font-weight: 700;">测试内存</span>
+                        <div class="level-bar">
+                            <div class="level-fill" id="testMemoryBar"
+                                style="width: 0%; background: linear-gradient(90deg, var(--warning), var(--danger));">
+                            </div>
+                        </div>
+                        <span class="level-text" id="testMemoryText">0 MB</span>
+                    </div>
+
+                    <div class="code-block" id="memoryTestLog" style="font-size: 12px; max-height: 150px;">
+                        [系统] 点击按钮开始测试内存分配
+                    </div>
+
+                    <div
+                        style="margin-top: 20px; font-size: 13px; color: var(--gray); background: rgba(0,0,0,0.05); padding: 16px; border-radius: 16px;">
+                        ⚠️ 注意：分配大量内存可能导致页面卡顿或崩溃，建议逐步增加并观察内存使用率
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry info">📝 设备内存 API 演示初始化完成 - 企业级优化版</div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            /**
+             * 设备内存 API 管理器 - 企业级优化版
+             * 
+             * 优化特性：
+             * 1. 完整的状态管理
+             * 2. 错误边界和优雅降级
+             * 3. 内存泄漏防护
+             * 4. 性能优化
+             * 5. 跨浏览器兼容
+             * 6. 可扩展性架构
+             */
+            class DeviceMemoryAPI {
+                constructor() {
+                    // DOM 元素缓存
+                    this.elements = {
+                        logPanel: document.getElementById('logPanel'),
+                        deviceMemory: document.getElementById('deviceMemory'),
+                        detailDeviceMemory: document.getElementById('detailDeviceMemory'),
+                        memoryLevelBadge: document.getElementById('memoryLevelBadge'),
+                        memoryTier: document.getElementById('memoryTier'),
+                        tierDesc: document.getElementById('tierDesc'),
+                        tierDisplay: document.getElementById('tierDisplay'),
+                        tierSuggestion: document.getElementById('tierSuggestion'),
+                        jsHeapLimit: document.getElementById('jsHeapLimit'),
+                        jsHeapUsed: document.getElementById('jsHeapUsed'),
+                        heapLimitDesc: document.getElementById('heapLimitDesc'),
+                        heapUsedDesc: document.getElementById('heapUsedDesc'),
+                        memoryUsageBar: document.getElementById('memoryUsageBar'),
+                        memoryUsageText: document.getElementById('memoryUsageText'),
+                        selectedImageQuality: document.getElementById('selectedImageQuality'),
+                        currentMemoryStrategy: document.getElementById('currentMemoryStrategy'),
+                        imageSuggestion: document.getElementById('imageSuggestion'),
+                        videoSuggestion: document.getElementById('videoSuggestion'),
+                        cacheSuggestion: document.getElementById('cacheSuggestion'),
+                        requestSuggestion: document.getElementById('requestSuggestion'),
+                        imageStrategy: document.getElementById('imageStrategy'),
+                        videoStrategy: document.getElementById('videoStrategy'),
+                        cacheStrategy: document.getElementById('cacheStrategy'),
+                        requestStrategy: document.getElementById('requestStrategy'),
+                        testMemoryBar: document.getElementById('testMemoryBar'),
+                        testMemoryText: document.getElementById('testMemoryText'),
+                        memoryTestLog: document.getElementById('memoryTestLog'),
+                        lowQualityCard: document.getElementById('lowQualityCard'),
+                        mediumQualityCard: document.getElementById('mediumQualityCard'),
+                        highQualityCard: document.getElementById('highQualityCard')
+                    };
+
+                    // 状态管理
+                    this.state = {
+                        simulatedMemory: null,
+                        testMemoryTotal: 0,
+                        testMemoryArray: [],
+                        memoryTiers: {
+                            low: { max: 2, name: '低端', color: 'var(--danger)' },
+                            medium: { max: 4, name: '中端', color: 'var(--warning)' },
+                            high: { max: 8, name: '高端', color: 'var(--success)' },
+                            flagship: { max: Infinity, name: '旗舰', color: 'var(--primary)' }
+                        }
+                    };
+
+                    // 配置
+                    this.config = {
+                        maxLogEntries: 300,
+                        maxTestMemory: 800,
+                        updateInterval: 2000,
+                        memoryWarningThreshold: 500
+                    };
+
+                    // 定时器
+                    this.intervals = [];
+
+                    this.init();
+                }
+
+                // ==================== 初始化 ====================
+                init() {
+                    try {
+                        this.checkCompatibility();
+                        this.updateMemoryInfo();
+                        this.updateOptimizations();
+
+                        // 定期更新内存信息
+                        const timer = setInterval(() => {
+                            this.updateMemoryInfo();
+                        }, this.config.updateInterval);
+                        this.intervals.push(timer);
+
+                        this.log('✅ 设备内存 API 企业版初始化完成', 'success');
+                    } catch (error) {
+                        this.log(`❌ 初始化失败: ${error.message}`, 'error');
+                        console.error('DeviceMemoryAPI initialization error:', error);
+                    }
+                }
+
+                // ==================== 工具方法 ====================
+                formatNumber(num, decimals = 1) {
+                    if (num === null || num === undefined || isNaN(num)) return '--';
+                    return Number(num).toFixed(decimals);
+                }
+
+                escapeHtml(text) {
+                    if (!text) return '';
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+
+                debounce(func, wait) {
+                    let timeout;
+                    return (...args) => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => func.apply(this, args), wait);
+                    };
+                }
+
+                // ==================== 日志系统 ====================
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+                    entry.textContent = `${time} ${message}`;
+
+                    this.elements.logPanel.appendChild(entry);
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    while (this.elements.logPanel.children.length > this.config.maxLogEntries) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+
+                // ==================== 特性检测 ====================
+                checkCompatibility() {
+                    try {
+                        const supportBadge = document.getElementById('apiSupportBadge');
+
+                        // 检测 deviceMemory
+                        const hasDeviceMemory = 'deviceMemory' in navigator;
+                        document.getElementById('deviceMemoryIcon').innerHTML = hasDeviceMemory ? '✅' : '❌';
+                        document.getElementById('deviceMemoryIcon').className = `feature-icon ${hasDeviceMemory ? 'success' : 'error'}`;
+                        document.getElementById('deviceMemoryCheck').textContent = hasDeviceMemory ? `支持 (${navigator.deviceMemory}GB)` : '不支持';
+
+                        // 检测 performance.memory
+                        const hasPerformanceMemory = 'memory' in performance;
+                        document.getElementById('performanceMemoryIcon').innerHTML = hasPerformanceMemory ? '✅' : '❌';
+                        document.getElementById('performanceMemoryIcon').className = `feature-icon ${hasPerformanceMemory ? 'success' : 'error'}`;
+                        document.getElementById('performanceMemoryCheck').textContent = hasPerformanceMemory ? '支持' : '不支持 (Chrome/Edge)';
+
+                        // 硬件并发
+                        const cores = navigator.hardwareConcurrency || '未知';
+                        document.getElementById('hardwareConcurrency').textContent = cores;
+                        document.getElementById('hardwareConcurrencyIcon').innerHTML = cores !== '未知' ? '✅' : '⚠️';
+                        document.getElementById('hardwareConcurrencyIcon').className = `feature-icon ${cores !== '未知' ? 'success' : 'warning'}`;
+
+                        // 网络连接
+                        if ('connection' in navigator) {
+                            const connection = navigator.connection;
+                            const type = connection.effectiveType || '未知';
+                            const downlink = connection.downlink ? ` (${connection.downlink}Mbps)` : '';
+                            document.getElementById('connectionType').textContent = type + downlink;
+                            document.getElementById('connectionIcon').innerHTML = '✅';
+                            document.getElementById('connectionIcon').className = 'feature-icon success';
+                        } else {
+                            document.getElementById('connectionType').textContent = '不支持';
+                            document.getElementById('connectionIcon').innerHTML = '❌';
+                            document.getElementById('connectionIcon').className = 'feature-icon error';
+                        }
+
+                        // 设备类型推断
+                        const memory = this.getDeviceMemory();
+                        const deviceClass = this.getDeviceClass(memory);
+
+                        document.getElementById('deviceClass').textContent = deviceClass.name;
+                        document.getElementById('deviceClassIcon').innerHTML = '✅';
+                        document.getElementById('deviceClassIcon').className = 'feature-icon success';
+
+                        // 更新支持状态徽章
+                        if (hasDeviceMemory) {
+                            supportBadge.textContent = '✅ 支持 Device Memory API';
+                            supportBadge.className = 'badge badge-success';
+                        } else {
+                            supportBadge.textContent = '⚠️ 不支持 (使用模拟数据)';
+                            supportBadge.className = 'badge badge-warning';
+                        }
+
+                        this.log('特性检测完成', 'success');
+                        return { hasDeviceMemory, hasPerformanceMemory, cores, deviceClass };
+                    } catch (error) {
+                        this.log(`特性检测失败: ${error.message}`, 'error');
+                        return null;
+                    }
+                }
+
+                getDeviceClass(memory) {
+                    if (memory <= 2) return { name: '低端设备', tier: 'low', color: 'var(--danger)' };
+                    if (memory <= 4) return { name: '中端设备', tier: 'medium', color: 'var(--warning)' };
+                    if (memory <= 8) return { name: '高端设备', tier: 'high', color: 'var(--success)' };
+                    return { name: '旗舰设备', tier: 'flagship', color: 'var(--primary)' };
+                }
+
+                // ==================== 内存信息获取 ====================
+                getDeviceMemory() {
+                    if (this.state.simulatedMemory !== null) {
+                        return this.state.simulatedMemory;
+                    }
+                    return 'deviceMemory' in navigator ? navigator.deviceMemory : 4;
+                }
+
+                // ==================== 内存信息更新 ====================
+                updateMemoryInfo() {
+                    try {
+                        const memory = this.getDeviceMemory();
+
+                        // 更新主显示
+                        this.elements.deviceMemory.textContent = this.formatNumber(memory);
+                        this.elements.detailDeviceMemory.textContent = this.formatNumber(memory);
+
+                        // 获取内存等级
+                        const tierInfo = this.getMemoryTier(memory);
+
+                        this.elements.memoryTier.textContent = tierInfo.name;
+                        this.elements.tierDesc.textContent = tierInfo.description;
+                        this.elements.memoryLevelBadge.textContent = `${tierInfo.name}设备 (${memory}GB)`;
+                        this.elements.memoryLevelBadge.style.background = tierInfo.color;
+                        this.elements.tierDisplay.textContent = tierInfo.name;
+
+                        // 更新建议卡片
+                        this.updateTierSuggestion(memory, tierInfo);
+
+                        // 更新JS堆内存信息
+                        this.updateHeapMemory();
+
+                        // 更新优化建议
+                        this.updateOptimizations();
+
+                    } catch (error) {
+                        this.log(`更新内存信息失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getMemoryTier(memory) {
+                    if (memory <= 2) {
+                        return {
+                            name: '低端',
+                            description: '基础配置，适合轻量级应用',
+                            color: 'var(--danger)',
+                            level: 'low'
+                        };
+                    } else if (memory <= 4) {
+                        return {
+                            name: '中端',
+                            description: '主流配置，适合大多数应用',
+                            color: 'var(--warning)',
+                            level: 'medium'
+                        };
+                    } else if (memory <= 8) {
+                        return {
+                            name: '高端',
+                            description: '高性能配置，适合复杂应用',
+                            color: 'var(--success)',
+                            level: 'high'
+                        };
+                    } else {
+                        return {
+                            name: '旗舰',
+                            description: '顶级配置，适合最高质量体验',
+                            color: 'var(--primary)',
+                            level: 'flagship'
+                        };
+                    }
+                }
+
+                updateHeapMemory() {
+                    if ('memory' in performance) {
+                        const memoryInfo = performance.memory;
+                        const jsHeapLimit = Math.round(memoryInfo.jsHeapSizeLimit / (1024 * 1024));
+                        const jsHeapUsed = Math.round(memoryInfo.usedJSHeapSize / (1024 * 1024));
+                        const jsHeapTotal = Math.round(memoryInfo.totalJSHeapSize / (1024 * 1024));
+
+                        this.elements.jsHeapLimit.textContent = this.formatNumber(jsHeapLimit, 0);
+                        this.elements.jsHeapUsed.textContent = this.formatNumber(jsHeapUsed, 0);
+                        this.elements.heapLimitDesc.textContent = `浏览器限制 ${jsHeapLimit}MB`;
+                        this.elements.heapUsedDesc.textContent = `当前占用 ${jsHeapUsed}MB`;
+
+                        // 内存使用率
+                        const usagePercent = Math.min(100, Math.round((jsHeapTotal / jsHeapLimit) * 100));
+                        this.elements.memoryUsageBar.style.width = `${usagePercent}%`;
+                        this.elements.memoryUsageText.textContent = `${usagePercent}%`;
+                    } else {
+                        // 模拟数据
+                        const mockUsage = Math.floor(Math.random() * 30) + 20;
+                        this.elements.jsHeapLimit.textContent = '--';
+                        this.elements.jsHeapUsed.textContent = '--';
+                        this.elements.memoryUsageBar.style.width = `${mockUsage}%`;
+                        this.elements.memoryUsageText.textContent = `${mockUsage}% (模拟)`;
+                    }
+                }
+
+                updateTierSuggestion(memory, tierInfo) {
+                    let title = '';
+                    let text = '';
+
+                    switch (tierInfo.level) {
+                        case 'low':
+                            title = '⚠️ 低端设备优化建议';
+                            text = '您的设备内存较小(≤2GB)。建议：使用压缩图片(20-50KB)、减少动画效果、限制并发请求(≤2个)、优先加载核心内容、启用懒加载、使用简单的CSS效果。';
+                            break;
+                        case 'medium':
+                            title = '✓ 中端设备优化建议';
+                            text = '您的设备内存适中(4GB)。建议：使用响应式图片(50-100KB)、根据网络调整质量、并发请求(≤4个)、可适当使用本地缓存、使用适中的动画效果。';
+                            break;
+                        case 'high':
+                            title = '✅ 高端设备优化建议';
+                            text = '您的设备内存充足(8GB)。建议：加载高清图片(100-200KB)、支持WebP格式、并发请求(≤6个)、可使用较大的缓存策略、启用平滑动画。';
+                            break;
+                        case 'flagship':
+                            title = '🚀 旗舰设备优化建议';
+                            text = '您的设备内存非常充足(≥8GB)。建议：加载最高质量图片(200-500KB)、支持AVIF格式、并发请求(≤10个)、可预加载资源、启用复杂特效、支持HDR内容。';
+                            break;
+                    }
+
+                    this.elements.tierSuggestion.innerHTML = `
+                        <div class="suggestion-title">${title}</div>
+                        <div class="suggestion-text">${text}</div>
+                    `;
+                }
+
+                // ==================== 优化建议更新 ====================
+                updateOptimizations() {
+                    const memory = this.getDeviceMemory();
+
+                    // 获取策略
+                    const strategies = this.getStrategies(memory);
+
+                    // 更新建议文本
+                    this.elements.imageSuggestion.textContent = strategies.image;
+                    this.elements.videoSuggestion.textContent = strategies.video;
+                    this.elements.cacheSuggestion.textContent = strategies.cache;
+                    this.elements.requestSuggestion.textContent = strategies.request;
+
+                    // 更新加载策略
+                    this.elements.imageStrategy.textContent = strategies.imageShort;
+                    this.elements.videoStrategy.textContent = strategies.videoShort;
+                    this.elements.cacheStrategy.textContent = strategies.cacheShort;
+                    this.elements.requestStrategy.textContent = strategies.requestShort;
+
+                    // 更新策略徽章
+                    const tier = this.getMemoryTier(memory);
+                    this.elements.currentMemoryStrategy.textContent = `${tier.name}策略`;
+                    this.elements.currentMemoryStrategy.style.background = tier.color;
+
+                    // 更新图片质量高亮
+                    this.updateImageQualityHighlight(memory);
+                }
+
+                getStrategies(memory) {
+                    if (memory <= 2) {
+                        return {
+                            image: '使用低质量图片 (20-50KB)，优先加载关键内容，启用懒加载，使用JPEG格式',
+                            video: '推荐 480p 或 360p，降低码率，使用 H.264 编码，禁用自动播放',
+                            cache: '使用 20-50MB 缓存，只缓存核心资源，设置较短过期时间(1天)',
+                            request: '限制并发请求数 ≤ 2，避免内存溢出，使用请求队列，启用资源优先级',
+                            imageShort: '低质量图片 (20-50KB)',
+                            videoShort: '视频清晰度: 480p',
+                            cacheShort: '缓存大小: 20-50MB',
+                            requestShort: '并发请求: 2个'
+                        };
+                    } else if (memory <= 4) {
+                        return {
+                            image: '使用中等质量图片 (50-100KB)，可适当使用懒加载，支持 WebP 格式，使用响应式图片',
+                            video: '推荐 720p，根据网络调整，支持自适应码率，可启用自动播放',
+                            cache: '使用 50-100MB 缓存，缓存常用资源，设置合理过期时间(3天)',
+                            request: '并发请求数 ≤ 4，正常加载，可使用预连接，支持HTTP/2',
+                            imageShort: '中等质量 (50-100KB)',
+                            videoShort: '视频清晰度: 720p',
+                            cacheShort: '缓存大小: 50-100MB',
+                            requestShort: '并发请求: 4个'
+                        };
+                    } else if (memory <= 8) {
+                        return {
+                            image: '使用高质量图片 (100-200KB)，支持 WebP/AVIF，可预加载首屏，使用CDN优化',
+                            video: '推荐 1080p，支持 HDR，可使用更高码率，支持自适应流',
+                            cache: '使用 100-200MB 缓存，可预加载内容，使用 Service Worker，支持离线',
+                            request: '并发请求数 ≤ 6，可并行加载，使用 HTTP/2，支持资源优先级',
+                            imageShort: '高质量 (100-200KB)',
+                            videoShort: '视频清晰度: 1080p',
+                            cacheShort: '缓存大小: 100-200MB',
+                            requestShort: '并发请求: 6个'
+                        };
+                    } else {
+                        return {
+                            image: '使用最高质量图片 (200-500KB)，支持 AVIF/WebP，可预加载所有资源，使用图片CDN',
+                            video: '推荐 4K，支持高码率和 HDR，可使用自适应流，支持DASH/HLS',
+                            cache: '使用 200-500MB 缓存，可预加载所有资源，离线可用，使用Workbox',
+                            request: '并发请求数 ≤ 10，可批量加载，使用多路复用，支持HTTP/3',
+                            imageShort: '最高质量 (200-500KB)',
+                            videoShort: '视频清晰度: 4K',
+                            cacheShort: '缓存大小: 200-500MB',
+                            requestShort: '并发请求: 10个'
+                        };
+                    }
+                }
+
+                updateImageQualityHighlight(memory) {
+                    // 移除所有选中状态
+                    [this.elements.lowQualityCard, this.elements.mediumQualityCard, this.elements.highQualityCard].forEach(card => {
+                        if (card) card.classList.remove('selected');
+                    });
+
+                    if (memory <= 2) {
+                        this.elements.lowQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '当前选择: 低质量 (20KB)';
+                        this.elements.selectedImageQuality.style.background = 'var(--warning)';
+                    } else if (memory <= 4) {
+                        this.elements.mediumQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '当前选择: 中等质量 (50KB)';
+                        this.elements.selectedImageQuality.style.background = 'var(--success)';
+                    } else {
+                        this.elements.highQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '当前选择: 高质量 (120KB)';
+                        this.elements.selectedImageQuality.style.background = 'var(--primary)';
+                    }
+                }
+
+                // ==================== 手动选择图片质量 ====================
+                selectImageQuality(quality) {
+                    [this.elements.lowQualityCard, this.elements.mediumQualityCard, this.elements.highQualityCard].forEach(card => {
+                        if (card) card.classList.remove('selected');
+                    });
+
+                    if (quality === 'low') {
+                        this.elements.lowQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '手动选择: 低质量 (20KB)';
+                        this.log('手动选择低质量图片', 'info');
+                    } else if (quality === 'medium') {
+                        this.elements.mediumQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '手动选择: 中等质量 (50KB)';
+                        this.log('手动选择中等质量图片', 'info');
+                    } else {
+                        this.elements.highQualityCard?.classList.add('selected');
+                        this.elements.selectedImageQuality.textContent = '手动选择: 高质量 (120KB)';
+                        this.log('手动选择高质量图片', 'info');
+                    }
+                }
+
+                // ==================== 模拟内存测试 ====================
+                simulateMemory(level) {
+                    let memory = 4;
+                    if (level === 'low') memory = 2;
+                    else if (level === 'medium') memory = 4;
+                    else if (level === 'high') memory = 8;
+
+                    this.state.simulatedMemory = memory;
+
+                    this.updateMemoryInfo();
+                    this.updateOptimizations();
+
+                    const tier = this.getMemoryTier(memory);
+                    this.log(`📱 模拟 ${tier.name}内存设备 (${memory}GB)`, 'info');
+                }
+
+                resetSimulation() {
+                    this.state.simulatedMemory = null;
+                    this.updateMemoryInfo();
+                    this.updateOptimizations();
+                    this.log('🔄 已重置为真实设备内存', 'success');
+                }
+
+                // ==================== 内存压力测试 ====================
+                testMemoryAllocation(mb) {
+                    try {
+                        // 检查是否超过限制
+                        if (this.state.testMemoryTotal + mb > this.config.maxTestMemory) {
+                            const confirm = window.confirm(`测试内存将超过建议限制(${this.config.maxTestMemory}MB)，继续可能导致页面卡顿或崩溃。是否继续？`);
+                            if (!confirm) {
+                                this.log('用户取消内存分配', 'info');
+                                return;
+                            }
+                        }
+
+                        const bytes = mb * 1024 * 1024;
+                        const arraySize = bytes / 8; // Float64Array 每个元素8字节
+
+                        const start = performance.now();
+
+                        // 创建大数组
+                        const array = new Float64Array(arraySize);
+
+                        // 填充数据以防止优化
+                        for (let i = 0; i < array.length; i += 10000) {
+                            array[i] = Math.random();
+                        }
+
+                        const end = performance.now();
+
+                        this.state.testMemoryArray.push({
+                            array,
+                            size: mb,
+                            timestamp: Date.now()
+                        });
+                        this.state.testMemoryTotal += mb;
+
+                        const timeStr = new Date().toLocaleTimeString();
+                        this.elements.memoryTestLog.innerHTML = `[${timeStr}] ✅ 已分配 ${mb}MB (耗时: ${(end - start).toFixed(1)}ms)<br>` + this.elements.memoryTestLog.innerHTML;
+
+                        // 限制日志行数
+                        while (this.elements.memoryTestLog.children && this.elements.memoryTestLog.children.length > 15) {
+                            this.elements.memoryTestLog.removeChild(this.elements.memoryTestLog.lastChild);
+                        }
+
+                        // 更新进度条
+                        const percent = Math.min(100, (this.state.testMemoryTotal / (this.config.maxTestMemory / 100)));
+                        this.elements.testMemoryBar.style.width = `${percent}%`;
+                        this.elements.testMemoryText.textContent = `${this.state.testMemoryTotal} MB`;
+
+                        this.log(`内存测试: 分配 ${mb}MB 成功 (总: ${this.state.testMemoryTotal}MB)`, 'success');
+
+                        // 触发警告
+                        if (this.state.testMemoryTotal > this.config.memoryWarningThreshold) {
+                            this.log(`⚠️ 测试内存较大(${this.state.testMemoryTotal}MB)，建议及时释放`, 'warning');
+                        }
+                    } catch (e) {
+                        this.log(`❌ 内存分配失败: ${e.message}`, 'error');
+                        this.elements.memoryTestLog.innerHTML = `[${new Date().toLocaleTimeString()}] ❌ 内存不足，分配失败<br>` + this.elements.memoryTestLog.innerHTML;
+                    }
+                }
+
+                clearMemory() {
+                    // 释放所有测试数组
+                    this.state.testMemoryArray = [];
+                    this.state.testMemoryTotal = 0;
+
+                    this.elements.testMemoryBar.style.width = '0%';
+                    this.elements.testMemoryText.textContent = '0 MB';
+
+                    const timeStr = new Date().toLocaleTimeString();
+                    this.elements.memoryTestLog.innerHTML = `[${timeStr}] 🧹 内存已释放<br>` + this.elements.memoryTestLog.innerHTML;
+
+                    // 尝试触发垃圾回收
+                    if (window.gc) {
+                        try {
+                            window.gc();
+                            this.log('已调用垃圾回收器', 'success');
+                        } catch (e) {
+                            // 忽略
+                        }
+                    } else {
+                        this.log('内存数组已清空', 'info');
+                    }
+                }
+
+                // ==================== 应用优化 ====================
+                applyOptimizations() {
+                    this.updateOptimizations();
+                    this.log('✨ 已应用内存优化策略', 'success');
+                }
+
+                // ==================== 导出报告 ====================
+                exportReport() {
+                    try {
+                        const memory = this.getDeviceMemory();
+                        const cores = navigator.hardwareConcurrency || '未知';
+                        const hasDeviceMemory = 'deviceMemory' in navigator;
+                        const hasPerformanceMemory = 'memory' in performance;
+                        const tier = this.getMemoryTier(memory);
+                        const strategies = this.getStrategies(memory);
+
+                        let report = '═══════════════════════════════\n';
+                        report += '    设备内存分析报告\n';
+                        report += '═══════════════════════════════\n\n';
+                        report += `生成时间: ${new Date().toLocaleString()}\n`;
+                        report += `报告版本: 2.0.0\n\n`;
+
+                        report += '【硬件信息】\n';
+                        report += `├─ 设备内存: ${memory}GB\n`;
+                        report += `├─ CPU核心: ${cores}\n`;
+                        report += `├─ 内存等级: ${tier.name} (${tier.description})\n`;
+                        report += `└─ 设备分类: ${this.getDeviceClass(memory).name}\n\n`;
+
+                        report += '【API支持】\n';
+                        report += `├─ deviceMemory API: ${hasDeviceMemory ? '✅ 支持' : '❌ 不支持'}\n`;
+                        report += `├─ performance.memory: ${hasPerformanceMemory ? '✅ 支持' : '❌ 不支持'}\n`;
+                        report += `└─ hardwareConcurrency: ${cores !== '未知' ? '✅ 支持' : '❌ 不支持'}\n\n`;
+
+                        if (hasPerformanceMemory) {
+                            const memInfo = performance.memory;
+                            report += '【内存使用】\n';
+                            report += `├─ JS堆限制: ${Math.round(memInfo.jsHeapSizeLimit / 1024 / 1024)}MB\n`;
+                            report += `├─ 已用堆内存: ${Math.round(memInfo.usedJSHeapSize / 1024 / 1024)}MB\n`;
+                            report += `└─ 总堆内存: ${Math.round(memInfo.totalJSHeapSize / 1024 / 1024)}MB\n\n`;
+                        }
+
+                        report += '【优化建议】\n';
+                        report += `├─ 图片质量: ${strategies.image}\n`;
+                        report += `├─ 视频清晰度: ${strategies.video}\n`;
+                        report += `├─ 缓存策略: ${strategies.cache}\n`;
+                        report += `└─ 并发请求: ${strategies.request}\n\n`;
+
+                        report += '═══════════════════════════════\n';
+
+                        // 创建下载
+                        const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `memory-report-${Date.now()}.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+
+                        this.log('📋 内存报告已导出', 'success');
+                    } catch (error) {
+                        this.log(`导出报告失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 分享报告 ====================
+                shareReport() {
+                    try {
+                        const memory = this.getDeviceMemory();
+                        const tier = this.getMemoryTier(memory);
+
+                        const shareText = `我的设备内存: ${memory}GB (${tier.name}设备) - 来自设备内存API演示`;
+
+                        if (navigator.share) {
+                            navigator.share({
+                                title: '设备内存报告',
+                                text: shareText,
+                                url: window.location.href
+                            }).then(() => {
+                                this.log('报告分享成功', 'success');
+                            }).catch(() => {
+                                this.log('分享取消', 'info');
+                            });
+                        } else {
+                            // 复制到剪贴板
+                            navigator.clipboard.writeText(shareText).then(() => {
+                                this.log('报告已复制到剪贴板', 'success');
+                            }).catch(() => {
+                                prompt('手动复制报告:', shareText);
+                            });
+                        }
+                    } catch (error) {
+                        this.log(`分享失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 清理 ====================
+                destroy() {
+                    // 清除所有定时器
+                    this.intervals.forEach(interval => clearInterval(interval));
+                    this.intervals = [];
+
+                    // 释放内存
+                    this.clearMemory();
+
+                    this.log('🧹 资源已清理', 'info');
+                }
+            }
+
+            // 创建全局实例
+            window.deviceMemoryAPI = new DeviceMemoryAPI();
+
+            // 页面卸载前清理
+            window.addEventListener('beforeunload', () => {
+                if (window.deviceMemoryAPI) {
+                    window.deviceMemoryAPI.destroy();
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

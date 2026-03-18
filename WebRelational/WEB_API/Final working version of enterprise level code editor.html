@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级代码编辑器 - 最终工作版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .editor-container {
+            width: 1200px;
+            max-width: 100%;
+            background: #1e1e2e;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .editor-header {
+            background: #282a36;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #44475a;
+            flex-wrap: wrap;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .window-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #ff5f56;
+        }
+
+        .dot-yellow {
+            background: #ffbd2e;
+        }
+
+        .dot-green {
+            background: #27c93f;
+        }
+
+        .file-tab {
+            background: #44475a;
+            color: #f8f8f2;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid #6272a4;
+            color: #f8f8f2;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #6272a4;
+        }
+
+        .action-btn.primary {
+            background: #50fa7b;
+            color: #282a36;
+            border-color: #50fa7b;
+        }
+
+        .main-content {
+            display: flex;
+            height: 500px;
+            position: relative;
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            background: #282a36;
+            min-width: 300px;
+        }
+
+        .line-numbers {
+            width: 50px;
+            background: #282a36;
+            color: #6272a4;
+            text-align: right;
+            padding: 16px 8px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            border-right: 1px solid #44475a;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .line-number {
+            padding-right: 8px;
+        }
+
+        .line-number.active {
+            color: #ffb86c;
+            font-weight: bold;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            background: #282a36;
+            overflow: auto;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #f8f8f2;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: none;
+            white-space: pre;
+            overflow: auto;
+        }
+
+        /* 预览区域 - 固定宽度，不缩放到0 */
+        .preview-section {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e2e;
+            border-left: 1px solid #44475a;
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-section.hidden .preview-content {
+            display: none;
+        }
+
+        .preview-section.hidden .preview-header {
+            border-bottom: none;
+            background: #282a36;
+        }
+
+        .preview-section.hidden {
+            width: 48px;
+            /* 只显示按钮的宽度 */
+            min-width: 48px;
+        }
+
+        .preview-header {
+            padding: 12px 16px;
+            background: #282a36;
+            border-bottom: 1px solid #44475a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .preview-section.hidden .preview-header {
+            padding: 12px 8px;
+            justify-content: center;
+        }
+
+        .preview-section.hidden .preview-title {
+            display: none;
+        }
+
+        .preview-title {
+            color: #f8f8f2;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-section.hidden .preview-controls {
+            flex-direction: column;
+        }
+
+        .preview-btn {
+            background: transparent;
+            border: 1px solid #6272a4;
+            color: #f8f8f2;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            min-width: 32px;
+            height: 32px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-btn:hover {
+            background: #6272a4;
+        }
+
+        .preview-btn.active {
+            background: #50fa7b;
+            color: #282a36;
+            border-color: #50fa7b;
+        }
+
+        /* 切换按钮特殊样式 */
+        #togglePreviewBtn {
+            background: #6272a4;
+            border-color: #bd93f9;
+        }
+
+        #togglePreviewBtn:hover {
+            background: #bd93f9;
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 16px;
+            overflow: auto;
+            background: #282a36;
+        }
+
+        .console-output {
+            background: #1e1e2e;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .console-header {
+            background: #44475a;
+            padding: 8px 12px;
+            color: #f8f8f2;
+            font-size: 12px;
+        }
+
+        .console-body {
+            padding: 12px;
+            font-family: monospace;
+            font-size: 13px;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .console-line {
+            padding: 4px 0;
+            border-bottom: 1px solid #44475a;
+            color: #f8f8f2;
+        }
+
+        .console-line.error {
+            color: #ff5555;
+        }
+
+        .console-line.success {
+            color: #50fa7b;
+        }
+
+        .dom-preview {
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 16px;
+            color: #f8f8f2;
+            margin-top: 16px;
+        }
+
+        .status-bar {
+            background: #191a21;
+            color: #6272a4;
+            padding: 8px 16px;
+            display: flex;
+            gap: 24px;
+            font-size: 12px;
+            border-top: 1px solid #44475a;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cursor-position {
+            color: #f8f8f2;
+            background: #44475a;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .language-badge {
+            background: #44475a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #bd93f9;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #50fa7b;
+            color: #282a36;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="editor-container" id="editorContainer"></div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        class Editor {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                this.previewVisible = true;
+                this.previewMode = 'console';
+                this.init();
+            }
+
+            init() {
+                this.createUI();
+                this.bindEvents();
+                this.setInitialContent();
+                this.updateLineNumbers();
+                this.updateStatusBar();
+            }
+
+            createUI() {
+                this.container.innerHTML = `
+                    <div class="editor-header">
+                        <div class="window-controls">
+                            <span class="window-dot dot-red"></span>
+                            <span class="window-dot dot-yellow"></span>
+                            <span class="window-dot dot-green"></span>
+                        </div>
+                        <div class="file-tab">
+                            <i>📄</i>
+                            <span>script.js</span>
+                        </div>
+                        <div class="editor-actions">
+                            <button class="action-btn primary" id="runBtn">▶️ 执行</button>
+                            <button class="action-btn" id="formatBtn">✨ 格式化</button>
+                            <button class="action-btn" id="statsBtn">📊 统计</button>
+                            <button class="action-btn" id="copyBtn">📋 复制</button>
+                            <button class="action-btn" id="saveBtn">💾 保存</button>
+                            <button class="action-btn" id="clearBtn">🧹 清空预览</button>
+                        </div>
+                    </div>
+
+                    <div class="main-content">
+                        <div class="editor-panel">
+                            <div class="line-numbers" id="lineNumbers"></div>
+                            <div class="editor-wrapper">
+                                <textarea class="editor-textarea" id="editor" spellcheck="false"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="preview-section" id="previewSection">
+                            <div class="preview-header">
+                                <div class="preview-title">
+                                    <i>👁️</i>
+                                    <span>执行预览</span>
+                                </div>
+                                <div class="preview-controls">
+                                    <button class="preview-btn" id="consoleModeBtn" title="控制台模式">📟</button>
+                                    <button class="preview-btn" id="domModeBtn" title="DOM模式">🌳</button>
+                                    <button class="preview-btn" id="bothModeBtn" title="混合模式">🔄</button>
+                                    <button class="preview-btn" id="togglePreviewBtn" title="切换预览面板">◀</button>
+                                </div>
+                            </div>
+                            <div class="preview-content">
+                                <div class="console-output">
+                                    <div class="console-header">📟 控制台输出</div>
+                                    <div class="console-body" id="consoleBody"></div>
+                                </div>
+                                <div class="dom-preview" id="domPreview">
+                                    <h4>🌳 DOM 输出</h4>
+                                    <div id="domOutput"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="status-bar">
+                        <div class="status-item">⌨️ 行 <span id="currentLine" class="cursor-position">1</span></div>
+                        <div class="status-item">📊 字符 <span id="charCount">0</span></div>
+                        <div class="status-item">📝 行数 <span id="lineCount">1</span></div>
+                        <div class="status-item"><span class="language-badge">JavaScript</span></div>
+                        <div class="status-item">👁️ <span id="previewStatus">显示中</span></div>
+                    </div>
+                `;
+
+                // 获取元素
+                this.editor = document.getElementById('editor');
+                this.lineNumbers = document.getElementById('lineNumbers');
+                this.previewSection = document.getElementById('previewSection');
+                this.consoleBody = document.getElementById('consoleBody');
+                this.domPreview = document.getElementById('domPreview');
+                this.domOutput = document.getElementById('domOutput');
+                this.currentLine = document.getElementById('currentLine');
+                this.charCount = document.getElementById('charCount');
+                this.lineCount = document.getElementById('lineCount');
+                this.previewStatus = document.getElementById('previewStatus');
+                this.toast = document.getElementById('toast');
+
+                // 按钮
+                this.runBtn = document.getElementById('runBtn');
+                this.formatBtn = document.getElementById('formatBtn');
+                this.statsBtn = document.getElementById('statsBtn');
+                this.copyBtn = document.getElementById('copyBtn');
+                this.saveBtn = document.getElementById('saveBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.consoleModeBtn = document.getElementById('consoleModeBtn');
+                this.domModeBtn = document.getElementById('domModeBtn');
+                this.bothModeBtn = document.getElementById('bothModeBtn');
+                this.togglePreviewBtn = document.getElementById('togglePreviewBtn');
+            }
+
+            bindEvents() {
+                // 编辑器事件
+                this.editor.addEventListener('input', () => {
+                    this.updateLineNumbers();
+                    this.updateStatusBar();
+                });
+
+                this.editor.addEventListener('scroll', () => {
+                    this.lineNumbers.scrollTop = this.editor.scrollTop;
+                });
+
+                this.editor.addEventListener('keyup', () => this.updateStatusBar());
+                this.editor.addEventListener('click', () => this.updateStatusBar());
+
+                // 按钮事件
+                this.runBtn.addEventListener('click', () => this.executeCode());
+                this.formatBtn.addEventListener('click', () => this.formatCode());
+                this.statsBtn.addEventListener('click', () => this.showStats());
+                this.copyBtn.addEventListener('click', () => this.copyCode());
+                this.saveBtn.addEventListener('click', () => this.saveCode());
+                this.clearBtn.addEventListener('click', () => this.clearPreview());
+
+                // 预览控制按钮
+                this.consoleModeBtn.addEventListener('click', () => this.setPreviewMode('console'));
+                this.domModeBtn.addEventListener('click', () => this.setPreviewMode('dom'));
+                this.bothModeBtn.addEventListener('click', () => this.setPreviewMode('both'));
+                this.togglePreviewBtn.addEventListener('click', () => this.togglePreview());
+
+                // 快捷键
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        this.executeCode();
+                    }
+                });
+            }
+
+            setInitialContent() {
+                this.editor.value = `// 欢迎使用企业级代码编辑器
+// ✅ 现在可以正常删除文字了！
+// ✅ 预览面板按钮就在这里 👉 右边！
+// 按 Ctrl+Enter 执行代码
+
+function calculateTotal(numbers) {
+    let sum = 0;
+    for (let i = 0; i < numbers.length; i++) {
+        sum += numbers[i];
+    }
+    return sum;
+}
+
+const result = calculateTotal([10, 20, 30, 40, 50]);
+console.log('计算结果:', result);
+
+// 试试用 Backspace 删除这行文字
+// 点击右边的 ◀ 按钮可以隐藏预览面板
+// 隐藏后按钮还在，点击 ▶ 可以重新显示`;
+            }
+
+            updateLineNumbers() {
+                const lines = this.editor.value.split('\n').length;
+                let html = '';
+                for (let i = 1; i <= lines; i++) {
+                    html += `<div class="line-number">${i}</div>`;
+                }
+                this.lineNumbers.innerHTML = html;
+            }
+
+            updateStatusBar() {
+                const text = this.editor.value;
+                const lines = text.split('\n');
+                const pos = this.editor.selectionStart;
+
+                let line = 1;
+                let charCount = 0;
+
+                for (let i = 0; i < lines.length; i++) {
+                    if (charCount + lines[i].length + (i > 0 ? 1 : 0) > pos) {
+                        line = i + 1;
+                        break;
+                    }
+                    charCount += lines[i].length + (i > 0 ? 1 : 0);
+                }
+
+                this.currentLine.textContent = line;
+                this.charCount.textContent = text.length;
+                this.lineCount.textContent = lines.length;
+
+                // 高亮当前行
+                Array.from(this.lineNumbers.children).forEach((el, i) => {
+                    el.classList.toggle('active', i + 1 === line);
+                });
+            }
+
+            // 预览面板切换 - 按钮永远可见！
+            togglePreview() {
+                this.previewVisible = !this.previewVisible;
+
+                if (this.previewVisible) {
+                    // 显示预览面板
+                    this.previewSection.classList.remove('hidden');
+                    this.togglePreviewBtn.innerHTML = '◀';
+                    this.togglePreviewBtn.title = '隐藏预览面板';
+                    this.previewStatus.textContent = '显示中';
+                    this.showToast('预览面板已显示');
+                } else {
+                    // 隐藏预览面板（只留按钮区域）
+                    this.previewSection.classList.add('hidden');
+                    this.togglePreviewBtn.innerHTML = '▶';
+                    this.togglePreviewBtn.title = '显示预览面板';
+                    this.previewStatus.textContent = '隐藏';
+                    this.showToast('预览面板已隐藏');
+                }
+            }
+
+            setPreviewMode(mode) {
+                this.previewMode = mode;
+
+                // 更新按钮状态
+                [this.consoleModeBtn, this.domModeBtn, this.bothModeBtn].forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                if (mode === 'console') {
+                    this.consoleModeBtn.classList.add('active');
+                    document.querySelector('.console-output').style.display = 'block';
+                    this.domPreview.style.display = 'none';
+                } else if (mode === 'dom') {
+                    this.domModeBtn.classList.add('active');
+                    document.querySelector('.console-output').style.display = 'none';
+                    this.domPreview.style.display = 'block';
+                } else {
+                    this.bothModeBtn.classList.add('active');
+                    document.querySelector('.console-output').style.display = 'block';
+                    this.domPreview.style.display = 'block';
+                }
+            }
+
+            executeCode() {
+                const code = this.editor.value;
+
+                this.consoleBody.innerHTML = '';
+                this.addToConsole('info', '🚀 开始执行...');
+
+                const originalLog = console.log;
+                const originalError = console.error;
+
+                console.log = (...args) => {
+                    this.addToConsole('log', ...args);
+                    originalLog.apply(console, args);
+                };
+
+                console.error = (...args) => {
+                    this.addToConsole('error', ...args);
+                    originalError.apply(console, args);
+                };
+
+                try {
+                    const fn = new Function(code);
+                    fn();
+                    this.addToConsole('success', '✅ 执行完成');
+                } catch (error) {
+                    this.addToConsole('error', '❌ ' + error.message);
+                } finally {
+                    console.log = originalLog;
+                    console.error = originalError;
+                }
+            }
+
+            addToConsole(type, ...args) {
+                const line = document.createElement('div');
+                line.className = `console-line ${type}`;
+
+                const prefix = {
+                    'log': '📝',
+                    'error': '❌',
+                    'success': '✅',
+                    'info': 'ℹ️'
+                }[type] || '📌';
+
+                line.innerHTML = `<span style="opacity:0.7;margin-right:8px;">${prefix}</span> ${args.join(' ')}`;
+                this.consoleBody.appendChild(line);
+                this.consoleBody.scrollTop = this.consoleBody.scrollHeight;
+            }
+
+            clearPreview() {
+                this.consoleBody.innerHTML = '';
+                this.domOutput.innerHTML = '';
+                this.addToConsole('info', '预览已清空');
+                this.showToast('预览已清空');
+            }
+
+            formatCode() {
+                const code = this.editor.value;
+                let formatted = code
+                    .replace(/\{\s*/g, ' {\n    ')
+                    .replace(/\}\s*/g, '\n}\n')
+                    .replace(/;\s*/g, ';\n')
+                    .replace(/\n\s*\n\s*\n/g, '\n\n');
+
+                this.editor.value = formatted;
+                this.updateLineNumbers();
+                this.showToast('格式化完成');
+            }
+
+            showStats() {
+                const text = this.editor.value;
+                const lines = text.split('\n');
+
+                this.addToConsole('info', `📊 统计信息`);
+                this.addToConsole('info', `字符数: ${text.length}`);
+                this.addToConsole('info', `行数: ${lines.length}`);
+                this.addToConsole('info', `单词数: ${text.split(/\s+/).filter(w => w.length).length}`);
+            }
+
+            copyCode() {
+                navigator.clipboard.writeText(this.editor.value).then(() => {
+                    this.showToast('已复制到剪贴板');
+                });
+            }
+
+            saveCode() {
+                const blob = new Blob([this.editor.value], { type: 'text/javascript' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `script-${Date.now()}.js`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.showToast('文件已保存');
+            }
+
+            showToast(msg) {
+                this.toast.textContent = msg;
+                this.toast.classList.add('show');
+                setTimeout(() => {
+                    this.toast.classList.remove('show');
+                }, 2000);
+            }
+        }
+
+        // 启动
+        new Editor('editorContainer');
+    </script>
+</body>
+
+</html>

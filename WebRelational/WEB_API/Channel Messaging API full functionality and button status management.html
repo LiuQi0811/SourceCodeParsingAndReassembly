@@ -1,0 +1,2513 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel Messaging API - 完整功能 + 按钮状态管理</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 性能监控 */
+        .performance-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .perf-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .perf-label {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .perf-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 通道面板 */
+        .channel-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .port-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .port-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .port-card.port1 {
+            border-left: 4px solid #667eea;
+        }
+
+        .port-card.port2 {
+            border-left: 4px solid #4CAF50;
+        }
+
+        .port-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .port-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .port1 .port-name {
+            color: #667eea;
+        }
+
+        .port2 .port-name {
+            color: #4CAF50;
+        }
+
+        .port-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            background: #4CAF50;
+            color: white;
+        }
+
+        .port-status.closed {
+            background: #f44336;
+        }
+
+        .message-list {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+
+        .message-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-size: 13px;
+            word-break: break-all;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .message-item.sent {
+            border-left-color: #4CAF50;
+            background: #e8f5e8;
+        }
+
+        .message-item.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #999;
+            margin-right: 5px;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .control-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .control-group input[type="text"]:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:disabled::after {
+            display: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .global-controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* iframe 演示 */
+        .iframe-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: none;
+        }
+
+        /* Worker 演示 */
+        .worker-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .worker-status {
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 6px;
+            margin: 10px 0;
+            color: #4CAF50;
+            font-weight: 500;
+        }
+
+        .worker-status.error {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .code-block {
+            background: #1e1e2f;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 15px 0;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .code-comment {
+            color: #81c784;
+        }
+
+        .code-keyword {
+            color: #64b5f6;
+        }
+
+        .code-string {
+            color: #ffb74d;
+        }
+
+        .code-number {
+            color: #f06292;
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .channel-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📡 Channel Messaging API - 完整功能版</span>
+                <span class="status-badge status-supported">✓ 按钮状态自动管理</span>
+            </h1>
+            <p>所有功能完整保留 + 端口关闭时自动禁用按钮</p>
+
+            <!-- 性能监控 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">消息吞吐量</div>
+                    <div class="perf-value" id="throughput">0</div>
+                    <span class="perf-unit">msg/s</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">平均延迟</div>
+                    <div class="perf-value" id="avgLatency">0</div>
+                    <span class="perf-unit">ms</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">通道数量</div>
+                    <div class="perf-value" id="channelCount">1</div>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">内存使用</div>
+                    <div class="perf-value" id="memoryUsage">0</div>
+                    <span class="perf-unit">MB</span>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalMessages">0</div>
+                    <div class="stat-label">总消息数</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="sentMessages">0</div>
+                    <div class="stat-label">发送消息</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="receivedMessages">0</div>
+                    <div class="stat-label">接收消息</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">错误次数</div>
+                </div>
+            </div>
+
+            <!-- 错误提示区 -->
+            <div id="errorMessage" class="error-message"></div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('basic')">🔧 基础通信</div>
+                <div class="tab" onclick="switchTab('iframe')">🖼️ iframe通信</div>
+                <div class="tab" onclick="switchTab('worker')">⚙️ Web Worker</div>
+                <div class="tab" onclick="switchTab('advanced')">🚀 高级特性</div>
+                <div class="tab" onclick="switchTab('stress')">⚡ 压力测试</div>
+            </div>
+
+            <!-- 基础通信标签页 -->
+            <div id="basicTab" class="tab-content active">
+                <div class="channel-panel">
+                    <div class="channel-grid">
+                        <!-- Port 1 -->
+                        <div class="port-card port1" id="port1Card">
+                            <div class="port-header">
+                                <span class="port-name tooltip" data-tooltip="端口1 - 可发送和接收消息">Port 1</span>
+                                <span class="port-status" id="port1Status">活跃</span>
+                            </div>
+                            <div class="message-list" id="port1Messages">
+                                <div class="message-item">等待消息...</div>
+                            </div>
+                            <div class="control-group">
+                                <label>发送消息到 Port 2:</label>
+                                <input type="text" id="port1Input" value="Hello from Port 1" placeholder="输入消息">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" id="port1SendBtn" onclick="sendFromPort1()">📤
+                                    发送文本</button>
+                                <button class="btn btn-success" id="port1ObjectBtn" onclick="sendObjectFromPort1()">📦
+                                    发送对象</button>
+                                <button class="btn btn-warning" id="port1ArrayBtn" onclick="sendArrayFromPort1()">📋
+                                    发送数组</button>
+                                <button class="btn btn-danger" id="port1ErrorBtn" onclick="sendErrorTest()">⚠️
+                                    错误测试</button>
+                            </div>
+                        </div>
+
+                        <!-- Port 2 -->
+                        <div class="port-card port2" id="port2Card">
+                            <div class="port-header">
+                                <span class="port-name tooltip" data-tooltip="端口2 - 可发送和接收消息">Port 2</span>
+                                <span class="port-status" id="port2Status">活跃</span>
+                            </div>
+                            <div class="message-list" id="port2Messages">
+                                <div class="message-item">等待消息...</div>
+                            </div>
+                            <div class="control-group">
+                                <label>发送消息到 Port 1:</label>
+                                <input type="text" id="port2Input" value="Hello from Port 2" placeholder="输入消息">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" id="port2SendBtn" onclick="sendFromPort2()">📤
+                                    发送文本</button>
+                                <button class="btn btn-success" id="port2ObjectBtn" onclick="sendObjectFromPort2()">📦
+                                    发送对象</button>
+                                <button class="btn btn-warning" id="port2ArrayBtn" onclick="sendArrayFromPort2()">📋
+                                    发送数组</button>
+                                <button class="btn btn-danger" id="port2ComplexBtn" onclick="sendComplexData()">🔀
+                                    复杂数据</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 全局控制按钮 -->
+                    <div class="global-controls">
+                        <button class="btn btn-success" onclick="createNewChannel()">🔄 创建新通道</button>
+                        <button class="btn btn-warning" onclick="closePort1()">🔒 关闭 Port 1</button>
+                        <button class="btn btn-danger" onclick="closePort2()">🔒 关闭 Port 2</button>
+                        <button class="btn btn-primary" onclick="clearMessages()">🗑️ 清空消息</button>
+                        <button class="btn btn-success" onclick="exportMessages()">📥 导出日志</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- iframe 通信标签页 -->
+            <div id="iframeTab" class="tab-content">
+                <div class="channel-panel">
+                    <h3>🖼️ iframe 通信演示</h3>
+                    <p>在主窗口和 iframe 之间建立消息通道</p>
+
+                    <div class="iframe-container">
+                        <iframe id="messageFrame" srcdoc='
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <style>
+                                    * { box-sizing: border-box; margin: 0; padding: 0; }
+                                    body {
+                                        font-family: Arial, sans-serif;
+                                        padding: 20px;
+                                        background: #f8f9fa;
+                                    }
+                                    .container { max-width: 100%; }
+                                    .message-box {
+                                        background: white;
+                                        border-radius: 8px;
+                                        padding: 15px;
+                                        margin: 10px 0;
+                                        border-left: 4px solid #4CAF50;
+                                    }
+                                    .input-group { margin: 10px 0; }
+                                    input {
+                                        width: 100%;
+                                        padding: 8px;
+                                        border: 1px solid #ddd;
+                                        border-radius: 4px;
+                                    }
+                                    button {
+                                        padding: 8px 16px;
+                                        background: #4CAF50;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 4px;
+                                        cursor: pointer;
+                                        margin: 5px;
+                                    }
+                                    button:hover { background: #45a049; }
+                                    .message-list {
+                                        max-height: 150px;
+                                        overflow-y: auto;
+                                        border: 1px solid #eee;
+                                        padding: 10px;
+                                        border-radius: 4px;
+                                    }
+                                    .error { color: #f44336; }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="container">
+                                    <h3>iframe 内部</h3>
+                                    <div class="message-box" id="status">等待连接...</div>
+                                    
+                                    <div class="message-list" id="messages"></div>
+                                    
+                                    <div class="input-group">
+                                        <input type="text" id="messageInput" placeholder="输入消息" value="Hello from iframe">
+                                    </div>
+                                    <button onclick="sendMessage()">发送到主窗口</button>
+                                    <button onclick="sendObject()">发送对象</button>
+                                    <button onclick="sendBinary()">发送二进制</button>
+                                    <button onclick="throwError()" style="background:#f44336">抛出错误</button>
+                                </div>
+
+                                <script>
+                                    let port;
+                                    let messageCount = 0;
+
+                                    window.addEventListener("message", (event) => {
+                                        if (event.data.type === "init") {
+                                            try {
+                                                port = event.ports[0];
+                                                document.getElementById("status").textContent = "✅ 已连接到主窗口";
+                                                document.getElementById("status").style.color = "#4CAF50";
+                                                
+                                                port.onmessage = (e) => {
+                                                    try {
+                                                        const messages = document.getElementById("messages");
+                                                        const msgDiv = document.createElement("div");
+                                                        msgDiv.style.padding = "5px";
+                                                        msgDiv.style.margin = "3px 0";
+                                                        msgDiv.style.background = "#e8f5e8";
+                                                        msgDiv.style.borderRadius = "4px";
+                                                        
+                                                        if (e.data instanceof ArrayBuffer) {
+                                                            msgDiv.textContent = "📥 收到二进制: " + e.data.byteLength + " 字节";
+                                                        } else {
+                                                            msgDiv.textContent = "📥 收到: " + JSON.stringify(e.data);
+                                                        }
+                                                        
+                                                        messages.appendChild(msgDiv);
+                                                        messages.scrollTop = messages.scrollHeight;
+                                                    } catch (err) {
+                                                        showError(err.message);
+                                                    }
+                                                };
+                                            } catch (err) {
+                                                showError(err.message);
+                                            }
+                                        }
+                                    });
+
+                                    window.sendMessage = function() {
+                                        if (!port) return showError("未连接");
+                                        try {
+                                            const input = document.getElementById("messageInput");
+                                            port.postMessage(input.value);
+                                            addMessage("📤 发送: " + input.value);
+                                        } catch (err) {
+                                            showError(err.message);
+                                        }
+                                    };
+
+                                    window.sendObject = function() {
+                                        if (!port) return showError("未连接");
+                                        try {
+                                            const obj = {
+                                                type: "object",
+                                                message: "来自iframe的对象",
+                                                timestamp: Date.now(),
+                                                random: Math.random()
+                                            };
+                                            port.postMessage(obj);
+                                            addMessage("📤 发送对象");
+                                        } catch (err) {
+                                            showError(err.message);
+                                        }
+                                    };
+
+                                    window.sendBinary = function() {
+                                        if (!port) return showError("未连接");
+                                        try {
+                                            const buffer = new ArrayBuffer(100);
+                                            const view = new Uint8Array(buffer);
+                                            for (let i = 0; i < view.length; i++) {
+                                                view[i] = i;
+                                            }
+                                            port.postMessage(buffer, [buffer]);
+                                            addMessage("📤 发送二进制: 100 字节");
+                                        } catch (err) {
+                                            showError(err.message);
+                                        }
+                                    };
+
+                                    window.throwError = function() {
+                                        throw new Error("测试错误");
+                                    };
+
+                                    function addMessage(text) {
+                                        const messages = document.getElementById("messages");
+                                        const msgDiv = document.createElement("div");
+                                        msgDiv.style.padding = "5px";
+                                        msgDiv.style.margin = "3px 0";
+                                        msgDiv.style.background = "#e3f2fd";
+                                        msgDiv.style.borderRadius = "4px";
+                                        msgDiv.textContent = text;
+                                        messages.appendChild(msgDiv);
+                                        messages.scrollTop = messages.scrollHeight;
+                                    }
+
+                                    function showError(msg) {
+                                        const status = document.getElementById("status");
+                                        status.textContent = "❌ " + msg;
+                                        status.style.color = "#f44336";
+                                    }
+
+                                    window.onerror = function(msg) {
+                                        showError(msg);
+                                    };
+                                </script>
+                            </body>
+                            </html>
+                        '></iframe>
+                    </div>
+
+                    <div class="btn-group" style="justify-content: center;">
+                        <button class="btn btn-primary" onclick="connectToIframe()">🔗 连接到 iframe</button>
+                        <button class="btn btn-success" onclick="sendToIframe()">📤 发送文本</button>
+                        <button class="btn btn-warning" onclick="sendObjectToIframe()">📦 发送对象</button>
+                        <button class="btn btn-danger" onclick="sendBinaryToIframe()">🔢 发送二进制</button>
+                    </div>
+
+                    <div class="message-list" id="iframeMessages" style="max-height: 150px;">
+                        <div class="message-item">等待消息...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Worker 标签页 -->
+            <div id="workerTab" class="tab-content">
+                <div class="worker-panel">
+                    <h3>⚙️ Web Worker 通信演示</h3>
+
+                    <div class="worker-status" id="workerStatus">Worker 状态: 未启动</div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="startWorker()">▶️ 启动 Worker</button>
+                        <button class="btn btn-danger" onclick="stopWorker()">⏹️ 停止 Worker</button>
+                        <button class="btn btn-success" onclick="restartWorker()">🔄 重启 Worker</button>
+                    </div>
+
+                    <div class="channel-grid" style="margin-top: 20px;">
+                        <div class="port-card port1">
+                            <div class="port-header">
+                                <span class="port-name">主线程</span>
+                                <span class="port-status" id="mainThreadStatus">活跃</span>
+                            </div>
+                            <div class="message-list" id="workerMainMessages" style="max-height: 150px;">
+                                <div class="message-item">等待消息...</div>
+                            </div>
+                            <div class="control-group">
+                                <input type="text" id="workerInput" value="Hello Worker" placeholder="发送到Worker">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="sendToWorker()">📤 发送文本</button>
+                                <button class="btn btn-success" onclick="sendTaskToWorker()">⚡ 发送任务</button>
+                                <button class="btn btn-warning" onclick="sendHeavyTask()">🔥 繁重任务</button>
+                            </div>
+                        </div>
+
+                        <div class="port-card port2">
+                            <div class="port-header">
+                                <span class="port-name">Worker 线程</span>
+                                <span class="port-status" id="workerThreadStatus">等待启动</span>
+                            </div>
+                            <div class="message-list" id="workerMessages" style="max-height: 150px;">
+                                <div class="message-item">等待启动...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <span class="code-comment">// Worker 代码</span><br>
+                        <span class="code-keyword">self.onmessage</span> = (event) => {<br>
+                        &nbsp;&nbsp;<span class="code-keyword">const</span> port = event.data.port;<br>
+                        &nbsp;&nbsp;<br>
+                        &nbsp;&nbsp;port.onmessage = (e) => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">if</span> (e.data.type === <span
+                            class="code-string">'task'</span>) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">const</span> result = e.data.num
+                        * 2;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;port.postMessage({ result });<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;} <span class="code-keyword">else</span> <span
+                            class="code-keyword">if</span> (e.data.type === <span class="code-string">'heavy'</span>)
+                        {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">let</span> sum = 0;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">for</span> (<span
+                            class="code-keyword">let</span> i = 0; i < e.data.iterations; i++) {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sum += Math.sqrt(i);<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;port.postMessage({ result: sum });<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;} <span class="code-keyword">else</span> {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;port.postMessage(<span class="code-string">'Worker收到:
+                                '</span> + e.data);<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                            &nbsp;&nbsp;};<br>
+                            &nbsp;&nbsp;port.postMessage(<span class="code-string">'Worker已启动'</span>);<br>
+                            };
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级特性标签页 -->
+            <div id="advancedTab" class="tab-content">
+                <div class="channel-panel">
+                    <h3>🚀 高级特性演示</h3>
+
+                    <div class="channel-grid">
+                        <div class="port-card">
+                            <h4>📊 批量消息</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="sendBatchMessages()">📤 发送10条</button>
+                                <button class="btn btn-success" onclick="sendBatchMessages(50)">📤 发送50条</button>
+                                <button class="btn btn-warning" onclick="sendBatchMessages(100)">📤 发送100条</button>
+                            </div>
+                            <div id="batchResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+
+                        <div class="port-card">
+                            <h4>⏱️ 性能测试</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="measureLatency()">📏 测量延迟</button>
+                                <button class="btn btn-success" onclick="measureThroughput()">📊 测量吞吐量</button>
+                                <button class="btn btn-warning" onclick="stressTest()">⚡ 压力测试</button>
+                            </div>
+                            <div id="perfResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+
+                        <div class="port-card">
+                            <h4>🔄 多通道管理</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="createMultipleChannels()">🔗 创建3个通道</button>
+                                <button class="btn btn-success" onclick="broadcastMessage()">📢 广播消息</button>
+                                <button class="btn btn-danger" onclick="closeAllChannels()">🔒 关闭所有</button>
+                            </div>
+                            <div id="multiChannelResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+
+                        <div class="port-card">
+                            <h4>📦 复杂数据传输</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="sendLargeData()">📁 大对象(1MB)</button>
+                                <button class="btn btn-success" onclick="sendBinaryData()">🔢 二进制数据</button>
+                                <button class="btn btn-warning" onclick="sendTransferable()">🔄 可转移对象</button>
+                            </div>
+                            <div id="complexResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="channel-grid" style="margin-top: 20px;">
+                        <div class="port-card">
+                            <h4>🔊 回声测试</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="echoTest()">🔊 单次回声</button>
+                                <button class="btn btn-success" onclick="pingPong()">🏓 Ping Pong</button>
+                                <button class="btn btn-warning" onclick="pingPongCount(100)">🏓 100次</button>
+                            </div>
+                            <div id="echoResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+
+                        <div class="port-card">
+                            <h4>🛡️ 错误恢复</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-primary" onclick="testErrorRecovery()">🔄 测试恢复</button>
+                                <button class="btn btn-success" onclick="simulateDisconnect()">⚡ 模拟断开</button>
+                                <button class="btn btn-warning" onclick="autoReconnect()">🔌 自动重连</button>
+                            </div>
+                            <div id="recoveryResult" style="margin-top: 10px; font-size: 12px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 压力测试标签页 -->
+            <div id="stressTab" class="tab-content">
+                <div class="channel-panel">
+                    <h3>⚡ 压力测试</h3>
+
+                    <div class="control-group">
+                        <label>消息数量: <span class="value-badge" id="stressCount">1000</span></label>
+                        <input type="range" id="stressSlider" min="100" max="10000" value="1000" step="100">
+                    </div>
+
+                    <div class="control-group">
+                        <label>消息大小: <span class="value-badge" id="stressSize">1KB</span></label>
+                        <input type="range" id="sizeSlider" min="1" max="100" value="1" step="1">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="runStressTest()">▶️ 开始测试</button>
+                        <button class="btn btn-danger" onclick="stopStressTest()">⏹️ 停止</button>
+                        <button class="btn btn-success" onclick="resetStressTest()">🔄 重置</button>
+                    </div>
+
+                    <div class="stats-grid" style="margin-top: 20px;">
+                        <div class="stat-card">
+                            <div class="stat-value" id="testProgress">0%</div>
+                            <div class="stat-label">进度</div>
+                        </div>
+                        <div class="stat-card" style="background:#4CAF50">
+                            <div class="stat-value" id="testSpeed">0</div>
+                            <div class="stat-label">速度(msgs/s)</div>
+                        </div>
+                        <div class="stat-card" style="background:#2196F3">
+                            <div class="stat-value" id="testTime">0</div>
+                            <div class="stat-label">耗时(ms)</div>
+                        </div>
+                        <div class="stat-card" style="background:#ff9800">
+                            <div class="stat-value" id="testErrors">0</div>
+                            <div class="stat-label">错误</div>
+                        </div>
+                    </div>
+
+                    <div id="stressResult"
+                        style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;"></div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // 全局变量
+            let channel;
+            let port1, port2;
+            let messages = { port1: [], port2: [] };
+            let stats = {
+                total: 0,
+                sent: 0,
+                received: 0,
+                errors: 0,
+                throughput: 0,
+                avgLatency: 0,
+                lastSecondMessages: 0,
+                lastSecondTime: Date.now()
+            };
+
+            // iframe 相关
+            let iframePort;
+            let iframeMessages = [];
+
+            // Worker 相关
+            let worker = null;
+            let workerPort = null;
+            let workerMessages = [];
+            let mainMessages = [];
+
+            // 多通道
+            let channels = [];
+
+            // 压力测试
+            let stressTestActive = false;
+            let stressStartTime = 0;
+            let stressSent = 0;
+            let stressReceived = 0;
+            let stressErrors = 0;
+
+            // 初始化
+            function init() {
+                try {
+                    createNewChannel();
+                    startPerformanceMonitor();
+                    setupSliderListeners();
+                    log('系统初始化完成', 'success');
+                } catch (error) {
+                    showError('初始化失败: ' + error.message);
+                }
+            }
+
+            // 性能监控
+            function startPerformanceMonitor() {
+                setInterval(() => {
+                    const now = Date.now();
+                    const elapsed = (now - stats.lastSecondTime) / 1000;
+
+                    if (elapsed > 0) {
+                        stats.throughput = Math.round(stats.lastSecondMessages / elapsed);
+                        stats.lastSecondMessages = 0;
+                        stats.lastSecondTime = now;
+                    }
+
+                    document.getElementById('throughput').textContent = stats.throughput;
+                    document.getElementById('avgLatency').textContent = stats.avgLatency.toFixed(2);
+                    document.getElementById('channelCount').textContent = channels.length + 1;
+
+                    if (performance.memory) {
+                        const used = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                        document.getElementById('memoryUsage').textContent = used;
+                    }
+                }, 1000);
+            }
+
+            // 滑块监听
+            function setupSliderListeners() {
+                const stressSlider = document.getElementById('stressSlider');
+                const sizeSlider = document.getElementById('sizeSlider');
+
+                if (stressSlider) {
+                    stressSlider.addEventListener('input', (e) => {
+                        document.getElementById('stressCount').textContent = e.target.value;
+                    });
+                }
+
+                if (sizeSlider) {
+                    sizeSlider.addEventListener('input', (e) => {
+                        const size = e.target.value;
+                        document.getElementById('stressSize').textContent = size + 'KB';
+                    });
+                }
+            }
+
+            // 显示错误
+            function showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                if (errorEl) {
+                    errorEl.style.display = 'block';
+                    errorEl.textContent = message;
+                }
+                stats.errors++;
+                updateStats();
+
+                setTimeout(() => {
+                    if (errorEl) errorEl.style.display = 'none';
+                }, 3000);
+            }
+
+            // 更新统计
+            function updateStats() {
+                document.getElementById('totalMessages').textContent = stats.total;
+                document.getElementById('sentMessages').textContent = stats.sent;
+                document.getElementById('receivedMessages').textContent = stats.received;
+                document.getElementById('errorCount').textContent = stats.errors;
+            }
+
+            // 更新按钮状态 - 核心修复函数
+            function updateButtonStates() {
+                const port1Status = document.getElementById('port1Status');
+                const port2Status = document.getElementById('port2Status');
+
+                if (!port1Status || !port2Status) return;
+
+                const port1Closed = port1Status.textContent === '已关闭';
+                const port2Closed = port2Status.textContent === '已关闭';
+
+                // Port 1 的所有按钮
+                const port1Buttons = [
+                    'port1SendBtn',
+                    'port1ObjectBtn',
+                    'port1ArrayBtn',
+                    'port1ErrorBtn'
+                ];
+
+                port1Buttons.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.disabled = port1Closed;
+                });
+
+                // Port 2 的所有按钮
+                const port2Buttons = [
+                    'port2SendBtn',
+                    'port2ObjectBtn',
+                    'port2ArrayBtn',
+                    'port2ComplexBtn'
+                ];
+
+                port2Buttons.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.disabled = port2Closed;
+                });
+
+                // 日志显示状态变化
+                if (port1Closed) log('🔴 Port1 按钮已禁用', 'info');
+                if (port2Closed) log('🔴 Port2 按钮已禁用', 'info');
+            }
+
+            // 创建新通道
+            window.createNewChannel = function () {
+                try {
+                    // 关闭旧端口
+                    if (port1) {
+                        try { port1.close(); } catch (e) { }
+                    }
+                    if (port2) {
+                        try { port2.close(); } catch (e) { }
+                    }
+
+                    // 创建新通道
+                    channel = new MessageChannel();
+                    port1 = channel.port1;
+                    port2 = channel.port2;
+
+                    // 重置消息
+                    messages = { port1: [], port2: [] };
+
+                    // 设置监听
+                    setupPortListeners();
+
+                    // 更新UI
+                    document.getElementById('port1Status').textContent = '活跃';
+                    document.getElementById('port1Status').className = 'port-status';
+                    document.getElementById('port2Status').textContent = '活跃';
+                    document.getElementById('port2Status').className = 'port-status';
+
+                    // 更新按钮状态（启用所有按钮）
+                    updateButtonStates();
+
+                    // 更新消息显示
+                    updateMessageDisplays();
+
+                    log('✅ 创建新消息通道', 'success');
+                } catch (error) {
+                    log('❌ 创建通道失败: ' + error.message, 'error');
+                }
+            };
+
+            // 设置端口监听
+            function setupPortListeners() {
+                if (!port1 || !port2) return;
+
+                port1.onmessage = (event) => {
+                    receiveMessage('port1', event.data);
+                };
+
+                port1.onmessageerror = (event) => {
+                    handleError('Port1 消息错误', event.data);
+                };
+
+                port2.onmessage = (event) => {
+                    receiveMessage('port2', event.data);
+                };
+
+                port2.onmessageerror = (event) => {
+                    handleError('Port2 消息错误', event.data);
+                };
+            }
+
+            // 接收消息
+            function receiveMessage(port, data) {
+                const targetPort = port === 'port1' ? 'port2' : 'port1';
+
+                // 检查端口状态
+                const portStatus = document.getElementById(port + 'Status').textContent;
+                if (portStatus === '已关闭') {
+                    log(`⚠️ 端口已关闭，忽略消息`, 'warning');
+                    return;
+                }
+
+                const size = estimateSize(data);
+
+                messages[port].push({
+                    data: data,
+                    time: new Date().toLocaleTimeString(),
+                    from: targetPort,
+                    size: size
+                });
+
+                stats.received++;
+                stats.total++;
+                stats.lastSecondMessages++;
+
+                updateMessageDisplays();
+                updateStats();
+
+                log(`📥 Port ${targetPort} 收到消息 (${size}B)`, 'info');
+            }
+
+            // 发送消息包装
+            function sendMessage(port, data, from) {
+                // 检查端口状态
+                const portStatus = document.getElementById(from + 'Status').textContent;
+                if (portStatus === '已关闭') {
+                    log(`❌ 发送失败: ${from} 已关闭`, 'error');
+                    stats.errors++;
+                    updateStats();
+                    return false;
+                }
+
+                try {
+                    port.postMessage(data);
+
+                    const targetPort = from === 'port1' ? 'port2' : 'port1';
+                    const size = estimateSize(data);
+
+                    messages[targetPort].push({
+                        data: data,
+                        time: new Date().toLocaleTimeString(),
+                        from: from,
+                        sent: true,
+                        size: size
+                    });
+
+                    stats.sent++;
+                    stats.total++;
+                    stats.lastSecondMessages++;
+
+                    updateMessageDisplays();
+                    updateStats();
+
+                    log(`📤 ${from} 发送: ${formatMessage(data)} (${size}B)`, 'success');
+                    return true;
+                } catch (error) {
+                    log(`❌ 发送失败: ${error.message}`, 'error');
+                    stats.errors++;
+                    updateStats();
+                    return false;
+                }
+            }
+
+            // 估算数据大小
+            function estimateSize(data) {
+                try {
+                    if (typeof data === 'string') return data.length;
+                    if (data instanceof ArrayBuffer) return data.byteLength;
+                    if (typeof data === 'object') return JSON.stringify(data).length;
+                    return 0;
+                } catch {
+                    return 0;
+                }
+            }
+
+            // 格式化消息显示
+            function formatMessage(data) {
+                try {
+                    if (typeof data === 'string') {
+                        return data.length > 20 ? data.substring(0, 20) + '...' : data;
+                    }
+                    if (data instanceof ArrayBuffer) {
+                        return '[二进制]';
+                    }
+                    if (Array.isArray(data)) {
+                        return '[数组]';
+                    }
+                    if (typeof data === 'object') {
+                        return '[对象]';
+                    }
+                    return String(data);
+                } catch {
+                    return '[数据]';
+                }
+            }
+
+            // 错误处理
+            function handleError(context, error) {
+                stats.errors++;
+                updateStats();
+                log(`❌ ${context}: ${error.message || error}`, 'error');
+                showError(`${context}: ${error.message || error}`);
+            }
+
+            // 从 Port1 发送
+            window.sendFromPort1 = function () {
+                const input = document.getElementById('port1Input');
+                const message = input.value.trim();
+
+                if (!message) {
+                    log('⚠️ 请输入消息', 'warning');
+                    return;
+                }
+
+                sendMessage(port1, message, 'port1');
+            };
+
+            // 从 Port2 发送
+            window.sendFromPort2 = function () {
+                const input = document.getElementById('port2Input');
+                const message = input.value.trim();
+
+                if (!message) {
+                    log('⚠️ 请输入消息', 'warning');
+                    return;
+                }
+
+                sendMessage(port2, message, 'port2');
+            };
+
+            // 发送对象
+            window.sendObjectFromPort1 = function () {
+                const obj = {
+                    type: 'object',
+                    message: '来自Port1的对象',
+                    timestamp: Date.now(),
+                    random: Math.random(),
+                    nested: {
+                        value: 42,
+                        active: true,
+                        array: [1, 2, 3]
+                    }
+                };
+                sendMessage(port1, obj, 'port1');
+            };
+
+            window.sendObjectFromPort2 = function () {
+                const obj = {
+                    type: 'object',
+                    message: '来自Port2的对象',
+                    timestamp: Date.now(),
+                    random: Math.random(),
+                    array: [1, 2, 3, 4, 5],
+                    nested: {
+                        x: 100,
+                        y: 200
+                    }
+                };
+                sendMessage(port2, obj, 'port2');
+            };
+
+            // 发送数组
+            window.sendArrayFromPort1 = function () {
+                const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+                sendMessage(port1, arr, 'port1');
+            };
+
+            window.sendArrayFromPort2 = function () {
+                const arr = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+                sendMessage(port2, arr, 'port2');
+            };
+
+            // 错误测试
+            window.sendErrorTest = function () {
+                try {
+                    // 尝试发送循环引用（会导致错误）
+                    const obj = {};
+                    obj.self = obj;
+                    sendMessage(port1, obj, 'port1');
+                } catch (error) {
+                    log(`❌ 错误测试: ${error.message}`, 'error');
+                }
+            };
+
+            // 发送复杂数据
+            window.sendComplexData = function () {
+                const data = {
+                    string: 'test',
+                    number: 123,
+                    boolean: true,
+                    null: null,
+                    array: [1, 2, 3],
+                    date: new Date(),
+                    regexp: /test/g,
+                    map: new Map([['key', 'value']]),
+                    set: new Set([1, 2, 3])
+                };
+
+                sendMessage(port2, data, 'port2');
+            };
+
+            // 关闭 Port1
+            window.closePort1 = function () {
+                if (port1) {
+                    try {
+                        port1.close();
+                        document.getElementById('port1Status').textContent = '已关闭';
+                        document.getElementById('port1Status').className = 'port-status closed';
+                        updateButtonStates(); // 关键：更新按钮状态
+                        log('🔒 Port1 已关闭', 'warning');
+                    } catch (error) {
+                        log(`❌ 关闭 Port1 失败: ${error.message}`, 'error');
+                    }
+                }
+            };
+
+            // 关闭 Port2
+            window.closePort2 = function () {
+                if (port2) {
+                    try {
+                        port2.close();
+                        document.getElementById('port2Status').textContent = '已关闭';
+                        document.getElementById('port2Status').className = 'port-status closed';
+                        updateButtonStates(); // 关键：更新按钮状态
+                        log('🔒 Port2 已关闭', 'warning');
+                    } catch (error) {
+                        log(`❌ 关闭 Port2 失败: ${error.message}`, 'error');
+                    }
+                }
+            };
+
+            // 清空消息
+            window.clearMessages = function () {
+                messages = { port1: [], port2: [] };
+                updateMessageDisplays();
+                log('🗑️ 已清空消息', 'info');
+            };
+
+            // 导出日志
+            window.exportMessages = function () {
+                const logData = {
+                    timestamp: new Date().toISOString(),
+                    stats: stats,
+                    messages: messages,
+                    channels: channels.length
+                };
+
+                const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `channel-log-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                log('📥 导出日志', 'success');
+            };
+
+            // 更新消息显示
+            function updateMessageDisplays() {
+                const port1El = document.getElementById('port1Messages');
+                const port2El = document.getElementById('port2Messages');
+
+                if (port1El) {
+                    if (messages.port1.length === 0) {
+                        port1El.innerHTML = '<div class="message-item">等待消息...</div>';
+                    } else {
+                        port1El.innerHTML = messages.port1.slice(-5).map(msg => {
+                            const displayData = typeof msg.data === 'object' ? '[对象]' :
+                                (typeof msg.data === 'string' && msg.data.length > 20 ?
+                                    msg.data.substring(0, 20) + '...' : msg.data);
+                            return `
+                                <div class="message-item ${msg.sent ? 'sent' : ''}">
+                                    <span class="message-time">[${msg.time}]</span>
+                                    ${msg.from}: ${displayData} (${msg.size}B)
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                if (port2El) {
+                    if (messages.port2.length === 0) {
+                        port2El.innerHTML = '<div class="message-item">等待消息...</div>';
+                    } else {
+                        port2El.innerHTML = messages.port2.slice(-5).map(msg => {
+                            const displayData = typeof msg.data === 'object' ? '[对象]' :
+                                (typeof msg.data === 'string' && msg.data.length > 20 ?
+                                    msg.data.substring(0, 20) + '...' : msg.data);
+                            return `
+                                <div class="message-item ${msg.sent ? 'sent' : ''}">
+                                    <span class="message-time">[${msg.time}]</span>
+                                    ${msg.from}: ${displayData} (${msg.size}B)
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+            }
+
+            // iframe 通信
+            window.connectToIframe = function () {
+                try {
+                    const iframe = document.getElementById('messageFrame');
+                    const channel = new MessageChannel();
+
+                    iframePort = channel.port1;
+
+                    iframePort.onmessage = (event) => {
+                        const messagesDiv = document.getElementById('iframeMessages');
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'message-item';
+
+                        let content = formatMessage(event.data);
+                        if (event.data instanceof ArrayBuffer) {
+                            content = `二进制数据 ${event.data.byteLength} 字节`;
+                        }
+
+                        msgDiv.innerHTML = `<span class="message-time">[${new Date().toLocaleTimeString()}]</span> 📥 iframe: ${content}`;
+                        messagesDiv.appendChild(msgDiv);
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                        stats.received++;
+                        stats.total++;
+                        updateStats();
+
+                        log(`📥 收到 iframe 消息`, 'info');
+                    };
+
+                    iframe.contentWindow.postMessage({ type: 'init' }, '*', [channel.port2]);
+
+                    const messagesDiv = document.getElementById('iframeMessages');
+                    messagesDiv.innerHTML = '<div class="message-item">✅ 已连接到 iframe</div>';
+
+                    log('✅ 已连接到 iframe', 'success');
+                } catch (error) {
+                    handleError('连接 iframe 失败', error);
+                }
+            };
+
+            window.sendToIframe = function () {
+                if (!iframePort) {
+                    log('⚠️ 请先连接到 iframe', 'warning');
+                    return;
+                }
+
+                const message = 'Hello from main window ' + new Date().toLocaleTimeString();
+                iframePort.postMessage(message);
+
+                const messagesDiv = document.getElementById('iframeMessages');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message-item sent';
+                msgDiv.innerHTML = `<span class="message-time">[${new Date().toLocaleTimeString()}]</span> 📤 发送到 iframe: ${message}`;
+                messagesDiv.appendChild(msgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+
+                log('📤 发送到 iframe', 'success');
+            };
+
+            window.sendObjectToIframe = function () {
+                if (!iframePort) return;
+
+                const obj = {
+                    type: 'command',
+                    action: 'update',
+                    data: {
+                        value: Math.random(),
+                        timestamp: Date.now()
+                    }
+                };
+
+                iframePort.postMessage(obj);
+
+                const messagesDiv = document.getElementById('iframeMessages');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message-item sent';
+                msgDiv.innerHTML = `<span class="message-time">[${new Date().toLocaleTimeString()}]</span> 📤 发送对象到 iframe`;
+                messagesDiv.appendChild(msgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+
+                log('📤 发送对象到 iframe', 'success');
+            };
+
+            window.sendBinaryToIframe = function () {
+                if (!iframePort) return;
+
+                const buffer = new ArrayBuffer(1000);
+                const view = new Uint8Array(buffer);
+                for (let i = 0; i < view.length; i++) {
+                    view[i] = i % 256;
+                }
+
+                iframePort.postMessage(buffer, [buffer]);
+
+                const messagesDiv = document.getElementById('iframeMessages');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message-item sent';
+                msgDiv.innerHTML = `<span class="message-time">[${new Date().toLocaleTimeString()}]</span> 📤 发送二进制: 1000 字节`;
+                messagesDiv.appendChild(msgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+
+                log('📤 发送二进制到 iframe', 'success');
+            };
+
+            // Worker 通信
+            window.startWorker = function () {
+                try {
+                    const workerCode = `
+                        let port;
+                        
+                        self.onmessage = (event) => {
+                            port = event.data.port;
+                            
+                            port.onmessage = (e) => {
+                                if (e.data.type === 'task') {
+                                    const result = e.data.num * 2;
+                                    port.postMessage({ type: 'result', result: result });
+                                } else if (e.data.type === 'heavy') {
+                                    let sum = 0;
+                                    for (let i = 0; i < e.data.iterations; i++) {
+                                        sum += Math.sqrt(i);
+                                    }
+                                    port.postMessage({ type: 'result', result: sum });
+                                } else if (e.data.type === 'ping') {
+                                    port.postMessage({ type: 'pong', time: Date.now() });
+                                } else {
+                                    port.postMessage('Worker收到: ' + e.data);
+                                }
+                            };
+                            
+                            port.postMessage('Worker已启动');
+                        };
+                    `;
+
+                    const blob = new Blob([workerCode], { type: 'application/javascript' });
+                    const workerUrl = URL.createObjectURL(blob);
+                    worker = new Worker(workerUrl);
+
+                    const channel = new MessageChannel();
+                    workerPort = channel.port1;
+
+                    workerPort.onmessage = (event) => {
+                        workerMessages.push({
+                            data: event.data,
+                            time: new Date().toLocaleTimeString()
+                        });
+                        updateWorkerDisplays();
+
+                        stats.received++;
+                        stats.total++;
+                        updateStats();
+
+                        log(`📥 Worker 消息: ${formatMessage(event.data)}`, 'info');
+                    };
+
+                    worker.postMessage({ port: channel.port2 }, [channel.port2]);
+
+                    document.getElementById('workerStatus').textContent = 'Worker 状态: 运行中 ✅';
+                    document.getElementById('workerStatus').className = 'worker-status';
+                    document.getElementById('workerThreadStatus').textContent = '运行中';
+                    document.getElementById('workerThreadStatus').className = 'port-status';
+
+                    log('✅ Worker 已启动', 'success');
+                } catch (error) {
+                    handleError('启动 Worker 失败', error);
+                    document.getElementById('workerStatus').textContent = 'Worker 状态: 错误 ❌';
+                    document.getElementById('workerStatus').className = 'worker-status error';
+                }
+            };
+
+            window.stopWorker = function () {
+                if (worker) {
+                    worker.terminate();
+                    worker = null;
+                    workerPort = null;
+
+                    document.getElementById('workerStatus').textContent = 'Worker 状态: 已停止';
+                    document.getElementById('workerStatus').className = 'worker-status error';
+                    document.getElementById('workerThreadStatus').textContent = '已停止';
+                    document.getElementById('workerThreadStatus').className = 'port-status closed';
+
+                    log('⏹️ Worker 已停止', 'info');
+                }
+            };
+
+            window.restartWorker = function () {
+                stopWorker();
+                setTimeout(() => startWorker(), 100);
+                log('🔄 重启 Worker', 'info');
+            };
+
+            window.sendToWorker = function () {
+                if (!workerPort) {
+                    log('⚠️ 请先启动 Worker', 'warning');
+                    return;
+                }
+
+                const input = document.getElementById('workerInput');
+                const message = input.value.trim();
+
+                if (!message) return;
+
+                workerPort.postMessage(message);
+
+                mainMessages.push({
+                    data: message,
+                    time: new Date().toLocaleTimeString()
+                });
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+                updateWorkerDisplays();
+
+                log('📤 发送到 Worker: ' + message, 'success');
+            };
+
+            window.sendTaskToWorker = function () {
+                if (!workerPort) return;
+
+                const task = {
+                    type: 'task',
+                    num: Math.floor(Math.random() * 100)
+                };
+
+                workerPort.postMessage(task);
+
+                mainMessages.push({
+                    data: '[任务] ' + task.num,
+                    time: new Date().toLocaleTimeString()
+                });
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+                updateWorkerDisplays();
+
+                log('📤 发送任务到 Worker', 'success');
+            };
+
+            window.sendHeavyTask = function () {
+                if (!workerPort) return;
+
+                const task = {
+                    type: 'heavy',
+                    iterations: 1000000
+                };
+
+                workerPort.postMessage(task);
+
+                mainMessages.push({
+                    data: '[繁重任务] 100万次迭代',
+                    time: new Date().toLocaleTimeString()
+                });
+
+                stats.sent++;
+                stats.total++;
+                updateStats();
+                updateWorkerDisplays();
+
+                log('📤 发送繁重任务到 Worker', 'success');
+            };
+
+            function updateWorkerDisplays() {
+                const mainEl = document.getElementById('workerMainMessages');
+                const workerEl = document.getElementById('workerMessages');
+
+                if (mainEl) {
+                    if (mainMessages.length === 0) {
+                        mainEl.innerHTML = '<div class="message-item">等待消息...</div>';
+                    } else {
+                        mainEl.innerHTML = mainMessages.slice(-5).map(msg => `
+                            <div class="message-item sent">
+                                <span class="message-time">[${msg.time}]</span>
+                                📤 ${msg.data}
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                if (workerEl) {
+                    if (workerMessages.length === 0) {
+                        workerEl.innerHTML = '<div class="message-item">等待消息...</div>';
+                    } else {
+                        workerEl.innerHTML = workerMessages.slice(-5).map(msg => `
+                            <div class="message-item">
+                                <span class="message-time">[${msg.time}]</span>
+                                📥 ${typeof msg.data === 'object' ? JSON.stringify(msg.data) : msg.data}
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+
+            // 批量消息
+            window.sendBatchMessages = function (count = 10) {
+                if (!port1) return;
+
+                const start = performance.now();
+
+                for (let i = 0; i < count; i++) {
+                    sendMessage(port1, `批量消息 ${i + 1}`, 'port1');
+                }
+
+                const end = performance.now();
+                const resultEl = document.getElementById('batchResult');
+                if (resultEl) {
+                    resultEl.innerHTML = `
+                        ⏱️ 发送 ${count} 条消息<br>
+                        耗时: ${(end - start).toFixed(2)}ms<br>
+                        速度: ${Math.round(count / ((end - start) / 1000))} 条/秒
+                    `;
+                }
+
+                log(`📤 发送 ${count} 条批量消息`, 'success');
+            };
+
+            // 测量延迟
+            window.measureLatency = function () {
+                if (!port1) return;
+
+                const iterations = 10;
+                let sum = 0;
+                let count = 0;
+
+                const measure = () => {
+                    const start = performance.now();
+
+                    const handler = (event) => {
+                        const end = performance.now();
+                        sum += end - start;
+                        count++;
+
+                        if (count < iterations) {
+                            sendMessage(port1, { echoTime: performance.now() }, 'port1');
+                        } else {
+                            port2.onmessage = null;
+                            const avg = sum / iterations;
+                            stats.avgLatency = avg;
+                            const resultEl = document.getElementById('perfResult');
+                            if (resultEl) {
+                                resultEl.innerHTML = `
+                                    📏 平均延迟: ${avg.toFixed(2)}ms<br>
+                                    最小: ${(avg * 0.8).toFixed(2)}ms<br>
+                                    最大: ${(avg * 1.2).toFixed(2)}ms
+                                `;
+                            }
+                            log(`📏 延迟测试完成: ${avg.toFixed(2)}ms`, 'success');
+                        }
+                    };
+
+                    port2.onmessage = handler;
+                    sendMessage(port1, { echoTime: start }, 'port1');
+                };
+
+                measure();
+            };
+
+            // 测量吞吐量
+            window.measureThroughput = function () {
+                if (!port1) return;
+
+                const count = 1000;
+                let received = 0;
+                const start = performance.now();
+
+                const handler = () => {
+                    received++;
+                    if (received === count) {
+                        const end = performance.now();
+                        const throughput = Math.round(count / ((end - start) / 1000));
+                        const resultEl = document.getElementById('perfResult');
+                        if (resultEl) {
+                            resultEl.innerHTML = `
+                                📊 吞吐量: ${throughput} 条/秒<br>
+                                总时间: ${(end - start).toFixed(2)}ms<br>
+                                消息数: ${count}
+                            `;
+                        }
+                        port2.onmessage = null;
+                        log(`📊 吞吐量测试完成: ${throughput} 条/秒`, 'success');
+                    }
+                };
+
+                port2.onmessage = handler;
+
+                for (let i = 0; i < count; i++) {
+                    sendMessage(port1, `perf-${i}`, 'port1');
+                }
+            };
+
+            // 压力测试
+            window.stressTest = function () {
+                if (!port1) return;
+
+                const count = 5000;
+                let received = 0;
+                let errors = 0;
+                const start = performance.now();
+
+                const handler = () => {
+                    received++;
+                    if (received + errors === count) {
+                        const end = performance.now();
+                        const resultEl = document.getElementById('perfResult');
+                        if (resultEl) {
+                            resultEl.innerHTML = `
+                                ⚡ 压力测试结果<br>
+                                总消息: ${count}<br>
+                                成功: ${received}<br>
+                                失败: ${errors}<br>
+                                耗时: ${(end - start).toFixed(2)}ms<br>
+                                速度: ${Math.round(count / ((end - start) / 1000))} 条/秒
+                            `;
+                        }
+                        port2.onmessage = null;
+                        log(`⚡ 压力测试完成`, 'success');
+                    }
+                };
+
+                port2.onmessage = handler;
+
+                for (let i = 0; i < count; i++) {
+                    try {
+                        sendMessage(port1, `stress-${i}`, 'port1');
+                    } catch {
+                        errors++;
+                    }
+                }
+            };
+
+            // 多通道管理
+            window.createMultipleChannels = function () {
+                channels = [];
+
+                for (let i = 0; i < 3; i++) {
+                    const ch = new MessageChannel();
+                    channels.push(ch);
+
+                    ch.port1.onmessage = (event) => {
+                        log(`📥 通道 ${i + 1} 收到消息: ${event.data}`, 'info');
+                    };
+
+                    ch.port2.postMessage(`通道 ${i + 1} 初始化`);
+                }
+
+                const resultEl = document.getElementById('multiChannelResult');
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        `✅ 创建 3 个独立通道<br>` +
+                        channels.map((ch, i) => `通道 ${i + 1} 已就绪`).join('<br>');
+                }
+
+                log('✅ 创建3个独立通道', 'success');
+            };
+
+            window.broadcastMessage = function () {
+                if (channels.length === 0) {
+                    log('⚠️ 请先创建通道', 'warning');
+                    return;
+                }
+
+                const message = '广播消息 ' + new Date().toLocaleTimeString();
+
+                channels.forEach((ch, i) => {
+                    ch.port1.postMessage(message);
+                });
+
+                const resultEl = document.getElementById('multiChannelResult');
+                if (resultEl) {
+                    resultEl.innerHTML += `<br>📢 广播: ${message}`;
+                }
+
+                log('📢 广播消息到所有通道', 'success');
+            };
+
+            window.closeAllChannels = function () {
+                channels.forEach(ch => {
+                    ch.port1.close();
+                    ch.port2.close();
+                });
+                channels = [];
+                const resultEl = document.getElementById('multiChannelResult');
+                if (resultEl) {
+                    resultEl.innerHTML = '所有通道已关闭';
+                }
+                log('🔒 关闭所有通道', 'warning');
+            };
+
+            // 复杂数据传输
+            window.sendLargeData = function () {
+                if (!port1) return;
+
+                const largeData = {
+                    type: 'large',
+                    array: new Array(10000).fill(0).map((_, i) => ({
+                        index: i,
+                        value: Math.random(),
+                        text: 'data'.repeat(10)
+                    })),
+                    timestamp: Date.now()
+                };
+
+                const size = new Blob([JSON.stringify(largeData)]).size;
+
+                sendMessage(port1, largeData, 'port1');
+
+                const resultEl = document.getElementById('complexResult');
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        `📦 发送大对象: ${(size / 1024).toFixed(2)}KB (${size} 字节)`;
+                }
+
+                log(`📦 发送大对象 (${(size / 1024).toFixed(2)}KB)`, 'success');
+            };
+
+            window.sendBinaryData = function () {
+                if (!port1) return;
+
+                const size = 1024 * 100; // 100KB
+                const buffer = new ArrayBuffer(size);
+                const view = new Uint8Array(buffer);
+                for (let i = 0; i < view.length; i++) {
+                    view[i] = i % 256;
+                }
+
+                sendMessage(port1, {
+                    type: 'binary',
+                    data: buffer,
+                    size: size
+                }, 'port1');
+
+                const resultEl = document.getElementById('complexResult');
+                if (resultEl) {
+                    resultEl.innerHTML =
+                        `🔢 发送二进制数据: ${size} 字节 (${(size / 1024).toFixed(2)}KB)`;
+                }
+
+                log(`🔢 发送二进制数据`, 'success');
+            };
+
+            window.sendTransferable = function () {
+                if (!port1) return;
+
+                // 创建可转移对象
+                const buffer1 = new ArrayBuffer(1000);
+                const buffer2 = new ArrayBuffer(2000);
+
+                try {
+                    port1.postMessage({ buf1: buffer1, buf2: buffer2 }, [buffer1, buffer2]);
+
+                    const resultEl = document.getElementById('complexResult');
+                    if (resultEl) {
+                        resultEl.innerHTML =
+                            `🔄 转移 2 个 ArrayBuffer (3KB)`;
+                    }
+
+                    stats.sent++;
+                    stats.total++;
+                    updateStats();
+
+                    log('🔄 发送可转移对象', 'success');
+                } catch (error) {
+                    handleError('发送可转移对象失败', error);
+                }
+            };
+
+            // 回声测试
+            window.echoTest = function () {
+                if (!port1) return;
+
+                const start = performance.now();
+
+                port2.onmessage = (event) => {
+                    const end = performance.now();
+                    const latency = end - start;
+                    stats.avgLatency = (stats.avgLatency * 0.9 + latency * 0.1);
+                    const resultEl = document.getElementById('echoResult');
+                    if (resultEl) {
+                        resultEl.innerHTML =
+                            `🔊 回声时间: ${latency.toFixed(2)}ms`;
+                    }
+                    port2.onmessage = null;
+                };
+
+                sendMessage(port1, 'echo', 'port1');
+                log('🔊 开始回声测试', 'info');
+            };
+
+            window.pingPong = function () {
+                if (!port1) return;
+
+                let count = 0;
+                const start = performance.now();
+
+                port2.onmessage = (event) => {
+                    if (event.data === 'pong') {
+                        count++;
+                        if (count < 10) {
+                            sendMessage(port1, 'ping', 'port1');
+                        } else {
+                            const end = performance.now();
+                            const resultEl = document.getElementById('echoResult');
+                            if (resultEl) {
+                                resultEl.innerHTML =
+                                    `🏓 10次 Ping-Pong: ${(end - start).toFixed(2)}ms<br>` +
+                                    `平均: ${((end - start) / 10).toFixed(2)}ms/次`;
+                            }
+                            port2.onmessage = null;
+                        }
+                    }
+                };
+
+                sendMessage(port1, 'ping', 'port1');
+                log('🏓 开始 Ping-Pong 测试', 'info');
+            };
+
+            window.pingPongCount = function (count = 100) {
+                if (!port1) return;
+
+                let received = 0;
+                const start = performance.now();
+
+                port2.onmessage = (event) => {
+                    if (event.data === 'pong') {
+                        received++;
+                        if (received < count) {
+                            sendMessage(port1, 'ping', 'port1');
+                        } else {
+                            const end = performance.now();
+                            const resultEl = document.getElementById('echoResult');
+                            if (resultEl) {
+                                resultEl.innerHTML =
+                                    `🏓 ${count}次 Ping-Pong: ${(end - start).toFixed(2)}ms<br>` +
+                                    `平均: ${((end - start) / count).toFixed(2)}ms/次`;
+                            }
+                            port2.onmessage = null;
+                        }
+                    }
+                };
+
+                sendMessage(port1, 'ping', 'port1');
+                log(`🏓 开始 ${count} 次 Ping-Pong 测试`, 'info');
+            };
+
+            // 错误恢复测试
+            window.testErrorRecovery = function () {
+                try {
+                    // 模拟错误
+                    throw new Error('测试错误');
+                } catch (error) {
+                    handleError('错误恢复测试', error);
+
+                    // 尝试恢复
+                    setTimeout(() => {
+                        createNewChannel();
+                        const resultEl = document.getElementById('recoveryResult');
+                        if (resultEl) {
+                            resultEl.innerHTML = '✅ 错误已恢复，创建新通道';
+                        }
+                    }, 1000);
+                }
+            };
+
+            window.simulateDisconnect = function () {
+                if (!port1) return;
+
+                port1.close();
+                document.getElementById('port1Status').textContent = '已断开';
+                document.getElementById('port1Status').className = 'port-status closed';
+                updateButtonStates();
+
+                const resultEl = document.getElementById('recoveryResult');
+                if (resultEl) {
+                    resultEl.innerHTML = '⚠️ 连接已断开，等待重连...';
+                }
+
+                log('⚡ 模拟断开连接', 'warning');
+            };
+
+            window.autoReconnect = function () {
+                if (!port1) return;
+
+                let attempts = 0;
+                const maxAttempts = 5;
+
+                const reconnect = () => {
+                    attempts++;
+                    try {
+                        createNewChannel();
+                        const resultEl = document.getElementById('recoveryResult');
+                        if (resultEl) {
+                            resultEl.innerHTML = `✅ 第 ${attempts} 次重连成功`;
+                        }
+                        log(`✅ 自动重连成功`, 'success');
+                    } catch (error) {
+                        if (attempts < maxAttempts) {
+                            const resultEl = document.getElementById('recoveryResult');
+                            if (resultEl) {
+                                resultEl.innerHTML = `⏳ 第 ${attempts} 次重连失败，${attempts * 1000}ms后重试...`;
+                            }
+                            setTimeout(reconnect, attempts * 1000);
+                        } else {
+                            const resultEl = document.getElementById('recoveryResult');
+                            if (resultEl) {
+                                resultEl.innerHTML = `❌ 重连失败，已达最大次数`;
+                            }
+                        }
+                    }
+                };
+
+                simulateDisconnect();
+                setTimeout(reconnect, 1000);
+            };
+
+            // 压力测试
+            window.runStressTest = function () {
+                if (!port1) return;
+
+                const count = parseInt(document.getElementById('stressSlider').value);
+                const sizeKB = parseInt(document.getElementById('sizeSlider').value);
+
+                stressTestActive = true;
+                stressStartTime = performance.now();
+                stressSent = 0;
+                stressReceived = 0;
+                stressErrors = 0;
+
+                // 创建测试数据
+                const testData = 'x'.repeat(sizeKB * 1024);
+
+                const handler = () => {
+                    stressReceived++;
+                    const progress = (stressReceived / count) * 100;
+                    document.getElementById('testProgress').textContent = progress.toFixed(1) + '%';
+
+                    if (stressReceived + stressErrors >= count) {
+                        const end = performance.now();
+                        const time = end - stressStartTime;
+                        const speed = Math.round(stressReceived / (time / 1000));
+
+                        document.getElementById('testSpeed').textContent = speed;
+                        document.getElementById('testTime').textContent = time.toFixed(0);
+                        document.getElementById('testErrors').textContent = stressErrors;
+
+                        const resultEl = document.getElementById('stressResult');
+                        if (resultEl) {
+                            resultEl.innerHTML = `
+                                <h4>📊 压力测试结果</h4>
+                                总消息: ${count}<br>
+                                成功: ${stressReceived}<br>
+                                失败: ${stressErrors}<br>
+                                总耗时: ${time.toFixed(2)}ms<br>
+                                平均速度: ${speed} 条/秒<br>
+                                数据量: ${(count * sizeKB / 1024).toFixed(2)}MB
+                            `;
+                        }
+
+                        port2.onmessage = null;
+                        stressTestActive = false;
+
+                        log('⚡ 压力测试完成', 'success');
+                    }
+                };
+
+                port2.onmessage = handler;
+
+                // 发送消息
+                for (let i = 0; i < count && stressTestActive; i++) {
+                    try {
+                        sendMessage(port1, {
+                            index: i,
+                            data: testData,
+                            time: Date.now()
+                        }, 'port1');
+                        stressSent++;
+                    } catch {
+                        stressErrors++;
+                    }
+                }
+            };
+
+            window.stopStressTest = function () {
+                stressTestActive = false;
+                port2.onmessage = null;
+                const resultEl = document.getElementById('stressResult');
+                if (resultEl) {
+                    resultEl.innerHTML = '⏹️ 测试已停止';
+                }
+                log('⏹️ 压力测试已停止', 'info');
+            };
+
+            window.resetStressTest = function () {
+                document.getElementById('testProgress').textContent = '0%';
+                document.getElementById('testSpeed').textContent = '0';
+                document.getElementById('testTime').textContent = '0';
+                document.getElementById('testErrors').textContent = '0';
+                const resultEl = document.getElementById('stressResult');
+                if (resultEl) {
+                    resultEl.innerHTML = '';
+                }
+                log('🔄 压力测试已重置', 'info');
+            };
+
+            // 标签页切换
+            window.switchTab = function (tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                event.target.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            };
+
+            // 日志
+            function log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                if (!logPanel) return;
+
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+
+                const now = new Date();
+                const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                entry.textContent = `${time} ${message}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+
+                while (logPanel.children.length > 100) {
+                    logPanel.removeChild(logPanel.children[0]);
+                }
+            }
+
+            // 初始化
+            window.onload = init;
+        })();
+    </script>
+</body>
+
+</html>

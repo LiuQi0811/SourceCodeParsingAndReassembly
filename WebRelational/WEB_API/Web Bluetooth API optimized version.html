@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Bluetooth API - 优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        h2 {
+            color: #555;
+            margin: 20px 0 15px;
+            font-size: 18px;
+        }
+
+        h3 {
+            color: #666;
+            margin: 15px 0 10px;
+            font-size: 16px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        .status-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .warning-panel {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .device-panel {
+            background: #1e1e2f;
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .info-item {
+            background: #2a2a3a;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .info-label {
+            color: #64b5f6;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            word-break: break-all;
+        }
+
+        .battery-meter {
+            background: #2a2a3a;
+            border-radius: 50px;
+            height: 30px;
+            position: relative;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .battery-level {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .service-list {
+            background: #2a2a3a;
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .service-item {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .service-item:hover {
+            background: #3a3a4a;
+        }
+
+        .service-item:last-child {
+            border-bottom: none;
+        }
+
+        .uuid {
+            font-family: monospace;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        .filter-section {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-row input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .filter-row input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .filter-row select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 150px;
+            background: white;
+        }
+
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .compat-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .compat-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .compat-table td:first-child {
+            font-weight: 600;
+            width: 40%;
+        }
+
+        .yes {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .no {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .partial {
+            color: #ff9800;
+            font-weight: bold;
+        }
+
+        .uuid-reference {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .uuid-item {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .uuid-name {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .test-device {
+            background: #e8f5e8;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📶 Web Bluetooth API</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>连接蓝牙设备，读取电池服务数据（需要HTTPS/localhost）</p>
+
+            <!-- 安全提示 -->
+            <div class="warning-panel" id="securityWarning" style="display: none;">
+                <strong>⚠️ 安全要求：</strong> 必须使用 HTTPS 或 localhost 环境
+            </div>
+
+            <!-- 测试设备提示（仅用于演示） -->
+            <div class="test-device" id="testDeviceInfo" style="display: none;">
+                <strong>📱 无真实设备时：</strong> 可使用手机或蓝牙开发板测试<br>
+                <small>支持：心率带、智能手环、蓝牙电池设备等</small>
+            </div>
+
+            <!-- 过滤条件 -->
+            <div class="filter-section">
+                <h3>🔍 设备过滤</h3>
+                <div class="filter-row">
+                    <select id="filterType">
+                        <option value="services">按服务过滤</option>
+                        <option value="name">按名称过滤</option>
+                        <option value="all">接受所有设备</option>
+                    </select>
+                    <input type="text" id="filterValue" placeholder="battery_service" value="battery_service">
+                </div>
+                <div class="filter-row">
+                    <input type="text" id="optionalServices" placeholder="可选服务 (逗号分隔)"
+                        value="battery_service,device_information">
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="button-group">
+                <button class="btn btn-primary" id="scanBtn">🔍 扫描设备</button>
+                <button class="btn btn-success" id="connectBtn" disabled>🔌 连接</button>
+                <button class="btn btn-danger" id="disconnectBtn" disabled>⛔ 断开</button>
+            </div>
+
+            <!-- 设备信息面板 -->
+            <div class="device-panel" id="devicePanel" style="display: none;">
+                <h3 style="color: white; margin-bottom: 15px;">📱 设备信息</h3>
+
+                <div class="device-info">
+                    <div class="info-item">
+                        <div class="info-label">设备名称</div>
+                        <div class="info-value" id="deviceName">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">设备ID</div>
+                        <div class="info-value" id="deviceId">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">连接状态</div>
+                        <div class="info-value" id="connectionStatus">未连接</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">GATT服务器</div>
+                        <div class="info-value" id="gattStatus">-</div>
+                    </div>
+                </div>
+
+                <!-- 电池电量 -->
+                <h3 style="color: white; margin: 15px 0;">🔋 电池电量</h3>
+                <div class="battery-meter">
+                    <div class="battery-level" id="batteryLevel" style="width: 0%;">0%</div>
+                </div>
+
+                <!-- 服务列表 -->
+                <h3 style="color: white; margin: 15px 0;">📋 可用服务</h3>
+                <div class="service-list" id="serviceList">
+                    暂无服务
+                </div>
+
+                <!-- 特性列表 -->
+                <h3 style="color: white; margin: 15px 0;">📊 特性列表</h3>
+                <div class="service-list" id="characteristicList">
+                    点击服务查看特性
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+
+            <!-- UUID参考 -->
+            <h2>📌 常用UUID参考</h2>
+            <div class="uuid-reference">
+                <div class="uuid-item">
+                    <span class="uuid-name">电池服务</span><br>
+                    <span class="uuid">battery_service</span>
+                </div>
+                <div class="uuid-item">
+                    <span class="uuid-name">设备信息</span><br>
+                    <span class="uuid">device_information</span>
+                </div>
+                <div class="uuid-item">
+                    <span class="uuid-name">心率服务</span><br>
+                    <span class="uuid">heart_rate</span>
+                </div>
+                <div class="uuid-item">
+                    <span class="uuid-name">电量特性</span><br>
+                    <span class="uuid">battery_level</span>
+                </div>
+            </div>
+
+            <!-- 兼容性 -->
+            <h2>🌐 浏览器支持</h2>
+            <table class="compat-table">
+                <tr>
+                    <td>Chrome (Android/桌面)</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+                <tr>
+                    <td>Edge (Chromium)</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+                <tr>
+                    <td>Firefox</td>
+                    <td class="no">❌ 不支持</td>
+                </tr>
+                <tr>
+                    <td>Safari (iOS)</td>
+                    <td class="no">❌ 不支持</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            class BluetoothDemo {
+                constructor() {
+                    this.device = null;
+                    this.server = null;
+                    this.services = new Map();
+
+                    this.elements = {
+                        apiStatus: document.getElementById('apiStatus'),
+                        securityWarning: document.getElementById('securityWarning'),
+                        testDeviceInfo: document.getElementById('testDeviceInfo'),
+                        filterType: document.getElementById('filterType'),
+                        filterValue: document.getElementById('filterValue'),
+                        optionalServices: document.getElementById('optionalServices'),
+                        scanBtn: document.getElementById('scanBtn'),
+                        connectBtn: document.getElementById('connectBtn'),
+                        disconnectBtn: document.getElementById('disconnectBtn'),
+                        devicePanel: document.getElementById('devicePanel'),
+                        deviceName: document.getElementById('deviceName'),
+                        deviceId: document.getElementById('deviceId'),
+                        connectionStatus: document.getElementById('connectionStatus'),
+                        gattStatus: document.getElementById('gattStatus'),
+                        batteryLevel: document.getElementById('batteryLevel'),
+                        serviceList: document.getElementById('serviceList'),
+                        characteristicList: document.getElementById('characteristicList'),
+                        logPanel: document.getElementById('logPanel')
+                    };
+
+                    this.init();
+                }
+
+                init() {
+                    this.checkSupport();
+                    this.setupEventListeners();
+
+                    // 检查安全环境
+                    this.checkSecureContext();
+
+                    this.log('系统初始化完成', 'success');
+
+                    // 显示测试提示
+                    setTimeout(() => {
+                        this.elements.testDeviceInfo.style.display = 'block';
+                    }, 2000);
+                }
+
+                checkSupport() {
+                    const supported = 'bluetooth' in navigator;
+
+                    if (supported) {
+                        this.elements.apiStatus.textContent = '✓ 支持';
+                        this.elements.apiStatus.className = 'status-badge status-supported';
+                        this.log('✅ Web Bluetooth API 可用', 'success');
+                    } else {
+                        this.elements.apiStatus.textContent = '✗ 不支持';
+                        this.elements.apiStatus.className = 'status-badge status-unsupported';
+                        this.elements.scanBtn.disabled = true;
+                        this.log('❌ 当前浏览器不支持', 'error');
+                    }
+                }
+
+                checkSecureContext() {
+                    const isSecure = window.isSecureContext;
+                    const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+                    if (!isSecure && !isLocalhost) {
+                        this.elements.securityWarning.style.display = 'block';
+                        this.elements.scanBtn.disabled = true;
+                        this.log('⚠️ 需要HTTPS环境', 'warning');
+                    }
+                }
+
+                setupEventListeners() {
+                    this.elements.scanBtn.addEventListener('click', () => this.scanDevices());
+                    this.elements.connectBtn.addEventListener('click', () => this.connectDevice());
+                    this.elements.disconnectBtn.addEventListener('click', () => this.disconnectDevice());
+
+                    this.elements.filterType.addEventListener('change', () => {
+                        const type = this.elements.filterType.value;
+                        this.elements.filterValue.disabled = type === 'all';
+                        if (type === 'all') {
+                            this.elements.filterValue.value = '';
+                        }
+                    });
+                }
+
+                async scanDevices() {
+                    try {
+                        this.log('🔍 开始扫描设备...', 'info');
+
+                        const filterType = this.elements.filterType.value;
+                        const filterValue = this.elements.filterValue.value.trim();
+                        const optionalServicesStr = this.elements.optionalServices.value;
+
+                        // 构建请求选项
+                        const options = {};
+
+                        if (filterType === 'all') {
+                            options.acceptAllDevices = true;
+                            this.log('📡 接受所有设备', 'info');
+                        } else {
+                            options.filters = [];
+                            const filter = {};
+
+                            if (filterType === 'services') {
+                                const services = filterValue.split(',').map(s => s.trim());
+                                filter.services = services;
+                                this.log(`📡 按服务过滤: ${services.join(', ')}`, 'info');
+                            } else if (filterType === 'name') {
+                                filter.name = filterValue;
+                                this.log(`📡 按名称过滤: ${filterValue}`, 'info');
+                            }
+
+                            options.filters.push(filter);
+                        }
+
+                        // 添加可选服务
+                        if (optionalServicesStr) {
+                            const services = optionalServicesStr.split(',').map(s => s.trim());
+                            options.optionalServices = services;
+                        }
+
+                        // 请求设备
+                        this.device = await navigator.bluetooth.requestDevice(options);
+
+                        // 显示设备信息
+                        this.elements.deviceName.textContent = this.device.name || '未知设备';
+                        this.elements.deviceId.textContent = this.device.id;
+                        this.elements.connectionStatus.textContent = '已选择';
+                        this.elements.gattStatus.textContent = '等待连接';
+                        this.elements.devicePanel.style.display = 'block';
+
+                        this.log(`✅ 已选择设备: ${this.device.name || '无名称'}`, 'success');
+
+                        // 启用连接按钮
+                        this.elements.connectBtn.disabled = false;
+
+                        // 监听断开事件
+                        this.device.addEventListener('gattserverdisconnected', () => {
+                            this.handleDisconnect();
+                        });
+
+                    } catch (err) {
+                        this.handleError(err);
+                    }
+                }
+
+                async connectDevice() {
+                    if (!this.device) {
+                        this.log('❌ 没有选择设备', 'error');
+                        return;
+                    }
+
+                    try {
+                        this.log('🔌 正在连接设备...', 'info');
+
+                        // 连接 GATT 服务器
+                        this.server = await this.device.gatt.connect();
+
+                        this.elements.connectionStatus.textContent = '已连接';
+                        this.elements.gattStatus.textContent = '已连接';
+                        this.elements.connectBtn.disabled = true;
+                        this.elements.disconnectBtn.disabled = false;
+
+                        this.log(`✅ GATT服务器已连接`, 'success');
+
+                        // 获取服务
+                        await this.discoverServices();
+
+                        // 尝试读取电池电量
+                        await this.readBatteryLevel();
+
+                    } catch (err) {
+                        this.handleError(err);
+                    }
+                }
+
+                async discoverServices() {
+                    if (!this.server) return;
+
+                    try {
+                        this.log('🔍 正在发现服务...', 'info');
+
+                        // 获取所有主要服务
+                        const services = await this.server.getPrimaryServices();
+
+                        if (services.length === 0) {
+                            this.elements.serviceList.innerHTML = '暂无服务';
+                            return;
+                        }
+
+                        // 清空并重新构建服务列表
+                        this.elements.serviceList.innerHTML = '';
+
+                        for (const service of services) {
+                            const serviceDiv = document.createElement('div');
+                            serviceDiv.className = 'service-item';
+
+                            const uuid = service.uuid;
+                            const name = this.getServiceName(uuid);
+
+                            serviceDiv.innerHTML = `
+                                <strong>${name}</strong><br>
+                                <span class="uuid">${uuid}</span>
+                            `;
+
+                            // 保存服务引用
+                            this.services.set(uuid, service);
+
+                            // 添加点击事件
+                            serviceDiv.addEventListener('click', () => {
+                                this.discoverCharacteristics(uuid);
+                            });
+
+                            this.elements.serviceList.appendChild(serviceDiv);
+                        }
+
+                        this.log(`📋 发现 ${services.length} 个服务`, 'success');
+
+                    } catch (err) {
+                        this.log(`❌ 获取服务失败: ${err.message}`, 'error');
+                    }
+                }
+
+                async discoverCharacteristics(serviceUuid) {
+                    try {
+                        const service = this.services.get(serviceUuid);
+                        if (!service) return;
+
+                        this.log(`🔍 获取服务特性: ${serviceUuid}`, 'info');
+
+                        const characteristics = await service.getCharacteristics();
+
+                        if (characteristics.length === 0) {
+                            this.elements.characteristicList.innerHTML = '暂无特性';
+                            return;
+                        }
+
+                        let html = '';
+                        for (const char of characteristics) {
+                            const props = [];
+                            if (char.properties.read) props.push('读');
+                            if (char.properties.write) props.push('写');
+                            if (char.properties.notify) props.push('通知');
+                            if (char.properties.indicate) props.push('指示');
+
+                            const name = this.getCharacteristicName(char.uuid);
+
+                            html += `
+                                <div class="service-item">
+                                    <strong>${name}</strong><br>
+                                    <span class="uuid">${char.uuid}</span><br>
+                                    <span style="color: #4CAF50; font-size: 11px;">属性: ${props.join('、')}</span>
+                                </div>
+                            `;
+
+                            // 如果是电池电量特性，读取值
+                            if (char.uuid.includes('2a19') || char.uuid === 'battery_level') {
+                                this.readCharacteristicValue(char);
+                            }
+                        }
+
+                        this.elements.characteristicList.innerHTML = html;
+
+                    } catch (err) {
+                        this.log(`❌ 获取特性失败: ${err.message}`, 'error');
+                    }
+                }
+
+                async readCharacteristicValue(characteristic) {
+                    try {
+                        if (!characteristic.properties.read) {
+                            this.log('ℹ️ 特性不支持读取', 'info');
+                            return;
+                        }
+
+                        const value = await characteristic.readValue();
+                        this.log(`📊 读取到值: ${this.formatValue(value)}`, 'success');
+
+                        // 如果是电池电量
+                        if (characteristic.uuid.includes('2a19')) {
+                            const percent = value.getUint8(0);
+                            this.updateBatteryUI(percent);
+                        }
+
+                        // 尝试启用通知
+                        if (characteristic.properties.notify) {
+                            await characteristic.startNotifications();
+                            characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                                const data = event.target.value;
+                                this.log(`🔔 收到通知: ${this.formatValue(data)}`, 'info');
+
+                                if (characteristic.uuid.includes('2a19')) {
+                                    const percent = data.getUint8(0);
+                                    this.updateBatteryUI(percent);
+                                }
+                            });
+                        }
+
+                    } catch (err) {
+                        this.log(`❌ 读取失败: ${err.message}`, 'error');
+                    }
+                }
+
+                async readBatteryLevel() {
+                    try {
+                        // 尝试获取电池服务
+                        let batteryService;
+                        try {
+                            batteryService = await this.server.getPrimaryService('battery_service');
+                        } catch {
+                            // 没有电池服务，忽略
+                            return;
+                        }
+
+                        // 获取电量特性
+                        const characteristics = await batteryService.getCharacteristics();
+
+                        for (const char of characteristics) {
+                            if (char.uuid.includes('2a19') || char.uuid === 'battery_level') {
+                                await this.readCharacteristicValue(char);
+                                break;
+                            }
+                        }
+
+                    } catch (err) {
+                        // 忽略电池服务错误
+                    }
+                }
+
+                updateBatteryUI(percent) {
+                    this.elements.batteryLevel.style.width = percent + '%';
+                    this.elements.batteryLevel.textContent = percent + '%';
+
+                    // 根据电量改变颜色
+                    if (percent <= 20) {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #f44336, #ff9800)';
+                    } else if (percent <= 50) {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #ff9800, #ffc107)';
+                    } else {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+                    }
+                }
+
+                handleDisconnect() {
+                    this.elements.connectionStatus.textContent = '已断开';
+                    this.elements.gattStatus.textContent = '未连接';
+                    this.elements.connectBtn.disabled = false;
+                    this.elements.disconnectBtn.disabled = true;
+
+                    this.server = null;
+                    this.services.clear();
+
+                    this.log('⚠️ 设备已断开', 'warning');
+                }
+
+                disconnectDevice() {
+                    if (this.device && this.device.gatt.connected) {
+                        this.device.gatt.disconnect();
+                        this.log('⛔ 已断开连接', 'info');
+                    }
+                }
+
+                handleError(err) {
+                    const message = err.message || '未知错误';
+
+                    if (err.name === 'NotFoundError') {
+                        this.log('ℹ️ 未选择设备', 'info');
+                    } else if (err.name === 'SecurityError') {
+                        this.log('❌ 安全错误: 需要HTTPS', 'error');
+                    } else if (err.name === 'NetworkError') {
+                        this.log('❌ 网络错误: 设备可能不在范围内', 'error');
+                    } else {
+                        this.log(`❌ ${err.name}: ${message}`, 'error');
+                    }
+                }
+
+                getServiceName(uuid) {
+                    const services = {
+                        '0000180f-0000-1000-8000-00805f9b34fb': '电池服务',
+                        '0000180a-0000-1000-8000-00805f9b34fb': '设备信息',
+                        '0000180d-0000-1000-8000-00805f9b34fb': '心率服务',
+                        '00001800-0000-1000-8000-00805f9b34fb': '通用访问',
+                        '00001801-0000-1000-8000-00805f9b34fb': '通用属性',
+                        'battery_service': '电池服务',
+                        'device_information': '设备信息',
+                        'heart_rate': '心率服务'
+                    };
+
+                    return services[uuid] || '未知服务';
+                }
+
+                getCharacteristicName(uuid) {
+                    const chars = {
+                        '00002a19-0000-1000-8000-00805f9b34fb': '电池电量',
+                        '00002a24-0000-1000-8000-00805f9b34fb': '型号',
+                        '00002a25-0000-1000-8000-00805f9b34fb': '序列号',
+                        '00002a26-0000-1000-8000-00805f9b34fb': '固件版本',
+                        '00002a29-0000-1000-8000-00805f9b34fb': '制造商',
+                        'battery_level': '电池电量'
+                    };
+
+                    return chars[uuid] || '未知特性';
+                }
+
+                formatValue(value) {
+                    try {
+                        if (value.byteLength === 1) {
+                            return value.getUint8(0) + '';
+                        } else if (value.byteLength === 2) {
+                            return value.getUint16(0, true) + '';
+                        } else if (value.byteLength <= 20) {
+                            // 尝试解析为字符串
+                            const decoder = new TextDecoder();
+                            return decoder.decode(value);
+                        } else {
+                            return `[${value.byteLength} 字节数据]`;
+                        }
+                    } catch {
+                        return `[${value.byteLength} 字节]`;
+                    }
+                }
+
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+
+                    // 格式化时间
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+                    entry.textContent = `${time} ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+
+                    // 自动滚动到底部
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    // 限制日志条数
+                    while (this.elements.logPanel.children.length > 50) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+            }
+
+            // 启动
+            window.addEventListener('load', () => {
+                new BluetoothDemo();
+            });
+        })();
+    </script>
+</body>
+
+</html>

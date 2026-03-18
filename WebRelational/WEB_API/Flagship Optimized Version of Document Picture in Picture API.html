@@ -1,0 +1,2817 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Picture-in-Picture API - 旗舰优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --purple: #8b5cf6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --gray-light: #94a3b8;
+            --border: #e2e8f0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.25);
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 28px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --light: #1e293b;
+                --dark: #f8fafc;
+                --border: #334155;
+                --gray: #94a3b8;
+                --gray-light: #64748b;
+            }
+
+            body {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+
+            .card,
+            .control-panel {
+                background: #2d3a4f;
+                color: #e2e8f0;
+            }
+
+            .code-block {
+                background: #0f172a;
+                border: 1px solid #334155;
+            }
+
+            input,
+            select,
+            textarea {
+                background: #1e293b;
+                color: #e2e8f0;
+                border-color: #475569;
+            }
+
+            .pip-preview {
+                background: #1e293b;
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部卡片 - 3D效果 */
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .badge-success {
+            background: var(--success);
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .badge-danger {
+            background: var(--danger);
+        }
+
+        /* 网格布局 */
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* 卡片通用 - 玻璃态 */
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            color: var(--dark);
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .card-header .icon {
+            font-size: 28px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+        }
+
+        /* 画中画预览区域 - 3D效果 */
+        .pip-preview {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 48px;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px dashed var(--primary);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pip-preview::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2), transparent);
+            pointer-events: none;
+        }
+
+        .pip-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 20px 30px rgba(99, 102, 241, 0.4));
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .pip-status {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .pip-window-info {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            padding: 24px;
+            border-radius: 24px;
+            margin-top: 20px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .pip-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .pip-info-row:last-child {
+            border-bottom: none;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            margin: 16px 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        /* 按钮系统 - 3D效果 */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #15803d);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #b45309);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #b91c1c);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, var(--info), #1d4ed8);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 特性检测 - 增强 */
+        .feature-check {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            margin: 10px 0;
+            transition: var(--transition);
+        }
+
+        .feature-check:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(8px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .feature-icon.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .feature-icon.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .feature-icon.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .feature-name {
+            flex: 1;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 1rem;
+        }
+
+        .feature-value {
+            font-family: 'Fira Code', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.15);
+            padding: 6px 16px;
+            border-radius: 40px;
+        }
+
+        /* 演示区域 */
+        .demo-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .pip-content-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: var(--transition);
+        }
+
+        .pip-content-card:hover {
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .pip-content-card h4 {
+            margin-bottom: 16px;
+            color: var(--dark);
+            font-size: 1.1rem;
+        }
+
+        /* 视频占位符 */
+        .video-placeholder {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 20px;
+            padding: 50px;
+            color: white;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 代码块 - 终端风格 */
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #334155;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        /* 日志面板 - 终端风格 */
+        .log-panel {
+            background: #0f172a;
+            border-radius: 32px;
+            padding: 24px;
+            margin-top: 32px;
+            color: #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            box-shadow: inset 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+
+        .log-entry {
+            padding: 10px 16px;
+            margin: 6px 0;
+            border-radius: 12px;
+            border-left: 6px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            transition: var(--transition);
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--success);
+            color: #86efac;
+        }
+
+        .log-entry.info {
+            border-left-color: var(--primary);
+            color: #93c5fd;
+        }
+
+        .log-entry.warning {
+            border-left-color: var(--warning);
+            color: #fcd34d;
+        }
+
+        .log-entry.error {
+            border-left-color: var(--danger);
+            color: #fca5a5;
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 13px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 进度条 */
+        .progress-container {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.3s;
+        }
+
+        /* 徽章动画 */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .badge-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1024px) {
+
+            .grid-2,
+            .grid-3,
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .pip-icon {
+                font-size: 80px;
+            }
+
+            .pip-status {
+                font-size: 24px;
+            }
+        }
+
+        /* 打印样式 */
+        @media print {
+
+            .btn,
+            .btn-group,
+            .log-panel {
+                display: none;
+            }
+
+            .card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+        }
+
+        /* 动画效果 */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card,
+        .pip-preview,
+        .feature-check {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* 加载动画 */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 头部 - 3D效果 -->
+        <div class="header-card">
+            <h1>
+                <span>📺 Document Picture-in-Picture API - 旗舰优化版</span>
+                <span class="badge" id="apiSupportBadge">检测中...</span>
+            </h1>
+            <p style="color: var(--gray); font-size: 16px; line-height: 1.8; max-width: 800px;">
+                在画中画窗口中打开任意HTML内容 · 自定义样式 · 事件监听 · 实时通信 · 多窗口管理 · 模板库 · 性能监控 · 数据持久化
+            </p>
+        </div>
+
+        <!-- 画中画状态展示 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">📊</span>
+                <h2>画中画窗口状态</h2>
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 16px;">
+                    <span class="tooltip" data-tooltip="当前画中画窗口状态">ⓘ</span>
+                    <span class="badge badge-pulse" id="pipStatus" style="background: var(--gray);">未激活</span>
+                </div>
+            </div>
+
+            <div class="pip-preview" id="pipPreview">
+                <div class="pip-icon" id="pipIcon">📺</div>
+                <div class="pip-status" id="pipStatusText">画中画窗口未打开</div>
+                <p style="color: var(--gray);">点击下方按钮在画中画窗口中打开内容</p>
+
+                <div class="pip-window-info" id="pipWindowInfo" style="display: none;">
+                    <div class="pip-info-row">
+                        <span>窗口宽度</span>
+                        <span id="pipWidth">--</span>
+                    </div>
+                    <div class="pip-info-row">
+                        <span>窗口高度</span>
+                        <span id="pipHeight">--</span>
+                    </div>
+                    <div class="pip-info-row">
+                        <span>窗口状态</span>
+                        <span id="pipWindowState">--</span>
+                    </div>
+                    <div class="pip-info-row">
+                        <span>文档标题</span>
+                        <span id="pipTitle">--</span>
+                    </div>
+                    <div class="pip-info-row">
+                        <span>打开时间</span>
+                        <span id="pipOpenTime">--</span>
+                    </div>
+                    <div class="pip-info-row">
+                        <span>运行时长</span>
+                        <span id="pipUptime">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速控制按钮 -->
+            <div class="btn-group" style="justify-content: center;">
+                <button class="btn btn-success" onclick="pipManager.openVideoPip()" id="videoPipBtn">
+                    📺 视频画中画
+                </button>
+                <button class="btn btn-info" onclick="pipManager.openCustomPip()" id="customPipBtn">
+                    🎨 自定义内容
+                </button>
+                <button class="btn btn-warning" onclick="pipManager.openTemplateSelector()" id="templateBtn">
+                    📚 模板库
+                </button>
+                <button class="btn btn-danger" onclick="pipManager.closePip()" id="closePipBtn" disabled>
+                    ❌ 关闭画中画
+                </button>
+            </div>
+        </div>
+
+        <!-- 特性检测和API信息 -->
+        <div class="grid-2">
+            <!-- 特性检测 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔍</span>
+                    <h2>特性检测</h2>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="pipApiIcon">❓</div>
+                    <span class="feature-name">documentPictureInPicture</span>
+                    <span class="feature-value" id="pipApiCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="windowSupportIcon">❓</div>
+                    <span class="feature-name">画中画窗口支持</span>
+                    <span class="feature-value" id="windowSupportCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="eventSupportIcon">❓</div>
+                    <span class="feature-name">事件监听支持</span>
+                    <span class="feature-value" id="eventSupportCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="styleSupportIcon">❓</div>
+                    <span class="feature-name">样式复制支持</span>
+                    <span class="feature-value" id="styleSupportCheck">检测中</span>
+                </div>
+
+                <div class="feature-check">
+                    <div class="feature-icon" id="storageSupportIcon">❓</div>
+                    <span class="feature-name">数据持久化</span>
+                    <span class="feature-value" id="storageSupportCheck">localStorage</span>
+                </div>
+
+                <div class="posture-card" style="margin-top: 16px; padding: 16px; border-left-color: var(--info);">
+                    <h4 style="margin-bottom: 8px;">📋 浏览器要求</h4>
+                    <p style="color: var(--gray); font-size: 14px;">✓ Chrome 111+、Edge 111+、Opera 97+</p>
+                    <p style="color: var(--gray); font-size: 14px;">✓ 需要用户手势触发 (点击按钮)</p>
+                    <p style="color: var(--gray); font-size: 14px;">✓ 需要 HTTPS 或 localhost</p>
+                </div>
+            </div>
+
+            <!-- API 基本信息 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">ℹ️</span>
+                    <h2>API 基本信息</h2>
+                    <span class="badge" id="apiVersion">v2.0</span>
+                </div>
+
+                <div class="code-block">
+                    <pre>// 请求画中画窗口
+const pipWindow = await documentPictureInPicture.requestWindow({
+  width: 400,
+  height: 300
+});
+
+// 复制样式到画中画窗口
+[...document.styleSheets].forEach(styleSheet => {
+  try {
+    const css = [...styleSheet.cssRules]
+      .map(rule => rule.cssText).join('');
+    pipWindow.document.head.appendChild(
+      Object.assign(document.createElement('style'), 
+      { textContent: css })
+    );
+  } catch (e) {}
+});
+
+// 添加内容
+pipWindow.document.body.append(content);
+
+// 监听窗口关闭
+pipWindow.addEventListener('pagehide', () => {
+  console.log('画中画窗口关闭');
+});</pre>
+                </div>
+
+                <div class="progress-container" style="margin-top: 16px;">
+                    <div class="progress-bar" id="apiProgress" style="width: 100%;"></div>
+                </div>
+                <p style="color: var(--gray);">API 成熟度: 稳定 (W3C工作草案)</p>
+            </div>
+        </div>
+
+        <!-- 主要演示区 -->
+        <div class="grid-2">
+            <!-- 视频播放器演示 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎬</span>
+                    <h2>视频画中画</h2>
+                </div>
+
+                <div class="video-placeholder" id="videoPlaceholder">
+                    🎬 视频播放器 (模拟)
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>视频URL (模拟)</label>
+                    <input type="text" id="videoUrl" value="https://example.com/video.mp4" placeholder="视频地址">
+                </div>
+
+                <div class="form-group">
+                    <label>视频标题</label>
+                    <input type="text" id="videoTitle" value="我的视频" placeholder="视频标题">
+                </div>
+
+                <div class="form-group">
+                    <label>视频质量</label>
+                    <select id="videoQuality">
+                        <option value="1080p">1080p 高清</option>
+                        <option value="720p" selected>720p 高清</option>
+                        <option value="480p">480p 标清</option>
+                        <option value="360p">360p 流畅</option>
+                    </select>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-small btn-success" onclick="pipManager.openVideoPip()">
+                        📺 打开视频画中画
+                    </button>
+                    <button class="btn btn-small btn-outline" onclick="pipManager.simulatePlayback()">
+                        ▶️ 模拟播放
+                    </button>
+                    <button class="btn btn-small btn-info" onclick="pipManager.saveVideoSettings()">
+                        💾 保存设置
+                    </button>
+                </div>
+            </div>
+
+            <!-- 自定义内容演示 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎨</span>
+                    <h2>自定义内容</h2>
+                </div>
+
+                <div class="demo-area">
+                    <div class="pip-content-card">
+                        <h4>📊 实时数据监控</h4>
+                        <div style="display: flex; gap: 15px; margin-top: 10px;">
+                            <div
+                                style="flex:1; background: rgba(99,102,241,0.2); padding: 15px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 12px; opacity: 0.8;">CPU</div>
+                                <div style="font-size: 24px; font-weight: bold;" id="cpuValue">45%</div>
+                            </div>
+                            <div
+                                style="flex:1; background: rgba(236,72,153,0.2); padding: 15px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 12px; opacity: 0.8;">内存</div>
+                                <div style="font-size: 24px; font-weight: bold;" id="memoryValue">2.3GB</div>
+                            </div>
+                            <div
+                                style="flex:1; background: rgba(34,197,94,0.2); padding: 15px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 12px; opacity: 0.8;">网络</div>
+                                <div style="font-size: 24px; font-weight: bold;" id="networkValue">15Mbps</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pip-content-card">
+                        <h4>📝 实时笔记</h4>
+                        <textarea id="noteContent" rows="3"
+                            style="width:100%; padding:12px; border-radius:12px; border:1px solid var(--border); background: rgba(255,255,255,0.1); color: inherit; font-size:14px;">这是一个实时笔记，会同步到画中画窗口</textarea>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn btn-small btn-success" onclick="pipManager.saveNote()">💾 保存</button>
+                            <button class="btn btn-small btn-info" onclick="pipManager.loadNote()">📂 加载</button>
+                            <button class="btn btn-small btn-warning" onclick="pipManager.clearNote()">🗑️ 清空</button>
+                        </div>
+                    </div>
+
+                    <div class="pip-content-card">
+                        <h4>⏱️ 计时器</h4>
+                        <div style="font-size: 48px; font-weight: bold; text-align: center; margin: 10px 0; font-family: monospace;"
+                            id="timerDisplay">00:00</div>
+                        <div class="btn-group" style="justify-content: center;">
+                            <button class="btn btn-small btn-success" onclick="pipManager.startTimer()"
+                                id="timerStartBtn">▶️ 开始</button>
+                            <button class="btn btn-small btn-warning" onclick="pipManager.pauseTimer()"
+                                id="timerPauseBtn">⏸️ 暂停</button>
+                            <button class="btn btn-small btn-danger" onclick="pipManager.resetTimer()"
+                                id="timerResetBtn">🔄 重置</button>
+                            <button class="btn btn-small btn-info" onclick="pipManager.saveTimer()">💾 保存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-info" onclick="pipManager.openCustomPip()" id="customPipBtn">
+                        🎨 打开自定义画中画
+                    </button>
+                    <button class="btn btn-outline" onclick="pipManager.syncToPip()" id="syncBtn" disabled>
+                        🔄 同步到画中画
+                    </button>
+                    <button class="btn btn-outline" onclick="pipManager.saveCustomSettings()" id="saveSettingsBtn">
+                        💾 保存设置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 高级功能演示 -->
+        <div class="grid-3">
+            <!-- 窗口控制 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🪟</span>
+                    <h2>窗口控制</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>窗口宽度 (px)</label>
+                    <input type="range" id="pipWidthSlider" min="200" max="800" value="400" step="10"
+                        style="width:100%;">
+                    <input type="number" id="pipWidthInput" value="400" min="200" max="800" step="10"
+                        style="width:100%; margin-top:8px;">
+                </div>
+
+                <div class="form-group">
+                    <label>窗口高度 (px)</label>
+                    <input type="range" id="pipHeightSlider" min="200" max="600" value="300" step="10"
+                        style="width:100%;">
+                    <input type="number" id="pipHeightInput" value="300" min="200" max="600" step="10"
+                        style="width:100%; margin-top:8px;">
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-small btn-success" onclick="pipManager.resizeWindow()" id="resizeBtn"
+                        disabled>
+                        📏 调整大小
+                    </button>
+                    <button class="btn btn-small btn-info" onclick="pipManager.focusWindow()" id="focusBtn" disabled>
+                        🔍 聚焦窗口
+                    </button>
+                    <button class="btn btn-small btn-warning" onclick="pipManager.blurWindow()" id="blurBtn" disabled>
+                        🌫️ 失焦窗口
+                    </button>
+                </div>
+
+                <div class="progress-container" style="margin-top: 16px;">
+                    <div class="progress-bar" id="windowProgress" style="width: 0%;"></div>
+                </div>
+                <p style="color: var(--gray);">窗口活跃度: <span id="windowActivity">0%</span></p>
+            </div>
+
+            <!-- 样式复制 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎨</span>
+                    <h2>样式复制</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>背景颜色</label>
+                    <select id="bgColorSelect">
+                        <option value="#6366f1" style="background: #6366f1; color: white;">紫色</option>
+                        <option value="#ec4899" style="background: #ec4899; color: white;">粉色</option>
+                        <option value="#22c55e" style="background: #22c55e; color: white;">绿色</option>
+                        <option value="#f59e0b" style="background: #f59e0b; color: black;">橙色</option>
+                        <option value="#3b82f6" style="background: #3b82f6; color: white;">蓝色</option>
+                        <option value="#8b5cf6" style="background: #8b5cf6; color: white;">紫色</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>文字颜色</label>
+                    <select id="textColorSelect">
+                        <option value="#ffffff" style="background: #ffffff; color: black;">白色</option>
+                        <option value="#000000" style="background: #000000; color: white;">黑色</option>
+                        <option value="#f8fafc" style="background: #f8fafc; color: black;">浅色</option>
+                        <option value="#0f172a" style="background: #0f172a; color: white;">深色</option>
+                        <option value="#94a3b8" style="background: #94a3b8; color: black;">灰色</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>字体大小 <span id="fontSizeValue">16px</span></label>
+                    <input type="range" id="fontSizeRange" min="12" max="24" value="16" step="1" style="width:100%;">
+                </div>
+
+                <div class="form-group">
+                    <label>圆角大小 <span id="borderRadiusValue">8px</span></label>
+                    <input type="range" id="borderRadiusRange" min="0" max="20" value="8" step="1" style="width:100%;">
+                </div>
+
+                <button class="btn btn-small btn-outline" onclick="pipManager.updateStyles()" id="styleBtn" disabled
+                    style="width: 100%;">
+                    ✨ 更新样式
+                </button>
+            </div>
+
+            <!-- 事件监听 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔔</span>
+                    <h2>事件监听</h2>
+                </div>
+
+                <div class="feature-check">
+                    <span class="feature-name">页面可见性</span>
+                    <span class="feature-value" id="visibilityState">visible</span>
+                </div>
+
+                <div class="feature-check">
+                    <span class="feature-name">窗口焦点</span>
+                    <span class="feature-value" id="focusState">聚焦</span>
+                </div>
+
+                <div class="feature-check">
+                    <span class="feature-name">最后交互</span>
+                    <span class="feature-value" id="lastInteraction">--</span>
+                </div>
+
+                <div class="feature-check">
+                    <span class="feature-name">事件计数</span>
+                    <span class="feature-value" id="eventCount">0</span>
+                </div>
+
+                <div class="feature-check">
+                    <span class="feature-name">会话时长</span>
+                    <span class="feature-value" id="sessionTime">00:00</span>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-small btn-info" onclick="pipManager.sendMessage()" id="messageBtn" disabled>
+                        💬 发送消息
+                    </button>
+                    <button class="btn btn-small btn-success" onclick="pipManager.startEventLog()" id="eventLogBtn">
+                        📝 开始记录
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="pipManager.resetEventCount()" id="resetEventBtn">
+                        🔄 重置计数
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模板库 - 折叠面板 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">📚</span>
+                <h2>画中画模板库</h2>
+                <div style="margin-left: auto;">
+                    <button class="btn btn-small btn-info" onclick="pipManager.toggleTemplatePanel()"
+                        id="toggleTemplateBtn">
+                        📋 展开全部
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid-4" id="templateGrid">
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                    <h4>实时仪表盘</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">CPU、内存、网络实时数据</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('dashboard')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📝</div>
+                    <h4>便签</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">简单的记事本，支持实时编辑</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('notes')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">⏰</div>
+                    <h4>计时器</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">倒计时计时器，支持暂停/继续</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('timer')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📰</div>
+                    <h4>RSS阅读器</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">实时更新的新闻摘要</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('rss')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📈</div>
+                    <h4>股票监控</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">实时股票价格变动</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('stocks')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🎵</div>
+                    <h4>音乐播放器</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">简洁的音乐控制界面</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('music')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+                    <h4>待办清单</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">简单的待办事项管理</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('todo')">打开</button>
+                </div>
+
+                <div class="pip-content-card" style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🌤️</div>
+                    <h4>天气预报</h4>
+                    <p style="color: var(--gray); font-size: 13px; margin: 10px 0; height: 40px;">实时天气信息</p>
+                    <button class="btn btn-small btn-success" onclick="pipManager.openTemplate('weather')">打开</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据统计 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📊</span>
+                    <h2>使用统计</h2>
+                </div>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div
+                        style="flex:1; text-align: center; padding: 20px; background: rgba(99,102,241,0.1); border-radius: 16px;">
+                        <div style="font-size: 36px; font-weight: bold;" id="totalOpens">0</div>
+                        <div style="color: var(--gray);">打开次数</div>
+                    </div>
+                    <div
+                        style="flex:1; text-align: center; padding: 20px; background: rgba(236,72,153,0.1); border-radius: 16px;">
+                        <div style="font-size: 36px; font-weight: bold;" id="totalTime">0</div>
+                        <div style="color: var(--gray);">总使用时间</div>
+                    </div>
+                    <div
+                        style="flex:1; text-align: center; padding: 20px; background: rgba(34,197,94,0.1); border-radius: 16px;">
+                        <div style="font-size: 36px; font-weight: bold;" id="avgTime">0</div>
+                        <div style="color: var(--gray);">平均时长</div>
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-top: 20px;">
+                    <button class="btn btn-small btn-outline" onclick="pipManager.resetStats()">🔄 重置统计</button>
+                    <button class="btn btn-small btn-info" onclick="pipManager.exportStats()">📥 导出统计</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">⚙️</span>
+                    <h2>设置与持久化</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>自动保存</label>
+                    <select id="autoSaveSettings">
+                        <option value="true">开启</option>
+                        <option value="false">关闭</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>默认模板</label>
+                    <select id="defaultTemplate">
+                        <option value="dashboard">仪表盘</option>
+                        <option value="notes">便签</option>
+                        <option value="timer">计时器</option>
+                        <option value="rss">RSS阅读器</option>
+                    </select>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-small btn-success" onclick="pipManager.saveAllSettings()">💾 保存所有设置</button>
+                    <button class="btn btn-small btn-info" onclick="pipManager.loadAllSettings()">📂 加载设置</button>
+                    <button class="btn btn-small btn-warning" onclick="pipManager.resetAllSettings()">🔄 恢复默认</button>
+                </div>
+
+                <div class="progress-container" style="margin-top: 16px;">
+                    <div class="progress-bar" id="storageProgress" style="width: 0%;"></div>
+                </div>
+                <p style="color: var(--gray);">存储空间: <span id="storageUsed">0</span>/<span id="storageTotal">5</span> MB
+                </p>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry info">📝 Document Picture-in-Picture API 旗舰版初始化完成</div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            /**
+             * Document Picture-in-Picture API 管理器 - 旗舰优化版
+             * 
+             * 优化特性：
+             * 1. 完整的状态管理
+             * 2. 错误边界和优雅降级
+             * 3. 内存泄漏防护
+             * 4. 样式复制优化
+             * 5. 事件计数和监控
+             * 6. 模板系统扩展
+             * 7. 性能指标
+             * 8. 数据持久化
+             * 9. 统计追踪
+             * 10. 会话管理
+             */
+            class PipManager {
+                constructor() {
+                    // DOM 元素缓存
+                    this.elements = {
+                        logPanel: document.getElementById('logPanel'),
+                        apiSupportBadge: document.getElementById('apiSupportBadge'),
+                        pipStatus: document.getElementById('pipStatus'),
+                        pipIcon: document.getElementById('pipIcon'),
+                        pipStatusText: document.getElementById('pipStatusText'),
+                        pipWindowInfo: document.getElementById('pipWindowInfo'),
+                        pipWidth: document.getElementById('pipWidth'),
+                        pipHeight: document.getElementById('pipHeight'),
+                        pipWindowState: document.getElementById('pipWindowState'),
+                        pipTitle: document.getElementById('pipTitle'),
+                        pipOpenTime: document.getElementById('pipOpenTime'),
+                        pipUptime: document.getElementById('pipUptime'),
+                        videoPipBtn: document.getElementById('videoPipBtn'),
+                        customPipBtn: document.getElementById('customPipBtn'),
+                        closePipBtn: document.getElementById('closePipBtn'),
+                        resizeBtn: document.getElementById('resizeBtn'),
+                        focusBtn: document.getElementById('focusBtn'),
+                        blurBtn: document.getElementById('blurBtn'),
+                        styleBtn: document.getElementById('styleBtn'),
+                        syncBtn: document.getElementById('syncBtn'),
+                        messageBtn: document.getElementById('messageBtn'),
+                        eventLogBtn: document.getElementById('eventLogBtn'),
+                        pipApiIcon: document.getElementById('pipApiIcon'),
+                        pipApiCheck: document.getElementById('pipApiCheck'),
+                        windowSupportIcon: document.getElementById('windowSupportIcon'),
+                        windowSupportCheck: document.getElementById('windowSupportCheck'),
+                        eventSupportIcon: document.getElementById('eventSupportIcon'),
+                        eventSupportCheck: document.getElementById('eventSupportCheck'),
+                        styleSupportIcon: document.getElementById('styleSupportIcon'),
+                        styleSupportCheck: document.getElementById('styleSupportCheck'),
+                        storageSupportIcon: document.getElementById('storageSupportIcon'),
+                        storageSupportCheck: document.getElementById('storageSupportCheck'),
+                        visibilityState: document.getElementById('visibilityState'),
+                        focusState: document.getElementById('focusState'),
+                        lastInteraction: document.getElementById('lastInteraction'),
+                        eventCount: document.getElementById('eventCount'),
+                        sessionTime: document.getElementById('sessionTime'),
+                        timerDisplay: document.getElementById('timerDisplay'),
+                        timerStartBtn: document.getElementById('timerStartBtn'),
+                        timerPauseBtn: document.getElementById('timerPauseBtn'),
+                        timerResetBtn: document.getElementById('timerResetBtn'),
+                        cpuValue: document.getElementById('cpuValue'),
+                        memoryValue: document.getElementById('memoryValue'),
+                        networkValue: document.getElementById('networkValue'),
+                        windowProgress: document.getElementById('windowProgress'),
+                        windowActivity: document.getElementById('windowActivity'),
+                        totalOpens: document.getElementById('totalOpens'),
+                        totalTime: document.getElementById('totalTime'),
+                        avgTime: document.getElementById('avgTime'),
+                        storageProgress: document.getElementById('storageProgress'),
+                        storageUsed: document.getElementById('storageUsed'),
+                        storageTotal: document.getElementById('storageTotal'),
+                        fontSizeValue: document.getElementById('fontSizeValue'),
+                        borderRadiusValue: document.getElementById('borderRadiusValue'),
+                        pipWidthSlider: document.getElementById('pipWidthSlider'),
+                        pipHeightSlider: document.getElementById('pipHeightSlider'),
+                        pipWidthInput: document.getElementById('pipWidthInput'),
+                        pipHeightInput: document.getElementById('pipHeightInput'),
+                        fontSizeRange: document.getElementById('fontSizeRange'),
+                        borderRadiusRange: document.getElementById('borderRadiusRange'),
+                        templateGrid: document.getElementById('templateGrid'),
+                        toggleTemplateBtn: document.getElementById('toggleTemplateBtn')
+                    };
+
+                    // 状态管理
+                    this.state = {
+                        supported: false,
+                        pipWindow: null,
+                        isOpen: false,
+                        openTime: null,
+                        uptimeInterval: null,
+                        timerInterval: null,
+                        timerSeconds: 0,
+                        timerRunning: false,
+                        eventCounter: 0,
+                        lastInteractionTime: null,
+                        styleSheetsCopied: false,
+                        sessionSeconds: 0,
+                        sessionInterval: null,
+                        stats: {
+                            opens: 0,
+                            totalTime: 0,
+                            lastOpenTime: null
+                        },
+                        templates: [
+                            'dashboard', 'notes', 'timer', 'rss',
+                            'stocks', 'music', 'todo', 'weather'
+                        ],
+                        templatePanelExpanded: true
+                    };
+
+                    // 配置
+                    this.config = {
+                        maxLogEntries: 500,
+                        defaultWidth: 400,
+                        defaultHeight: 300,
+                        maxWidth: 800,
+                        maxHeight: 600,
+                        minWidth: 200,
+                        minHeight: 200,
+                        maxStorageSize: 5 * 1024 * 1024, // 5MB
+                        storageKey: 'pipManagerSettings'
+                    };
+
+                    // 模板定义
+                    this.templates = {
+                        dashboard: this.createDashboardTemplate.bind(this),
+                        notes: this.createNotesTemplate.bind(this),
+                        timer: this.createTimerTemplate.bind(this),
+                        rss: this.createRSSTemplate.bind(this),
+                        stocks: this.createStocksTemplate.bind(this),
+                        music: this.createMusicTemplate.bind(this),
+                        todo: this.createTodoTemplate.bind(this),
+                        weather: this.createWeatherTemplate.bind(this)
+                    };
+
+                    this.init();
+                }
+
+                // ==================== 初始化 ====================
+                init() {
+                    try {
+                        this.checkSupport();
+                        this.setupEventListeners();
+                        this.startDataSimulation();
+                        this.startSessionTimer();
+                        this.loadSettings();
+                        this.updateStorageUsage();
+                        this.log('✅ Document Picture-in-Picture API 旗舰版初始化完成', 'success');
+                    } catch (error) {
+                        this.log(`❌ 初始化失败: ${error.message}`, 'error');
+                        console.error('PipManager initialization error:', error);
+                    }
+                }
+
+                // ==================== 日志系统 ====================
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+                    entry.textContent = `${time} ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+
+                    while (this.elements.logPanel.children.length > this.config.maxLogEntries) {
+                        this.elements.logPanel.removeChild(this.elements.logPanel.children[0]);
+                    }
+                }
+
+                // ==================== 检测 API 支持 ====================
+                checkSupport() {
+                    try {
+                        // 检测 documentPictureInPicture
+                        const hasPip = 'documentPictureInPicture' in window;
+
+                        if (hasPip) {
+                            this.state.supported = true;
+
+                            this.elements.pipApiIcon.innerHTML = '✅';
+                            this.elements.pipApiIcon.className = 'feature-icon success';
+                            this.elements.pipApiCheck.textContent = '支持';
+
+                            this.elements.apiSupportBadge.textContent = '✅ 支持 Document PiP';
+                            this.elements.apiSupportBadge.className = 'badge badge-success';
+
+                            this.elements.windowSupportIcon.innerHTML = '✅';
+                            this.elements.windowSupportIcon.className = 'feature-icon success';
+                            this.elements.windowSupportCheck.textContent = '支持';
+
+                            this.elements.eventSupportIcon.innerHTML = '✅';
+                            this.elements.eventSupportIcon.className = 'feature-icon success';
+                            this.elements.eventSupportCheck.textContent = '支持';
+
+                            this.elements.styleSupportIcon.innerHTML = '✅';
+                            this.elements.styleSupportIcon.className = 'feature-icon success';
+                            this.elements.styleSupportCheck.textContent = '支持';
+
+                            this.elements.storageSupportIcon.innerHTML = '✅';
+                            this.elements.storageSupportIcon.className = 'feature-icon success';
+                            this.elements.storageSupportCheck.textContent = 'localStorage';
+
+                            this.log('Document Picture-in-Picture API 支持', 'success');
+                        } else {
+                            this.state.supported = false;
+
+                            this.elements.pipApiIcon.innerHTML = '❌';
+                            this.elements.pipApiIcon.className = 'feature-icon error';
+                            this.elements.pipApiCheck.textContent = '不支持';
+
+                            this.elements.apiSupportBadge.textContent = '❌ 不支持';
+                            this.elements.apiSupportBadge.className = 'badge badge-danger';
+
+                            this.elements.windowSupportIcon.innerHTML = '❌';
+                            this.elements.windowSupportIcon.className = 'feature-icon error';
+                            this.elements.windowSupportCheck.textContent = '不支持';
+
+                            this.elements.eventSupportIcon.innerHTML = '❌';
+                            this.elements.eventSupportIcon.className = 'feature-icon error';
+                            this.elements.eventSupportCheck.textContent = '不支持';
+
+                            this.elements.styleSupportIcon.innerHTML = '❌';
+                            this.elements.styleSupportIcon.className = 'feature-icon error';
+                            this.elements.styleSupportCheck.textContent = '不支持';
+
+                            this.log('Document Picture-in-Picture API 不支持', 'error');
+                        }
+
+                    } catch (error) {
+                        this.log(`检测失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 设置事件监听 ====================
+                setupEventListeners() {
+                    // 页面可见性变化
+                    document.addEventListener('visibilitychange', () => {
+                        this.elements.visibilityState.textContent = document.visibilityState;
+                        this.incrementEventCount();
+                    });
+
+                    // 窗口焦点
+                    window.addEventListener('focus', () => {
+                        this.elements.focusState.textContent = '聚焦';
+                        this.updateLastInteraction();
+                        this.incrementEventCount();
+                    });
+
+                    window.addEventListener('blur', () => {
+                        this.elements.focusState.textContent = '失焦';
+                        this.incrementEventCount();
+                    });
+
+                    // 滑块联动
+                    this.elements.pipWidthSlider.addEventListener('input', (e) => {
+                        this.elements.pipWidthInput.value = e.target.value;
+                    });
+
+                    this.elements.pipWidthInput.addEventListener('input', (e) => {
+                        this.elements.pipWidthSlider.value = e.target.value;
+                    });
+
+                    this.elements.pipHeightSlider.addEventListener('input', (e) => {
+                        this.elements.pipHeightInput.value = e.target.value;
+                    });
+
+                    this.elements.pipHeightInput.addEventListener('input', (e) => {
+                        this.elements.pipHeightSlider.value = e.target.value;
+                    });
+
+                    this.elements.fontSizeRange.addEventListener('input', (e) => {
+                        this.elements.fontSizeValue.textContent = e.target.value + 'px';
+                    });
+
+                    this.elements.borderRadiusRange.addEventListener('input', (e) => {
+                        this.elements.borderRadiusValue.textContent = e.target.value + 'px';
+                    });
+                }
+
+                // ==================== 更新最后交互时间 ====================
+                updateLastInteraction() {
+                    this.state.lastInteractionTime = new Date();
+                    this.elements.lastInteraction.textContent =
+                        this.state.lastInteractionTime.toLocaleTimeString();
+                }
+
+                // ==================== 增加事件计数 ====================
+                incrementEventCount() {
+                    this.state.eventCounter++;
+                    this.elements.eventCount.textContent = this.state.eventCounter;
+                }
+
+                // ==================== 重置事件计数 ====================
+                resetEventCount() {
+                    this.state.eventCounter = 0;
+                    this.elements.eventCount.textContent = '0';
+                    this.log('事件计数已重置', 'info');
+                }
+
+                // ==================== 开始会话计时器 ====================
+                startSessionTimer() {
+                    this.state.sessionInterval = setInterval(() => {
+                        this.state.sessionSeconds++;
+                        const minutes = Math.floor(this.state.sessionSeconds / 60);
+                        const seconds = this.state.sessionSeconds % 60;
+                        this.elements.sessionTime.textContent =
+                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    }, 1000);
+                }
+
+                // ==================== 更新窗口活跃度 ====================
+                updateWindowActivity() {
+                    if (!this.state.isOpen || !this.state.pipWindow) {
+                        this.elements.windowProgress.style.width = '0%';
+                        this.elements.windowActivity.textContent = '0%';
+                        return;
+                    }
+
+                    // 简单的活跃度计算 (基于焦点和可见性)
+                    let activity = 50; // 基础值
+
+                    if (this.state.pipWindow.document.visibilityState === 'visible') {
+                        activity += 25;
+                    }
+
+                    if (this.state.pipWindow.document.hasFocus()) {
+                        activity += 25;
+                    }
+
+                    this.elements.windowProgress.style.width = `${activity}%`;
+                    this.elements.windowActivity.textContent = `${activity}%`;
+                }
+
+                // ==================== 更新存储使用量 ====================
+                updateStorageUsage() {
+                    try {
+                        let total = 0;
+                        for (let key in localStorage) {
+                            if (localStorage.hasOwnProperty(key)) {
+                                total += localStorage[key].length * 2; // UTF-16 每个字符2字节
+                            }
+                        }
+
+                        const usedMB = (total / (1024 * 1024)).toFixed(2);
+                        const percent = (total / this.config.maxStorageSize) * 100;
+
+                        this.elements.storageProgress.style.width = `${Math.min(percent, 100)}%`;
+                        this.elements.storageUsed.textContent = usedMB;
+                        this.elements.storageTotal.textContent = '5';
+                    } catch (e) {
+                        // 忽略
+                    }
+                }
+
+                // ==================== 启动数据模拟 ====================
+                startDataSimulation() {
+                    // 模拟CPU、内存、网络数据变化
+                    setInterval(() => {
+                        const cpu = Math.floor(Math.random() * 30) + 30; // 30-60%
+                        const memory = (Math.random() * 2 + 2).toFixed(1); // 2-4GB
+                        const network = Math.floor(Math.random() * 20) + 10; // 10-30Mbps
+
+                        this.elements.cpuValue.textContent = cpu + '%';
+                        this.elements.memoryValue.textContent = memory + 'GB';
+                        this.elements.networkValue.textContent = network + 'Mbps';
+
+                        // 如果画中画窗口打开，同步数据
+                        if (this.state.isOpen && this.state.pipWindow) {
+                            const cpuElement = this.state.pipWindow.document.getElementById('pipCpuValue');
+                            const memElement = this.state.pipWindow.document.getElementById('pipMemoryValue');
+                            const netElement = this.state.pipWindow.document.getElementById('pipNetworkValue');
+
+                            if (cpuElement) cpuElement.textContent = cpu + '%';
+                            if (memElement) memElement.textContent = memory + 'GB';
+                            if (netElement) netElement.textContent = network + 'Mbps';
+                        }
+                    }, 2000);
+                }
+
+                // ==================== 开始窗口运行时间计时 ====================
+                startUptimeTimer() {
+                    if (this.state.uptimeInterval) {
+                        clearInterval(this.state.uptimeInterval);
+                    }
+
+                    const startTime = Date.now();
+                    this.state.uptimeInterval = setInterval(() => {
+                        const seconds = Math.floor((Date.now() - startTime) / 1000);
+                        const minutes = Math.floor(seconds / 60);
+                        const remainingSeconds = seconds % 60;
+                        this.elements.pipUptime.textContent =
+                            `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+                    }, 1000);
+                }
+
+                // ==================== 停止窗口运行时间计时 ====================
+                stopUptimeTimer() {
+                    if (this.state.uptimeInterval) {
+                        clearInterval(this.state.uptimeInterval);
+                        this.state.uptimeInterval = null;
+                    }
+                }
+
+                // ==================== 打开画中画窗口 ====================
+                async openPipWindow(content, options = {}) {
+                    if (!this.state.supported) {
+                        this.log('API 不支持，无法打开画中画窗口', 'error');
+                        return null;
+                    }
+
+                    try {
+                        const width = Math.min(
+                            this.config.maxWidth,
+                            Math.max(this.config.minWidth, options.width || this.config.defaultWidth)
+                        );
+                        const height = Math.min(
+                            this.config.maxHeight,
+                            Math.max(this.config.minHeight, options.height || this.config.defaultHeight)
+                        );
+
+                        // 请求画中画窗口
+                        const pipWindow = await window.documentPictureInPicture.requestWindow({
+                            width,
+                            height
+                        });
+
+                        this.state.pipWindow = pipWindow;
+                        this.state.isOpen = true;
+                        this.state.openTime = new Date();
+                        this.state.styleSheetsCopied = false;
+
+                        // 复制样式到画中画窗口
+                        await this.copyStylesToPip(pipWindow);
+
+                        // 添加内容
+                        if (typeof content === 'string') {
+                            pipWindow.document.body.innerHTML = content;
+                        } else if (content instanceof HTMLElement) {
+                            pipWindow.document.body.appendChild(content.cloneNode(true));
+                        }
+
+                        // 设置事件监听
+                        this.setupPipEventListeners(pipWindow);
+
+                        // 更新UI
+                        this.updatePipUI(true, pipWindow);
+
+                        // 更新统计
+                        this.state.stats.opens++;
+                        this.state.stats.lastOpenTime = new Date();
+                        this.updateStats();
+
+                        this.log(`✅ 画中画窗口已打开 (${width}x${height})`, 'success');
+
+                        // 启用同步按钮
+                        this.elements.syncBtn.disabled = false;
+
+                        // 开始计时
+                        this.startUptimeTimer();
+
+                        return pipWindow;
+
+                    } catch (error) {
+                        this.log(`❌ 打开画中画窗口失败: ${error.message}`, 'error');
+                        return null;
+                    }
+                }
+
+                // ==================== 复制样式到画中画窗口 (优化版) ====================
+                async copyStylesToPip(pipWindow) {
+                    return new Promise((resolve) => {
+                        try {
+                            // 复制所有样式表
+                            [...document.styleSheets].forEach(styleSheet => {
+                                try {
+                                    const cssRules = [...styleSheet.cssRules].map(rule => rule.cssText).join('');
+                                    if (cssRules) {
+                                        const style = pipWindow.document.createElement('style');
+                                        style.textContent = cssRules;
+                                        pipWindow.document.head.appendChild(style);
+                                    }
+                                } catch (e) {
+                                    // 跨域样式表无法访问，忽略
+                                }
+                            });
+
+                            // 复制内联样式
+                            const inlineStyles = document.querySelectorAll('style');
+                            inlineStyles.forEach(style => {
+                                const newStyle = pipWindow.document.createElement('style');
+                                newStyle.textContent = style.textContent;
+                                pipWindow.document.head.appendChild(newStyle);
+                            });
+
+                            this.state.styleSheetsCopied = true;
+                            this.log('样式已复制到画中画窗口', 'info');
+                        } catch (error) {
+                            this.log(`复制样式失败: ${error.message}`, 'warning');
+                        }
+
+                        resolve();
+                    });
+                }
+
+                // ==================== 设置画中画窗口事件监听 ====================
+                setupPipEventListeners(pipWindow) {
+                    // 页面可见性变化
+                    pipWindow.document.addEventListener('visibilitychange', () => {
+                        this.log(`画中画窗口可见性: ${pipWindow.document.visibilityState}`, 'info');
+                        this.elements.pipWindowState.textContent = pipWindow.document.visibilityState;
+                        this.updateWindowActivity();
+                        this.incrementEventCount();
+                    });
+
+                    // 窗口关闭
+                    pipWindow.addEventListener('pagehide', () => {
+                        this.state.isOpen = false;
+                        this.state.pipWindow = null;
+                        this.updatePipUI(false);
+                        this.elements.syncBtn.disabled = true;
+                        this.stopUptimeTimer();
+                        this.log('画中画窗口已关闭', 'info');
+                    });
+
+                    // 窗口大小变化
+                    pipWindow.addEventListener('resize', () => {
+                        this.elements.pipWidth.textContent = pipWindow.innerWidth;
+                        this.elements.pipHeight.textContent = pipWindow.innerHeight;
+                        this.updateWindowActivity();
+                        this.incrementEventCount();
+                    });
+
+                    // 点击事件
+                    pipWindow.document.addEventListener('click', () => {
+                        this.updateLastInteraction();
+                        this.log('画中画窗口被点击', 'info');
+                        this.incrementEventCount();
+                    });
+
+                    // 焦点事件
+                    pipWindow.addEventListener('focus', () => {
+                        this.log('画中画窗口获得焦点', 'info');
+                        this.updateWindowActivity();
+                    });
+
+                    pipWindow.addEventListener('blur', () => {
+                        this.log('画中画窗口失去焦点', 'info');
+                        this.updateWindowActivity();
+                    });
+                }
+
+                // ==================== 更新画中画UI ====================
+                updatePipUI(isOpen, pipWindow = null) {
+                    if (isOpen && pipWindow) {
+                        this.elements.pipStatus.textContent = '激活中';
+                        this.elements.pipStatus.style.background = 'var(--success)';
+                        this.elements.pipIcon.textContent = '📺✨';
+                        this.elements.pipStatusText.textContent = '画中画窗口已打开';
+
+                        this.elements.pipWindowInfo.style.display = 'block';
+                        this.elements.pipWidth.textContent = pipWindow.innerWidth;
+                        this.elements.pipHeight.textContent = pipWindow.innerHeight;
+                        this.elements.pipWindowState.textContent = pipWindow.document.visibilityState;
+                        this.elements.pipTitle.textContent = pipWindow.document.title || '无标题';
+                        this.elements.pipOpenTime.textContent = this.state.openTime.toLocaleTimeString();
+
+                        // 启用/禁用按钮
+                        this.elements.videoPipBtn.disabled = true;
+                        this.elements.customPipBtn.disabled = true;
+                        this.elements.closePipBtn.disabled = false;
+                        this.elements.resizeBtn.disabled = false;
+                        this.elements.focusBtn.disabled = false;
+                        this.elements.blurBtn.disabled = false;
+                        this.elements.styleBtn.disabled = false;
+                        this.elements.messageBtn.disabled = false;
+
+                        this.updateWindowActivity();
+
+                    } else {
+                        this.elements.pipStatus.textContent = '未激活';
+                        this.elements.pipStatus.style.background = 'var(--gray)';
+                        this.elements.pipIcon.textContent = '📺';
+                        this.elements.pipStatusText.textContent = '画中画窗口未打开';
+
+                        this.elements.pipWindowInfo.style.display = 'none';
+
+                        // 启用/禁用按钮
+                        this.elements.videoPipBtn.disabled = false;
+                        this.elements.customPipBtn.disabled = false;
+                        this.elements.closePipBtn.disabled = true;
+                        this.elements.resizeBtn.disabled = true;
+                        this.elements.focusBtn.disabled = true;
+                        this.elements.blurBtn.disabled = true;
+                        this.elements.styleBtn.disabled = true;
+                        this.elements.messageBtn.disabled = true;
+                    }
+                }
+
+                // ==================== 更新统计 ====================
+                updateStats() {
+                    this.elements.totalOpens.textContent = this.state.stats.opens;
+
+                    if (this.state.stats.opens > 0) {
+                        const avg = Math.round(this.state.stats.totalTime / this.state.stats.opens);
+                        this.elements.avgTime.textContent = avg;
+                    }
+                }
+
+                // ==================== 重置统计 ====================
+                resetStats() {
+                    this.state.stats = {
+                        opens: 0,
+                        totalTime: 0,
+                        lastOpenTime: null
+                    };
+                    this.updateStats();
+                    this.log('统计已重置', 'info');
+                }
+
+                // ==================== 导出统计 ====================
+                exportStats() {
+                    const stats = {
+                        timestamp: new Date().toISOString(),
+                        stats: this.state.stats,
+                        sessionTime: this.state.sessionSeconds,
+                        eventCount: this.state.eventCounter
+                    };
+
+                    const blob = new Blob([JSON.stringify(stats, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `pip-stats-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    this.log('统计已导出', 'success');
+                }
+
+                // ==================== 打开视频画中画 ====================
+                async openVideoPip() {
+                    const videoUrl = document.getElementById('videoUrl')?.value || 'https://example.com/video.mp4';
+                    const videoTitle = document.getElementById('videoTitle')?.value || '我的视频';
+                    const videoQuality = document.getElementById('videoQuality')?.value || '720p';
+
+                    const content = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>🎬 ${videoTitle}</title>
+                            <style>
+                                body { margin: 0; font-family: system-ui; }
+                                @keyframes pulse {
+                                    0% { opacity: 1; transform: scale(1); }
+                                    50% { opacity: 0.7; transform: scale(1.1); }
+                                    100% { opacity: 1; transform: scale(1); }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div style="display: flex; flex-direction: column; height: 100vh; background: linear-gradient(135deg, #6366f1, #ec4899); color: white;">
+                                <div style="flex:1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+                                    <div style="font-size: 80px; margin-bottom: 20px; animation: pulse 2s infinite;">🎬</div>
+                                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">${videoTitle}</div>
+                                    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 10px;">${videoUrl}</div>
+                                    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 30px;">质量: ${videoQuality}</div>
+                                    <div style="display: flex; gap: 15px;">
+                                        <button onclick="window.parent.pipManager.log('播放视频', 'info')" style="padding: 12px 30px; background: #22c55e; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer;">▶️ 播放</button>
+                                        <button onclick="window.parent.pipManager.log('暂停视频', 'info')" style="padding: 12px 30px; background: #ef4444; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer;">⏸️ 暂停</button>
+                                        <button onclick="window.parent.pipManager.log('静音视频', 'info')" style="padding: 12px 30px; background: #3b82f6; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer;">🔇 静音</button>
+                                    </div>
+                                </div>
+                                <div style="padding: 15px; text-align: center; font-size: 12px; opacity: 0.6; border-top: 1px solid rgba(255,255,255,0.2);">
+                                    画中画视频演示 | 打开时间: ${new Date().toLocaleTimeString()}
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+
+                    const width = parseInt(this.elements.pipWidthInput?.value) || 400;
+                    const height = parseInt(this.elements.pipHeightInput?.value) || 300;
+
+                    await this.openPipWindow(content, { width, height });
+                }
+
+                // ==================== 保存视频设置 ====================
+                saveVideoSettings() {
+                    const settings = {
+                        videoUrl: document.getElementById('videoUrl')?.value,
+                        videoTitle: document.getElementById('videoTitle')?.value,
+                        videoQuality: document.getElementById('videoQuality')?.value
+                    };
+
+                    localStorage.setItem('videoSettings', JSON.stringify(settings));
+                    this.log('视频设置已保存', 'success');
+                    this.updateStorageUsage();
+                }
+
+                // ==================== 打开自定义画中画 ====================
+                async openCustomPip() {
+                    const note = document.getElementById('noteContent')?.value || '这是一个实时笔记';
+                    const bgColor = document.getElementById('bgColorSelect')?.value || '#6366f1';
+                    const textColor = document.getElementById('textColorSelect')?.value || '#ffffff';
+                    const fontSize = document.getElementById('fontSizeRange')?.value || '16';
+                    const borderRadius = document.getElementById('borderRadiusRange')?.value || '8';
+
+                    const cpu = this.elements.cpuValue.textContent;
+                    const memory = this.elements.memoryValue.textContent;
+                    const network = this.elements.networkValue.textContent;
+
+                    const content = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>🎨 自定义画中画</title>
+                            <style>
+                                body { margin: 0; font-family: system-ui; }
+                                @keyframes pulse {
+                                    0% { opacity: 1; }
+                                    50% { opacity: 0.5; }
+                                    100% { opacity: 1; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div style="display: flex; flex-direction: column; height: 100vh; background: ${bgColor}; color: ${textColor}; padding: 20px; box-sizing: border-box;">
+                                <h2 style="margin-bottom: 20px; font-size: ${parseInt(fontSize) + 6}px; text-align: center;">📊 实时监控</h2>
+                                <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                                    <div style="flex:1; background: rgba(255,255,255,0.2); padding: 15px; border-radius: ${borderRadius}px; text-align: center;">
+                                        <div style="font-size: 14px;">CPU</div>
+                                        <div style="font-size: 28px; font-weight: bold;" id="pipCpuValue">${cpu}</div>
+                                    </div>
+                                    <div style="flex:1; background: rgba(255,255,255,0.2); padding: 15px; border-radius: ${borderRadius}px; text-align: center;">
+                                        <div style="font-size: 14px;">内存</div>
+                                        <div style="font-size: 28px; font-weight: bold;" id="pipMemoryValue">${memory}</div>
+                                    </div>
+                                    <div style="flex:1; background: rgba(255,255,255,0.2); padding: 15px; border-radius: ${borderRadius}px; text-align: center;">
+                                        <div style="font-size: 14px;">网络</div>
+                                        <div style="font-size: 28px; font-weight: bold;" id="pipNetworkValue">${network}</div>
+                                    </div>
+                                </div>
+                                
+                                <h2 style="margin-bottom: 15px; font-size: ${parseInt(fontSize) + 6}px;">📝 实时笔记</h2>
+                                <div style="flex:1; background: rgba(255,255,255,0.1); border-radius: ${borderRadius}px; padding: 15px; margin-bottom: 20px; font-size: ${fontSize}px; overflow-y: auto;">
+                                    ${note}
+                                </div>
+                                
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <input type="text" id="pipNoteInput" placeholder="输入新笔记..." style="flex:1; padding: 12px; border-radius: ${borderRadius}px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.2); color: white; font-size: 14px;">
+                                    <button onclick="window.parent.pipManager.updateNoteFromPip()" style="padding: 12px 20px; background: #22c55e; color: white; border: none; border-radius: ${borderRadius}px; cursor: pointer;">更新</button>
+                                </div>
+                                
+                                <div style="margin-top: 15px; font-size: 12px; text-align: center; opacity: 0.6; animation: pulse 2s infinite;">
+                                    最后同步: ${new Date().toLocaleTimeString()}
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+
+                    const width = parseInt(this.elements.pipWidthInput?.value) || 400;
+                    const height = parseInt(this.elements.pipHeightInput?.value) || 500;
+
+                    await this.openPipWindow(content, { width, height });
+                }
+
+                // ==================== 保存自定义设置 ====================
+                saveCustomSettings() {
+                    const settings = {
+                        bgColor: document.getElementById('bgColorSelect')?.value,
+                        textColor: document.getElementById('textColorSelect')?.value,
+                        fontSize: document.getElementById('fontSizeRange')?.value,
+                        borderRadius: document.getElementById('borderRadiusRange')?.value
+                    };
+
+                    localStorage.setItem('customSettings', JSON.stringify(settings));
+                    this.log('自定义设置已保存', 'success');
+                    this.updateStorageUsage();
+                }
+
+                // ==================== 从画中画更新笔记 ====================
+                updateNoteFromPip() {
+                    if (!this.state.pipWindow) return;
+
+                    const input = this.state.pipWindow.document.getElementById('pipNoteInput');
+                    if (input && input.value) {
+                        const noteDiv = this.state.pipWindow.document.querySelector('div[style*="overflow-y: auto"]');
+                        if (noteDiv) {
+                            noteDiv.textContent = input.value;
+                            this.log('笔记已更新', 'info');
+                        }
+                    }
+                }
+
+                // ==================== 保存笔记 ====================
+                saveNote() {
+                    const note = document.getElementById('noteContent')?.value;
+                    localStorage.setItem('savedNote', note);
+                    this.log('笔记已保存', 'success');
+                    this.updateStorageUsage();
+                }
+
+                // ==================== 加载笔记 ====================
+                loadNote() {
+                    const note = localStorage.getItem('savedNote');
+                    if (note) {
+                        document.getElementById('noteContent').value = note;
+                        this.log('笔记已加载', 'success');
+                    }
+                }
+
+                // ==================== 清空笔记 ====================
+                clearNote() {
+                    document.getElementById('noteContent').value = '';
+                    this.log('笔记已清空', 'info');
+                }
+
+                // ==================== 同步到画中画 ====================
+                syncToPip() {
+                    if (!this.state.pipWindow) return;
+
+                    const note = document.getElementById('noteContent')?.value;
+                    const noteDiv = this.state.pipWindow.document.querySelector('div[style*="overflow-y: auto"]');
+
+                    if (noteDiv && note) {
+                        noteDiv.textContent = note;
+                        this.log('已同步到画中画窗口', 'success');
+                    }
+                }
+
+                // ==================== 关闭画中画 ====================
+                closePip() {
+                    if (this.state.pipWindow) {
+                        this.state.pipWindow.close();
+                        this.state.pipWindow = null;
+                        this.state.isOpen = false;
+                        this.stopUptimeTimer();
+                        this.updatePipUI(false);
+                        this.log('画中画窗口已关闭', 'info');
+                    }
+                }
+
+                // ==================== 调整窗口大小 ====================
+                resizeWindow() {
+                    if (!this.state.pipWindow) return;
+
+                    const width = parseInt(this.elements.pipWidthInput?.value) || 400;
+                    const height = parseInt(this.elements.pipHeightInput?.value) || 300;
+
+                    this.log(`窗口大小调整为 ${width}x${height} (需要重新打开)`, 'warning');
+
+                    // 保存当前内容
+                    const content = this.state.pipWindow.document.documentElement.outerHTML;
+
+                    // 关闭并重新打开
+                    this.closePip();
+
+                    setTimeout(() => {
+                        this.openPipWindow(content, { width, height });
+                    }, 500);
+                }
+
+                // ==================== 聚焦窗口 ====================
+                focusWindow() {
+                    if (this.state.pipWindow) {
+                        this.state.pipWindow.focus();
+                        this.log('已聚焦画中画窗口', 'info');
+                    }
+                }
+
+                // ==================== 失焦窗口 ====================
+                blurWindow() {
+                    if (this.state.pipWindow) {
+                        // 无法直接失焦，但可以聚焦到主窗口
+                        window.focus();
+                        this.log('已切换焦点到主窗口', 'info');
+                    }
+                }
+
+                // ==================== 更新样式 ====================
+                updateStyles() {
+                    if (!this.state.pipWindow) return;
+
+                    const bgColor = document.getElementById('bgColorSelect')?.value || '#6366f1';
+                    const textColor = document.getElementById('textColorSelect')?.value || '#ffffff';
+                    const fontSize = document.getElementById('fontSizeRange')?.value || '16';
+                    const borderRadius = document.getElementById('borderRadiusRange')?.value || '8';
+
+                    const body = this.state.pipWindow.document.body;
+                    body.style.background = bgColor;
+                    body.style.color = textColor;
+
+                    // 更新标题字体
+                    const titles = this.state.pipWindow.document.querySelectorAll('h2');
+                    titles.forEach(title => {
+                        title.style.fontSize = (parseInt(fontSize) + 6) + 'px';
+                    });
+
+                    // 更新正文字体
+                    const textElements = this.state.pipWindow.document.querySelectorAll('div[style*="overflow-y: auto"]');
+                    textElements.forEach(el => {
+                        el.style.fontSize = fontSize + 'px';
+                    });
+
+                    // 更新圆角
+                    const roundedElements = this.state.pipWindow.document.querySelectorAll('div[style*="border-radius"]');
+                    roundedElements.forEach(el => {
+                        el.style.borderRadius = borderRadius + 'px';
+                    });
+
+                    this.log('样式已更新', 'info');
+                }
+
+                // ==================== 发送消息 ====================
+                sendMessage() {
+                    if (!this.state.pipWindow) return;
+
+                    const message = `来自主窗口的消息: ${new Date().toLocaleTimeString()}`;
+
+                    // 在画中画窗口中显示消息
+                    const msgDiv = this.state.pipWindow.document.createElement('div');
+                    msgDiv.style.cssText = `
+                        position: fixed;
+                        bottom: 20px;
+                        left: 20px;
+                        right: 20px;
+                        background: rgba(0,0,0,0.9);
+                        color: white;
+                        padding: 12px;
+                        border-radius: 12px;
+                        font-size: 13px;
+                        text-align: center;
+                        z-index: 9999;
+                        animation: slideUp 0.3s, fadeOut 0.3s 2.7s forwards;
+                    `;
+                    msgDiv.textContent = message;
+
+                    // 添加动画
+                    const style = this.state.pipWindow.document.createElement('style');
+                    style.textContent = `
+                        @keyframes slideUp {
+                            from { transform: translateY(100%); opacity: 0; }
+                            to { transform: translateY(0); opacity: 1; }
+                        }
+                        @keyframes fadeOut {
+                            to { opacity: 0; transform: translateY(-20px); }
+                        }
+                    `;
+                    this.state.pipWindow.document.head.appendChild(style);
+
+                    this.state.pipWindow.document.body.appendChild(msgDiv);
+
+                    setTimeout(() => msgDiv.remove(), 3000);
+
+                    this.log(`消息已发送: ${message}`, 'info');
+                    this.incrementEventCount();
+                }
+
+                // ==================== 计时器控制 ====================
+                startTimer() {
+                    if (this.state.timerRunning) return;
+
+                    this.state.timerRunning = true;
+                    this.state.timerInterval = setInterval(() => {
+                        this.state.timerSeconds++;
+                        const minutes = Math.floor(this.state.timerSeconds / 60);
+                        const seconds = this.state.timerSeconds % 60;
+                        const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                        this.elements.timerDisplay.textContent = timeStr;
+
+                        // 同步到画中画
+                        if (this.state.pipWindow) {
+                            const timerElement = this.state.pipWindow.document.getElementById('pipTimer');
+                            if (timerElement) {
+                                timerElement.textContent = timeStr;
+                            }
+                        }
+                    }, 1000);
+
+                    this.elements.timerStartBtn.disabled = true;
+                    this.log('计时器已启动', 'info');
+                }
+
+                pauseTimer() {
+                    if (this.state.timerInterval) {
+                        clearInterval(this.state.timerInterval);
+                        this.state.timerRunning = false;
+                        this.elements.timerStartBtn.disabled = false;
+                        this.log('计时器已暂停', 'info');
+                    }
+                }
+
+                resetTimer() {
+                    this.pauseTimer();
+                    this.state.timerSeconds = 0;
+                    this.elements.timerDisplay.textContent = '00:00';
+
+                    if (this.state.pipWindow) {
+                        const timerElement = this.state.pipWindow.document.getElementById('pipTimer');
+                        if (timerElement) {
+                            timerElement.textContent = '00:00';
+                        }
+                    }
+
+                    this.log('计时器已重置', 'info');
+                }
+
+                // ==================== 保存计时器 ====================
+                saveTimer() {
+                    const time = this.elements.timerDisplay.textContent;
+                    localStorage.setItem('savedTimer', time);
+                    this.log('计时器已保存', 'success');
+                    this.updateStorageUsage();
+                }
+
+                // ==================== 模拟播放 ====================
+                simulatePlayback() {
+                    this.log('▶️ 模拟视频播放开始', 'info');
+
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 10;
+                        this.log(`播放进度: ${progress}%`, 'info');
+
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            this.log('✅ 播放完成', 'success');
+                        }
+                    }, 1000);
+                }
+
+                // ==================== 开始事件记录 ====================
+                startEventLog() {
+                    this.state.eventCounter = 0;
+                    this.elements.eventCount.textContent = '0';
+                    this.log('事件记录已开始', 'info');
+                }
+
+                // ==================== 切换模板面板 ====================
+                toggleTemplatePanel() {
+                    if (this.state.templatePanelExpanded) {
+                        this.elements.templateGrid.style.display = 'grid';
+                        this.elements.toggleTemplateBtn.textContent = '📋 折叠面板';
+                    } else {
+                        this.elements.templateGrid.style.display = 'none';
+                        this.elements.toggleTemplateBtn.textContent = '📋 展开全部';
+                    }
+                    this.state.templatePanelExpanded = !this.state.templatePanelExpanded;
+                }
+
+                // ==================== 打开模板选择器 ====================
+                openTemplateSelector() {
+                    // 简单滚动到模板区域
+                    document.querySelector('.card:last-child').scrollIntoView({ behavior: 'smooth' });
+                }
+
+                // ==================== 模板创建方法 ====================
+                createDashboardTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>📊 仪表盘</title></head>
+                        <body style="margin:0; padding:20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px;">📊 实时仪表盘</h2>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                                <div style="background:rgba(255,255,255,0.2); padding:20px; border-radius:15px;">
+                                    <div style="font-size:14px; opacity:0.8;">CPU</div>
+                                    <div style="font-size:36px; font-weight:bold;" id="pipCpuValue">45%</div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.2); padding:20px; border-radius:15px;">
+                                    <div style="font-size:14px; opacity:0.8;">内存</div>
+                                    <div style="font-size:36px; font-weight:bold;" id="pipMemoryValue">2.3GB</div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.2); padding:20px; border-radius:15px;">
+                                    <div style="font-size:14px; opacity:0.8;">网络</div>
+                                    <div style="font-size:36px; font-weight:bold;" id="pipNetworkValue">15Mbps</div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.2); padding:20px; border-radius:15px;">
+                                    <div style="font-size:14px; opacity:0.8;">磁盘</div>
+                                    <div style="font-size:36px; font-weight:bold;">128GB</div>
+                                </div>
+                            </div>
+                            <div style="margin-top:30px; text-align:center; font-size:12px; opacity:0.6;">
+                                最后更新: ${new Date().toLocaleTimeString()}
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createNotesTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>📝 便签</title></head>
+                        <body style="margin:0; padding:20px; background:#fff9e6; color:#333; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px; color:#8b5cf6;">📝 便签</h2>
+                            <textarea id="pipNote" style="width:100%; height:200px; padding:15px; border:2px solid #8b5cf6; border-radius:15px; margin-bottom:15px; font-size:16px; resize:none;">点击编辑...</textarea>
+                            <div style="display:flex; gap:10px;">
+                                <button onclick="window.parent.pipManager.saveNoteFromPip()" style="flex:1; padding:15px; background:#8b5cf6; color:white; border:none; border-radius:12px; cursor:pointer; font-size:16px;">保存</button>
+                                <button onclick="window.parent.pipManager.clearNoteFromPip()" style="flex:1; padding:15px; background:#ef4444; color:white; border:none; border-radius:12px; cursor:pointer; font-size:16px;">清空</button>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createTimerTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>⏰ 计时器</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #22c55e, #16a34a); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px; text-align:center;">⏰ 计时器</h2>
+                            <div style="font-size:72px; font-weight:bold; text-align:center; margin:40px 0;" id="pipTimer">00:00</div>
+                            <div style="display:flex; gap:15px;">
+                                <button onclick="window.parent.pipManager.controlTimer('start')" style="flex:1; padding:15px; background:white; color:#22c55e; border:none; border-radius:12px; cursor:pointer; font-size:16px;">开始</button>
+                                <button onclick="window.parent.pipManager.controlTimer('pause')" style="flex:1; padding:15px; background:white; color:#22c55e; border:none; border-radius:12px; cursor:pointer; font-size:16px;">暂停</button>
+                                <button onclick="window.parent.pipManager.controlTimer('reset')" style="flex:1; padding:15px; background:white; color:#22c55e; border:none; border-radius:12px; cursor:pointer; font-size:16px;">重置</button>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createRSSTemplate() {
+                    const items = [
+                        { title: '新闻标题 1', time: '5分钟前' },
+                        { title: '新闻标题 2', time: '15分钟前' },
+                        { title: '新闻标题 3', time: '30分钟前' },
+                        { title: '新闻标题 4', time: '1小时前' },
+                        { title: '新闻标题 5', time: '2小时前' }
+                    ];
+
+                    const itemsHtml = items.map(item => `
+                        <div style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; justify-content:space-between;">
+                            <span>📰 ${item.title}</span>
+                            <span style="opacity:0.6;">${item.time}</span>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>📰 RSS阅读器</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #3b82f6, #1d4ed8); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px;">📰 实时新闻</h2>
+                            <div style="background:rgba(255,255,255,0.1); border-radius:15px; overflow:hidden;">
+                                ${itemsHtml}
+                            </div>
+                            <div style="margin-top:20px; text-align:center; font-size:12px; opacity:0.6;">
+                                最后更新: ${new Date().toLocaleTimeString()}
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createStocksTemplate() {
+                    const stocks = [
+                        { name: 'AAPL', price: '175.32', change: '+1.2%' },
+                        { name: 'GOOGL', price: '142.15', change: '+0.8%' },
+                        { name: 'MSFT', price: '378.45', change: '-0.3%' },
+                        { name: 'TSLA', price: '245.67', change: '+2.1%' },
+                        { name: 'AMZN', price: '145.23', change: '+0.5%' }
+                    ];
+
+                    const stocksHtml = stocks.map(stock => `
+                        <div style="padding:15px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; justify-content:space-between;">
+                            <span style="font-weight:bold;">${stock.name}</span>
+                            <span>$${stock.price}</span>
+                            <span style="color:${stock.change.startsWith('+') ? '#22c55e' : '#ef4444'};">${stock.change}</span>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>📈 股票监控</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #f59e0b, #b45309); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px;">📈 实时股票</h2>
+                            <div style="background:rgba(255,255,255,0.1); border-radius:15px; overflow:hidden;">
+                                ${stocksHtml}
+                            </div>
+                            <div style="margin-top:20px; text-align:center; font-size:12px; opacity:0.6;">
+                                数据延迟15分钟
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createMusicTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>🎵 音乐播放器</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #ec4899, #be185d); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px; text-align:center;">🎵 音乐播放器</h2>
+                            <div style="text-align:center; margin:30px 0;">
+                                <div style="font-size:80px; margin-bottom:20px;">🎵</div>
+                                <div style="font-size:24px; font-weight:bold;">歌曲名称</div>
+                                <div style="font-size:16px; opacity:0.8; margin-bottom:30px;">艺术家</div>
+                                <div style="font-size:14px; margin-bottom:20px;">03:45 / 04:30</div>
+                            </div>
+                            <div style="display:flex; gap:15px; justify-content:center;">
+                                <button style="width:60px; height:60px; border-radius:50%; background:white; color:#ec4899; border:none; font-size:24px; cursor:pointer;">⏮️</button>
+                                <button style="width:80px; height:80px; border-radius:50%; background:white; color:#ec4899; border:none; font-size:32px; cursor:pointer;">▶️</button>
+                                <button style="width:60px; height:60px; border-radius:50%; background:white; color:#ec4899; border:none; font-size:24px; cursor:pointer;">⏭️</button>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createTodoTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>📋 待办清单</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #8b5cf6, #6d28d9); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px;">📋 待办清单</h2>
+                            <div style="background:rgba(255,255,255,0.1); border-radius:15px; padding:15px; margin-bottom:20px;">
+                                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                                    <input type="text" id="pipTodoInput" style="flex:1; padding:12px; border-radius:8px; border:none;" placeholder="添加新任务...">
+                                    <button onclick="window.parent.pipManager.addTodo()" style="padding:12px 20px; background:#22c55e; color:white; border:none; border-radius:8px; cursor:pointer;">添加</button>
+                                </div>
+                                <div id="pipTodoList">
+                                    <div style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:10px;">
+                                        <input type="checkbox"> <span>任务示例 1</span>
+                                    </div>
+                                    <div style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:10px;">
+                                        <input type="checkbox"> <span>任务示例 2</span>
+                                    </div>
+                                    <div style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:10px;">
+                                        <input type="checkbox"> <span>任务示例 3</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                createWeatherTemplate() {
+                    return `
+                        <!DOCTYPE html>
+                        <html>
+                        <head><title>🌤️ 天气预报</title></head>
+                        <body style="margin:0; padding:20px; background:linear-gradient(135deg, #3b82f6, #0284c7); color:white; font-family:system-ui; height:100vh; box-sizing:border-box;">
+                            <h2 style="margin-bottom:20px;">🌤️ 天气预报</h2>
+                            <div style="text-align:center; margin:30px 0;">
+                                <div style="font-size:100px; margin-bottom:20px;">☀️</div>
+                                <div style="font-size:48px; font-weight:bold;">25°C</div>
+                                <div style="font-size:18px; margin-top:10px;">晴朗</div>
+                                <div style="font-size:14px; opacity:0.8; margin-top:5px;">体感温度 26°C</div>
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+                                <div style="text-align:center; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;">
+                                    <div>周一</div>
+                                    <div style="font-size:24px;">☀️</div>
+                                    <div>26°</div>
+                                </div>
+                                <div style="text-align:center; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;">
+                                    <div>周二</div>
+                                    <div style="font-size:24px;">⛅</div>
+                                    <div>24°</div>
+                                </div>
+                                <div style="text-align:center; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;">
+                                    <div>周三</div>
+                                    <div style="font-size:24px;">☁️</div>
+                                    <div>22°</div>
+                                </div>
+                                <div style="text-align:center; background:rgba(255,255,255,0.1); padding:15px; border-radius:10px;">
+                                    <div>周四</div>
+                                    <div style="font-size:24px;">🌧️</div>
+                                    <div>20°</div>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                }
+
+                // ==================== 打开模板 ====================
+                async openTemplate(templateName) {
+                    if (this.templates[templateName]) {
+                        const content = this.templates[templateName]();
+                        const width = parseInt(this.elements.pipWidthInput?.value) || 400;
+                        const height = parseInt(this.elements.pipHeightInput?.value) || 500;
+
+                        await this.openPipWindow(content, { width, height });
+                        this.log(`📚 打开模板: ${templateName}`, 'success');
+                    }
+                }
+
+                // ==================== 控制计时器 ====================
+                controlTimer(action) {
+                    if (!this.state.pipWindow) return;
+
+                    const timerElement = this.state.pipWindow.document.getElementById('pipTimer');
+                    if (timerElement) {
+                        if (action === 'start') {
+                            this.startTimer();
+                        } else if (action === 'pause') {
+                            this.pauseTimer();
+                        } else if (action === 'reset') {
+                            this.resetTimer();
+                        }
+                    }
+                }
+
+                // ==================== 保存笔记从画中画 ====================
+                saveNoteFromPip() {
+                    if (!this.state.pipWindow) return;
+
+                    const note = this.state.pipWindow.document.getElementById('pipNote');
+                    if (note) {
+                        localStorage.setItem('pipNote', note.value);
+                        this.log(`笔记已保存: ${note.value.substring(0, 20)}...`, 'success');
+                        this.updateStorageUsage();
+                    }
+                }
+
+                // ==================== 清空笔记从画中画 ====================
+                clearNoteFromPip() {
+                    if (!this.state.pipWindow) return;
+
+                    const note = this.state.pipWindow.document.getElementById('pipNote');
+                    if (note) {
+                        note.value = '';
+                        this.log('笔记已清空', 'info');
+                    }
+                }
+
+                // ==================== 添加待办 ====================
+                addTodo() {
+                    if (!this.state.pipWindow) return;
+
+                    const input = this.state.pipWindow.document.getElementById('pipTodoInput');
+                    const list = this.state.pipWindow.document.getElementById('pipTodoList');
+
+                    if (input && input.value && list) {
+                        const div = this.state.pipWindow.document.createElement('div');
+                        div.style.cssText = 'padding:10px; border-bottom:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:10px;';
+                        div.innerHTML = `<input type="checkbox"> <span>${input.value}</span>`;
+                        list.appendChild(div);
+                        input.value = '';
+                        this.log('待办已添加', 'info');
+                    }
+                }
+
+                // ==================== 保存所有设置 ====================
+                saveAllSettings() {
+                    const settings = {
+                        videoUrl: document.getElementById('videoUrl')?.value,
+                        videoTitle: document.getElementById('videoTitle')?.value,
+                        videoQuality: document.getElementById('videoQuality')?.value,
+                        note: document.getElementById('noteContent')?.value,
+                        bgColor: document.getElementById('bgColorSelect')?.value,
+                        textColor: document.getElementById('textColorSelect')?.value,
+                        fontSize: document.getElementById('fontSizeRange')?.value,
+                        borderRadius: document.getElementById('borderRadiusRange')?.value,
+                        pipWidth: this.elements.pipWidthInput?.value,
+                        pipHeight: this.elements.pipHeightInput?.value,
+                        autoSave: document.getElementById('autoSaveSettings')?.value,
+                        defaultTemplate: document.getElementById('defaultTemplate')?.value,
+                        savedTime: new Date().toISOString()
+                    };
+
+                    localStorage.setItem(this.config.storageKey, JSON.stringify(settings));
+                    this.log('所有设置已保存', 'success');
+                    this.updateStorageUsage();
+                }
+
+                // ==================== 加载所有设置 ====================
+                loadAllSettings() {
+                    const saved = localStorage.getItem(this.config.storageKey);
+                    if (saved) {
+                        try {
+                            const settings = JSON.parse(saved);
+
+                            if (settings.videoUrl) document.getElementById('videoUrl').value = settings.videoUrl;
+                            if (settings.videoTitle) document.getElementById('videoTitle').value = settings.videoTitle;
+                            if (settings.videoQuality) document.getElementById('videoQuality').value = settings.videoQuality;
+                            if (settings.note) document.getElementById('noteContent').value = settings.note;
+                            if (settings.bgColor) document.getElementById('bgColorSelect').value = settings.bgColor;
+                            if (settings.textColor) document.getElementById('textColorSelect').value = settings.textColor;
+                            if (settings.fontSize) {
+                                document.getElementById('fontSizeRange').value = settings.fontSize;
+                                this.elements.fontSizeValue.textContent = settings.fontSize + 'px';
+                            }
+                            if (settings.borderRadius) {
+                                document.getElementById('borderRadiusRange').value = settings.borderRadius;
+                                this.elements.borderRadiusValue.textContent = settings.borderRadius + 'px';
+                            }
+                            if (settings.pipWidth) {
+                                this.elements.pipWidthInput.value = settings.pipWidth;
+                                this.elements.pipWidthSlider.value = settings.pipWidth;
+                            }
+                            if (settings.pipHeight) {
+                                this.elements.pipHeightInput.value = settings.pipHeight;
+                                this.elements.pipHeightSlider.value = settings.pipHeight;
+                            }
+                            if (settings.autoSave) document.getElementById('autoSaveSettings').value = settings.autoSave;
+                            if (settings.defaultTemplate) document.getElementById('defaultTemplate').value = settings.defaultTemplate;
+
+                            this.log('设置已加载', 'success');
+                        } catch (e) {
+                            this.log('加载设置失败', 'error');
+                        }
+                    }
+                }
+
+                // ==================== 重置所有设置 ====================
+                resetAllSettings() {
+                    localStorage.removeItem(this.config.storageKey);
+
+                    // 重置为默认值
+                    document.getElementById('videoUrl').value = 'https://example.com/video.mp4';
+                    document.getElementById('videoTitle').value = '我的视频';
+                    document.getElementById('videoQuality').value = '720p';
+                    document.getElementById('noteContent').value = '这是一个实时笔记，会同步到画中画窗口';
+                    document.getElementById('bgColorSelect').value = '#6366f1';
+                    document.getElementById('textColorSelect').value = '#ffffff';
+                    document.getElementById('fontSizeRange').value = '16';
+                    this.elements.fontSizeValue.textContent = '16px';
+                    document.getElementById('borderRadiusRange').value = '8';
+                    this.elements.borderRadiusValue.textContent = '8px';
+                    this.elements.pipWidthInput.value = '400';
+                    this.elements.pipWidthSlider.value = '400';
+                    this.elements.pipHeightInput.value = '300';
+                    this.elements.pipHeightSlider.value = '300';
+                    document.getElementById('autoSaveSettings').value = 'true';
+                    document.getElementById('defaultTemplate').value = 'dashboard';
+
+                    this.log('所有设置已重置', 'info');
+                }
+
+                // ==================== 加载设置 ====================
+                loadSettings() {
+                    this.loadAllSettings();
+                }
+
+                // ==================== 清理 ====================
+                destroy() {
+                    if (this.state.timerInterval) {
+                        clearInterval(this.state.timerInterval);
+                    }
+                    if (this.state.uptimeInterval) {
+                        clearInterval(this.state.uptimeInterval);
+                    }
+                    if (this.state.sessionInterval) {
+                        clearInterval(this.state.sessionInterval);
+                    }
+                    if (this.state.pipWindow) {
+                        this.state.pipWindow.close();
+                    }
+                    this.log('🧹 资源已清理', 'info');
+                }
+            }
+
+            // 创建全局实例
+            window.pipManager = new PipManager();
+
+            // 页面卸载前清理
+            window.addEventListener('beforeunload', () => {
+                if (window.pipManager) {
+                    window.pipManager.destroy();
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

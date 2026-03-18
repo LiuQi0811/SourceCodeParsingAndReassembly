@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard API - 完整优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-partial {
+            background: #ff9800;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 性能监控 */
+        .performance-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .perf-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .perf-label {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .perf-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .perf-unit {
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* 权限面板 */
+        .permission-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .permission-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            margin: 5px 0;
+        }
+
+        .permission-name {
+            font-weight: 500;
+        }
+
+        .permission-status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .permission-granted {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .permission-prompt {
+            background: #ff9800;
+            color: white;
+        }
+
+        .permission-denied {
+            background: #f44336;
+            color: white;
+        }
+
+        .warning-message {
+            background: #fff3e0;
+            color: #ff9800;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #ff9800;
+            font-size: 13px;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 演示网格 */
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .demo-title {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .demo-badge {
+            padding: 3px 8px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        /* 文本区域 */
+        .text-area {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin: 10px 0;
+            transition: border-color 0.3s;
+        }
+
+        .text-area:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .text-area:read-only {
+            background: #f5f5f5;
+            cursor: default;
+        }
+
+        /* 预览区域 */
+        .preview-area {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 80px;
+            border: 2px dashed #ddd;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            display: block;
+            margin: 10px auto;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .html-preview {
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            min-height: 150px;
+            overflow-y: auto;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .size-badge {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            background: #ffebee;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-5px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(5px);
+            }
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #4CAF50;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            animation: fadeIn 0.3s;
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+        }
+
+        /* 兼容性表格 */
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .compat-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .compat-table td:first-child {
+            font-weight: 600;
+        }
+
+        .yes {
+            color: #4CAF50;
+        }
+
+        .no {
+            color: #f44336;
+        }
+
+        .partial {
+            color: #ff9800;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📋 Clipboard API - 完整优化版</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>复制粘贴文本、HTML、图片、自定义格式 - 所有操作在用户手势中执行</p>
+
+            <!-- 性能监控 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">操作速度</div>
+                    <div class="perf-value" id="operationSpeed">0</div>
+                    <span class="perf-unit">ops/s</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">平均延迟</div>
+                    <div class="perf-value" id="avgLatency">0</div>
+                    <span class="perf-unit">ms</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">成功率</div>
+                    <div class="perf-value" id="successRate">100</div>
+                    <span class="perf-unit">%</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">内存使用</div>
+                    <div class="perf-value" id="memoryUsage">0</div>
+                    <span class="perf-unit">MB</span>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="copyCount">0</div>
+                    <div class="stat-label">复制次数</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="pasteCount">0</div>
+                    <div class="stat-label">粘贴次数</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="dataSize">0</div>
+                    <div class="stat-label">数据量(KB)</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">错误次数</div>
+                </div>
+            </div>
+
+            <!-- 权限面板 -->
+            <div class="permission-panel">
+                <h3>🔐 权限状态</h3>
+                <div class="warning-message">
+                    ⚠️ 所有 Clipboard API 操作必须在用户点击事件中同步执行！
+                </div>
+                <div class="permission-row">
+                    <span class="permission-name">读取剪贴板</span>
+                    <span class="permission-status" id="readPermission">检查中...</span>
+                    <button class="btn btn-success" onclick="requestReadPermission()">请求权限</button>
+                </div>
+                <div class="permission-row">
+                    <span class="permission-name">写入剪贴板</span>
+                    <span class="permission-status" id="writePermission">检查中...</span>
+                    <button class="btn btn-success" onclick="requestWritePermission()">请求权限</button>
+                </div>
+            </div>
+
+            <!-- 错误提示区 -->
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message" style="display: none;"></div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('text')">📝 文本操作</div>
+                <div class="tab" onclick="switchTab('rich')">🎨 富文本</div>
+                <div class="tab" onclick="switchTab('image')">🖼️ 图片操作</div>
+                <div class="tab" onclick="switchTab('event')">🎯 事件监听</div>
+                <div class="tab" onclick="switchTab('advanced')">🚀 高级特性</div>
+            </div>
+
+            <!-- 文本操作标签页 -->
+            <div id="textTab" class="tab-content active">
+                <div class="demo-grid">
+                    <!-- 复制文本 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 复制文本</span>
+                            <span class="demo-badge">writeText</span>
+                        </div>
+                        <textarea class="text-area" id="copyTextArea"
+                            placeholder="输入要复制的内容...">Hello Clipboard API! 这是一个示例文本。</textarea>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="copyTextFromArea()">📋 复制文本</button>
+                            <button class="btn btn-success" onclick="copyCurrentTime()">⏰ 复制当前时间</button>
+                            <button class="btn btn-warning" onclick="copyRandomNumber()">🎲 复制随机数</button>
+                        </div>
+                        <div id="copyResult" class="preview-area">
+                            等待复制...
+                        </div>
+                    </div>
+
+                    <!-- 粘贴文本 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 粘贴文本</span>
+                            <span class="demo-badge">readText</span>
+                        </div>
+                        <textarea class="text-area" id="pasteTextArea" placeholder="粘贴的内容会显示在这里..." readonly></textarea>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="pasteText()">📋 粘贴文本</button>
+                            <button class="btn btn-success" onclick="pasteAndFormat()">📊 粘贴并统计</button>
+                            <button class="btn btn-danger" onclick="clearPasteArea()">🗑️ 清空</button>
+                        </div>
+                        <div id="pasteStats" class="preview-area" style="min-height: 50px; font-size: 12px;">
+                            粘贴统计将显示在这里
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 富文本标签页 -->
+            <div id="richTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 复制富文本 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🎨 复制富文本</span>
+                            <span class="demo-badge">ClipboardItem</span>
+                        </div>
+                        <div id="richSource" class="html-preview" style="margin: 10px 0;">
+                            <h3 style="color: #667eea;">富文本标题</h3>
+                            <p style="font-size: 14px; color: #333;">这是 <b>加粗文本</b> 和 <i>斜体文本</i></p>
+                            <ul>
+                                <li>列表项 1</li>
+                                <li>列表项 2</li>
+                                <li>列表项 3</li>
+                            </ul>
+                            <table border="1" style="border-collapse: collapse; width: 100%;">
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>年龄</th>
+                                </tr>
+                                <tr>
+                                    <td>张三</td>
+                                    <td>25</td>
+                                </tr>
+                                <tr>
+                                    <td>李四</td>
+                                    <td>30</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="copyRichText()">🎨 复制富文本</button>
+                            <button class="btn btn-success" onclick="copyFormattedHTML()">📄 复制格式化HTML</button>
+                            <button class="btn btn-warning" onclick="copyStyledText()">✨ 复制带样式文本</button>
+                        </div>
+                    </div>
+
+                    <!-- 粘贴富文本 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🎨 粘贴富文本</span>
+                            <span class="demo-badge">read</span>
+                        </div>
+                        <div id="richPasteArea" class="html-preview" style="min-height: 200px;">
+                            等待粘贴...
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="pasteRichText()">🎨 粘贴富文本</button>
+                            <button class="btn btn-success" onclick="pasteAndInspect()">🔍 检查格式</button>
+                            <button class="btn btn-danger" onclick="clearRichArea()">🗑️ 清空</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片操作标签页 -->
+            <div id="imageTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 复制图片 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🖼️ 复制图片</span>
+                            <span class="demo-badge">image/png</span>
+                        </div>
+                        <canvas id="imageCanvas" width="200" height="200"
+                            style="border: 2px solid #ddd; border-radius: 8px; margin: 10px auto; display: block;"></canvas>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="copyCanvasImage()">🎨 复制画布图片</button>
+                            <button class="btn btn-success" onclick="generateGradientImage()">🌈 生成渐变图</button>
+                            <button class="btn btn-warning" onclick="generatePatternImage()">🔷 生成图案</button>
+                        </div>
+                        <div id="imageCopyResult" class="preview-area" style="min-height: 50px; font-size: 12px;">
+                            图片复制结果
+                        </div>
+                    </div>
+
+                    <!-- 粘贴图片 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🖼️ 粘贴图片</span>
+                            <span class="demo-badge">read</span>
+                        </div>
+                        <div id="imagePasteArea" style="text-align: center; min-height: 220px;">
+                            <img id="pastedImage" class="image-preview" style="display: none;">
+                            <div id="noImageMessage">等待粘贴图片...</div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="pasteImage()">🖼️ 粘贴图片</button>
+                            <button class="btn btn-success" onclick="pasteImageInfo()">ℹ️ 图片信息</button>
+                            <button class="btn btn-danger" onclick="clearImage()">🗑️ 清除</button>
+                        </div>
+                        <div id="imageInfo" class="preview-area" style="min-height: 50px; font-size: 12px;">
+                            图片信息将显示在这里
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 事件监听标签页 -->
+            <div id="eventTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 复制事件 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 复制事件</span>
+                            <span class="demo-badge">copy</span>
+                        </div>
+                        <textarea class="text-area" id="copyEventArea"
+                            placeholder="选中文本试试复制...">选中这段文本，然后按 Ctrl+C 或右键复制</textarea>
+                        <div class="preview-area" id="copyEventLog" style="min-height: 80px;">
+                            复制事件日志将显示在这里
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="clearEventLog('copy')">🗑️ 清空日志</button>
+                        </div>
+                    </div>
+
+                    <!-- 粘贴事件 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 粘贴事件</span>
+                            <span class="demo-badge">paste</span>
+                        </div>
+                        <textarea class="text-area" id="pasteEventArea" placeholder="在这里粘贴内容试试..."></textarea>
+                        <div class="preview-area" id="pasteEventLog" style="min-height: 80px;">
+                            粘贴事件日志将显示在这里
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-success" onclick="clearEventLog('paste')">🗑️ 清空日志</button>
+                        </div>
+                    </div>
+
+                    <!-- 剪切事件 -->
+                    <div class="demo-card" style="grid-column: span 2;">
+                        <div class="demo-header">
+                            <span class="demo-title">✂️ 剪切事件</span>
+                            <span class="demo-badge">cut</span>
+                        </div>
+                        <textarea class="text-area" id="cutEventArea"
+                            placeholder="选中文本试试剪切...">选中这段文本，然后按 Ctrl+X 或右键剪切</textarea>
+                        <div class="preview-area" id="cutEventLog" style="min-height: 80px;">
+                            剪切事件日志将显示在这里
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-warning" onclick="clearEventLog('cut')">🗑️ 清空日志</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级特性标签页 -->
+            <div id="advancedTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 多种格式 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📦 多种格式</span>
+                            <span class="demo-badge">multiple</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="copyMultipleFormats()">📋 复制多种格式</button>
+                            <button class="btn btn-success" onclick="readAllFormats()">📖 读取所有格式</button>
+                            <button class="btn btn-warning" onclick="detectFormats()">🔍 检测格式</button>
+                        </div>
+                        <div id="multiFormatResult" class="preview-area" style="min-height: 100px;">
+                            点击按钮查看结果
+                        </div>
+                    </div>
+
+                    <!-- 自定义格式 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🔧 自定义格式</span>
+                            <span class="demo-badge">custom</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="copyCustomFormat()">📋 复制自定义格式</button>
+                            <button class="btn btn-success" onclick="readCustomFormat()">📖 读取自定义格式</button>
+                            <button class="btn btn-warning" onclick="copyJSONData()">📊 复制JSON数据</button>
+                        </div>
+                        <div id="customFormatResult" class="preview-area" style="min-height: 100px;">
+                            点击按钮查看结果
+                        </div>
+                    </div>
+
+                    <!-- 批量操作 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">⚡ 批量操作</span>
+                            <span class="demo-badge">batch</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="batchCopy(10)">📋 批量复制(10次)</button>
+                            <button class="btn btn-success" onclick="batchCopy(50)">📋 批量复制(50次)</button>
+                            <button class="btn btn-warning" onclick="batchCopy(100)">📋 批量复制(100次)</button>
+                        </div>
+                        <div id="batchResult" class="preview-area" style="min-height: 80px;">
+                            点击按钮测试性能
+                        </div>
+                    </div>
+
+                    <!-- 性能测试 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">⏱️ 性能测试</span>
+                            <span class="demo-badge">benchmark</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="measureLatency()">📏 测量延迟</button>
+                            <button class="btn btn-success" onclick="measureThroughput()">📊 测量吞吐量</button>
+                            <button class="btn btn-warning" onclick="comparePerformance()">⚖️ 对比测试</button>
+                        </div>
+                        <div id="perfResult" class="preview-area" style="min-height: 80px;">
+                            点击按钮测试性能
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+
+            <!-- 兼容性表格 -->
+            <h3>🌐 浏览器支持</h3>
+            <table class="compat-table">
+                <tr>
+                    <td>Chrome 66+</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Edge 79+</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Firefox 63+</td>
+                    <td class="partial">⚠️ 需要配置</td>
+                </tr>
+                <tr>
+                    <td>Safari 13.1+</td>
+                    <td class="partial">⚠️ 部分支持</td>
+                </tr>
+                <tr>
+                    <td>Opera 53+</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // 统计
+            let stats = {
+                copy: 0,
+                paste: 0,
+                dataSize: 0,
+                errors: 0,
+                totalTime: 0,
+                successCount: 0
+            };
+
+            let perfData = [];
+
+            // 初始化
+            function init() {
+                checkSupport();
+                checkPermissions();
+                setupEventListeners();
+                drawGradient();
+                startPerformanceMonitor();
+                log('系统初始化完成', 'success');
+            }
+
+            // 性能监控
+            function startPerformanceMonitor() {
+                setInterval(() => {
+                    const total = stats.copy + stats.paste;
+                    if (total > 0) {
+                        const successRate = ((stats.successCount / total) * 100).toFixed(1);
+                        document.getElementById('successRate').textContent = successRate;
+                    }
+
+                    const avgLatency = perfData.length > 0 ?
+                        (perfData.reduce((a, b) => a + b, 0) / perfData.length).toFixed(2) : 0;
+                    document.getElementById('avgLatency').textContent = avgLatency;
+
+                    if (performance.memory) {
+                        const used = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                        document.getElementById('memoryUsage').textContent = used;
+                    }
+                }, 1000);
+            }
+
+            // 显示成功消息
+            function showSuccess(message) {
+                const successEl = document.getElementById('successMessage');
+                successEl.style.display = 'block';
+                successEl.textContent = '✅ ' + message;
+
+                setTimeout(() => {
+                    successEl.style.display = 'none';
+                }, 2000);
+            }
+
+            // 显示错误
+            function showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.style.display = 'block';
+                errorEl.textContent = '❌ ' + message;
+                stats.errors++;
+                updateStats();
+
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 3000);
+            }
+
+            // 更新统计
+            function updateStats() {
+                document.getElementById('copyCount').textContent = stats.copy;
+                document.getElementById('pasteCount').textContent = stats.paste;
+                document.getElementById('dataSize').textContent = (stats.dataSize / 1024).toFixed(2);
+                document.getElementById('errorCount').textContent = stats.errors;
+            }
+
+            // 更新操作速度
+            function updateOperationSpeed(time) {
+                const speed = 1000 / time;
+                document.getElementById('operationSpeed').textContent = speed.toFixed(1);
+            }
+
+            // 检查支持
+            function checkSupport() {
+                const statusEl = document.getElementById('apiStatus');
+
+                if (navigator.clipboard) {
+                    statusEl.textContent = '✓ 支持';
+                    statusEl.className = 'status-badge status-supported';
+                    log('✅ Clipboard API 可用', 'success');
+                } else {
+                    statusEl.textContent = '✗ 不支持';
+                    statusEl.className = 'status-badge status-unsupported';
+                    log('❌ 当前浏览器不支持 Clipboard API', 'error');
+
+                    // 禁用所有按钮
+                    document.querySelectorAll('.btn').forEach(btn => {
+                        btn.disabled = true;
+                    });
+                }
+            }
+
+            // 检查权限
+            async function checkPermissions() {
+                if (!navigator.permissions) return;
+
+                try {
+                    const readPermission = await navigator.permissions.query({ name: 'clipboard-read' });
+                    updatePermissionUI('read', readPermission.state);
+
+                    const writePermission = await navigator.permissions.query({ name: 'clipboard-write' });
+                    updatePermissionUI('write', writePermission.state);
+
+                    log('📋 权限检查完成', 'info');
+                } catch (err) {
+                    log('⚠️ 权限API不可用', 'warning');
+                }
+            }
+
+            // 更新权限UI
+            function updatePermissionUI(type, state) {
+                const el = document.getElementById(type + 'Permission');
+                if (!el) return;
+
+                el.textContent = {
+                    'granted': '✅ 已授权',
+                    'prompt': '⚠️ 需要确认',
+                    'denied': '❌ 已拒绝'
+                }[state] || state;
+
+                el.className = 'permission-status permission-' + state;
+            }
+
+            // 请求读取权限
+            window.requestReadPermission = async function () {
+                try {
+                    await navigator.clipboard.readText();
+                    await checkPermissions();
+                    showSuccess('读取权限已获取');
+                } catch (err) {
+                    handleError('权限请求失败', err);
+                }
+            };
+
+            // 请求写入权限
+            window.requestWritePermission = async function () {
+                try {
+                    await navigator.clipboard.writeText('test');
+                    await checkPermissions();
+                    showSuccess('写入权限已获取');
+                } catch (err) {
+                    handleError('权限请求失败', err);
+                }
+            };
+
+            // 设置事件监听
+            function setupEventListeners() {
+                document.addEventListener('copy', (event) => {
+                    const logEl = document.getElementById('copyEventLog');
+                    if (logEl) {
+                        const selection = document.getSelection();
+                        const selectedText = selection ? selection.toString() : '';
+
+                        logEl.innerHTML = `📋 复制事件触发 at ${new Date().toLocaleTimeString()}<br>`;
+                        logEl.innerHTML += `选中的内容: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}<br>`;
+                        logEl.innerHTML += `长度: ${selectedText.length} 字符`;
+                    }
+                });
+
+                document.addEventListener('paste', (event) => {
+                    const logEl = document.getElementById('pasteEventLog');
+                    if (!logEl) return;
+
+                    logEl.innerHTML = `📋 粘贴事件触发 at ${new Date().toLocaleTimeString()}<br>`;
+
+                    const items = event.clipboardData.items;
+                    logEl.innerHTML += `项目数量: ${items.length}<br>`;
+
+                    for (let i = 0; i < items.length; i++) {
+                        logEl.innerHTML += `项目 ${i + 1}: ${items[i].type}<br>`;
+                    }
+                });
+
+                document.addEventListener('cut', (event) => {
+                    const logEl = document.getElementById('cutEventLog');
+                    if (logEl) {
+                        const selection = document.getSelection();
+                        const selectedText = selection ? selection.toString() : '';
+
+                        logEl.innerHTML = `✂️ 剪切事件触发 at ${new Date().toLocaleTimeString()}<br>`;
+                        logEl.innerHTML += `剪切的内容: ${selectedText.substring(0, 50)}${selectedText.length > 50 ? '...' : ''}`;
+                    }
+                });
+            }
+
+            // 清空事件日志
+            window.clearEventLog = function (type) {
+                const logEl = document.getElementById(type + 'EventLog');
+                if (logEl) {
+                    logEl.innerHTML = type + '事件日志已清空';
+                }
+            };
+
+            // 复制文本从textarea
+            window.copyTextFromArea = async function () {
+                const textarea = document.getElementById('copyTextArea');
+                const text = textarea.value.trim();
+
+                if (!text) {
+                    log('⚠️ 没有内容可复制', 'warning');
+                    return;
+                }
+
+                await copyText(text, 'textarea');
+            };
+
+            // 复制当前时间
+            window.copyCurrentTime = async function () {
+                const time = new Date().toLocaleString();
+                await copyText(time, 'time');
+            };
+
+            // 复制随机数
+            window.copyRandomNumber = async function () {
+                const num = Math.random().toString(36).substring(2, 10);
+                await copyText(num, 'random');
+            };
+
+            // 通用复制文本函数
+            async function copyText(text, source) {
+                const start = performance.now();
+
+                try {
+                    await navigator.clipboard.writeText(text);
+
+                    const time = performance.now() - start;
+                    perfData.push(time);
+                    if (perfData.length > 100) perfData.shift();
+
+                    stats.copy++;
+                    stats.successCount++;
+                    stats.dataSize += text.length;
+                    updateStats();
+                    updateOperationSpeed(time);
+
+                    document.getElementById('copyResult').innerHTML =
+                        `✅ 复制成功<br>` +
+                        `内容: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}<br>` +
+                        `大小: ${text.length} 字节<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    showSuccess('复制成功！');
+                } catch (err) {
+                    handleError('复制失败', err);
+                }
+            }
+
+            // 粘贴文本
+            window.pasteText = async function () {
+                const start = performance.now();
+
+                try {
+                    const text = await navigator.clipboard.readText();
+
+                    const time = performance.now() - start;
+                    perfData.push(time);
+
+                    stats.paste++;
+                    stats.successCount++;
+                    stats.dataSize += text.length;
+                    updateStats();
+
+                    document.getElementById('pasteTextArea').value = text;
+
+                    showSuccess('粘贴成功！');
+                } catch (err) {
+                    handleError('粘贴失败', err);
+                }
+            };
+
+            // 粘贴并统计
+            window.pasteAndFormat = async function () {
+                try {
+                    const text = await navigator.clipboard.readText();
+
+                    const lines = text.split('\n').length;
+                    const words = text.split(/\s+/).length;
+                    const chars = text.length;
+
+                    document.getElementById('pasteStats').innerHTML =
+                        `📊 文本统计<br>` +
+                        `行数: ${lines}<br>` +
+                        `单词数: ${words}<br>` +
+                        `字符数: ${chars}<br>` +
+                        `大小: ${chars} 字节`;
+
+                    showSuccess('统计完成！');
+                } catch (err) {
+                    handleError('统计失败', err);
+                }
+            };
+
+            // 清空粘贴区
+            window.clearPasteArea = function () {
+                document.getElementById('pasteTextArea').value = '';
+                document.getElementById('pasteStats').innerHTML = '粘贴统计将显示在这里';
+            };
+
+            // 复制富文本
+            window.copyRichText = async function () {
+                const start = performance.now();
+
+                try {
+                    const html = document.getElementById('richSource').innerHTML;
+                    const text = document.getElementById('richSource').innerText;
+
+                    const htmlBlob = new Blob([html], { type: 'text/html' });
+                    const textBlob = new Blob([text], { type: 'text/plain' });
+
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'text/html': htmlBlob,
+                            'text/plain': textBlob
+                        })
+                    ]);
+
+                    const time = performance.now() - start;
+
+                    stats.copy++;
+                    stats.successCount++;
+                    stats.dataSize += html.length + text.length;
+                    updateStats();
+
+                    showSuccess('富文本复制成功！');
+                } catch (err) {
+                    handleError('富文本复制失败', err);
+                }
+            };
+
+            // 复制格式化HTML
+            window.copyFormattedHTML = async function () {
+                try {
+                    const html = `
+                        <div style="font-family: Arial; padding: 20px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 10px;">
+                            <h2 style="color: white;">格式化HTML</h2>
+                            <p style="color: #fff;">这是 <span style="font-weight: bold;">加粗</span> 和 <span style="font-style: italic;">斜体</span> 文本</p>
+                            <ul style="color: white;">
+                                <li>列表项 1</li>
+                                <li>列表项 2</li>
+                                <li>列表项 3</li>
+                            </ul>
+                        </div>
+                    `;
+
+                    const blob = new Blob([html], { type: 'text/html' });
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'text/html': blob })
+                    ]);
+
+                    stats.copy++;
+                    stats.dataSize += html.length;
+                    updateStats();
+
+                    showSuccess('格式化HTML复制成功！');
+                } catch (err) {
+                    handleError('格式化HTML复制失败', err);
+                }
+            };
+
+            // 复制带样式文本
+            window.copyStyledText = async function () {
+                try {
+                    const html = `
+                        <div style="font-size: 18px; color: #667eea; font-weight: bold;">
+                            <span style="color: #4CAF50;">绿色</span> 和 
+                            <span style="color: #f44336;">红色</span> 文本
+                        </div>
+                    `;
+
+                    const blob = new Blob([html], { type: 'text/html' });
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'text/html': blob })
+                    ]);
+
+                    stats.copy++;
+                    updateStats();
+
+                    showSuccess('带样式文本复制成功！');
+                } catch (err) {
+                    handleError('复制失败', err);
+                }
+            };
+
+            // 粘贴富文本
+            window.pasteRichText = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let hasHtml = false;
+
+                    for (const item of items) {
+                        if (item.types.includes('text/html')) {
+                            const blob = await item.getType('text/html');
+                            const html = await blob.text();
+
+                            document.getElementById('richPasteArea').innerHTML = html;
+                            hasHtml = true;
+
+                            stats.paste++;
+                            stats.dataSize += html.length;
+                            updateStats();
+
+                            showSuccess('富文本粘贴成功！');
+                            break;
+                        }
+                    }
+
+                    if (!hasHtml) {
+                        document.getElementById('richPasteArea').innerHTML = '⚠️ 剪贴板中没有富文本内容';
+                    }
+                } catch (err) {
+                    handleError('富文本粘贴失败', err);
+                }
+            };
+
+            // 粘贴并检查格式
+            window.pasteAndInspect = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let result = '📋 剪贴板内容:<br>';
+
+                    if (items.length === 0) {
+                        result = '📭 剪贴板为空';
+                    } else {
+                        for (const item of items) {
+                            result += `项目格式: ${item.types.join(', ')}<br>`;
+
+                            for (const type of item.types) {
+                                const blob = await item.getType(type);
+                                result += `- ${type}: ${(blob.size / 1024).toFixed(2)}KB<br>`;
+                            }
+                        }
+                    }
+
+                    document.getElementById('richPasteArea').innerHTML = result;
+                } catch (err) {
+                    handleError('检查失败', err);
+                }
+            };
+
+            // 清空富文本区
+            window.clearRichArea = function () {
+                document.getElementById('richPasteArea').innerHTML = '等待粘贴...';
+            };
+
+            // 绘制渐变
+            function drawGradient() {
+                const canvas = document.getElementById('imageCanvas');
+                const ctx = canvas.getContext('2d');
+
+                const gradient = ctx.createLinearGradient(0, 0, 200, 200);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(0.5, '#764ba2');
+                gradient.addColorStop(1, '#f44336');
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 200, 200);
+
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Canvas', 100, 100);
+            }
+
+            // 生成渐变图
+            window.generateGradientImage = function () {
+                drawGradient();
+                document.getElementById('imageCopyResult').innerHTML = '🌈 渐变图已生成';
+            };
+
+            // 生成图案
+            window.generatePatternImage = function () {
+                const canvas = document.getElementById('imageCanvas');
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, 200, 200);
+
+                for (let i = 0; i < 200; i += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, 200);
+                    ctx.strokeStyle = '#667eea';
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(200, i);
+                    ctx.strokeStyle = '#764ba2';
+                    ctx.stroke();
+                }
+
+                document.getElementById('imageCopyResult').innerHTML = '🔷 图案已生成';
+            };
+
+            // 复制画布图片
+            window.copyCanvasImage = async function () {
+                const start = performance.now();
+
+                try {
+                    const canvas = document.getElementById('imageCanvas');
+
+                    const blob = await new Promise(resolve => {
+                        canvas.toBlob(resolve, 'image/png');
+                    });
+
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'image/png': blob
+                        })
+                    ]);
+
+                    const time = performance.now() - start;
+
+                    stats.copy++;
+                    stats.successCount++;
+                    stats.dataSize += blob.size;
+                    updateStats();
+
+                    document.getElementById('imageCopyResult').innerHTML =
+                        `✅ 图片复制成功<br>` +
+                        `大小: ${(blob.size / 1024).toFixed(2)}KB<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    showSuccess('图片复制成功！');
+                } catch (err) {
+                    handleError('图片复制失败', err);
+                }
+            };
+
+            // 粘贴图片
+            window.pasteImage = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let hasImage = false;
+
+                    for (const item of items) {
+                        for (const type of item.types) {
+                            if (type.startsWith('image/')) {
+                                const blob = await item.getType(type);
+                                const url = URL.createObjectURL(blob);
+
+                                const img = document.getElementById('pastedImage');
+                                img.src = url;
+                                img.style.display = 'block';
+
+                                document.getElementById('noImageMessage').style.display = 'none';
+                                hasImage = true;
+
+                                stats.paste++;
+                                stats.dataSize += blob.size;
+                                updateStats();
+
+                                // 显示图片信息
+                                document.getElementById('imageInfo').innerHTML =
+                                    `🖼️ 图片信息<br>` +
+                                    `格式: ${type}<br>` +
+                                    `大小: ${(blob.size / 1024).toFixed(2)}KB<br>` +
+                                    `尺寸: ${img.width} x ${img.height}`;
+
+                                showSuccess('图片粘贴成功！');
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!hasImage) {
+                        document.getElementById('noImageMessage').innerHTML = '⚠️ 剪贴板中没有图片';
+                        document.getElementById('imageInfo').innerHTML = '';
+                    }
+                } catch (err) {
+                    handleError('图片粘贴失败', err);
+                }
+            };
+
+            // 粘贴图片信息
+            window.pasteImageInfo = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let info = '';
+
+                    for (const item of items) {
+                        for (const type of item.types) {
+                            if (type.startsWith('image/')) {
+                                const blob = await item.getType(type);
+                                info += `格式: ${type}<br>大小: ${(blob.size / 1024).toFixed(2)}KB<br>`;
+                            }
+                        }
+                    }
+
+                    document.getElementById('imageInfo').innerHTML = info || '没有图片信息';
+                } catch (err) {
+                    handleError('获取图片信息失败', err);
+                }
+            };
+
+            // 清除图片
+            window.clearImage = function () {
+                const img = document.getElementById('pastedImage');
+                img.style.display = 'none';
+                img.src = '';
+                document.getElementById('noImageMessage').style.display = 'block';
+                document.getElementById('noImageMessage').innerHTML = '等待粘贴图片...';
+                document.getElementById('imageInfo').innerHTML = '';
+            };
+
+            // 复制多种格式
+            window.copyMultipleFormats = async function () {
+                try {
+                    const data = {
+                        text: '普通文本',
+                        html: '<b>HTML文本</b>',
+                        custom: JSON.stringify({ key: 'value' })
+                    };
+
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'text/plain': new Blob([data.text], { type: 'text/plain' }),
+                            'text/html': new Blob([data.html], { type: 'text/html' }),
+                            'application/json': new Blob([data.custom], { type: 'application/json' })
+                        })
+                    ]);
+
+                    stats.copy++;
+                    updateStats();
+
+                    document.getElementById('multiFormatResult').innerHTML =
+                        '✅ 多种格式复制成功<br>' +
+                        '包含: text/plain, text/html, application/json';
+
+                    showSuccess('多种格式复制成功！');
+                } catch (err) {
+                    handleError('多种格式复制失败', err);
+                }
+            };
+
+            // 读取所有格式
+            window.readAllFormats = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let result = '📋 剪贴板格式:<br>';
+
+                    if (items.length === 0) {
+                        result = '📭 剪贴板为空';
+                    } else {
+                        for (const item of items) {
+                            result += `<br>项目类型: ${item.types.join(', ')}<br>`;
+
+                            for (const type of item.types) {
+                                const blob = await item.getType(type);
+                                result += `- ${type}: ${(blob.size / 1024).toFixed(2)}KB<br>`;
+                            }
+                        }
+                    }
+
+                    document.getElementById('multiFormatResult').innerHTML = result;
+                } catch (err) {
+                    handleError('读取失败', err);
+                }
+            };
+
+            // 检测格式
+            window.detectFormats = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    const formats = [];
+
+                    for (const item of items) {
+                        formats.push(...item.types);
+                    }
+
+                    document.getElementById('multiFormatResult').innerHTML =
+                        `🔍 检测到 ${formats.length} 种格式:<br>` +
+                        formats.map(f => `- ${f}`).join('<br>');
+                } catch (err) {
+                    handleError('检测失败', err);
+                }
+            };
+
+            // 复制自定义格式
+            window.copyCustomFormat = async function () {
+                try {
+                    const data = {
+                        name: '张三',
+                        age: 25,
+                        time: Date.now(),
+                        tags: ['重要', '紧急']
+                    };
+
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'application/x-custom': new Blob([JSON.stringify(data)], { type: 'application/x-custom' })
+                        })
+                    ]);
+
+                    stats.copy++;
+                    updateStats();
+
+                    document.getElementById('customFormatResult').innerHTML =
+                        '✅ 自定义格式复制成功<br>' +
+                        '格式: application/x-custom';
+
+                    showSuccess('自定义格式复制成功！');
+                } catch (err) {
+                    handleError('自定义格式复制失败', err);
+                }
+            };
+
+            // 读取自定义格式
+            window.readCustomFormat = async function () {
+                try {
+                    const items = await navigator.clipboard.read();
+                    let found = false;
+
+                    for (const item of items) {
+                        if (item.types.includes('application/x-custom')) {
+                            const blob = await item.getType('application/x-custom');
+                            const text = await blob.text();
+                            const data = JSON.parse(text);
+
+                            document.getElementById('customFormatResult').innerHTML =
+                                `✅ 读取到自定义数据:<br>` +
+                                `姓名: ${data.name}<br>` +
+                                `年龄: ${data.age}<br>` +
+                                `时间: ${new Date(data.time).toLocaleString()}<br>` +
+                                `标签: ${data.tags.join(', ')}`;
+
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        document.getElementById('customFormatResult').innerHTML = '⚠️ 未找到自定义格式';
+                    }
+                } catch (err) {
+                    handleError('读取自定义格式失败', err);
+                }
+            };
+
+            // 复制JSON数据
+            window.copyJSONData = async function () {
+                try {
+                    const data = {
+                        users: [
+                            { id: 1, name: '张三', score: 85 },
+                            { id: 2, name: '李四', score: 92 },
+                            { id: 3, name: '王五', score: 78 }
+                        ],
+                        total: 3,
+                        timestamp: Date.now()
+                    };
+
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'application/json': new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                        })
+                    ]);
+
+                    stats.copy++;
+                    updateStats();
+
+                    document.getElementById('customFormatResult').innerHTML =
+                        '✅ JSON数据复制成功<br>' +
+                        `包含 ${data.users.length} 条用户记录`;
+
+                    showSuccess('JSON数据复制成功！');
+                } catch (err) {
+                    handleError('JSON复制失败', err);
+                }
+            };
+
+            // 批量复制
+            window.batchCopy = async function (count = 10) {
+                const start = performance.now();
+                let successes = 0;
+
+                for (let i = 0; i < count; i++) {
+                    try {
+                        await navigator.clipboard.writeText(`批量消息 ${i + 1}`);
+                        successes++;
+                    } catch (err) {
+                        stats.errors++;
+                    }
+                }
+
+                const end = performance.now();
+                const time = end - start;
+
+                stats.copy += successes;
+                updateStats();
+
+                document.getElementById('batchResult').innerHTML =
+                    `📊 批量复制结果<br>` +
+                    `成功: ${successes}/${count}<br>` +
+                    `总耗时: ${time.toFixed(2)}ms<br>` +
+                    `平均: ${(time / count).toFixed(2)}ms/次<br>` +
+                    `速度: ${Math.round(successes / (time / 1000))} 次/秒`;
+            };
+
+            // 测量延迟
+            window.measureLatency = async function () {
+                const count = 10;
+                const latencies = [];
+
+                for (let i = 0; i < count; i++) {
+                    const start = performance.now();
+                    try {
+                        await navigator.clipboard.writeText(`latency-${i}`);
+                        const end = performance.now();
+                        latencies.push(end - start);
+                    } catch (err) {
+                        stats.errors++;
+                    }
+                }
+
+                const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+                const min = Math.min(...latencies);
+                const max = Math.max(...latencies);
+
+                document.getElementById('perfResult').innerHTML =
+                    `📏 延迟测试结果 (${count}次)<br>` +
+                    `平均: ${avg.toFixed(2)}ms<br>` +
+                    `最小: ${min.toFixed(2)}ms<br>` +
+                    `最大: ${max.toFixed(2)}ms`;
+            };
+
+            // 测量吞吐量
+            window.measureThroughput = async function () {
+                const count = 50;
+                const start = performance.now();
+                let successes = 0;
+
+                for (let i = 0; i < count; i++) {
+                    try {
+                        await navigator.clipboard.writeText(`throughput-${i}`);
+                        successes++;
+                    } catch (err) {
+                        stats.errors++;
+                    }
+                }
+
+                const end = performance.now();
+                const time = end - start;
+                const throughput = Math.round(successes / (time / 1000));
+
+                document.getElementById('perfResult').innerHTML =
+                    `📊 吞吐量测试<br>` +
+                    `成功: ${successes}/${count}<br>` +
+                    `耗时: ${time.toFixed(2)}ms<br>` +
+                    `吞吐量: ${throughput} 次/秒`;
+            };
+
+            // 对比测试
+            window.comparePerformance = async function () {
+                const count = 20;
+
+                // 测试 writeText
+                const start1 = performance.now();
+                for (let i = 0; i < count; i++) {
+                    await navigator.clipboard.writeText(`test-${i}`);
+                }
+                const time1 = performance.now() - start1;
+
+                // 测试 ClipboardItem
+                const start2 = performance.now();
+                for (let i = 0; i < count; i++) {
+                    const blob = new Blob([`test-${i}`], { type: 'text/plain' });
+                    await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })]);
+                }
+                const time2 = performance.now() - start2;
+
+                document.getElementById('perfResult').innerHTML =
+                    `⚖️ 性能对比 (${count}次)<br>` +
+                    `writeText: ${(time1 / count).toFixed(2)}ms/次<br>` +
+                    `ClipboardItem: ${(time2 / count).toFixed(2)}ms/次<br>` +
+                    `差异: ${((time2 - time1) / count).toFixed(2)}ms/次`;
+            };
+
+            // 错误处理
+            function handleError(context, err) {
+                stats.errors++;
+                updateStats();
+
+                let message = err.message;
+                if (err.name === 'NotAllowedError') {
+                    message = '需要权限，请确保操作由用户手势触发（点击按钮）';
+                } else if (err.name === 'NotFoundError') {
+                    message = '剪贴板中没有数据';
+                } else if (err.name === 'TypeError') {
+                    message = '不支持的数据类型';
+                } else if (err.name === 'DataError') {
+                    message = '数据格式错误';
+                }
+
+                showError(`${context}: ${message}`);
+            }
+
+            // 标签页切换
+            window.switchTab = function (tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                event.target.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            };
+
+            // 日志
+            function log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+
+                const now = new Date();
+                const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                entry.textContent = `${time} ${message}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+
+                while (logPanel.children.length > 100) {
+                    logPanel.removeChild(logPanel.children[0]);
+                }
+            }
+
+            // 初始化
+            window.onload = init;
+        })();
+    </script>
+</body>
+
+</html>

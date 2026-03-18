@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compression Stream API - 完整修复版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        /* 性能监控 */
+        .performance-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .perf-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .perf-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .perf-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .perf-unit {
+            font-size: 12px;
+            color: #999;
+            margin-left: 2px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 演示网格 */
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .demo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .demo-title {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .demo-badge {
+            padding: 3px 8px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        /* 文本区域 */
+        .text-area {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+            resize: vertical;
+            margin: 10px 0;
+        }
+
+        .text-area:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        /* 预览区域 */
+        .preview-area {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 80px;
+            border: 2px dashed #ddd;
+            margin: 10px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        /* 文件上传 */
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+            background: white;
+            cursor: pointer;
+        }
+
+        .file-input:hover {
+            border-color: #667eea;
+        }
+
+        .file-info {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 13px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            background: #ffebee;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #4CAF50;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            display: none;
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .performance-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📦 Compression Stream API - 完整修复版</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>流式压缩/解压数据，支持文件操作、图片处理、自动识别文件类型</p>
+
+            <!-- 性能监控 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">压缩速度</div>
+                    <div class="perf-value" id="compressSpeed">0</div>
+                    <span class="perf-unit">KB/s</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">解压速度</div>
+                    <div class="perf-value" id="decompressSpeed">0</div>
+                    <span class="perf-unit">KB/s</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">压缩率</div>
+                    <div class="perf-value" id="compressionRatio">0</div>
+                    <span class="perf-unit">%</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">操作次数</div>
+                    <div class="perf-value" id="operationCount">0</div>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalOriginal">0</div>
+                    <div class="stat-label">原始大小(KB)</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="totalCompressed">0</div>
+                    <div class="stat-label">压缩后(KB)</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="avgRatio">0</div>
+                    <div class="stat-label">平均压缩率</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">错误次数</div>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('basic')">📝 基础压缩</div>
+                <div class="tab" onclick="switchTab('file')">📁 文件操作</div>
+                <div class="tab" onclick="switchTab('image')">🖼️ 图片处理</div>
+                <div class="tab" onclick="switchTab('compare')">📊 格式对比</div>
+                <div class="tab" onclick="switchTab('stress')">⚡ 压力测试</div>
+            </div>
+
+            <!-- 基础压缩标签页 -->
+            <div id="basicTab" class="tab-content active">
+                <div class="demo-grid">
+                    <!-- 压缩 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🗜️ 压缩</span>
+                            <span class="demo-badge">CompressionStream</span>
+                        </div>
+                        <textarea id="compressInput" class="text-area"
+                            placeholder="输入要压缩的文本...">这是一个示例文本，用于测试 Compression Stream API 的压缩效果。重复的内容会增加压缩率。重复的内容会增加压缩率。重复的内容会增加压缩率。</textarea>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="compressGzip()">📦 压缩 (GZIP)</button>
+                            <button class="btn btn-success" onclick="compressDeflate()">📦 压缩 (DEFLATE)</button>
+                            <button class="btn btn-warning" onclick="clearCompress()">🗑️ 清空</button>
+                        </div>
+                        <div class="preview-area" id="compressOutput">压缩结果将显示在这里</div>
+                        <div id="compressStats" style="font-size: 12px; color: #666;"></div>
+                    </div>
+
+                    <!-- 解压 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🔓 解压</span>
+                            <span class="demo-badge">DecompressionStream</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="decompressGzip()">🔓 解压 (GZIP)</button>
+                            <button class="btn btn-success" onclick="decompressDeflate()">🔓 解压 (DEFLATE)</button>
+                            <button class="btn btn-warning" onclick="useCompressedResult()">📋 使用上方结果</button>
+                        </div>
+                        <div class="preview-area" id="decompressOutput">解压结果将显示在这里</div>
+                        <div id="decompressStats" style="font-size: 12px; color: #666;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件操作标签页 -->
+            <div id="fileTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 压缩文件 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📁 压缩文件</span>
+                            <span class="demo-badge">GZIP</span>
+                        </div>
+                        <input type="file" id="fileInput" class="file-input">
+                        <div id="fileInfo" class="file-info">未选择文件</div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="compressFile()">🗜️ 压缩文件</button>
+                            <button class="btn btn-success" onclick="downloadCompressed()" id="downloadCompressedBtn"
+                                disabled>💾 下载压缩包</button>
+                        </div>
+                        <div id="fileCompressInfo" class="preview-area" style="min-height: 60px;">
+                            选择文件后点击压缩
+                        </div>
+                    </div>
+
+                    <!-- 解压文件 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📁 解压文件</span>
+                            <span class="demo-badge">自动识别格式</span>
+                        </div>
+                        <input type="file" id="compressedFileInput" class="file-input" accept=".gz">
+                        <div id="compressedFileInfo" class="file-info">未选择压缩文件</div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="decompressFile()">🔓 解压文件</button>
+                            <button class="btn btn-success" onclick="downloadDecompressed()"
+                                id="downloadDecompressedBtn" disabled>💾 下载原始文件</button>
+                        </div>
+                        <div id="fileDecompressInfo" class="preview-area" style="min-height: 60px;">
+                            选择压缩文件后点击解压
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片处理标签页 -->
+            <div id="imageTab" class="tab-content">
+                <div class="demo-grid">
+                    <!-- 压缩图片 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🖼️ 压缩图片</span>
+                            <span class="demo-badge">图片 → GZIP</span>
+                        </div>
+                        <input type="file" id="imageInput" class="file-input" accept="image/*">
+                        <div id="imagePreview" style="text-align: center; margin: 10px 0;">
+                            <img id="previewImage"
+                                style="max-width: 100%; max-height: 200px; display: none; border-radius: 8px;">
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="compressImage()">🗜️ 压缩图片</button>
+                            <button class="btn btn-success" onclick="downloadCompressedImage()" id="downloadImageBtn"
+                                disabled>💾 下载压缩包</button>
+                        </div>
+                        <div id="imageCompressInfo" class="preview-area" style="min-height: 60px;">
+                            选择图片后点击压缩
+                        </div>
+                    </div>
+
+                    <!-- 解压图片 -->
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🖼️ 解压图片</span>
+                            <span class="demo-badge">GZIP → 图片</span>
+                        </div>
+                        <input type="file" id="compressedImageInput" class="file-input" accept=".gz">
+                        <div id="decompressedImagePreview" style="text-align: center; margin: 10px 0;">
+                            <img id="decompressedImage"
+                                style="max-width: 100%; max-height: 200px; display: none; border-radius: 8px;">
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="decompressImage()">🔓 解压图片</button>
+                            <button class="btn btn-success" onclick="downloadDecompressedImage()"
+                                id="downloadImageDecompressedBtn" disabled>💾 下载图片</button>
+                        </div>
+                        <div id="imageDecompressInfo" class="preview-area" style="min-height: 60px;">
+                            选择压缩文件后点击解压
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 格式对比标签页 -->
+            <div id="compareTab" class="tab-content">
+                <div class="demo-card" style="grid-column: span 2;">
+                    <div class="demo-header">
+                        <span class="demo-title">📊 GZIP vs DEFLATE 对比</span>
+                    </div>
+                    <textarea id="compareInput" class="text-area"
+                        placeholder="输入要对比的文本...">这是一个用于对比不同压缩格式的示例文本。Compression Stream API 支持 GZIP 和 DEFLATE 两种格式。GZIP 是基于 DEFLATE 的封装，包含额外的头部信息，所以通常比纯 DEFLATE 略大。</textarea>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="compareFormats()">🔄 开始对比</button>
+                        <button class="btn btn-success" onclick="generateTestData()">📊 生成测试数据</button>
+                    </div>
+
+                    <div class="demo-grid" style="margin-top: 20px;">
+                        <div class="demo-card">
+                            <h4>GZIP 格式</h4>
+                            <div class="preview-area" id="gzipResult" style="min-height: 80px;">等待测试...</div>
+                        </div>
+                        <div class="demo-card">
+                            <h4>DEFLATE 格式</h4>
+                            <div class="preview-area" id="deflateResult" style="min-height: 80px;">等待测试...</div>
+                        </div>
+                    </div>
+
+                    <div id="compareStats" class="preview-area" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+
+            <!-- 压力测试标签页 -->
+            <div id="stressTab" class="tab-content">
+                <div class="demo-card" style="grid-column: span 2;">
+                    <div class="demo-header">
+                        <span class="demo-title">⚡ 压力测试</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label>测试次数: <span class="value-badge" id="stressCount">100</span></label>
+                        <input type="range" id="stressCountSlider" min="10" max="500" value="100" step="10"
+                            style="width: 100%;">
+                    </div>
+
+                    <div class="control-group">
+                        <label>数据大小: <span class="value-badge" id="stressDataSize">10</span> KB</label>
+                        <input type="range" id="stressDataSlider" min="1" max="100" value="10" step="1"
+                            style="width: 100%;">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="runStressTest()">▶️ 开始测试</button>
+                        <button class="btn btn-danger" onclick="stopStressTest()">⏹️ 停止</button>
+                        <button class="btn btn-success" onclick="resetStressTest()">🔄 重置</button>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" id="stressProgress" style="width: 0%;">0%</div>
+                    </div>
+
+                    <div class="demo-grid" style="margin-top: 20px;">
+                        <div class="demo-card">
+                            <h4>测试结果</h4>
+                            <div id="stressResult" class="preview-area" style="min-height: 100px;">等待测试...</div>
+                        </div>
+                        <div class="demo-card">
+                            <h4>实时统计</h4>
+                            <div id="stressStats" class="preview-area" style="min-height: 100px;">
+                                成功: 0<br>
+                                失败: 0<br>
+                                平均时间: 0ms<br>
+                                速度: 0 KB/s
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // 检查支持
+            const supported = 'CompressionStream' in window && 'DecompressionStream' in window;
+
+            // 统计数据
+            let stats = {
+                totalOriginal: 0,
+                totalCompressed: 0,
+                operations: 0,
+                errors: 0,
+                compressTimes: [],
+                decompressTimes: []
+            };
+
+            // 当前压缩的数据
+            let currentCompressedGzip = null;
+            let currentCompressedDeflate = null;
+
+            // 文件操作
+            let currentFile = null;
+            let currentCompressedFile = null;
+            let currentFileName = '';
+            let currentFileType = '';
+
+            // 图片操作
+            let currentImageFile = null;
+            let currentDecompressedImage = null;
+            let currentImageName = '';
+            let currentImageType = '';
+
+            // 压力测试
+            let stressTestActive = false;
+            let stressSuccess = 0;
+            let stressFail = 0;
+
+            // 初始化
+            function init() {
+                checkSupport();
+                setupEventListeners();
+                updateStats();
+                log('系统初始化完成', 'success');
+            }
+
+            // 检查支持
+            function checkSupport() {
+                const statusEl = document.getElementById('apiStatus');
+
+                if (supported) {
+                    statusEl.textContent = '✓ 支持';
+                    statusEl.className = 'status-badge status-supported';
+                    log('✅ Compression Stream API 可用', 'success');
+                } else {
+                    statusEl.textContent = '✗ 不支持';
+                    statusEl.className = 'status-badge status-unsupported';
+                    log('❌ 当前浏览器不支持 Compression Stream API', 'error');
+                }
+            }
+
+            // 事件监听
+            function setupEventListeners() {
+                // 文件选择监听
+                document.getElementById('fileInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('fileInfo').innerHTML =
+                            `📄 ${file.name}<br>类型: ${file.type || '未知'}<br>大小: ${formatBytes(file.size)}`;
+                    }
+                });
+
+                document.getElementById('compressedFileInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('compressedFileInfo').innerHTML =
+                            `📄 ${file.name}<br>大小: ${formatBytes(file.size)}`;
+                    }
+                });
+
+                document.getElementById('imageInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const img = document.getElementById('previewImage');
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                        document.getElementById('imageCompressInfo').innerHTML =
+                            `📄 ${file.name}<br>类型: ${file.type}<br>大小: ${formatBytes(file.size)}`;
+
+                        currentImageName = file.name;
+                        currentImageType = file.type;
+                    }
+                });
+
+                document.getElementById('compressedImageInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('imageDecompressInfo').innerHTML =
+                            `📄 ${file.name}<br>大小: ${formatBytes(file.size)}`;
+
+                        // 从文件名猜测原始类型
+                        const originalName = file.name.replace(/\.gz$/, '');
+                        const ext = originalName.split('.').pop().toLowerCase();
+                        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                            currentImageType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                        }
+                    }
+                });
+
+                // 滑块监听
+                document.getElementById('stressCountSlider').addEventListener('input', (e) => {
+                    document.getElementById('stressCount').textContent = e.target.value;
+                });
+
+                document.getElementById('stressDataSlider').addEventListener('input', (e) => {
+                    document.getElementById('stressDataSize').textContent = e.target.value;
+                });
+            }
+
+            // 获取文件扩展名
+            function getFileExtension(filename) {
+                return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+            }
+
+            // 根据文件名和类型获取下载文件名
+            function getDownloadFileName(originalName, originalType) {
+                if (originalName) {
+                    // 移除 .gz 后缀
+                    const baseName = originalName.replace(/\.gz$/, '');
+                    return baseName;
+                }
+                if (originalType) {
+                    // 根据 MIME 类型生成扩展名
+                    const ext = originalType.split('/')[1] || 'bin';
+                    return `decompressed.${ext}`;
+                }
+                return 'decompressed.bin';
+            }
+
+            // 格式化字节
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // 更新统计
+            function updateStats() {
+                document.getElementById('totalOriginal').textContent = (stats.totalOriginal / 1024).toFixed(2);
+                document.getElementById('totalCompressed').textContent = (stats.totalCompressed / 1024).toFixed(2);
+
+                const avgRatio = stats.totalOriginal > 0 ?
+                    ((stats.totalCompressed / stats.totalOriginal) * 100).toFixed(1) : 0;
+                document.getElementById('avgRatio').textContent = avgRatio;
+
+                document.getElementById('errorCount').textContent = stats.errors;
+                document.getElementById('operationCount').textContent = stats.operations;
+            }
+
+            // 更新性能指标
+            function updatePerformance(type, time, originalSize, compressedSize) {
+                if (type === 'compress') {
+                    stats.compressTimes.push(time);
+                    if (stats.compressTimes.length > 10) stats.compressTimes.shift();
+
+                    const avgTime = stats.compressTimes.reduce((a, b) => a + b, 0) / stats.compressTimes.length;
+                    const speed = originalSize / (avgTime / 1000) / 1024;
+                    document.getElementById('compressSpeed').textContent = speed.toFixed(1);
+                } else {
+                    stats.decompressTimes.push(time);
+                    if (stats.decompressTimes.length > 10) stats.decompressTimes.shift();
+
+                    const avgTime = stats.decompressTimes.reduce((a, b) => a + b, 0) / stats.decompressTimes.length;
+                    const speed = compressedSize / (avgTime / 1000) / 1024;
+                    document.getElementById('decompressSpeed').textContent = speed.toFixed(1);
+                }
+
+                if (compressedSize && originalSize) {
+                    const ratio = ((compressedSize / originalSize) * 100).toFixed(1);
+                    document.getElementById('compressionRatio').textContent = ratio;
+                }
+            }
+
+            // 压缩 GZIP
+            window.compressGzip = async function () {
+                await compress('gzip');
+            };
+
+            // 压缩 DEFLATE
+            window.compressDeflate = async function () {
+                await compress('deflate');
+            };
+
+            // 通用压缩
+            async function compress(format) {
+                const input = document.getElementById('compressInput').value;
+                if (!input) {
+                    log('❌ 请输入要压缩的内容', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const blob = new Blob([input]);
+                    const stream = blob.stream().pipeThrough(new CompressionStream(format));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    const compressedBlob = new Blob(chunks);
+                    const compressedSize = compressedBlob.size;
+                    const originalSize = input.length;
+
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    stats.operations++;
+                    stats.totalOriginal += originalSize;
+                    stats.totalCompressed += compressedSize;
+                    updateStats();
+                    updatePerformance('compress', time, originalSize, compressedSize);
+
+                    // 保存结果
+                    if (format === 'gzip') {
+                        currentCompressedGzip = compressedBlob;
+                    } else {
+                        currentCompressedDeflate = compressedBlob;
+                    }
+
+                    // 显示结果
+                    const base64 = await blobToBase64(compressedBlob);
+                    document.getElementById('compressOutput').innerHTML =
+                        `压缩后的数据 (${format})<br>${base64.substring(0, 100)}...`;
+
+                    document.getElementById('compressStats').innerHTML =
+                        `原始大小: ${formatBytes(originalSize)}, 压缩后: ${formatBytes(compressedSize)}<br>` +
+                        `压缩率: ${((compressedSize / originalSize) * 100).toFixed(1)}%, 耗时: ${time.toFixed(2)}ms`;
+
+                    log(`✅ ${format} 压缩成功`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 压缩失败: ${err.message}`, 'error');
+                }
+            }
+
+            // 解压 GZIP
+            window.decompressGzip = async function () {
+                await decompress('gzip');
+            };
+
+            // 解压 DEFLATE
+            window.decompressDeflate = async function () {
+                await decompress('deflate');
+            };
+
+            // 通用解压
+            async function decompress(format) {
+                const compressedBlob = format === 'gzip' ? currentCompressedGzip : currentCompressedDeflate;
+
+                if (!compressedBlob) {
+                    log('❌ 没有压缩数据，请先压缩', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const stream = compressedBlob.stream().pipeThrough(new DecompressionStream(format));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    const decompressedBlob = new Blob(chunks);
+                    const text = await decompressedBlob.text();
+
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    updatePerformance('decompress', time, decompressedBlob.size, compressedBlob.size);
+
+                    document.getElementById('decompressOutput').innerHTML =
+                        `解压后的文本:<br>${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`;
+
+                    document.getElementById('decompressStats').innerHTML =
+                        `解压后大小: ${formatBytes(decompressedBlob.size)}, 耗时: ${time.toFixed(2)}ms`;
+
+                    log(`✅ ${format} 解压成功`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 解压失败: ${err.message}`, 'error');
+                }
+            }
+
+            // 使用压缩结果
+            window.useCompressedResult = function () {
+                if (currentCompressedGzip) {
+                    document.getElementById('compressOutput').innerHTML = '已准备 GZIP 压缩数据用于解压';
+                } else if (currentCompressedDeflate) {
+                    document.getElementById('compressOutput').innerHTML = '已准备 DEFLATE 压缩数据用于解压';
+                } else {
+                    log('❌ 没有可用的压缩数据', 'error');
+                }
+            };
+
+            // 清空压缩
+            window.clearCompress = function () {
+                document.getElementById('compressInput').value = '';
+                document.getElementById('compressOutput').innerHTML = '压缩结果将显示在这里';
+                document.getElementById('compressStats').innerHTML = '';
+                log('🗑️ 已清空', 'info');
+            };
+
+            // 压缩文件
+            window.compressFile = async function () {
+                const fileInput = document.getElementById('fileInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    log('❌ 请选择文件', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    const compressedBlob = new Blob(chunks, { type: 'application/gzip' });
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    currentCompressedFile = compressedBlob;
+                    currentFileName = file.name + '.gz';
+                    currentFileType = file.type;
+
+                    stats.operations++;
+                    stats.totalOriginal += file.size;
+                    stats.totalCompressed += compressedBlob.size;
+                    updateStats();
+                    updatePerformance('compress', time, file.size, compressedBlob.size);
+
+                    document.getElementById('fileCompressInfo').innerHTML =
+                        `✅ 文件 "${file.name}" 压缩成功<br>` +
+                        `原始大小: ${formatBytes(file.size)}<br>` +
+                        `压缩后: ${formatBytes(compressedBlob.size)}<br>` +
+                        `压缩率: ${((compressedBlob.size / file.size) * 100).toFixed(1)}%<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    document.getElementById('downloadCompressedBtn').disabled = false;
+
+                    log(`✅ 文件压缩成功: ${file.name}`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 文件压缩失败: ${err.message}`, 'error');
+                }
+            };
+
+            // 下载压缩文件
+            window.downloadCompressed = function () {
+                if (!currentCompressedFile) {
+                    log('❌ 没有压缩文件可下载', 'error');
+                    return;
+                }
+
+                const url = URL.createObjectURL(currentCompressedFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFileName || 'compressed.gz';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log('💾 开始下载压缩文件', 'success');
+            };
+
+            // 解压文件
+            window.decompressFile = async function () {
+                const fileInput = document.getElementById('compressedFileInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    log('❌ 请选择压缩文件', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const stream = file.stream().pipeThrough(new DecompressionStream('gzip'));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    // 尝试检测文件类型
+                    const originalName = file.name.replace(/\.gz$/, '');
+                    const ext = originalName.split('.').pop().toLowerCase();
+                    let mimeType = 'application/octet-stream';
+
+                    // 根据扩展名设置 MIME 类型
+                    const mimeTypes = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'webp': 'image/webp',
+                        'txt': 'text/plain',
+                        'html': 'text/html',
+                        'htm': 'text/html',
+                        'css': 'text/css',
+                        'js': 'application/javascript',
+                        'json': 'application/json',
+                        'pdf': 'application/pdf',
+                        'doc': 'application/msword',
+                        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'xls': 'application/vnd.ms-excel',
+                        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'mp3': 'audio/mpeg',
+                        'mp4': 'video/mp4',
+                        'zip': 'application/zip'
+                    };
+
+                    if (mimeTypes[ext]) {
+                        mimeType = mimeTypes[ext];
+                    }
+
+                    const decompressedBlob = new Blob(chunks, { type: mimeType });
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    currentFile = decompressedBlob;
+
+                    updatePerformance('decompress', time, decompressedBlob.size, file.size);
+
+                    document.getElementById('fileDecompressInfo').innerHTML =
+                        `✅ 文件 "${file.name}" 解压成功<br>` +
+                        `压缩文件大小: ${formatBytes(file.size)}<br>` +
+                        `解压后: ${formatBytes(decompressedBlob.size)}<br>` +
+                        `检测到类型: ${mimeType}<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    document.getElementById('downloadDecompressedBtn').disabled = false;
+
+                    log(`✅ 文件解压成功`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 文件解压失败: ${err.message}`, 'error');
+                }
+            };
+
+            // 下载解压文件
+            window.downloadDecompressed = function () {
+                if (!currentFile) {
+                    log('❌ 没有解压文件可下载', 'error');
+                    return;
+                }
+
+                const fileInput = document.getElementById('compressedFileInput');
+                const originalFile = fileInput.files[0];
+                const originalName = originalFile ? originalFile.name.replace(/\.gz$/, '') : 'decompressed';
+
+                const url = URL.createObjectURL(currentFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = originalName; // 使用原始文件名，保留扩展名
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log('💾 开始下载解压文件', 'success');
+            };
+
+            // 压缩图片
+            window.compressImage = async function () {
+                const fileInput = document.getElementById('imageInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    log('❌ 请选择图片', 'error');
+                    return;
+                }
+
+                if (!file.type.startsWith('image/')) {
+                    log('❌ 请选择图片文件', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    const compressedBlob = new Blob(chunks, { type: 'application/gzip' });
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    currentImageFile = compressedBlob;
+
+                    stats.operations++;
+                    stats.totalOriginal += file.size;
+                    stats.totalCompressed += compressedBlob.size;
+                    updateStats();
+                    updatePerformance('compress', time, file.size, compressedBlob.size);
+
+                    document.getElementById('imageCompressInfo').innerHTML =
+                        `✅ 图片压缩成功<br>` +
+                        `原始大小: ${formatBytes(file.size)}<br>` +
+                        `压缩后: ${formatBytes(compressedBlob.size)}<br>` +
+                        `压缩率: ${((compressedBlob.size / file.size) * 100).toFixed(1)}%<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    document.getElementById('downloadImageBtn').disabled = false;
+
+                    log(`✅ 图片压缩成功`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 图片压缩失败: ${err.message}`, 'error');
+                }
+            };
+
+            // 下载压缩图片
+            window.downloadCompressedImage = function () {
+                if (!currentImageFile) {
+                    log('❌ 没有压缩图片可下载', 'error');
+                    return;
+                }
+
+                const fileInput = document.getElementById('imageInput');
+                const file = fileInput.files[0];
+                const fileName = file ? file.name + '.gz' : 'compressed-image.gz';
+
+                const url = URL.createObjectURL(currentImageFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log('💾 开始下载压缩图片', 'success');
+            };
+
+            // 解压图片
+            window.decompressImage = async function () {
+                const fileInput = document.getElementById('compressedImageInput');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    log('❌ 请选择压缩文件', 'error');
+                    return;
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const stream = file.stream().pipeThrough(new DecompressionStream('gzip'));
+
+                    const chunks = [];
+                    const reader = stream.getReader();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                    }
+
+                    // 从文件名猜测图片类型
+                    const originalName = file.name.replace(/\.gz$/, '');
+                    const ext = originalName.split('.').pop().toLowerCase();
+                    let mimeType = 'image/jpeg';
+
+                    if (ext === 'png') mimeType = 'image/png';
+                    else if (ext === 'gif') mimeType = 'image/gif';
+                    else if (ext === 'webp') mimeType = 'image/webp';
+
+                    const decompressedBlob = new Blob(chunks, { type: mimeType });
+                    const endTime = performance.now();
+                    const time = endTime - startTime;
+
+                    currentDecompressedImage = decompressedBlob;
+
+                    // 显示图片
+                    const url = URL.createObjectURL(decompressedBlob);
+                    const img = document.getElementById('decompressedImage');
+                    img.src = url;
+                    img.style.display = 'block';
+
+                    updatePerformance('decompress', time, decompressedBlob.size, file.size);
+
+                    document.getElementById('imageDecompressInfo').innerHTML =
+                        `✅ 图片解压成功<br>` +
+                        `压缩文件大小: ${formatBytes(file.size)}<br>` +
+                        `解压后: ${formatBytes(decompressedBlob.size)}<br>` +
+                        `检测到类型: ${mimeType}<br>` +
+                        `耗时: ${time.toFixed(2)}ms`;
+
+                    document.getElementById('downloadImageDecompressedBtn').disabled = false;
+
+                    log(`✅ 图片解压成功`, 'success');
+                } catch (err) {
+                    stats.errors++;
+                    updateStats();
+                    log(`❌ 图片解压失败: ${err.message}`, 'error');
+                }
+            };
+
+            // 下载解压图片
+            window.downloadDecompressedImage = function () {
+                if (!currentDecompressedImage) {
+                    log('❌ 没有解压图片可下载', 'error');
+                    return;
+                }
+
+                const fileInput = document.getElementById('compressedImageInput');
+                const file = fileInput.files[0];
+                const originalName = file ? file.name.replace(/\.gz$/, '') : 'decompressed-image.jpg';
+
+                const url = URL.createObjectURL(currentDecompressedImage);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = originalName; // 使用原始文件名，保留扩展名
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log('💾 开始下载解压图片', 'success');
+            };
+
+            // 格式对比
+            window.compareFormats = async function () {
+                const text = document.getElementById('compareInput').value;
+
+                try {
+                    // 压缩 GZIP
+                    const gzipBlob = await compressText(text, 'gzip');
+                    // 压缩 DEFLATE
+                    const deflateBlob = await compressText(text, 'deflate');
+
+                    document.getElementById('gzipResult').innerHTML =
+                        `GZIP 大小: ${formatBytes(gzipBlob.size)}<br>` +
+                        `压缩率: ${((gzipBlob.size / text.length) * 100).toFixed(1)}%`;
+
+                    document.getElementById('deflateResult').innerHTML =
+                        `DEFLATE 大小: ${formatBytes(deflateBlob.size)}<br>` +
+                        `压缩率: ${((deflateBlob.size / text.length) * 100).toFixed(1)}%`;
+
+                    const diff = ((deflateBlob.size - gzipBlob.size) / gzipBlob.size * 100).toFixed(1);
+                    document.getElementById('compareStats').innerHTML =
+                        `📊 对比结果<br>` +
+                        `GZIP 比 DEFLATE ${diff > 0 ? '大' : '小'} ${Math.abs(diff)}%<br>` +
+                        `(GZIP 包含额外的头部信息)`;
+
+                    log('📊 格式对比完成', 'success');
+                } catch (err) {
+                    log(`❌ 对比失败: ${err.message}`, 'error');
+                }
+            };
+
+            // 辅助压缩函数
+            async function compressText(text, format) {
+                const blob = new Blob([text]);
+                const stream = blob.stream().pipeThrough(new CompressionStream(format));
+
+                const chunks = [];
+                const reader = stream.getReader();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                }
+
+                return new Blob(chunks);
+            }
+
+            // 生成测试数据
+            window.generateTestData = function () {
+                const text = '这是一个用于对比不同压缩格式的示例文本。'.repeat(50);
+                document.getElementById('compareInput').value = text;
+                log('📊 测试数据已生成', 'success');
+            };
+
+            // 压力测试
+            window.runStressTest = async function () {
+                const count = parseInt(document.getElementById('stressCountSlider').value);
+                const sizeKB = parseInt(document.getElementById('stressDataSlider').value);
+                const size = sizeKB * 1024;
+
+                stressTestActive = true;
+                stressSuccess = 0;
+                stressFail = 0;
+
+                const testData = 'x'.repeat(size);
+                const startTime = Date.now();
+
+                for (let i = 0; i < count && stressTestActive; i++) {
+                    try {
+                        // 压缩
+                        const compressed = await compressText(testData, 'gzip');
+                        // 解压
+                        const decompressedStream = compressed.stream().pipeThrough(new DecompressionStream('gzip'));
+                        const reader = decompressedStream.getReader();
+
+                        while (true) {
+                            const { done } = await reader.read();
+                            if (done) break;
+                        }
+
+                        stressSuccess++;
+                    } catch (err) {
+                        stressFail++;
+                        stats.errors++;
+                    }
+
+                    const progress = ((i + 1) / count) * 100;
+                    document.getElementById('stressProgress').style.width = progress + '%';
+                    document.getElementById('stressProgress').textContent = Math.round(progress) + '%';
+
+                    document.getElementById('stressStats').innerHTML =
+                        `成功: ${stressSuccess}<br>` +
+                        `失败: ${stressFail}<br>` +
+                        `进度: ${Math.round(progress)}%`;
+                }
+
+                const endTime = Date.now();
+                const totalTime = endTime - startTime;
+                const avgTime = stressSuccess > 0 ? totalTime / stressSuccess : 0;
+                const speed = (stressSuccess * sizeKB) / (totalTime / 1000);
+
+                document.getElementById('stressResult').innerHTML =
+                    `✅ 压力测试完成<br>` +
+                    `总次数: ${count}<br>` +
+                    `成功: ${stressSuccess}<br>` +
+                    `失败: ${stressFail}<br>` +
+                    `总耗时: ${totalTime}ms<br>` +
+                    `平均时间: ${avgTime.toFixed(2)}ms/次<br>` +
+                    `处理速度: ${speed.toFixed(1)} KB/s`;
+
+                stressTestActive = false;
+                log('⚡ 压力测试完成', 'success');
+            };
+
+            // 停止压力测试
+            window.stopStressTest = function () {
+                stressTestActive = false;
+                document.getElementById('stressResult').innerHTML = '⏹️ 测试已停止';
+                log('⏹️ 压力测试已停止', 'info');
+            };
+
+            // 重置压力测试
+            window.resetStressTest = function () {
+                document.getElementById('stressProgress').style.width = '0%';
+                document.getElementById('stressProgress').textContent = '0%';
+                document.getElementById('stressStats').innerHTML =
+                    '成功: 0<br>失败: 0<br>平均时间: 0ms<br>速度: 0 KB/s';
+                document.getElementById('stressResult').innerHTML = '等待测试...';
+                log('🔄 压力测试已重置', 'info');
+            };
+
+            // Blob 转 Base64
+            function blobToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            // 标签页切换
+            window.switchTab = function (tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                event.target.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            };
+
+            // 日志
+            function log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+
+                const now = new Date();
+                const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                entry.textContent = `${time} ${message}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+
+                while (logPanel.children.length > 100) {
+                    logPanel.removeChild(logPanel.children[0]);
+                }
+            }
+
+            // 初始化
+            window.onload = init;
+        })();
+    </script>
+</body>
+
+</html>

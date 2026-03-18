@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Picker API - 完全优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-partial {
+            background: #ff9800;
+            color: white;
+        }
+
+        .status-unsupported {
+            background: #f44336;
+            color: white;
+        }
+
+        /* 性能监控 */
+        .performance-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .perf-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .perf-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .perf-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .perf-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .perf-unit {
+            font-size: 12px;
+            color: #999;
+            margin-left: 2px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 联系人卡片 */
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .contact-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .contact-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .contact-card.selected {
+            border: 2px solid #4CAF50;
+        }
+
+        .contact-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .contact-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .contact-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .contact-detail {
+            margin: 8px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .contact-icon {
+            font-size: 16px;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .contact-label {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 40px;
+        }
+
+        .contact-value {
+            color: #666;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .contact-remove {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #f44336;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .contact-card:hover .contact-remove {
+            opacity: 1;
+        }
+
+        .contact-remove:hover {
+            transform: scale(1.1);
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            background: white;
+            border-radius: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .checkbox-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .field-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .field-chip {
+            padding: 4px 12px;
+            background: #e8f5e8;
+            color: #4CAF50;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .field-chip.disabled {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-entry.success {
+            color: #81c784;
+            background: #1e3a2a;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+            background: #3a2e1e;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+            background: #3a1e1e;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+            background: #1e2a3a;
+        }
+
+        /* 消息提示 */
+        .error-message,
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideInRight 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .error-message {
+            background: #f44336;
+        }
+
+        .success-message {
+            background: #4CAF50;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            grid-column: 1/-1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px dashed #e0e0e0;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #666;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+        }
+
+        /* 导出面板 */
+        .export-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .compat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .compat-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .compat-table td:first-child {
+            font-weight: 600;
+        }
+
+        .yes {
+            color: #4CAF50;
+        }
+
+        .no {
+            color: #f44336;
+        }
+
+        .partial {
+            color: #ff9800;
+        }
+
+        @media (max-width: 768px) {
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .performance-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .checkbox-group {
+                flex-direction: column;
+            }
+
+            .checkbox-item {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .performance-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📇 Contact Picker API - 完全优化版</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+            <p>选择联系人、获取详细信息、支持头像和地址 - 包含性能监控、导出功能、批量操作</p>
+
+            <!-- 性能监控 -->
+            <div class="performance-panel">
+                <div class="perf-item">
+                    <div class="perf-label">响应时间</div>
+                    <div class="perf-value" id="responseTime">0</div>
+                    <span class="perf-unit">ms</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">成功率</div>
+                    <div class="perf-value" id="successRate">100</div>
+                    <span class="perf-unit">%</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">内存使用</div>
+                    <div class="perf-value" id="memoryUsage">0</div>
+                    <span class="perf-unit">MB</span>
+                </div>
+                <div class="perf-item">
+                    <div class="perf-label">头像缓存</div>
+                    <div class="perf-value" id="avatarCache">0</div>
+                    <span class="perf-unit">个</span>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="contactCount">0</div>
+                    <div class="stat-label">已选联系人</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="selectCount">0</div>
+                    <div class="stat-label">选择次数</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="fieldCount">0</div>
+                    <div class="stat-label">支持字段</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="phoneCount">0</div>
+                    <div class="stat-label">电话号码</div>
+                </div>
+            </div>
+
+            <!-- 兼容性提示 -->
+            <div id="compatWarning" class="warning-panel" style="display: none;">
+                ⚠️ 当前浏览器不支持 Contact Picker API<br>
+                请使用 Chrome/Edge 80+ 版本，并在 HTTPS 环境下运行
+            </div>
+
+            <!-- 字段选择 -->
+            <div class="control-panel">
+                <h3>📋 选择要获取的字段</h3>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="fieldName" checked disabled>
+                        <label for="fieldName">姓名 (必选)</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="fieldTel" checked>
+                        <label for="fieldTel">电话</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="fieldEmail" checked>
+                        <label for="fieldEmail">邮箱</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="fieldAddress">
+                        <label for="fieldAddress">地址</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="fieldIcon">
+                        <label for="fieldIcon">头像</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="multipleSelect">
+                        <label for="multipleSelect">允许多选</label>
+                    </div>
+                </div>
+
+                <div class="field-status" id="fieldStatus">
+                    正在检测支持的字段...
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="checkSupport()">🔍 检查支持</button>
+                <button class="btn btn-success" onclick="getSupportedFields()">📋 获取支持字段</button>
+                <button class="btn btn-primary" onclick="pickContact()">📇 选择联系人</button>
+                <button class="btn btn-warning" onclick="pickMultipleContacts()">📚 选择多个</button>
+                <button class="btn btn-danger" onclick="clearContacts()">🗑️ 清空</button>
+            </div>
+
+            <!-- 导出面板 -->
+            <div class="export-panel">
+                <h3>📤 导出联系人</h3>
+                <div class="export-options">
+                    <button class="btn btn-success" onclick="exportAsJSON()">📄 导出 JSON</button>
+                    <button class="btn btn-primary" onclick="exportAsCSV()">📊 导出 CSV</button>
+                    <button class="btn btn-warning" onclick="exportAsVCF()">📇 导出 VCF</button>
+                    <button class="btn btn-danger" onclick="importContacts()">📥 导入联系人</button>
+                </div>
+            </div>
+
+            <!-- 联系人列表 -->
+            <h2>📇 选择的联系人</h2>
+            <div id="contactList" class="contact-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📇</div>
+                    <div class="empty-state-title">暂无联系人</div>
+                    <div class="empty-state-text">点击"选择联系人"开始添加</div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+
+            <!-- 兼容性表格 -->
+            <h3>🌐 浏览器支持</h3>
+            <table class="compat-table">
+                <tr>
+                    <td>Chrome 80+</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Edge 80+</td>
+                    <td class="yes">✅ 完全支持</td>
+                </tr>
+                <tr>
+                    <td>Firefox</td>
+                    <td class="no">❌ 不支持</td>
+                </tr>
+                <tr>
+                    <td>Safari</td>
+                    <td class="no">❌ 不支持</td>
+                </tr>
+                <tr>
+                    <td>Opera 67+</td>
+                    <td class="yes">✅ 支持</td>
+                </tr>
+                <tr>
+                    <td>iOS Safari</td>
+                    <td class="no">❌ 不支持</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // 存储选择的联系人
+            let selectedContacts = [];
+            let selectCount = 0;
+            let supportedFields = [];
+            let avatarUrls = new Map(); // 用于清理头像URL
+
+            // 性能统计
+            let performanceStats = {
+                responseTimes: [],
+                successes: 0,
+                failures: 0,
+                startTime: Date.now()
+            };
+
+            // 消息超时
+            let messageTimeout = null;
+
+            // 初始化
+            function init() {
+                checkSupport();
+                updateStats();
+                startPerformanceMonitor();
+                log('系统初始化完成', 'success');
+            }
+
+            // 性能监控
+            function startPerformanceMonitor() {
+                setInterval(() => {
+                    // 计算平均响应时间
+                    if (performanceStats.responseTimes.length > 0) {
+                        const avg = performanceStats.responseTimes.reduce((a, b) => a + b, 0) / performanceStats.responseTimes.length;
+                        document.getElementById('responseTime').textContent = avg.toFixed(1);
+                    }
+
+                    // 计算成功率
+                    const total = performanceStats.successes + performanceStats.failures;
+                    const rate = total > 0 ? (performanceStats.successes / total * 100).toFixed(1) : 100;
+                    document.getElementById('successRate').textContent = rate;
+
+                    // 内存使用
+                    if (performance.memory) {
+                        const memory = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                        document.getElementById('memoryUsage').textContent = memory;
+                    }
+
+                    // 头像缓存
+                    document.getElementById('avatarCache').textContent = avatarUrls.size;
+
+                }, 1000);
+            }
+
+            // 显示消息
+            function showMessage(message, type = 'success') {
+                if (messageTimeout) clearTimeout(messageTimeout);
+
+                const msgDiv = document.createElement('div');
+                msgDiv.className = type === 'success' ? 'success-message' : 'error-message';
+                msgDiv.textContent = type === 'success' ? '✅ ' + message : '❌ ' + message;
+
+                document.body.appendChild(msgDiv);
+
+                messageTimeout = setTimeout(() => {
+                    msgDiv.remove();
+                    messageTimeout = null;
+                }, 3000);
+            }
+
+            // 检查支持
+            window.checkSupport = function () {
+                const supported = 'contacts' in navigator && 'ContactsManager' in window;
+                const statusEl = document.getElementById('apiStatus');
+                const warningEl = document.getElementById('compatWarning');
+
+                if (supported) {
+                    statusEl.textContent = '✓ 支持';
+                    statusEl.className = 'status-badge status-supported';
+                    warningEl.style.display = 'none';
+                    log('✅ Contact Picker API 可用', 'success');
+
+                    getSupportedFields();
+                    return true;
+                } else {
+                    statusEl.textContent = '✗ 不支持';
+                    statusEl.className = 'status-badge status-unsupported';
+                    warningEl.style.display = 'block';
+                    log('❌ 当前浏览器不支持 Contact Picker API', 'error');
+
+                    // 禁用所有按钮
+                    document.querySelectorAll('.btn').forEach(btn => {
+                        if (!btn.onclick || btn.onclick.toString().includes('checkSupport')) {
+                            return;
+                        }
+                        btn.disabled = true;
+                    });
+
+                    return false;
+                }
+            };
+
+            // 获取支持的字段
+            window.getSupportedFields = async function () {
+                if (!('contacts' in navigator)) return;
+
+                try {
+                    supportedFields = await navigator.contacts.getProperties();
+                    document.getElementById('fieldCount').textContent = supportedFields.length;
+
+                    // 更新字段状态显示
+                    const statusDiv = document.getElementById('fieldStatus');
+                    statusDiv.innerHTML = supportedFields.map(field =>
+                        `<span class="field-chip">✅ ${field}</span>`
+                    ).join('');
+
+                    // 更新复选框状态
+                    updateCheckboxes();
+
+                    log(`📋 支持的字段: ${supportedFields.join(', ')}`, 'success');
+
+                    return supportedFields;
+                } catch (error) {
+                    handleError('获取支持字段失败', error);
+                }
+            };
+
+            // 更新复选框状态
+            function updateCheckboxes() {
+                const fields = ['tel', 'email', 'address', 'icon'];
+
+                fields.forEach(field => {
+                    const checkbox = document.getElementById(`field${field.charAt(0).toUpperCase() + field.slice(1)}`);
+                    if (checkbox) {
+                        const supported = supportedFields.includes(field);
+                        checkbox.disabled = !supported;
+                        if (!supported) {
+                            checkbox.checked = false;
+                        }
+                    }
+                });
+            }
+
+            // 获取选中的字段
+            function getSelectedFields() {
+                const fields = ['name'];
+
+                if (document.getElementById('fieldTel').checked) fields.push('tel');
+                if (document.getElementById('fieldEmail').checked) fields.push('email');
+                if (document.getElementById('fieldAddress').checked) fields.push('address');
+                if (document.getElementById('fieldIcon').checked) fields.push('icon');
+
+                return fields;
+            }
+
+            // 选择单个联系人
+            window.pickContact = async function () {
+                await pickContacts(false);
+            };
+
+            // 选择多个联系人
+            window.pickMultipleContacts = async function () {
+                await pickContacts(true);
+            };
+
+            // 通用选择函数
+            async function pickContacts(multiple) {
+                if (!checkSupport()) return;
+
+                const fields = getSelectedFields();
+                const opts = { multiple };
+
+                const startTime = performance.now();
+
+                try {
+                    log(`📇 正在打开联系人选择器...`, 'info');
+
+                    const contacts = await navigator.contacts.select(fields, opts);
+
+                    const endTime = performance.now();
+                    performanceStats.responseTimes.push(endTime - startTime);
+                    if (performanceStats.responseTimes.length > 50) {
+                        performanceStats.responseTimes.shift();
+                    }
+
+                    if (contacts.length > 0) {
+                        // 清理旧的头像URL
+                        cleanupAvatars();
+
+                        // 处理新联系人
+                        for (const contact of contacts) {
+                            if (contact.icon) {
+                                await processContactAvatar(contact);
+                            }
+                        }
+
+                        if (multiple) {
+                            selectedContacts = [...selectedContacts, ...contacts];
+                        } else {
+                            selectedContacts = [contacts[0], ...selectedContacts];
+                        }
+
+                        selectCount++;
+                        performanceStats.successes++;
+                        updateStats();
+                        renderContacts();
+
+                        showMessage(`成功选择 ${contacts.length} 个联系人`, 'success');
+                        log(`✅ 成功选择 ${contacts.length} 个联系人`, 'success');
+                    } else {
+                        log('ℹ️ 没有选择任何联系人', 'info');
+                    }
+                } catch (error) {
+                    performanceStats.failures++;
+                    handleError('选择联系人失败', error);
+                }
+            }
+
+            // 处理联系人头像
+            async function processContactAvatar(contact) {
+                if (!contact.icon || contact.icon.length === 0) return;
+
+                try {
+                    const blob = contact.icon[0];
+                    const url = URL.createObjectURL(blob);
+
+                    // 存储URL以便后续清理
+                    avatarUrls.set(contact, url);
+
+                    return url;
+                } catch (error) {
+                    console.error('处理头像失败:', error);
+                }
+            }
+
+            // 清理头像URL
+            function cleanupAvatars() {
+                avatarUrls.forEach((url, contact) => {
+                    URL.revokeObjectURL(url);
+                });
+                avatarUrls.clear();
+            }
+
+            // 格式化地址
+            function formatAddress(address) {
+                if (!address) return '无地址信息';
+
+                const parts = [];
+                if (address.addressLine) parts.push(address.addressLine.join(' '));
+                if (address.city) parts.push(address.city);
+                if (address.region) parts.push(address.region);
+                if (address.postalCode) parts.push(address.postalCode);
+                if (address.country) parts.push(address.country);
+
+                return parts.join(', ') || '地址格式不完整';
+            }
+
+            // 统计电话号码
+            function countPhoneNumbers() {
+                let count = 0;
+                selectedContacts.forEach(contact => {
+                    if (contact.tel) {
+                        count += contact.tel.length;
+                    }
+                });
+                return count;
+            }
+
+            // 更新统计
+            function updateStats() {
+                document.getElementById('contactCount').textContent = selectedContacts.length;
+                document.getElementById('selectCount').textContent = selectCount;
+                document.getElementById('phoneCount').textContent = countPhoneNumbers();
+            }
+
+            // 渲染联系人列表
+            function renderContacts() {
+                const container = document.getElementById('contactList');
+
+                if (selectedContacts.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📇</div>
+                            <div class="empty-state-title">暂无联系人</div>
+                            <div class="empty-state-text">点击"选择联系人"开始添加</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+
+                selectedContacts.forEach((contact, index) => {
+                    const initials = contact.name?.[0]?.charAt(0) || '?';
+                    const avatarUrl = avatarUrls.get(contact);
+
+                    let avatarHtml = '';
+                    if (avatarUrl) {
+                        avatarHtml = `<img src="${avatarUrl}" alt="avatar">`;
+                    } else {
+                        avatarHtml = `<span>${initials}</span>`;
+                    }
+
+                    html += `
+                        <div class="contact-card">
+                            <button class="contact-remove" onclick="removeContact(${index})">✕</button>
+                            <div class="contact-avatar">
+                                ${avatarHtml}
+                            </div>
+                            <div class="contact-name">
+                                ${contact.name?.join(' ') || '无名'}
+                            </div>
+                            ${contact.tel ? contact.tel.map(tel => `
+                                <div class="contact-detail">
+                                    <span class="contact-icon">📞</span>
+                                    <span class="contact-value">${tel}</span>
+                                </div>
+                            `).join('') : ''}
+                            ${contact.email ? contact.email.map(email => `
+                                <div class="contact-detail">
+                                    <span class="contact-icon">✉️</span>
+                                    <span class="contact-value">${email}</span>
+                                </div>
+                            `).join('') : ''}
+                            ${contact.address ? `
+                                <div class="contact-detail">
+                                    <span class="contact-icon">🏠</span>
+                                    <span class="contact-value">${formatAddress(contact.address[0])}</span>
+                                </div>
+                            ` : ''}
+                            <div style="margin-top: 10px; font-size: 11px; color: #999; text-align: right;">
+                                ID: ${contact.id || index + 1}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            // 移除单个联系人
+            window.removeContact = function (index) {
+                const contact = selectedContacts[index];
+                if (contact) {
+                    // 清理头像URL
+                    const url = avatarUrls.get(contact);
+                    if (url) {
+                        URL.revokeObjectURL(url);
+                        avatarUrls.delete(contact);
+                    }
+
+                    selectedContacts.splice(index, 1);
+                    renderContacts();
+                    updateStats();
+                    log('🗑️ 已移除联系人', 'info');
+                }
+            };
+
+            // 清空联系人
+            window.clearContacts = function () {
+                cleanupAvatars();
+                selectedContacts = [];
+                renderContacts();
+                updateStats();
+                showMessage('已清空所有联系人', 'success');
+                log('🗑️ 已清空所有联系人', 'info');
+            };
+
+            // 导出为JSON
+            window.exportAsJSON = function () {
+                if (selectedContacts.length === 0) {
+                    showMessage('没有联系人可导出', 'error');
+                    return;
+                }
+
+                const data = {
+                    exportDate: new Date().toISOString(),
+                    total: selectedContacts.length,
+                    contacts: selectedContacts.map(c => ({
+                        name: c.name,
+                        tel: c.tel,
+                        email: c.email,
+                        address: c.address
+                    }))
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                downloadBlob(blob, `contacts-${Date.now()}.json`);
+
+                showMessage(`已导出 ${selectedContacts.length} 个联系人`, 'success');
+                log('📄 JSON导出成功', 'success');
+            };
+
+            // 导出为CSV
+            window.exportAsCSV = function () {
+                if (selectedContacts.length === 0) {
+                    showMessage('没有联系人可导出', 'error');
+                    return;
+                }
+
+                let csv = '姓名,电话,邮箱,地址\n';
+
+                selectedContacts.forEach(contact => {
+                    const name = contact.name?.join(' ') || '';
+                    const tel = contact.tel?.join('; ') || '';
+                    const email = contact.email?.join('; ') || '';
+                    const address = contact.address ? formatAddress(contact.address[0]) : '';
+
+                    csv += `"${name}","${tel}","${email}","${address}"\n`;
+                });
+
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+                downloadBlob(blob, `contacts-${Date.now()}.csv`);
+
+                showMessage(`已导出 ${selectedContacts.length} 个联系人`, 'success');
+                log('📊 CSV导出成功', 'success');
+            };
+
+            // 导出为VCF (vCard)
+            window.exportAsVCF = function () {
+                if (selectedContacts.length === 0) {
+                    showMessage('没有联系人可导出', 'error');
+                    return;
+                }
+
+                let vcf = '';
+
+                selectedContacts.forEach(contact => {
+                    vcf += 'BEGIN:VCARD\n';
+                    vcf += 'VERSION:3.0\n';
+
+                    if (contact.name) {
+                        vcf += `FN:${contact.name.join(' ')}\n`;
+                    }
+
+                    if (contact.tel) {
+                        contact.tel.forEach(tel => {
+                            vcf += `TEL:${tel}\n`;
+                        });
+                    }
+
+                    if (contact.email) {
+                        contact.email.forEach(email => {
+                            vcf += `EMAIL:${email}\n`;
+                        });
+                    }
+
+                    if (contact.address) {
+                        const addr = contact.address[0];
+                        const addrStr = [
+                            addr.addressLine?.join(' ') || '',
+                            addr.city || '',
+                            addr.region || '',
+                            addr.postalCode || '',
+                            addr.country || ''
+                        ].filter(Boolean).join(';');
+
+                        if (addrStr) {
+                            vcf += `ADR:;;${addrStr}\n`;
+                        }
+                    }
+
+                    vcf += 'END:VCARD\n\n';
+                });
+
+                const blob = new Blob([vcf], { type: 'text/vcard' });
+                downloadBlob(blob, `contacts-${Date.now()}.vcf`);
+
+                showMessage(`已导出 ${selectedContacts.length} 个联系人`, 'success');
+                log('📇 VCF导出成功', 'success');
+            };
+
+            // 下载Blob
+            function downloadBlob(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // 导入联系人（模拟）
+            window.importContacts = function () {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json,.csv,.vcf';
+
+                input.onchange = function (e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        try {
+                            const content = e.target.result;
+
+                            if (file.name.endsWith('.json')) {
+                                const data = JSON.parse(content);
+                                if (data.contacts) {
+                                    cleanupAvatars();
+                                    selectedContacts = [...selectedContacts, ...data.contacts];
+                                    renderContacts();
+                                    updateStats();
+                                    showMessage(`已导入 ${data.contacts.length} 个联系人`, 'success');
+                                }
+                            } else {
+                                showMessage('JSON格式导入', 'info');
+                            }
+                        } catch (error) {
+                            showMessage('导入失败: ' + error.message, 'error');
+                        }
+                    };
+
+                    if (file.name.endsWith('.json')) {
+                        reader.readAsText(file);
+                    }
+                };
+
+                input.click();
+            };
+
+            // 错误处理
+            function handleError(context, error) {
+                let message = error.message;
+
+                switch (error.name) {
+                    case 'NotAllowedError':
+                        message = '用户拒绝了权限请求';
+                        break;
+                    case 'NotFoundError':
+                        message = '没有选择联系人';
+                        break;
+                    case 'NotSupportedError':
+                        message = '当前浏览器不支持该功能';
+                        break;
+                    case 'SecurityError':
+                        message = '需要 HTTPS 安全上下文';
+                        break;
+                }
+
+                showMessage(`${context}: ${message}`, 'error');
+                log(`❌ ${context}: ${message}`, 'error');
+            }
+
+            // 日志
+            function log(message, type = 'info') {
+                const logPanel = document.getElementById('logPanel');
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+
+                const now = new Date();
+                const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                entry.textContent = `${time} ${message}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+
+                while (logPanel.children.length > 100) {
+                    logPanel.removeChild(logPanel.children[0]);
+                }
+            }
+
+            // 页面卸载前清理资源
+            window.addEventListener('beforeunload', () => {
+                cleanupAvatars();
+            });
+
+            // 初始化
+            window.onload = init;
+        })();
+    </script>
+</body>
+
+</html>

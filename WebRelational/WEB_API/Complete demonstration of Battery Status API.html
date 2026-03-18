@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Status API 完整演示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2 {
+            color: #555;
+            margin: 20px 0 15px;
+            font-size: 18px;
+        }
+
+        /* 电池图标 */
+        .battery-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+        }
+
+        .battery {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            background: #f0f0f0;
+            border: 4px solid #333;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .battery-level {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .battery-head {
+            position: absolute;
+            right: -15px;
+            top: 35px;
+            width: 10px;
+            height: 30px;
+            background: #333;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .battery-info {
+            margin-left: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* 充电动画 */
+        .charging-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: charge 2s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes charge {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* 状态卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-unit {
+            font-size: 14px;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        /* 警告区域 */
+        .warning-panel {
+            background: #fff3e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+
+        .warning-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+
+        .warning-icon {
+            font-size: 20px;
+        }
+
+        /* 仪表盘 */
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+        }
+
+        .gauge {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(#4CAF50 0deg, #ff9800 180deg, #f44336 360deg);
+            mask: radial-gradient(circle at center, transparent 60%, black 61%);
+            -webkit-mask: radial-gradient(circle at center, transparent 60%, black 61%);
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* 历史图表 */
+        .history-container {
+            height: 150px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            margin: 20px 0;
+        }
+
+        .history-bar {
+            flex: 1;
+            background: #667eea;
+            border-radius: 3px 3px 0 0;
+            transition: height 0.3s;
+            position: relative;
+        }
+
+        .history-bar:hover::after {
+            content: attr(data-level);
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        /* 控制按钮 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e68a00;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        /* 日志面板 */
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+        }
+
+        /* 兼容性提示 */
+        .compat-box {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .browser-icons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .browser-icon {
+            font-size: 24px;
+            opacity: 0.7;
+        }
+
+        .browser-icon.supported {
+            opacity: 1;
+            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.2));
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>🔋 Battery Status API</span>
+                <span class="status-badge" id="apiStatus">检测中...</span>
+            </h1>
+
+            <!-- 兼容性提示 -->
+            <div class="compat-box" id="compatBox">
+                <div class="browser-icons">
+                    <span class="browser-icon" id="chromeIcon">🌐</span>
+                    <span class="browser-icon" id="edgeIcon">📱</span>
+                    <span class="browser-icon" id="firefoxIcon">🦊</span>
+                    <span class="browser-icon" id="safariIcon">🍎</span>
+                </div>
+                <div id="compatText">检测浏览器支持...</div>
+            </div>
+
+            <!-- 电池可视化 -->
+            <div class="battery-container">
+                <div class="battery">
+                    <div class="battery-level" id="batteryLevel" style="width: 0%;">
+                        <div class="charging-animation" id="chargingAnimation" style="display: none;"></div>
+                    </div>
+                    <div class="battery-head"></div>
+                </div>
+                <div class="battery-info" id="batteryPercent">0%</div>
+            </div>
+
+            <!-- 状态卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">充电状态</div>
+                    <div class="stat-value" id="chargingStatus">检测中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">电量水平</div>
+                    <div class="stat-value" id="levelValue">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">充满时间</div>
+                    <div class="stat-value" id="chargingTime">--</div>
+                    <span class="stat-unit">分钟</span>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">剩余时间</div>
+                    <div class="stat-value" id="dischargingTime">--</div>
+                    <span class="stat-unit">分钟</span>
+                </div>
+            </div>
+
+            <!-- 仪表盘 -->
+            <h2>📊 电量仪表</h2>
+            <div class="gauge-container">
+                <div class="gauge" id="gauge"></div>
+                <div class="gauge-text" id="gaugeText">0%</div>
+            </div>
+
+            <!-- 警告区域 -->
+            <div class="warning-panel" id="warningPanel" style="display: none;">
+                <div class="warning-item" id="lowBatteryWarning">
+                    <span class="warning-icon">⚠️</span>
+                    <span>电量过低，请及时充电！</span>
+                </div>
+                <div class="warning-item" id="chargingWarning">
+                    <span class="warning-icon">⚡</span>
+                    <span>正在充电中...</span>
+                </div>
+                <div class="warning-item" id="fullWarning">
+                    <span class="warning-icon">✅</span>
+                    <span>电池已充满</span>
+                </div>
+            </div>
+
+            <!-- 电量历史 -->
+            <h2>📈 电量历史 (最近10次)</h2>
+            <div class="history-container" id="historyContainer"></div>
+
+            <!-- 控制按钮 -->
+            <h2>🎮 模拟控制 (仅演示)</h2>
+            <div class="button-group">
+                <button class="btn btn-primary" id="simulateCharging">⚡ 模拟充电</button>
+                <button class="btn btn-warning" id="simulateDischarging">📉 模拟放电</button>
+                <button class="btn btn-danger" id="simulateLowBattery">⚠️ 模拟低电量</button>
+                <button class="btn btn-success" id="refreshBtn">🔄 刷新状态</button>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            class BatteryManager {
+                constructor() {
+                    this.battery = null;
+                    this.history = [];
+                    this.maxHistory = 10;
+                    this.simulatedLevel = null;
+                    this.simulatedCharging = null;
+
+                    this.elements = {
+                        apiStatus: document.getElementById('apiStatus'),
+                        compatBox: document.getElementById('compatBox'),
+                        compatText: document.getElementById('compatText'),
+                        chromeIcon: document.getElementById('chromeIcon'),
+                        edgeIcon: document.getElementById('edgeIcon'),
+                        firefoxIcon: document.getElementById('firefoxIcon'),
+                        safariIcon: document.getElementById('safariIcon'),
+                        batteryLevel: document.getElementById('batteryLevel'),
+                        batteryPercent: document.getElementById('batteryPercent'),
+                        chargingStatus: document.getElementById('chargingStatus'),
+                        levelValue: document.getElementById('levelValue'),
+                        chargingTime: document.getElementById('chargingTime'),
+                        dischargingTime: document.getElementById('dischargingTime'),
+                        gauge: document.getElementById('gauge'),
+                        gaugeText: document.getElementById('gaugeText'),
+                        warningPanel: document.getElementById('warningPanel'),
+                        lowBatteryWarning: document.getElementById('lowBatteryWarning'),
+                        chargingWarning: document.getElementById('chargingWarning'),
+                        fullWarning: document.getElementById('fullWarning'),
+                        historyContainer: document.getElementById('historyContainer'),
+                        chargingAnimation: document.getElementById('chargingAnimation'),
+                        logPanel: document.getElementById('logPanel'),
+                        simulateCharging: document.getElementById('simulateCharging'),
+                        simulateDischarging: document.getElementById('simulateDischarging'),
+                        simulateLowBattery: document.getElementById('simulateLowBattery'),
+                        refreshBtn: document.getElementById('refreshBtn')
+                    };
+
+                    this.init();
+                }
+
+                init() {
+                    this.checkSupport();
+                    this.setupEventListeners();
+                    this.getBatteryStatus();
+                }
+
+                checkSupport() {
+                    const supported = 'getBattery' in navigator;
+
+                    // 更新浏览器图标
+                    const browsers = {
+                        chrome: /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent),
+                        edge: /Edg/.test(navigator.userAgent),
+                        firefox: /Firefox/.test(navigator.userAgent),
+                        safari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+                    };
+
+                    this.elements.chromeIcon.className = `browser-icon ${browsers.chrome ? 'supported' : ''}`;
+                    this.elements.edgeIcon.className = `browser-icon ${browsers.edge ? 'supported' : ''}`;
+                    this.elements.firefoxIcon.className = `browser-icon ${browsers.firefox ? 'supported' : ''}`;
+                    this.elements.safariIcon.className = `browser-icon ${browsers.safari ? 'supported' : ''}`;
+
+                    if (supported) {
+                        this.elements.apiStatus.textContent = '✓ 支持';
+                        this.elements.apiStatus.style.color = '#4CAF50';
+                        this.elements.compatText.innerHTML = '✅ 当前浏览器支持 Battery API';
+                        this.log('✅ Battery API 可用', 'success');
+                    } else {
+                        this.elements.apiStatus.textContent = '✗ 不支持';
+                        this.elements.apiStatus.style.color = '#f44336';
+                        this.elements.compatText.innerHTML = '❌ 当前浏览器不支持 Battery API<br>使用模拟数据演示';
+                        this.log('⚠️ 浏览器不支持，使用模拟数据', 'warning');
+                    }
+                }
+
+                setupEventListeners() {
+                    // 模拟按钮
+                    this.elements.simulateCharging.addEventListener('click', () => this.simulateBattery('charging'));
+                    this.elements.simulateDischarging.addEventListener('click', () => this.simulateBattery('discharging'));
+                    this.elements.simulateLowBattery.addEventListener('click', () => this.simulateBattery('low'));
+                    this.elements.refreshBtn.addEventListener('click', () => this.refreshBattery());
+                }
+
+                async getBatteryStatus() {
+                    try {
+                        if ('getBattery' in navigator) {
+                            this.battery = await navigator.getBattery();
+                            this.updateBatteryInfo();
+                            this.setupBatteryListeners();
+                            this.log('📊 获取电池状态成功', 'success');
+                        } else {
+                            // 使用模拟数据
+                            this.useSimulatedData();
+                        }
+                    } catch (err) {
+                        this.log('❌ 获取电池状态失败: ' + err.message, 'error');
+                        this.useSimulatedData();
+                    }
+                }
+
+                setupBatteryListeners() {
+                    if (!this.battery) return;
+
+                    this.battery.addEventListener('chargingchange', () => {
+                        this.updateBatteryInfo();
+                        this.log(`⚡ 充电状态变化: ${this.battery.charging ? '充电中' : '未充电'}`, 'info');
+                    });
+
+                    this.battery.addEventListener('levelchange', () => {
+                        this.updateBatteryInfo();
+                        this.log(`📊 电量变化: ${Math.round(this.battery.level * 100)}%`, 'info');
+                    });
+
+                    this.battery.addEventListener('chargingtimechange', () => {
+                        this.updateBatteryInfo();
+                    });
+
+                    this.battery.addEventListener('dischargingtimechange', () => {
+                        this.updateBatteryInfo();
+                    });
+                }
+
+                updateBatteryInfo() {
+                    if (!this.battery && !this.simulatedLevel) return;
+
+                    const level = this.simulatedLevel !== null ? this.simulatedLevel : (this.battery ? this.battery.level : 0.5);
+                    const charging = this.simulatedCharging !== null ? this.simulatedCharging : (this.battery ? this.battery.charging : false);
+                    const chargingTime = this.battery ? this.battery.chargingTime : (charging ? 3600 : Infinity);
+                    const dischargingTime = this.battery ? this.battery.dischargingTime : (!charging ? 7200 : Infinity);
+
+                    const percent = Math.round(level * 100);
+
+                    // 更新电池显示
+                    this.elements.batteryLevel.style.width = percent + '%';
+                    this.elements.batteryPercent.textContent = percent + '%';
+
+                    // 根据电量改变颜色
+                    if (percent <= 20) {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #f44336, #ff9800)';
+                    } else if (percent <= 50) {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #ff9800, #ffc107)';
+                    } else {
+                        this.elements.batteryLevel.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+                    }
+
+                    // 更新充电动画
+                    this.elements.chargingAnimation.style.display = charging ? 'block' : 'none';
+
+                    // 更新状态卡片
+                    this.elements.chargingStatus.textContent = charging ? '⚡ 充电中' : '🔋 使用电池';
+                    this.elements.chargingStatus.style.color = charging ? '#4CAF50' : '#666';
+                    this.elements.levelValue.textContent = percent + '%';
+
+                    // 更新时间显示
+                    this.elements.chargingTime.textContent = charging ? this.formatTime(chargingTime) : '--';
+                    this.elements.dischargingTime.textContent = !charging && dischargingTime !== Infinity ? this.formatTime(dischargingTime) : '--';
+
+                    // 更新仪表盘
+                    this.elements.gauge.style.background = `conic-gradient(#4CAF50 ${percent * 3.6}deg, #f0f0f0 ${percent * 3.6}deg)`;
+                    this.elements.gaugeText.textContent = percent + '%';
+
+                    // 更新警告
+                    this.updateWarnings(percent, charging);
+
+                    // 添加到历史
+                    this.addToHistory(percent, charging);
+                }
+
+                updateWarnings(percent, charging) {
+                    let showPanel = false;
+
+                    if (percent <= 15 && !charging) {
+                        this.elements.lowBatteryWarning.style.display = 'flex';
+                        showPanel = true;
+                    } else {
+                        this.elements.lowBatteryWarning.style.display = 'none';
+                    }
+
+                    if (charging) {
+                        this.elements.chargingWarning.style.display = 'flex';
+                        showPanel = true;
+                    } else {
+                        this.elements.chargingWarning.style.display = 'none';
+                    }
+
+                    if (percent >= 99 && charging) {
+                        this.elements.fullWarning.style.display = 'flex';
+                        showPanel = true;
+                    } else {
+                        this.elements.fullWarning.style.display = 'none';
+                    }
+
+                    this.elements.warningPanel.style.display = showPanel ? 'block' : 'none';
+                }
+
+                addToHistory(percent, charging) {
+                    this.history.push({
+                        level: percent,
+                        charging: charging,
+                        time: new Date().toLocaleTimeString()
+                    });
+
+                    if (this.history.length > this.maxHistory) {
+                        this.history.shift();
+                    }
+
+                    this.renderHistory();
+                }
+
+                renderHistory() {
+                    const container = this.elements.historyContainer;
+                    container.innerHTML = '';
+
+                    this.history.forEach(item => {
+                        const bar = document.createElement('div');
+                        bar.className = 'history-bar';
+                        bar.style.height = (item.level * 1.5) + 'px';
+                        bar.style.background = item.charging ? '#4CAF50' : '#667eea';
+                        bar.setAttribute('data-level', item.level + '%');
+                        container.appendChild(bar);
+                    });
+                }
+
+                formatTime(seconds) {
+                    if (seconds === Infinity || seconds === 0) return '--';
+
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+
+                    if (hours > 0) {
+                        return `${hours}时${minutes}分`;
+                    } else {
+                        return `${minutes}分`;
+                    }
+                }
+
+                // 模拟数据
+                useSimulatedData() {
+                    this.simulatedLevel = 0.75;
+                    this.simulatedCharging = false;
+                    this.updateBatteryInfo();
+
+                    // 定期随机变化模拟真实电池
+                    setInterval(() => {
+                        if (this.simulatedCharging) {
+                            this.simulatedLevel = Math.min(1, this.simulatedLevel + 0.05);
+                            if (this.simulatedLevel >= 1) {
+                                this.simulatedCharging = false;
+                            }
+                        } else {
+                            this.simulatedLevel = Math.max(0, this.simulatedLevel - 0.02);
+                        }
+                        this.updateBatteryInfo();
+                    }, 5000);
+                }
+
+                simulateBattery(type) {
+                    switch (type) {
+                        case 'charging':
+                            this.simulatedCharging = true;
+                            this.simulatedLevel = Math.max(0.3, this.simulatedLevel || 0.5);
+                            this.log('⚡ 模拟: 开始充电', 'info');
+                            break;
+                        case 'discharging':
+                            this.simulatedCharging = false;
+                            this.simulatedLevel = Math.min(0.8, this.simulatedLevel || 0.5);
+                            this.log('📉 模拟: 开始放电', 'info');
+                            break;
+                        case 'low':
+                            this.simulatedCharging = false;
+                            this.simulatedLevel = 0.1;
+                            this.log('⚠️ 模拟: 低电量', 'warning');
+                            break;
+                    }
+                    this.updateBatteryInfo();
+                }
+
+                refreshBattery() {
+                    this.getBatteryStatus();
+                    this.log('🔄 刷新电池状态', 'info');
+                }
+
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                    this.elements.logPanel.appendChild(entry);
+                    this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+                }
+            }
+
+            // 启动
+            window.onload = () => {
+                new BatteryManager();
+            };
+        })();
+    </script>
+</body>
+
+</html>

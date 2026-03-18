@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSSOM View API - 完全修复版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 监控面板 */
+        .monitor-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .monitor-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .monitor-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .monitor-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .monitor-unit {
+            font-size: 12px;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        /* 媒体查询指示器 */
+        .mq-indicator {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .mq-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .mq-mobile {
+            background: #ff9800;
+            color: white;
+        }
+
+        .mq-tablet {
+            background: #2196F3;
+            color: white;
+        }
+
+        .mq-desktop {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .mq-inactive {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+
+        .value-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        /* 测试区域 */
+        .test-area {
+            height: 300px;
+            overflow: auto;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #e0e0e0;
+            position: relative;
+        }
+
+        .scroll-content {
+            height: 800px;
+            position: relative;
+        }
+
+        .target-element {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin: 100px auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .target-element.highlight {
+            box-shadow: 0 0 0 10px rgba(102, 126, 234, 0.5);
+            transform: scale(1.05);
+        }
+
+        /* 相交观察器 */
+        .intersection-demo {
+            display: flex;
+            flex-direction: column;
+            gap: 200px;
+            margin: 20px 0;
+        }
+
+        .intersection-item {
+            height: 200px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .intersection-item.visible {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e68a00;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .log-panel {
+            background: #1e1e2f;
+            color: #fff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+
+        .log-entry.success {
+            color: #81c784;
+        }
+
+        .log-entry.warning {
+            color: #ffb74d;
+        }
+
+        .log-entry.error {
+            color: #e57373;
+        }
+
+        .log-entry.info {
+            color: #64b5f6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📐 CSSOM View API</span>
+                <span class="status-badge status-supported">✓ 所有功能可用</span>
+            </h1>
+            <p>所有按钮已启用，实时响应您的操作</p>
+
+            <!-- 实时监控面板 -->
+            <h2>📊 实时监控</h2>
+            <div class="monitor-panel">
+                <div class="monitor-grid">
+                    <div class="monitor-item">
+                        <div class="monitor-label">窗口宽度</div>
+                        <div class="monitor-value" id="windowWidth">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">窗口高度</div>
+                        <div class="monitor-value" id="windowHeight">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">滚动 X</div>
+                        <div class="monitor-value" id="scrollX">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">滚动 Y</div>
+                        <div class="monitor-value" id="scrollY">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">文档宽度</div>
+                        <div class="monitor-value" id="docWidth">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">文档高度</div>
+                        <div class="monitor-value" id="docHeight">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 媒体查询指示器 -->
+            <h2>📱 媒体查询</h2>
+            <div class="mq-indicator">
+                <span class="mq-badge" id="mqMobile">📱 移动端</span>
+                <span class="mq-badge" id="mqTablet">📟 平板</span>
+                <span class="mq-badge" id="mqDesktop">💻 桌面</span>
+            </div>
+
+            <!-- 滚动控制 -->
+            <h2>🔄 滚动控制</h2>
+            <div class="control-panel">
+                <div class="control-group">
+                    <label>垂直滚动位置: <span class="value-badge" id="scrollYValue">0px</span></label>
+                    <input type="range" id="scrollYSlider" min="0" max="1000" value="0" step="1">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="scrollToBtn">📍 滚动到滑块位置</button>
+                    <button class="btn btn-success" id="scrollByBtn">⬇️ 向下滚动100px</button>
+                    <button class="btn btn-warning" id="scrollToTopBtn">⬆️ 回到顶部</button>
+                    <button class="btn btn-danger" id="scrollToBottomBtn">⬇️ 滚动到底部</button>
+                </div>
+            </div>
+
+            <!-- 元素几何演示 -->
+            <h2>📐 元素几何</h2>
+            <div class="test-area" id="scrollArea">
+                <div class="scroll-content">
+                    <div class="target-element" id="targetElement">
+                        目标元素
+                    </div>
+                </div>
+            </div>
+
+            <div class="monitor-panel">
+                <div class="monitor-grid">
+                    <div class="monitor-item">
+                        <div class="monitor-label">top</div>
+                        <div class="monitor-value" id="rectTop">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">right</div>
+                        <div class="monitor-value" id="rectRight">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">bottom</div>
+                        <div class="monitor-value" id="rectBottom">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">left</div>
+                        <div class="monitor-value" id="rectLeft">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">width</div>
+                        <div class="monitor-value" id="rectWidth">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">height</div>
+                        <div class="monitor-value" id="rectHeight">0</div>
+                        <span class="monitor-unit">px</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="getRectBtn">📐 获取位置</button>
+                    <button class="btn btn-success" id="scrollIntoViewBtn">🎯 滚动到视口</button>
+                </div>
+            </div>
+
+            <!-- 相交观察器演示 -->
+            <h2>👁️ 相交观察器</h2>
+            <div class="test-area" style="height: 400px;">
+                <div class="intersection-demo">
+                    <div class="intersection-item" id="intersect1">区块 1</div>
+                    <div class="intersection-item" id="intersect2">区块 2</div>
+                    <div class="intersection-item" id="intersect3">区块 3</div>
+                </div>
+            </div>
+            <div class="monitor-panel">
+                <div class="monitor-grid">
+                    <div class="monitor-item">
+                        <div class="monitor-label">区块1可见</div>
+                        <div class="monitor-value" id="intersect1Status">否</div>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">区块2可见</div>
+                        <div class="monitor-value" id="intersect2Status">否</div>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-label">区块3可见</div>
+                        <div class="monitor-value" id="intersect3Status">否</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">📝 系统初始化...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            class ViewAPIDemo {
+                constructor() {
+                    this.intersectionObserver = null;
+
+                    // 初始化
+                    this.init();
+                }
+
+                init() {
+                    // 立即更新所有信息
+                    this.updateAllInfo();
+
+                    // 设置所有事件监听
+                    this.setupEventListeners();
+
+                    // 设置相交观察器
+                    this.setupIntersectionObserver();
+
+                    // 设置媒体查询
+                    this.setupMediaQueries();
+
+                    // 设置滚动监听
+                    this.setupScrollListener();
+
+                    // 设置窗口大小监听
+                    this.setupResizeListener();
+
+                    this.log('系统初始化完成，所有按钮已启用', 'success');
+                }
+
+                updateAllInfo() {
+                    this.updateWindowInfo();
+                    this.updateScrollInfo();
+                    this.updateRectInfo();
+                    this.updateSliderMax();
+                }
+
+                updateWindowInfo() {
+                    document.getElementById('windowWidth').textContent = window.innerWidth;
+                    document.getElementById('windowHeight').textContent = window.innerHeight;
+                    document.getElementById('docWidth').textContent = document.documentElement.scrollWidth;
+                    document.getElementById('docHeight').textContent = document.documentElement.scrollHeight;
+                }
+
+                updateScrollInfo() {
+                    const scrollX = window.scrollX || window.pageXOffset || 0;
+                    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+                    document.getElementById('scrollX').textContent = Math.round(scrollX);
+                    document.getElementById('scrollY').textContent = Math.round(scrollY);
+                    document.getElementById('scrollYSlider').value = scrollY;
+                    document.getElementById('scrollYValue').textContent = Math.round(scrollY) + 'px';
+                }
+
+                updateRectInfo() {
+                    const element = document.getElementById('targetElement');
+                    const rect = element.getBoundingClientRect();
+
+                    document.getElementById('rectTop').textContent = Math.round(rect.top);
+                    document.getElementById('rectRight').textContent = Math.round(rect.right);
+                    document.getElementById('rectBottom').textContent = Math.round(rect.bottom);
+                    document.getElementById('rectLeft').textContent = Math.round(rect.left);
+                    document.getElementById('rectWidth').textContent = Math.round(rect.width);
+                    document.getElementById('rectHeight').textContent = Math.round(rect.height);
+                }
+
+                updateSliderMax() {
+                    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+                    document.getElementById('scrollYSlider').max = maxScroll;
+                }
+
+                setupEventListeners() {
+                    // 滚动控制按钮
+                    document.getElementById('scrollToBtn').addEventListener('click', () => {
+                        const y = parseInt(document.getElementById('scrollYSlider').value);
+                        window.scrollTo({
+                            top: y,
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        this.log(`📍 滚动到位置: ${y}px`, 'success');
+                    });
+
+                    document.getElementById('scrollByBtn').addEventListener('click', () => {
+                        window.scrollBy({
+                            top: 100,
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        this.log('⬇️ 向下滚动 100px', 'success');
+                    });
+
+                    document.getElementById('scrollToTopBtn').addEventListener('click', () => {
+                        window.scrollTo({
+                            top: 0,
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        this.log('⬆️ 回到顶部', 'success');
+                    });
+
+                    document.getElementById('scrollToBottomBtn').addEventListener('click', () => {
+                        window.scrollTo({
+                            top: document.documentElement.scrollHeight,
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        this.log('⬇️ 滚动到底部', 'success');
+                    });
+
+                    // 滑块控制
+                    document.getElementById('scrollYSlider').addEventListener('input', (e) => {
+                        document.getElementById('scrollYValue').textContent = e.target.value + 'px';
+                    });
+
+                    // 元素几何按钮
+                    document.getElementById('getRectBtn').addEventListener('click', () => {
+                        this.updateRectInfo();
+                        this.log('📐 更新元素位置信息', 'info');
+                    });
+
+                    document.getElementById('scrollIntoViewBtn').addEventListener('click', () => {
+                        const element = document.getElementById('targetElement');
+                        element.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'center'
+                        });
+
+                        element.classList.add('highlight');
+                        setTimeout(() => element.classList.remove('highlight'), 1000);
+
+                        this.log('🎯 滚动目标元素到视口', 'success');
+                    });
+                }
+
+                setupScrollListener() {
+                    window.addEventListener('scroll', () => {
+                        this.updateScrollInfo();
+                    });
+                }
+
+                setupResizeListener() {
+                    window.addEventListener('resize', () => {
+                        this.updateWindowInfo();
+                        this.updateSliderMax();
+                    });
+                }
+
+                setupIntersectionObserver() {
+                    try {
+                        this.intersectionObserver = new IntersectionObserver((entries) => {
+                            entries.forEach(entry => {
+                                const element = entry.target;
+                                const id = element.id;
+
+                                if (entry.isIntersecting) {
+                                    element.classList.add('visible');
+                                    document.getElementById(id + 'Status').textContent = '是';
+                                } else {
+                                    element.classList.remove('visible');
+                                    document.getElementById(id + 'Status').textContent = '否';
+                                }
+                            });
+                        }, {
+                            threshold: 0.5
+                        });
+
+                        // 观察三个区块
+                        for (let i = 1; i <= 3; i++) {
+                            const element = document.getElementById('intersect' + i);
+                            if (element) {
+                                this.intersectionObserver.observe(element);
+                            }
+                        }
+
+                        this.log('✅ 相交观察器已启动', 'success');
+                    } catch (error) {
+                        this.log('❌ 相交观察器启动失败', 'error');
+                    }
+                }
+
+                setupMediaQueries() {
+                    const mobile = window.matchMedia('(max-width: 768px)');
+                    const tablet = window.matchMedia('(min-width: 769px) and (max-width: 1024px)');
+                    const desktop = window.matchMedia('(min-width: 1025px)');
+
+                    const updateMQ = () => {
+                        document.getElementById('mqMobile').className = mobile.matches ? 'mq-badge mq-mobile' : 'mq-badge mq-inactive';
+                        document.getElementById('mqTablet').className = tablet.matches ? 'mq-badge mq-tablet' : 'mq-badge mq-inactive';
+                        document.getElementById('mqDesktop').className = desktop.matches ? 'mq-badge mq-desktop' : 'mq-badge mq-inactive';
+                    };
+
+                    mobile.addEventListener('change', updateMQ);
+                    tablet.addEventListener('change', updateMQ);
+                    desktop.addEventListener('change', updateMQ);
+
+                    updateMQ();
+                }
+
+                log(message, type = 'info') {
+                    const logPanel = document.getElementById('logPanel');
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+                    entry.textContent = `${time} ${message}`;
+                    logPanel.appendChild(entry);
+                    logPanel.scrollTop = logPanel.scrollHeight;
+
+                    // 限制日志条数
+                    while (logPanel.children.length > 30) {
+                        logPanel.removeChild(logPanel.children[0]);
+                    }
+                }
+            }
+
+            // 页面加载完成后立即初始化
+            window.addEventListener('load', () => {
+                new ViewAPIDemo();
+            });
+        })();
+    </script>
+</body>
+
+</html>

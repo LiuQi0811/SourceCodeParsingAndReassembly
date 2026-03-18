@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console API - 完全优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-supported {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* 控制台模拟 */
+        .console-panel {
+            background: #1e1e2f;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            border: 2px solid #333;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #fff;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .console-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #64b5f6;
+        }
+
+        .console-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .console-content {
+            background: #2a2a3a;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        .console-line {
+            margin: 5px 0;
+            padding: 3px 5px;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+            word-break: break-all;
+            font-family: 'Consolas', monospace;
+        }
+
+        .console-line.log {
+            color: #fff;
+        }
+
+        .console-line.info {
+            color: #64b5f6;
+        }
+
+        .console-line.warn {
+            color: #ffb74d;
+            background: rgba(255, 183, 77, 0.1);
+        }
+
+        .console-line.error {
+            color: #e57373;
+            background: rgba(229, 115, 115, 0.1);
+        }
+
+        .console-line.debug {
+            color: #81c784;
+        }
+
+        .console-line.success {
+            color: #81c784;
+            background: rgba(129, 199, 132, 0.1);
+        }
+
+        .console-line.system {
+            color: #64b5f6;
+            font-style: italic;
+        }
+
+        .console-line.group {
+            margin-left: 20px;
+            border-left: 2px solid #667eea;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 演示网格 */
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .demo-title {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .demo-badge {
+            padding: 3px 8px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-success {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e68a00;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        /* 代码展示 */
+        .code-block {
+            background: #1e1e2f;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 15px 0;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .code-comment {
+            color: #81c784;
+        }
+
+        .code-keyword {
+            color: #64b5f6;
+        }
+
+        .code-string {
+            color: #ffb74d;
+        }
+
+        .code-number {
+            color: #f06292;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
+
+        /* 搜索框 */
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            margin: 10px 0;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            background: #ffebee;
+            color: #f44336;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #f44336;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #4CAF50;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .demo-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>
+                <span>📊 Console API - 完全优化版</span>
+                <span class="status-badge status-supported">✓ 所有浏览器支持</span>
+            </h1>
+            <p>日志输出、格式化、计时、计数、分组、断言、堆栈跟踪 - 包含搜索、过滤、导出功能</p>
+
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="logCount">0</div>
+                    <div class="stat-label">日志总数</div>
+                </div>
+                <div class="stat-card" style="background:#4CAF50">
+                    <div class="stat-value" id="infoCount">0</div>
+                    <div class="stat-label">信息数</div>
+                </div>
+                <div class="stat-card" style="background:#2196F3">
+                    <div class="stat-value" id="warnCount">0</div>
+                    <div class="stat-label">警告数</div>
+                </div>
+                <div class="stat-card" style="background:#ff9800">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">错误数</div>
+                </div>
+            </div>
+
+            <!-- 错误提示 -->
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+
+            <!-- 模拟控制台 -->
+            <div class="console-panel">
+                <div class="console-header">
+                    <span class="console-title">🖥️ 模拟控制台输出</span>
+                    <span class="console-actions">
+                        <button class="btn btn-primary" onclick="filterConsole('all')" style="padding: 5px 10px;">📋
+                            全部</button>
+                        <button class="btn btn-success" onclick="filterConsole('info')" style="padding: 5px 10px;">ℹ️
+                            信息</button>
+                        <button class="btn btn-warning" onclick="filterConsole('warn')" style="padding: 5px 10px;">⚠️
+                            警告</button>
+                        <button class="btn btn-danger" onclick="filterConsole('error')" style="padding: 5px 10px;">❌
+                            错误</button>
+                        <button class="btn btn-danger" onclick="clearConsole()" style="padding: 5px 10px;">🗑️
+                            清空</button>
+                    </span>
+                </div>
+                <input type="text" class="search-box" id="consoleSearch" placeholder="🔍 搜索控制台内容..."
+                    oninput="searchConsole()">
+                <div class="console-content" id="consoleOutput">
+                    <div class="console-line system">[系统] 控制台已初始化，点击按钮查看输出</div>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('basic')">📝 基础输出</div>
+                <div class="tab" onclick="switchTab('advanced')">🚀 高级功能</div>
+                <div class="tab" onclick="switchTab('performance')">⚡ 性能测试</div>
+                <div class="tab" onclick="switchTab('tools')">🔧 工具集</div>
+            </div>
+
+            <!-- 基础输出标签页 -->
+            <div id="basicTab" class="tab-content active">
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 日志级别</span>
+                            <span class="demo-badge">log/info/warn/error</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoLog()">📝 普通日志</button>
+                            <button class="btn btn-success" onclick="demoInfo()">ℹ️ 信息</button>
+                            <button class="btn btn-warning" onclick="demoWarn()">⚠️ 警告</button>
+                            <button class="btn btn-danger" onclick="demoError()">❌ 错误</button>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoDebug()">🐛 调试</button>
+                            <button class="btn btn-success" onclick="demoMultiple()">📦 多参数</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🎨 格式化输出</span>
+                            <span class="demo-badge">%s %d %o</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoFormat()">🔤 字符串替换</button>
+                            <button class="btn btn-success" onclick="demoObject()">📦 对象输出</button>
+                            <button class="btn btn-warning" onclick="demoStyle()">✨ 样式输出</button>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoTable()">📊 表格输出</button>
+                            <button class="btn btn-success" onclick="demoTableColumns()">📋 指定列</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">⏱️ 性能计时</span>
+                            <span class="demo-badge">time/timeEnd</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoTime()">⏱️ 简单计时</button>
+                            <button class="btn btn-success" onclick="demoMultiTime()">📊 多段计时</button>
+                            <button class="btn btn-warning" onclick="demoLoop()">🔄 循环计时</button>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="timeProgress" style="width: 0%;">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级功能标签页 -->
+            <div id="advancedTab" class="tab-content">
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🔢 计数统计</span>
+                            <span class="demo-badge">count/countReset</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoCount()">🔢 计数</button>
+                            <button class="btn btn-success" onclick="demoCountMulti()">📊 多标签计数</button>
+                            <button class="btn btn-warning" onclick="demoCountReset()">🔄 重置计数</button>
+                        </div>
+                        <div id="countDisplay" style="font-size: 24px; text-align: center; margin: 10px 0;">0</div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📁 分组管理</span>
+                            <span class="demo-badge">group/groupEnd</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoGroup()">📁 普通分组</button>
+                            <button class="btn btn-success" onclick="demoGroupCollapsed()">📂 折叠分组</button>
+                            <button class="btn btn-warning" onclick="demoNestedGroup()">📚 嵌套分组</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">✅ 断言调试</span>
+                            <span class="demo-badge">assert</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoAssertTrue()">✅ 正确断言</button>
+                            <button class="btn btn-danger" onclick="demoAssertFalse()">❌ 错误断言</button>
+                            <button class="btn btn-warning" onclick="demoAssertDivide()">➗ 除零断言</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🔍 堆栈跟踪</span>
+                            <span class="demo-badge">trace</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoTrace()">🔍 简单跟踪</button>
+                            <button class="btn btn-success" onclick="demoDeepTrace()">📚 深层跟踪</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📦 对象展开</span>
+                            <span class="demo-badge">dir</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoDir()">📦 展开对象</button>
+                            <button class="btn btn-success" onclick="demoDirXml()">📄 展开DOM</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📊 性能分析</span>
+                            <span class="demo-badge">profile</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoProfile()">📊 开始分析</button>
+                            <button class="btn btn-danger" onclick="demoProfileEnd()">⏹️ 结束分析</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性能测试标签页 -->
+            <div id="performanceTab" class="tab-content">
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🔄 循环测试</span>
+                            <span class="demo-badge">性能对比</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoLoop10()">🔟 10次循环</button>
+                            <button class="btn btn-success" onclick="demoLoop100()">💯 100次循环</button>
+                            <button class="btn btn-warning" onclick="demoLoop1000()">🔥 1000次循环</button>
+                            <button class="btn btn-danger" onclick="demoLoop10000()">⚡ 10000次循环</button>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="loopProgress" style="width: 0%;">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">⚡ 批量测试</span>
+                            <span class="demo-badge">批量操作</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoBatch10()">📦 10条日志</button>
+                            <button class="btn btn-success" onclick="demoBatch50()">📦 50条日志</button>
+                            <button class="btn btn-warning" onclick="demoBatch100()">📦 100条日志</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📊 性能对比</span>
+                            <span class="demo-badge">console vs native</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoCompare()">⚖️ 对比测试</button>
+                            <button class="btn btn-success" onclick="demoMemory()">💾 内存测试</button>
+                        </div>
+                        <div id="compareResult" style="margin-top: 10px; font-size: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 工具集标签页 -->
+            <div id="toolsTab" class="tab-content">
+                <div class="demo-grid">
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🧪 测试工具</span>
+                            <span class="demo-badge">批量测试</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoTestAll()">🧪 运行所有测试</button>
+                            <button class="btn btn-success" onclick="demoTestData()">📊 生成测试数据</button>
+                            <button class="btn btn-warning" onclick="demoPerformance()">⚡ 性能测试</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">🎯 条件输出</span>
+                            <span class="demo-badge">条件日志</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="demoConditionTrue()">✅ 条件为真</button>
+                            <button class="btn btn-danger" onclick="demoConditionFalse()">❌ 条件为假</button>
+                            <button class="btn btn-warning" onclick="demoConditionRandom()">🎲 随机条件</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-card">
+                        <div class="demo-header">
+                            <span class="demo-title">📋 导出工具</span>
+                            <span class="demo-badge">export/import</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="exportConsole()">📥 导出日志</button>
+                            <button class="btn btn-success" onclick="importConsole()">📤 导入日志</button>
+                            <button class="btn btn-warning" onclick="saveToFile()">💾 保存文件</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 代码示例 -->
+            <h2>📝 代码示例</h2>
+            <div class="code-block" id="codeExample">
+                <span class="code-comment">// 点击按钮查看对应的代码示例</span>
+            </div>
+
+            <!-- 说明 -->
+            <div class="card" style="margin-top: 20px;">
+                <h3>📌 使用说明</h3>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>所有输出都会显示在上方的模拟控制台中</li>
+                    <li>可以使用搜索框过滤控制台内容</li>
+                    <li>点击标签按钮可以按类型过滤</li>
+                    <li>支持导出日志为JSON文件</li>
+                    <li>同时也会输出到浏览器真正的控制台 (F12 打开查看)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            // 统计数据
+            let stats = {
+                log: 0,
+                info: 0,
+                warn: 0,
+                error: 0,
+                debug: 0,
+                total: 0
+            };
+
+            // 计数变量
+            let countValue = 0;
+            let counters = {};
+
+            // 日志历史
+            let consoleHistory = [];
+            let currentFilter = 'all';
+            let searchTerm = '';
+
+            // 模拟控制台
+            const consoleOutput = document.getElementById('consoleOutput');
+
+            // 添加到模拟控制台
+            function addToConsole(message, type = 'log', showInRealConsole = true) {
+                // 更新统计
+                stats[type] = (stats[type] || 0) + 1;
+                stats.total++;
+                updateStats();
+
+                // 记录历史
+                const entry = {
+                    type,
+                    message,
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: Date.now()
+                };
+                consoleHistory.push(entry);
+
+                // 根据过滤条件决定是否显示
+                if (shouldShowEntry(entry)) {
+                    const line = document.createElement('div');
+                    line.className = `console-line ${type}`;
+
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+
+                    line.textContent = `${time} ${message}`;
+                    consoleOutput.appendChild(line);
+                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                }
+
+                // 限制历史长度
+                while (consoleHistory.length > 1000) {
+                    consoleHistory.shift();
+                }
+
+                // 限制显示行数
+                while (consoleOutput.children.length > 100) {
+                    consoleOutput.removeChild(consoleOutput.children[0]);
+                }
+
+                // 同时在真实控制台输出
+                if (showInRealConsole) {
+                    switch (type) {
+                        case 'log': console.log(message); break;
+                        case 'info': console.info(message); break;
+                        case 'warn': console.warn(message); break;
+                        case 'error': console.error(message); break;
+                        case 'debug': console.debug(message); break;
+                        default: console.log(message);
+                    }
+                }
+            }
+
+            // 判断是否应该显示
+            function shouldShowEntry(entry) {
+                if (currentFilter !== 'all' && entry.type !== currentFilter) {
+                    return false;
+                }
+                if (searchTerm && !entry.message.toLowerCase().includes(searchTerm.toLowerCase())) {
+                    return false;
+                }
+                return true;
+            }
+
+            // 刷新控制台显示
+            function refreshConsole() {
+                consoleOutput.innerHTML = '';
+                const filtered = consoleHistory.filter(entry => shouldShowEntry(entry));
+
+                if (filtered.length === 0) {
+                    const line = document.createElement('div');
+                    line.className = 'console-line system';
+                    line.textContent = '[系统] 没有符合条件的日志';
+                    consoleOutput.appendChild(line);
+                } else {
+                    filtered.slice(-50).forEach(entry => {
+                        const line = document.createElement('div');
+                        line.className = `console-line ${entry.type}`;
+                        line.textContent = `[${entry.time}] ${entry.message}`;
+                        consoleOutput.appendChild(line);
+                    });
+                }
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+
+            // 更新统计
+            function updateStats() {
+                document.getElementById('logCount').textContent = stats.log || 0;
+                document.getElementById('infoCount').textContent = stats.info || 0;
+                document.getElementById('warnCount').textContent = stats.warn || 0;
+                document.getElementById('errorCount').textContent = stats.error || 0;
+            }
+
+            // 显示错误
+            function showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.style.display = 'block';
+                errorEl.textContent = '❌ ' + message;
+
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 3000);
+            }
+
+            // 显示成功
+            function showSuccess(message) {
+                const successEl = document.getElementById('successMessage');
+                successEl.style.display = 'block';
+                successEl.textContent = '✅ ' + message;
+
+                setTimeout(() => {
+                    successEl.style.display = 'none';
+                }, 2000);
+            }
+
+            // 更新代码示例
+            function updateCodeExample(code) {
+                document.getElementById('codeExample').innerHTML = code;
+            }
+
+            // 搜索控制台
+            window.searchConsole = function () {
+                searchTerm = document.getElementById('consoleSearch').value;
+                refreshConsole();
+            };
+
+            // 过滤控制台
+            window.filterConsole = function (type) {
+                currentFilter = type;
+                refreshConsole();
+            };
+
+            // 清空控制台
+            window.clearConsole = function () {
+                consoleOutput.innerHTML = '<div class="console-line system">[系统] 控制台已清空</div>';
+                consoleHistory = [];
+                stats = { log: 0, info: 0, warn: 0, error: 0, debug: 0, total: 0 };
+                updateStats();
+                console.clear();
+                addToConsole('控制台已清空', 'system', false);
+            };
+
+            // 标签页切换
+            window.switchTab = function (tabName) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                event.target.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            };
+
+            // 基础输出演示
+            window.demoLog = function () {
+                const msg = '这是一条普通日志';
+                addToConsole(msg, 'log');
+                updateCodeExample(`<span class="code-comment">// 普通日志</span>\nconsole.log('这是一条普通日志');`);
+            };
+
+            window.demoInfo = function () {
+                const msg = '这是一条信息提示';
+                addToConsole(msg, 'info');
+                updateCodeExample(`<span class="code-comment">// 信息提示</span>\nconsole.info('这是一条信息提示');`);
+            };
+
+            window.demoWarn = function () {
+                const msg = '这是一条警告信息';
+                addToConsole(msg, 'warn');
+                updateCodeExample(`<span class="code-comment">// 警告信息</span>\nconsole.warn('这是一条警告信息');`);
+            };
+
+            window.demoError = function () {
+                const msg = '这是一条错误信息';
+                addToConsole(msg, 'error');
+                updateCodeExample(`<span class="code-comment">// 错误信息</span>\nconsole.error('这是一条错误信息');`);
+            };
+
+            window.demoDebug = function () {
+                const msg = '这是一条调试信息';
+                addToConsole(msg, 'debug');
+                updateCodeExample(`<span class="code-comment">// 调试信息</span>\nconsole.debug('这是一条调试信息');`);
+            };
+
+            window.demoMultiple = function () {
+                const name = '张三';
+                const age = 25;
+                const city = '北京';
+                const msg = `姓名: ${name}, 年龄: ${age}, 城市: ${city}`;
+                addToConsole(msg, 'log');
+                updateCodeExample(`<span class="code-comment">// 多参数输出</span>\nconst name = '张三';\nconst age = 25;\nconsole.log('姓名:', name, '年龄:', age);`);
+            };
+
+            // 格式化输出
+            window.demoFormat = function () {
+                const msg = '字符串: test, 数字: 100, 浮点数: 3.14';
+                addToConsole(msg, 'log');
+                updateCodeExample(`<span class="code-comment">// 格式化输出</span>\nconsole.log('字符串: %s, 数字: %d, 浮点数: %f', 'test', 100, 3.14);`);
+            };
+
+            window.demoObject = function () {
+                const user = { name: '张三', age: 25, city: '北京' };
+                addToConsole('用户信息: ' + JSON.stringify(user), 'log');
+                updateCodeExample(`<span class="code-comment">// 对象输出</span>\nconst user = { name: '张三', age: 25 };\nconsole.log('用户信息:', user);`);
+            };
+
+            window.demoStyle = function () {
+                addToConsole('带样式的输出 (查看控制台)', 'log');
+                updateCodeExample(`<span class="code-comment">// 样式输出</span>\nconsole.log('%c这是红色大字', 'color: red; font-size: 20px');`);
+            };
+
+            window.demoTable = function () {
+                addToConsole('表格输出 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 表格输出</span>\nconst users = [\n    { name: '张三', age: 25, city: '北京' },\n    { name: '李四', age: 30, city: '上海' }\n];\nconsole.table(users);`);
+            };
+
+            window.demoTableColumns = function () {
+                addToConsole('指定列表格 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 指定列表格</span>\nconsole.table(users, ['name', 'city']);`);
+            };
+
+            // 性能计时
+            window.demoTime = function () {
+                console.time('计时器');
+                addToConsole('⏱️ 开始计时: 计时器 (1秒后结束)', 'info');
+
+                const progressBar = document.getElementById('timeProgress');
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 10;
+                    progressBar.style.width = progress + '%';
+                    progressBar.textContent = progress + '%';
+                }, 100);
+
+                setTimeout(() => {
+                    console.timeEnd('计时器');
+                    addToConsole('⏱️ 结束计时: 计时器', 'info');
+                    clearInterval(interval);
+                    progressBar.style.width = '0%';
+                    progressBar.textContent = '0%';
+                }, 1000);
+
+                updateCodeExample(`<span class="code-comment">// 简单计时</span>\nconsole.time('计时器');\n// 耗时操作\nconsole.timeEnd('计时器');`);
+            };
+
+            window.demoMultiTime = function () {
+                addToConsole('⏱️ 多段计时开始 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 多段计时</span>\nconsole.time('总时间');\nconsole.time('任务1');\n// 任务1代码\nconsole.timeEnd('任务1');\nconsole.time('任务2');\n// 任务2代码\nconsole.timeEnd('任务2');\nconsole.timeEnd('总时间');`);
+            };
+
+            window.demoLoop = function () {
+                console.time('循环计时');
+                addToConsole('⏱️ 开始循环计时 (100万次计算)', 'info');
+
+                for (let i = 0; i < 1000000; i++) {
+                    Math.sqrt(i);
+                }
+
+                console.timeEnd('循环计时');
+                addToConsole('⏱️ 循环计时结束', 'info');
+                updateCodeExample(`<span class="code-comment">// 循环计时</span>\nconsole.time('循环计时');\nfor (let i = 0; i < 1000000; i++) {\n    Math.sqrt(i);\n}\nconsole.timeEnd('循环计时');`);
+            };
+
+            // 计数统计
+            window.demoCount = function () {
+                countValue++;
+                console.count('计数器');
+                addToConsole(`计数: ${countValue}`, 'log');
+                document.getElementById('countDisplay').textContent = countValue;
+                updateCodeExample(`<span class="code-comment">// 计数</span>\nconsole.count('计数器');`);
+            };
+
+            window.demoCountMulti = function () {
+                console.count('A');
+                console.count('B');
+                console.count('A');
+                console.count('B');
+                console.count('A');
+                addToConsole('多标签计数 (查看控制台)', 'log');
+                updateCodeExample(`<span class="code-comment">// 多标签计数</span>\nconsole.count('A');\nconsole.count('B');\nconsole.count('A');\nconsole.count('B');`);
+            };
+
+            window.demoCountReset = function () {
+                countValue = 0;
+                console.countReset('计数器');
+                document.getElementById('countDisplay').textContent = '0';
+                addToConsole('计数器已重置', 'info');
+                updateCodeExample(`<span class="code-comment">// 重置计数</span>\nconsole.countReset('计数器');`);
+            };
+
+            // 分组管理
+            window.demoGroup = function () {
+                addToConsole('分组输出 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 分组</span>\nconsole.group('用户信息');\nconsole.log('姓名: 张三');\nconsole.log('年龄: 25');\nconsole.groupEnd();`);
+            };
+
+            window.demoGroupCollapsed = function () {
+                addToConsole('折叠分组 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 折叠分组</span>\nconsole.groupCollapsed('折叠分组');\nconsole.log('这是折叠的内容');\nconsole.groupEnd();`);
+            };
+
+            window.demoNestedGroup = function () {
+                addToConsole('嵌套分组 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 嵌套分组</span>\nconsole.group('外层分组');\nconsole.group('内层分组');\nconsole.log('内层内容');\nconsole.groupEnd();\nconsole.groupEnd();`);
+            };
+
+            // 断言调试
+            window.demoAssertTrue = function () {
+                console.assert(true, '条件为真，无输出');
+                addToConsole('正确断言: 无输出', 'info');
+                updateCodeExample(`<span class="code-comment">// 正确断言</span>\nconsole.assert(true, '条件为真，无输出');`);
+            };
+
+            window.demoAssertFalse = function () {
+                console.assert(false, '条件为假，输出错误');
+                addToConsole('错误断言: 条件为假 (查看控制台)', 'error');
+                updateCodeExample(`<span class="code-comment">// 错误断言</span>\nconsole.assert(false, '条件为假，输出错误');`);
+            };
+
+            window.demoAssertDivide = function () {
+                function divide(a, b) {
+                    console.assert(b !== 0, '除数不能为0');
+                    return a / b;
+                }
+
+                divide(10, 0);
+                addToConsole('除零断言 (查看控制台)', 'error');
+                updateCodeExample(`<span class="code-comment">// 除零断言</span>\nfunction divide(a, b) {\n    console.assert(b !== 0, '除数不能为0');\n    return a / b;\n}\ndivide(10, 0);`);
+            };
+
+            // 堆栈跟踪
+            window.demoTrace = function () {
+                function func1() { func2(); }
+                function func2() { func3(); }
+                function func3() { console.trace('调用堆栈'); }
+                func1();
+                addToConsole('堆栈跟踪 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 堆栈跟踪</span>\nfunction func1() { func2(); }\nfunction func2() { func3(); }\nfunction func3() { console.trace('调用堆栈'); }\nfunc1();`);
+            };
+
+            window.demoDeepTrace = function () {
+                function a() { b(); }
+                function b() { c(); }
+                function c() { d(); }
+                function d() { e(); }
+                function e() { console.trace('深层调用'); }
+                a();
+                addToConsole('深层堆栈 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 深层堆栈</span>\nfunction a() { b(); }\nfunction b() { c(); }\nfunction c() { d(); }\nfunction d() { e(); }\nfunction e() { console.trace('深层调用'); }\na();`);
+            };
+
+            // 对象展开
+            window.demoDir = function () {
+                addToConsole('对象展开 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 对象展开</span>\nconst obj = { name: '张三', age: 25, address: { city: '北京' } };\nconsole.dir(obj);`);
+            };
+
+            window.demoDirXml = function () {
+                addToConsole('DOM展开 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// DOM展开</span>\nconst div = document.createElement('div');\nconsole.dir(div);`);
+            };
+
+            // 性能分析
+            window.demoProfile = function () {
+                console.profile('性能分析');
+                addToConsole('📊 开始性能分析 (打开 Performance 面板)', 'info');
+                updateCodeExample(`<span class="code-comment">// 性能分析</span>\nconsole.profile('性能分析');\n// 要分析的代码\nconsole.profileEnd('性能分析');`);
+            };
+
+            window.demoProfileEnd = function () {
+                console.profileEnd('性能分析');
+                addToConsole('⏹️ 结束性能分析', 'info');
+            };
+
+            // 循环测试
+            window.demoLoop10 = function () { runLoopTest(10); };
+            window.demoLoop100 = function () { runLoopTest(100); };
+            window.demoLoop1000 = function () { runLoopTest(1000); };
+            window.demoLoop10000 = function () { runLoopTest(10000); };
+
+            function runLoopTest(count) {
+                const progressBar = document.getElementById('loopProgress');
+                console.time(`${count}次循环`);
+
+                for (let i = 0; i < count; i++) {
+                    const progress = ((i + 1) / count) * 100;
+                    progressBar.style.width = progress + '%';
+                    progressBar.textContent = Math.round(progress) + '%';
+
+                    if (i % Math.floor(count / 10) === 0) {
+                        addToConsole(`循环进度: ${i}/${count}`, 'debug');
+                    }
+                }
+
+                console.timeEnd(`${count}次循环`);
+                addToConsole(`✅ ${count}次循环完成`, 'success');
+
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                    progressBar.textContent = '0%';
+                }, 1000);
+
+                updateCodeExample(`<span class="code-comment">// ${count}次循环测试</span>\nfor (let i = 0; i < ${count}; i++) {\n    // 循环体\n}`);
+            }
+
+            // 批量测试
+            window.demoBatch10 = function () { runBatchTest(10); };
+            window.demoBatch50 = function () { runBatchTest(50); };
+            window.demoBatch100 = function () { runBatchTest(100); };
+
+            function runBatchTest(count) {
+                console.time(`批量${count}条日志`);
+
+                for (let i = 0; i < count; i++) {
+                    addToConsole(`批量日志 ${i + 1}/${count}`, 'log', false);
+                }
+
+                console.timeEnd(`批量${count}条日志`);
+                addToConsole(`✅ 批量输出 ${count} 条日志完成`, 'success');
+
+                updateCodeExample(`<span class="code-comment">// 批量输出${count}条日志</span>\nfor (let i = 0; i < ${count}; i++) {\n    console.log(\`批量日志 \${i}\`);\n}`);
+            }
+
+            // 对比测试
+            window.demoCompare = function () {
+                const count = 10000;
+
+                // 测试 console.log
+                console.time('console.log');
+                for (let i = 0; i < count; i++) {
+                    console.log(`test ${i}`);
+                }
+                const consoleTime = console.timeEnd('console.log');
+
+                // 测试字符串拼接
+                console.time('字符串拼接');
+                let result = '';
+                for (let i = 0; i < count; i++) {
+                    result += `test ${i}\n`;
+                }
+                const stringTime = console.timeEnd('字符串拼接');
+
+                document.getElementById('compareResult').innerHTML =
+                    `📊 对比结果 (${count}次)<br>` +
+                    `console.log: ${consoleTime}ms<br>` +
+                    `字符串拼接: ${stringTime}ms`;
+
+                addToConsole('⚖️ 性能对比完成', 'info');
+                updateCodeExample(`<span class="code-comment">// 性能对比</span>\nconsole.time('console.log');\nfor (let i = 0; i < 10000; i++) {\n    console.log('test');\n}\nconsole.timeEnd('console.log');`);
+            };
+
+            window.demoMemory = function () {
+                if (performance.memory) {
+                    const memory = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                    addToConsole(`当前内存使用: ${memory} MB`, 'info');
+                } else {
+                    addToConsole('内存信息不可用 (仅支持Chrome)', 'warn');
+                }
+                updateCodeExample(`<span class="code-comment">// 内存测试</span>\nif (performance.memory) {\n    console.log(\`内存使用: \${performance.memory.usedJSHeapSize} 字节\`);\n}`);
+            };
+
+            // 测试工具
+            window.demoTestAll = function () {
+                addToConsole('=== 开始所有测试 ===', 'info');
+                demoLog();
+                demoInfo();
+                demoWarn();
+                demoError();
+                demoFormat();
+                demoObject();
+                demoTable();
+                addToConsole('=== 测试结束 ===', 'success');
+                updateCodeExample(`<span class="code-comment">// 运行所有测试</span>\nconsole.log('=== 开始测试 ===');\n// 执行各种测试\nconsole.log('=== 测试结束 ===');`);
+            };
+
+            window.demoTestData = function () {
+                const data = [];
+                for (let i = 0; i < 5; i++) {
+                    data.push({
+                        id: i + 1,
+                        name: `用户${i + 1}`,
+                        score: Math.floor(Math.random() * 100)
+                    });
+                }
+                console.table(data);
+                addToConsole('📊 测试数据已生成 (查看控制台)', 'info');
+                updateCodeExample(`<span class="code-comment">// 生成测试数据</span>\nconst data = [];\nfor (let i = 0; i < 5; i++) {\n    data.push({ id: i+1, name: \`用户\${i+1}\`, score: Math.random() * 100 });\n}\nconsole.table(data);`);
+            };
+
+            window.demoPerformance = function () {
+                console.time('性能测试');
+
+                for (let i = 0; i < 1000000; i++) {
+                    Math.sin(i) * Math.cos(i);
+                }
+
+                console.timeEnd('性能测试');
+                addToConsole('⚡ 性能测试完成', 'success');
+                updateCodeExample(`<span class="code-comment">// 性能测试</span>\nconsole.time('性能测试');\nfor (let i = 0; i < 1000000; i++) {\n    Math.sin(i) * Math.cos(i);\n}\nconsole.timeEnd('性能测试');`);
+            };
+
+            // 条件输出
+            window.demoConditionTrue = function () {
+                addToConsole('条件为真，执行输出', 'success');
+                updateCodeExample(`<span class="code-comment">// 条件为真</span>\nif (true) {\n    console.log('条件为真');\n}`);
+            };
+
+            window.demoConditionFalse = function () {
+                addToConsole('条件为假，不输出', 'info');
+                updateCodeExample(`<span class="code-comment">// 条件为假</span>\nif (false) {\n    console.log('不会输出');\n}`);
+            };
+
+            window.demoConditionRandom = function () {
+                const random = Math.random();
+                if (random > 0.5) {
+                    addToConsole(`✅ 随机值 ${random.toFixed(3)} > 0.5`, 'success');
+                } else {
+                    addToConsole(`❌ 随机值 ${random.toFixed(3)} ≤ 0.5`, 'error');
+                }
+                updateCodeExample(`<span class="code-comment">// 随机条件</span>\nconst random = Math.random();\nif (random > 0.5) {\n    console.log('大于0.5');\n} else {\n    console.log('小于等于0.5');\n}`);
+            };
+
+            // 导出工具
+            window.exportConsole = function () {
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    stats,
+                    history: consoleHistory
+                };
+
+                const json = JSON.stringify(data, null, 2);
+                addToConsole(`📥 导出日志: ${json.length} 字节`, 'info');
+                showSuccess('日志已导出到控制台');
+                updateCodeExample(`<span class="code-comment">// 导出日志</span>\nconst data = {\n    timestamp: new Date().toISOString(),\n    history: consoleHistory\n};\nconsole.log(JSON.stringify(data, null, 2));`);
+            };
+
+            window.importConsole = function () {
+                addToConsole('📤 导入功能模拟', 'info');
+                updateCodeExample(`<span class="code-comment">// 导入日志</span>\n// 从文件读取JSON并解析`);
+            };
+
+            window.saveToFile = function () {
+                const data = {
+                    timestamp: new Date().toISOString(),
+                    stats,
+                    history: consoleHistory
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `console-log-${Date.now()}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showSuccess('日志已保存为文件');
+                addToConsole('💾 日志已保存', 'success');
+                updateCodeExample(`<span class="code-comment">// 保存文件</span>\nconst blob = new Blob([JSON.stringify(data)], { type: 'application/json' });\nconst url = URL.createObjectURL(blob);\n// 下载链接`);
+            };
+
+            // 初始化
+            addToConsole('系统初始化完成', 'system', false);
+        })();
+    </script>
+</body>
+
+</html>

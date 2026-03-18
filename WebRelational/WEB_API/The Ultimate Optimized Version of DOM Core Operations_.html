@@ -1,0 +1,2180 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOM 核心操作 - 终极优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --border: #e2e8f0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 48px -12px rgba(0, 0, 0, 0.25);
+            --radius-sm: 12px;
+            --radius-md: 20px;
+            --radius-lg: 28px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --light: #1e293b;
+                --dark: #f8fafc;
+                --border: #334155;
+                --gray: #94a3b8;
+            }
+
+            body {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            }
+
+            .card,
+            .demo-panel,
+            .control-panel {
+                background: #2d3a4f;
+                color: #e2e8f0;
+            }
+
+            .code-block {
+                background: #0f172a;
+                border: 1px solid #334155;
+            }
+
+            input,
+            select,
+            textarea {
+                background: #1e293b;
+                color: #e2e8f0;
+                border-color: #475569;
+            }
+
+            .box {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* 头部卡片 - 增强视觉效果 */
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        h1 {
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .badge {
+            padding: 6px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        /* 网格布局优化 - 响应式 */
+        .grid-2,
+        .grid-3 {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        /* 卡片通用设计 */
+        .card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            color: var(--dark);
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .card-header .icon {
+            font-size: 28px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        /* 节点统计卡片 - 动画效果 */
+        .node-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 20px 0 0;
+        }
+
+        .node-stat {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.08));
+            padding: 18px;
+            border-radius: var(--radius-sm);
+            text-align: center;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            transition: var(--transition);
+        }
+
+        .node-stat:hover {
+            transform: scale(1.02);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(236, 72, 153, 0.12));
+        }
+
+        .node-stat .value {
+            font-size: 32px;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            transition: var(--transition);
+        }
+
+        .node-stat .label {
+            font-size: 13px;
+            color: var(--gray);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* 控制面板优化 */
+        .control-panel {
+            background: rgba(248, 250, 252, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            margin: 16px 0;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            flex: 1;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--gray);
+            font-size: 13px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: var(--transition);
+            background: white;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        }
+
+        .form-group input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #f1f5f9;
+        }
+
+        /* 按钮系统 - 统一设计语言 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            letter-spacing: 0.3px;
+            min-width: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+            min-width: 60px;
+        }
+
+        .btn-success {
+            background: var(--success);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: #000;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-info {
+            background: var(--info);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* DOM 演示沙盒 - 核心区域 */
+        .demo-panel {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 28px;
+            margin: 20px 0;
+            border: 2px dashed var(--primary);
+            min-height: 350px;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .demo-panel:empty::before {
+            content: 'DOM 演示区域 - 点击元素可选中';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--gray);
+            font-size: 14px;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
+
+        /* DOM 元素样式 - 更具视觉吸引力 */
+        .box {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            margin: 12px;
+            display: inline-block;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            border: 2px solid transparent;
+        }
+
+        .box:hover {
+            transform: scale(1.03) translateY(-4px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .box.highlighted {
+            border-color: gold;
+            box-shadow: 0 0 0 4px gold;
+        }
+
+        .highlight {
+            outline: 3px solid var(--primary) !important;
+            outline-offset: 4px !important;
+            position: relative;
+            z-index: 100;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                outline-color: var(--primary);
+            }
+
+            50% {
+                outline-color: var(--secondary);
+            }
+
+            100% {
+                outline-color: var(--primary);
+            }
+        }
+
+        .item-list {
+            list-style: none;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .item-list li {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            margin: 4px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 代码块优化 */
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #334155;
+            line-height: 1.6;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* 选中节点信息栏 - 增强可见性 */
+        .selection-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(236, 72, 153, 0.15));
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(8px);
+        }
+
+        .node-path {
+            font-family: 'Fira Code', monospace;
+            background: var(--dark);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 日志面板 - 优化可读性 */
+        .log-panel {
+            background: #0f172a;
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-top: 28px;
+            color: #e2e8f0;
+            font-family: 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.6);
+        }
+
+        .log-entry {
+            padding: 8px 14px;
+            margin: 4px 0;
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            transition: var(--transition);
+            word-break: break-word;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--success);
+            color: #86efac;
+        }
+
+        .log-entry.error {
+            border-left-color: var(--danger);
+            color: #fca5a5;
+        }
+
+        .log-entry.warning {
+            border-left-color: var(--warning);
+            color: #fcd34d;
+        }
+
+        .log-entry.info {
+            border-left-color: var(--primary);
+            color: #93c5fd;
+        }
+
+        /* 事件日志区域 */
+        .event-log {
+            background: #0f172a;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 11px;
+            border: 1px solid #334155;
+            color: #a5b4fc;
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-md);
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 1024px) {
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .node-info {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .selection-bar {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .node-info {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .badge {
+                font-size: 12px;
+                padding: 4px 12px;
+            }
+        }
+
+        /* 动画效果 */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card,
+        .btn,
+        .node-stat {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 头部 - 增强信息展示 -->
+        <div class="header-card">
+            <h1>
+                <span>📄 文档对象模型 (DOM) 终极版</span>
+                <span class="badge">v3.0 企业级优化</span>
+            </h1>
+            <p style="color: var(--gray); font-size: 16px; line-height: 1.6; max-width: 800px;">
+                完整的 DOM 操作教学工具：节点操作 · 属性管理 · 样式控制 · 事件处理 · 树遍历 · 性能分析
+            </p>
+
+            <!-- 节点统计 - 实时更新带动画 -->
+            <div class="node-info">
+                <div class="node-stat">
+                    <div class="value" id="totalNodes">0</div>
+                    <div class="label">总节点数</div>
+                </div>
+                <div class="node-stat">
+                    <div class="value" id="elementNodes">0</div>
+                    <div class="label">元素节点</div>
+                </div>
+                <div class="node-stat">
+                    <div class="value" id="textNodes">0</div>
+                    <div class="label">文本节点</div>
+                </div>
+                <div class="node-stat">
+                    <div class="value" id="depth">0</div>
+                    <div class="label">DOM深度</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要操作区 - 优化布局 -->
+        <div class="grid-2">
+            <!-- DOM 查询与遍历 - 增强功能 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔍</span>
+                    <h2>DOM 查询与遍历</h2>
+                    <span class="tooltip" data-tooltip="支持CSS选择器、XPath、节点关系">ⓘ</span>
+                </div>
+
+                <div class="control-panel">
+                    <div class="form-group">
+                        <label>CSS 选择器</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="selectorInput" placeholder="如 .box, #box1, div > p" value=".box">
+                            <button class="btn btn-small" onclick="domManager.querySelector()"
+                                title="返回第一个匹配元素">QSA</button>
+                            <button class="btn btn-small btn-info" onclick="domManager.querySelectorAll()"
+                                title="返回所有匹配元素">QSA All</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>节点关系遍历</label>
+                        <div class="btn-group">
+                            <button class="btn btn-small" onclick="domManager.getParent()">👆 父节点</button>
+                            <button class="btn btn-small" onclick="domManager.getChildren()">👥 子节点</button>
+                            <button class="btn btn-small" onclick="domManager.getSiblings()">🔄 兄弟节点</button>
+                            <button class="btn btn-small" onclick="domManager.getFirstLastChild()">⬇️ 首/末子节点</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>XPath 查询</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="xpathInput" placeholder="//div[@class='box']"
+                                value="//div[@class='box']">
+                            <button class="btn btn-small btn-info" onclick="domManager.xpathQuery()">执行 XPath</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>查询结果</label>
+                        <div id="queryResult" class="code-block" style="max-height: 120px;">
+                            点击查询按钮查看结果...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 节点创建与插入 - 增强选项 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">➕</span>
+                    <h2>节点创建与插入</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="form-group">
+                        <label>元素类型</label>
+                        <select id="newElementTag">
+                            <option value="div">div (块元素)</option>
+                            <option value="span">span (内联元素)</option>
+                            <option value="p">p (段落)</option>
+                            <option value="button">button (按钮)</option>
+                            <option value="li">li (列表项)</option>
+                            <option value="a">a (链接)</option>
+                            <option value="h3">h3 (标题)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>文本内容</label>
+                        <input type="text" id="newElementText" value="新创建的 DOM 节点">
+                    </div>
+
+                    <div class="form-group">
+                        <label>插入位置</label>
+                        <select id="insertPosition">
+                            <option value="append">appendChild (末尾)</option>
+                            <option value="prepend">prepend (开头)</option>
+                            <option value="before">before (之前)</option>
+                            <option value="after">after (之后)</option>
+                            <option value="inner">innerHTML (替换)</option>
+                        </select>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn" onclick="domManager.createElement()">✨ 创建元素</button>
+                        <button class="btn btn-success" onclick="domManager.createTextNode()">📝 文本节点</button>
+                        <button class="btn btn-info" onclick="domManager.cloneNode()">📋 克隆节点</button>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-warning" onclick="domManager.createFragment()" style="width: 100%;">⚡
+                            文档片段 (批量插入10个节点)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 属性与样式操作 - 增强面板 -->
+        <div class="grid-3">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🏷️</span>
+                    <h2>属性操作</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="form-group">
+                        <label>属性名</label>
+                        <input type="text" id="attrName" placeholder="如 class, id, data-*" value="data-demo">
+                    </div>
+                    <div class="form-group">
+                        <label>属性值</label>
+                        <input type="text" id="attrValue" placeholder="属性值" value="DOM演示">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-small" onclick="domManager.setAttribute()">set</button>
+                        <button class="btn btn-small btn-info" onclick="domManager.getAttribute()">get</button>
+                        <button class="btn btn-small btn-warning" onclick="domManager.removeAttribute()">remove</button>
+                        <button class="btn btn-small btn-success" onclick="domManager.hasAttribute()">has</button>
+                    </div>
+
+                    <hr style="margin: 16px 0; border-color: var(--border);">
+
+                    <div class="form-group">
+                        <label>dataset 操作</label>
+                        <div class="btn-group">
+                            <button class="btn btn-small" onclick="domManager.setDataset()">设置 dataset</button>
+                            <button class="btn btn-small btn-info" onclick="domManager.getDataset()">获取所有</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🎨</span>
+                    <h2>样式操作</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="form-group">
+                        <label>CSS 属性</label>
+                        <input type="text" id="styleProperty" placeholder="如 color, background" value="background">
+                    </div>
+                    <div class="form-group">
+                        <label>CSS 值</label>
+                        <input type="text" id="styleValue" placeholder="如 red, #6366f1" value="#6366f1">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-small" onclick="domManager.setStyle()">设置单个</button>
+                        <button class="btn btn-small btn-success" onclick="domManager.setMultipleStyles()">批量样式</button>
+                    </div>
+
+                    <hr style="margin: 16px 0; border-color: var(--border);">
+
+                    <div class="form-group">
+                        <label>classList 操作</label>
+                        <div class="btn-group">
+                            <button class="btn btn-small" onclick="domManager.addClass()">add</button>
+                            <button class="btn btn-small btn-warning" onclick="domManager.removeClass()">remove</button>
+                            <button class="btn btn-small btn-info" onclick="domManager.toggleClass()">toggle</button>
+                            <button class="btn btn-small btn-success"
+                                onclick="domManager.containsClass()">contains</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-outline" onclick="domManager.getComputedStyle()"
+                            style="width: 100%;">获取计算样式</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🗑️</span>
+                    <h2>删除与替换</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="btn-group" style="flex-direction: column;">
+                        <button class="btn btn-danger" onclick="domManager.removeNode()">remove() 删除节点</button>
+                        <button class="btn btn-warning" onclick="domManager.removeChild()">removeChild 删除子节点</button>
+                        <button class="btn btn-info" onclick="domManager.replaceNode()">replaceWith 替换节点</button>
+                        <button class="btn btn-outline" onclick="domManager.emptyNode()">清空所有子节点</button>
+                    </div>
+
+                    <hr style="margin: 16px 0; border-color: var(--border);">
+
+                    <div class="form-group">
+                        <label>innerHTML vs textContent</label>
+                        <div class="btn-group">
+                            <button class="btn btn-small" onclick="domManager.demoInnerHTML()">innerHTML</button>
+                            <button class="btn btn-small btn-info"
+                                onclick="domManager.demoTextContent()">textContent</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOM 演示沙盒 - 核心交互区 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="icon">🎯</span>
+                <h2>DOM 演示沙盒 (点击元素选中)</h2>
+                <div style="margin-left: auto; display: flex; gap: 12px;">
+                    <button class="btn btn-small" onclick="domManager.resetDemo()">🔄 重置沙盒</button>
+                    <button class="btn btn-small btn-info" onclick="domManager.clearSelection()">❌ 取消选中</button>
+                </div>
+            </div>
+
+            <!-- 选中节点信息栏 - 动态显示 -->
+            <div class="selection-bar" id="selectionBar" style="display: none;">
+                <span style="font-weight: 600;">当前选中:</span>
+                <span class="node-path" id="selectedNodePath">未选中</span>
+                <div style="flex: 1;"></div>
+                <button class="btn btn-small btn-outline" onclick="domManager.editAsHTML()">✏️ 编辑HTML</button>
+                <button class="btn btn-small btn-success" onclick="domManager.wrapNode()">📦 包裹节点</button>
+                <button class="btn btn-small btn-info" onclick="domManager.insertAdjacent()">➕ 插入相邻</button>
+            </div>
+
+            <div id="domPlayground" class="demo-panel">
+                <!-- 初始 DOM 结构 - 丰富的演示内容 -->
+                <div class="box" id="box1" data-test="value1" data-info="第一个盒子" style="background: #6366f1;">
+                    <strong>box 1</strong>
+                    <span>内联文本</span>
+                </div>
+                <div class="box highlighted" id="box2" style="background: #ec4899;">
+                    box 2 (高亮)
+                    <ul class="item-list">
+                        <li>项目 1</li>
+                        <li>项目 2</li>
+                        <li>项目 3</li>
+                    </ul>
+                </div>
+                <div class="box" id="box3" style="background: #22c55e;">
+                    box 3
+                    <p>这是一个段落 <a href="#" style="color: white;">链接</a></p>
+                </div>
+                <div id="demoDiv" class="demo-content"
+                    style="margin-top: 20px; padding: 16px; background: rgba(0,0,0,0.02); border-radius: 12px;">
+                    这是一段文本内容
+                    <br>
+                    <input type="text" value="输入框示例" placeholder="请输入">
+                </div>
+            </div>
+        </div>
+
+        <!-- 事件与性能面板 -->
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🔔</span>
+                    <h2>事件监听演示</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="btn-group">
+                        <button class="btn" onclick="domManager.addClickListener()">添加点击监听</button>
+                        <button class="btn btn-warning" onclick="domManager.removeClickListener()">移除监听</button>
+                        <button class="btn btn-info" onclick="domManager.onceListener()">一次性监听</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>事件委托区域 (点击下方按钮测试)</label>
+                        <div id="delegationArea"
+                            style="padding: 20px; background: rgba(0,0,0,0.02); border-radius: var(--radius-sm);">
+                            <button class="btn btn-small">按钮 A</button>
+                            <button class="btn btn-small btn-info">按钮 B</button>
+                            <button class="btn btn-small btn-success">按钮 C</button>
+                        </div>
+                        <button class="btn btn-success btn-small" onclick="domManager.delegationDemo()"
+                            style="margin-top: 10px;">启用事件委托</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>事件日志</label>
+                        <div id="eventLog" class="event-log">
+                            等待事件触发...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📊</span>
+                    <h2>DOM 性能与调试</h2>
+                </div>
+
+                <div class="control-panel">
+                    <div class="btn-group">
+                        <button class="btn" onclick="domManager.measurePerformance()">⏱️ 性能测试</button>
+                        <button class="btn btn-info" onclick="domManager.walkDOM()">🌳 遍历 DOM 树</button>
+                        <button class="btn btn-success" onclick="domManager.serializeToXML()">📄 序列化 XML</button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>DOM 树结构预览</label>
+                        <div id="domTreePreview" class="code-block">
+                            点击"遍历 DOM 树"查看结构
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>性能指标</label>
+                        <div id="perfMetrics" class="code-block" style="font-size: 11px;">
+                            未测试
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作日志 - 增强显示 -->
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry info">📝 DOM 管理器初始化完成，准备操作...</div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            /**
+             * DOM 管理器 - 终极优化版
+             * 优化点：
+             * 1. 完整的错误边界处理
+             * 2. 性能优化与内存泄漏防范
+             * 3. 增强的节点选择与路径显示
+             * 4. 事件系统完善
+             * 5. 响应式设计适配
+             * 6. 代码健壮性提升
+             */
+            class DOMManager {
+                constructor() {
+                    // DOM 元素引用
+                    this.playground = document.getElementById('domPlayground');
+                    this.logPanel = document.getElementById('logPanel');
+                    this.eventLog = document.getElementById('eventLog');
+                    this.perfMetrics = document.getElementById('perfMetrics');
+                    this.selectionBar = document.getElementById('selectionBar');
+                    this.selectedNodePath = document.getElementById('selectedNodePath');
+
+                    // 状态管理
+                    this.selectedNode = null;
+                    this.clickListener = null;
+                    this.delegationListener = null;
+                    this.eventHandlers = new Map(); // 用于事件移除
+
+                    // 配置
+                    this.maxLogEntries = 200;
+                    this.maxEventEntries = 30;
+
+                    this.init();
+                }
+
+                init() {
+                    try {
+                        this.setupClickSelection();
+                        this.updateNodeStats();
+                        this.log('DOM 管理器初始化成功', 'success');
+                    } catch (error) {
+                        this.log(`初始化失败: ${error.message}`, 'error');
+                        console.error('DOM Manager initialization error:', error);
+                    }
+                }
+
+                // ==================== 工具方法 ====================
+                debounce(func, wait) {
+                    let timeout;
+                    return function executedFunction(...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
+
+                escapeHtml(text) {
+                    if (!text) return '';
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+
+                // ==================== 日志系统增强 ====================
+                log(message, type = 'info') {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry ${type}`;
+                    const now = new Date();
+                    const time = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}]`;
+                    entry.textContent = `${time} ${message}`;
+                    this.logPanel.appendChild(entry);
+                    this.logPanel.scrollTop = this.logPanel.scrollHeight;
+
+                    // 限制日志条目
+                    while (this.logPanel.children.length > this.maxLogEntries) {
+                        this.logPanel.removeChild(this.logPanel.children[0]);
+                    }
+                }
+
+                logEvent(message) {
+                    if (!this.eventLog) return;
+
+                    const entry = document.createElement('div');
+                    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                    this.eventLog.appendChild(entry);
+                    this.eventLog.scrollTop = this.eventLog.scrollHeight;
+
+                    while (this.eventLog.children.length > this.maxEventEntries) {
+                        this.eventLog.removeChild(this.eventLog.children[0]);
+                    }
+                }
+
+                // ==================== 节点统计优化 ====================
+                updateNodeStats() {
+                    try {
+                        const stats = this.calculateNodeStats(this.playground);
+
+                        document.getElementById('totalNodes').textContent = stats.total;
+                        document.getElementById('elementNodes').textContent = stats.elements;
+                        document.getElementById('textNodes').textContent = stats.texts;
+                        document.getElementById('depth').textContent = stats.depth;
+                    } catch (error) {
+                        this.log(`更新统计失败: ${error.message}`, 'error');
+                    }
+                }
+
+                calculateNodeStats(root) {
+                    let total = 0;
+                    let elements = 0;
+                    let texts = 0;
+                    let maxDepth = 0;
+
+                    function traverse(node, depth) {
+                        if (!node) return;
+
+                        total++;
+                        maxDepth = Math.max(maxDepth, depth);
+
+                        if (node.nodeType === Node.ELEMENT_NODE) elements++;
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) texts++;
+
+                        let child = node.firstChild;
+                        while (child) {
+                            traverse(child, depth + 1);
+                            child = child.nextSibling;
+                        }
+                    }
+
+                    traverse(root, 1);
+                    return { total, elements, texts, depth: maxDepth };
+                }
+
+                // ==================== 节点选择系统优化 ====================
+                setupClickSelection() {
+                    this.playground.addEventListener('click', (e) => {
+                        e.stopPropagation();
+
+                        if (e.target === this.playground) {
+                            this.clearSelection();
+                            return;
+                        }
+
+                        this.setSelectedNode(e.target);
+                    });
+                }
+
+                setSelectedNode(node) {
+                    if (!node || node === this.selectedNode) return;
+
+                    try {
+                        // 移除之前的highlight
+                        if (this.selectedNode) {
+                            this.selectedNode.classList.remove('highlight');
+                        }
+
+                        this.selectedNode = node;
+                        node.classList.add('highlight');
+
+                        // 更新选中信息栏
+                        this.selectionBar.style.display = 'flex';
+                        this.selectedNodePath.textContent = this.getNodePath(node);
+
+                        this.log(`选中节点: ${this.getNodeDescription(node)}`, 'info');
+                    } catch (error) {
+                        this.log(`设置选中节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getNodePath(node) {
+                    if (!node) return '';
+
+                    const parts = [];
+                    let current = node;
+                    let maxDepth = 10; // 防止无限循环
+
+                    while (current && current !== this.playground && maxDepth-- > 0) {
+                        if (current.nodeType === Node.ELEMENT_NODE) {
+                            let selector = current.tagName.toLowerCase();
+                            if (current.id) {
+                                selector += `#${current.id}`;
+                                parts.unshift(selector);
+                                break; // ID 足够唯一，可以停止
+                            } else if (current.className && typeof current.className === 'string') {
+                                const classes = current.className.split(' ').filter(c => c && c !== 'highlight');
+                                if (classes.length) {
+                                    selector += `.${classes.join('.')}`;
+                                }
+                            }
+                            parts.unshift(selector);
+                        } else if (current.nodeType === Node.TEXT_NODE) {
+                            parts.unshift('text()');
+                        }
+                        current = current.parentNode;
+                    }
+
+                    return parts.join(' > ') || '未知路径';
+                }
+
+                getNodeDescription(node) {
+                    if (!node) return 'null';
+
+                    try {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            let desc = `<${node.tagName.toLowerCase()}`;
+                            if (node.id) desc += ` id="${node.id}"`;
+                            if (node.className && typeof node.className === 'string') {
+                                const classes = node.className.split(' ').filter(c => c && c !== 'highlight');
+                                if (classes.length) desc += ` class="${classes.join(' ')}"`;
+                            }
+                            desc += '>';
+                            return desc;
+                        } else if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node.textContent.trim().substring(0, 30);
+                            return `文本节点: "${text}${node.textContent.length > 30 ? '...' : ''}"`;
+                        }
+                        return node.nodeName;
+                    } catch (error) {
+                        return '未知节点';
+                    }
+                }
+
+                clearSelection() {
+                    if (this.selectedNode) {
+                        this.selectedNode.classList.remove('highlight');
+                        this.selectedNode = null;
+                        this.selectionBar.style.display = 'none';
+                        this.log('已清除节点选择', 'info');
+                    }
+                }
+
+                getSelectedNode() {
+                    if (!this.selectedNode) {
+                        this.log('请先点击选择一个节点', 'warning');
+                        return null;
+                    }
+                    return this.selectedNode;
+                }
+
+                // ==================== DOM 查询增强 ====================
+                querySelector() {
+                    const selector = document.getElementById('selectorInput')?.value;
+                    if (!selector) {
+                        this.log('请输入选择器', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const result = this.playground.querySelector(selector);
+                        const resultDiv = document.getElementById('queryResult');
+
+                        if (result) {
+                            resultDiv.innerHTML = `✅ 找到: ${this.escapeHtml(this.getNodeDescription(result))}`;
+                            this.setSelectedNode(result);
+                            this.log(`querySelector: 找到节点 ${selector}`, 'success');
+                        } else {
+                            resultDiv.innerHTML = '❌ 未找到匹配节点';
+                            this.log(`querySelector: 未找到 ${selector}`, 'warning');
+                        }
+                    } catch (e) {
+                        this.log(`选择器错误: ${e.message}`, 'error');
+                        document.getElementById('queryResult').innerHTML = `错误: ${e.message}`;
+                    }
+                }
+
+                querySelectorAll() {
+                    const selector = document.getElementById('selectorInput')?.value;
+                    if (!selector) return;
+
+                    try {
+                        const results = this.playground.querySelectorAll(selector);
+                        const resultDiv = document.getElementById('queryResult');
+
+                        if (results.length > 0) {
+                            let html = `找到 ${results.length} 个节点:<br>`;
+                            results.forEach((node, i) => {
+                                html += `${i + 1}. ${this.escapeHtml(this.getNodeDescription(node))}<br>`;
+                            });
+                            resultDiv.innerHTML = html;
+                            this.log(`querySelectorAll: 找到 ${results.length} 个节点`, 'success');
+                        } else {
+                            resultDiv.innerHTML = '未找到匹配节点';
+                        }
+                    } catch (e) {
+                        this.log(`选择器错误: ${e.message}`, 'error');
+                    }
+                }
+
+                xpathQuery() {
+                    const xpath = document.getElementById('xpathInput')?.value;
+                    if (!xpath) return;
+
+                    try {
+                        const result = document.evaluate(
+                            xpath,
+                            this.playground,
+                            null,
+                            XPathResult.ANY_TYPE,
+                            null
+                        );
+
+                        let node = result.iterateNext();
+                        const nodes = [];
+                        while (node) {
+                            nodes.push(node);
+                            node = result.iterateNext();
+                        }
+
+                        const resultDiv = document.getElementById('queryResult');
+                        if (nodes.length > 0) {
+                            let html = `XPath 找到 ${nodes.length} 个节点:<br>`;
+                            nodes.forEach((n, i) => {
+                                html += `${i + 1}. ${this.escapeHtml(this.getNodeDescription(n))}<br>`;
+                            });
+                            resultDiv.innerHTML = html;
+                            this.log(`XPath: 找到 ${nodes.length} 个节点`, 'success');
+                        } else {
+                            resultDiv.innerHTML = '未找到节点';
+                        }
+                    } catch (e) {
+                        this.log(`XPath 错误: ${e.message}`, 'error');
+                    }
+                }
+
+                // ==================== 节点关系 ====================
+                getParent() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const parent = node.parentNode;
+                        if (parent && parent !== this.playground && parent !== document.body) {
+                            this.setSelectedNode(parent);
+                            this.log(`父节点: ${this.getNodeDescription(parent)}`, 'success');
+                        } else {
+                            this.log('已经是根节点或没有父节点', 'warning');
+                        }
+                    } catch (error) {
+                        this.log(`获取父节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getChildren() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const children = Array.from(node.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE);
+                        if (children.length > 0) {
+                            let msg = `子元素 (${children.length} 个): `;
+                            children.forEach(c => msg += this.getNodeDescription(c) + ' ');
+                            this.log(msg, 'info');
+
+                            document.getElementById('queryResult').innerHTML = `子节点:<br>${children.map(c => this.escapeHtml(this.getNodeDescription(c))).join('<br>')}`;
+                        } else {
+                            this.log('没有子元素节点', 'info');
+                        }
+                    } catch (error) {
+                        this.log(`获取子节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getSiblings() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const parent = node.parentNode;
+                        if (!parent) return;
+
+                        const siblings = Array.from(parent.childNodes).filter(n => n !== node && n.nodeType === Node.ELEMENT_NODE);
+                        if (siblings.length > 0) {
+                            let msg = `兄弟节点 (${siblings.length} 个): `;
+                            siblings.forEach(s => msg += this.getNodeDescription(s) + ' ');
+                            this.log(msg, 'info');
+
+                            document.getElementById('queryResult').innerHTML = `兄弟节点:<br>${siblings.map(s => this.escapeHtml(this.getNodeDescription(s))).join('<br>')}`;
+                        } else {
+                            this.log('没有兄弟节点', 'info');
+                        }
+                    } catch (error) {
+                        this.log(`获取兄弟节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getFirstLastChild() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const first = node.firstElementChild;
+                        const last = node.lastElementChild;
+
+                        let msg = '';
+                        if (first) msg += `首子节点: ${this.getNodeDescription(first)}`;
+                        if (last && last !== first) msg += `, 末子节点: ${this.getNodeDescription(last)}`;
+
+                        if (msg) {
+                            this.log(msg, 'info');
+                        } else {
+                            this.log('没有子元素', 'warning');
+                        }
+                    } catch (error) {
+                        this.log(`获取首末子节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 节点创建与插入 ====================
+                createElement() {
+                    const tag = document.getElementById('newElementTag')?.value || 'div';
+                    const text = document.getElementById('newElementText')?.value || '新节点';
+                    const position = document.getElementById('insertPosition')?.value || 'append';
+
+                    try {
+                        const newElement = document.createElement(tag);
+                        newElement.textContent = text;
+
+                        // 添加样式以便识别
+                        newElement.style.padding = '12px';
+                        newElement.style.margin = '8px';
+                        newElement.style.border = '2px solid var(--primary)';
+                        newElement.style.borderRadius = '10px';
+                        newElement.style.display = 'inline-block';
+                        newElement.style.backgroundColor = 'rgba(99,102,241,0.1)';
+                        newElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+
+                        this.insertNode(newElement, position);
+                    } catch (error) {
+                        this.log(`创建元素失败: ${error.message}`, 'error');
+                    }
+                }
+
+                createTextNode() {
+                    const text = document.getElementById('newElementText')?.value || '新文本节点';
+                    const position = document.getElementById('insertPosition')?.value || 'append';
+
+                    try {
+                        const textNode = document.createTextNode(text);
+                        this.insertNode(textNode, position);
+                    } catch (error) {
+                        this.log(`创建文本节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                insertNode(node, position) {
+                    const target = this.getSelectedNode() || this.playground;
+
+                    try {
+                        switch (position) {
+                            case 'append':
+                                target.appendChild(node);
+                                break;
+                            case 'prepend':
+                                target.prepend(node);
+                                break;
+                            case 'before':
+                                target.before(node);
+                                break;
+                            case 'after':
+                                target.after(node);
+                                break;
+                            case 'inner':
+                                target.innerHTML = '';
+                                target.appendChild(node);
+                                break;
+                            default:
+                                target.appendChild(node);
+                        }
+
+                        this.log(`节点已插入 (${position})`, 'success');
+                        this.updateNodeStats();
+
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            this.setSelectedNode(node);
+                        }
+                    } catch (e) {
+                        this.log(`插入失败: ${e.message}`, 'error');
+                    }
+                }
+
+                cloneNode() {
+                    const node = this.getSelectedNode();
+                    if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+                        this.log('请选择一个元素节点进行克隆', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const clone = node.cloneNode(true);
+                        clone.textContent += ' (克隆)';
+                        node.after(clone);
+
+                        this.log(`已克隆节点: ${this.getNodeDescription(node)}`, 'success');
+                        this.setSelectedNode(clone);
+                    } catch (error) {
+                        this.log(`克隆节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                createFragment() {
+                    try {
+                        const fragment = document.createDocumentFragment();
+                        const startTime = performance.now();
+
+                        for (let i = 0; i < 10; i++) {
+                            const div = document.createElement('div');
+                            div.textContent = `片段项目 ${i + 1}`;
+                            div.style.padding = '8px';
+                            div.style.margin = '4px';
+                            div.style.background = 'rgba(99,102,241,0.1)';
+                            div.style.borderRadius = '6px';
+                            fragment.appendChild(div);
+                        }
+
+                        const target = this.getSelectedNode() || this.playground;
+                        target.appendChild(fragment);
+
+                        const endTime = performance.now();
+                        this.log(`文档片段已插入 (10个节点, 耗时: ${(endTime - startTime).toFixed(2)}ms)`, 'success');
+                        this.updateNodeStats();
+                    } catch (error) {
+                        this.log(`创建文档片段失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 属性操作 ====================
+                setAttribute() {
+                    const node = this.getSelectedNode();
+                    if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+                        this.log('请选择一个元素节点', 'warning');
+                        return;
+                    }
+
+                    const name = document.getElementById('attrName')?.value;
+                    const value = document.getElementById('attrValue')?.value;
+
+                    if (!name) {
+                        this.log('请输入属性名', 'warning');
+                        return;
+                    }
+
+                    try {
+                        node.setAttribute(name, value);
+                        this.log(`已设置属性 ${name}="${value}"`, 'success');
+                    } catch (error) {
+                        this.log(`设置属性失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getAttribute() {
+                    const node = this.getSelectedNode();
+                    if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
+
+                    const name = document.getElementById('attrName')?.value;
+                    if (!name) return;
+
+                    try {
+                        const value = node.getAttribute(name);
+                        this.log(`属性 ${name} = ${value || '(不存在)'}`, 'info');
+                        document.getElementById('attrValue').value = value || '';
+                    } catch (error) {
+                        this.log(`获取属性失败: ${error.message}`, 'error');
+                    }
+                }
+
+                removeAttribute() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const name = document.getElementById('attrName')?.value;
+                    if (!name) return;
+
+                    try {
+                        node.removeAttribute(name);
+                        this.log(`已移除属性 ${name}`, 'success');
+                    } catch (error) {
+                        this.log(`移除属性失败: ${error.message}`, 'error');
+                    }
+                }
+
+                hasAttribute() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const name = document.getElementById('attrName')?.value;
+                    if (!name) return;
+
+                    try {
+                        const has = node.hasAttribute(name);
+                        this.log(`节点${has ? '包含' : '不包含'}属性 ${name}`, has ? 'success' : 'warning');
+                    } catch (error) {
+                        this.log(`检查属性失败: ${error.message}`, 'error');
+                    }
+                }
+
+                setDataset() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const name = document.getElementById('attrName')?.value.replace('data-', '');
+                    const value = document.getElementById('attrValue')?.value;
+
+                    if (!name) return;
+
+                    try {
+                        node.dataset[name] = value;
+                        this.log(`已设置 dataset.${name} = ${value}`, 'success');
+                    } catch (error) {
+                        this.log(`设置 dataset 失败: ${error.message}`, 'error');
+                    }
+                }
+
+                getDataset() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const dataset = node.dataset;
+                        let msg = 'dataset 属性:\n';
+                        for (let key in dataset) {
+                            msg += `${key}: ${dataset[key]}\n`;
+                        }
+                        this.log(msg || '没有 dataset 属性', 'info');
+                    } catch (error) {
+                        this.log(`获取 dataset 失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 样式操作 ====================
+                setStyle() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const prop = document.getElementById('styleProperty')?.value;
+                    const value = document.getElementById('styleValue')?.value;
+
+                    if (!prop || !value) {
+                        this.log('请输入样式属性和值', 'warning');
+                        return;
+                    }
+
+                    try {
+                        node.style[prop] = value;
+                        this.log(`已设置样式 ${prop}: ${value}`, 'success');
+                    } catch (error) {
+                        this.log(`设置样式失败: ${error.message}`, 'error');
+                    }
+                }
+
+                setMultipleStyles() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        node.style.cssText = 'background: linear-gradient(135deg, #6366f1, #ec4899); color: white; padding: 20px; border-radius: 16px; font-weight: bold; box-shadow: 0 8px 20px rgba(0,0,0,0.2);';
+                        this.log('已设置多个样式 (cssText)', 'success');
+                    } catch (error) {
+                        this.log(`设置批量样式失败: ${error.message}`, 'error');
+                    }
+                }
+
+                addClass() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const className = prompt('输入要添加的类名', 'new-class');
+                    if (className) {
+                        try {
+                            node.classList.add(className);
+                            this.log(`已添加类: ${className}`, 'success');
+                        } catch (error) {
+                            this.log(`添加类失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                removeClass() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const className = prompt('输入要移除的类名');
+                    if (className) {
+                        try {
+                            node.classList.remove(className);
+                            this.log(`已移除类: ${className}`, 'success');
+                        } catch (error) {
+                            this.log(`移除类失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                toggleClass() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const className = prompt('输入要切换的类名', 'highlight');
+                    if (className) {
+                        try {
+                            node.classList.toggle(className);
+                            this.log(`已切换类: ${className}`, 'info');
+                        } catch (error) {
+                            this.log(`切换类失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                containsClass() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const className = prompt('输入要检查的类名');
+                    if (className) {
+                        try {
+                            const has = node.classList.contains(className);
+                            this.log(`节点${has ? '包含' : '不包含'}类 ${className}`, has ? 'success' : 'warning');
+                        } catch (error) {
+                            this.log(`检查类失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                getComputedStyle() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const styles = window.getComputedStyle(node);
+                        this.log(`计算样式示例 - color: ${styles.color}, background: ${styles.background}`, 'info');
+                    } catch (error) {
+                        this.log(`获取计算样式失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 删除与替换 ====================
+                removeNode() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    if (confirm(`确定删除节点 ${this.getNodeDescription(node)}？`)) {
+                        try {
+                            node.remove();
+                            this.clearSelection();
+                            this.updateNodeStats();
+                            this.log('节点已删除', 'success');
+                        } catch (error) {
+                            this.log(`删除节点失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                removeChild() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const children = Array.from(node.children);
+                        if (children.length === 0) {
+                            this.log('没有可删除的子节点', 'warning');
+                            return;
+                        }
+
+                        const childToRemove = children[0];
+                        node.removeChild(childToRemove);
+                        this.updateNodeStats();
+                        this.log(`已删除子节点: ${this.getNodeDescription(childToRemove)}`, 'success');
+                    } catch (error) {
+                        this.log(`删除子节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                replaceNode() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const newTag = prompt('输入新节点标签名', 'div');
+                    if (newTag) {
+                        try {
+                            const newNode = document.createElement(newTag);
+                            newNode.textContent = '替换后的新节点';
+                            newNode.style.padding = '12px';
+                            newNode.style.background = 'var(--success)';
+                            newNode.style.color = 'white';
+                            newNode.style.borderRadius = '8px';
+                            newNode.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+
+                            node.replaceWith(newNode);
+                            this.setSelectedNode(newNode);
+                            this.updateNodeStats();
+                            this.log('节点已替换', 'success');
+                        } catch (error) {
+                            this.log(`替换节点失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                emptyNode() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        node.innerHTML = '';
+                        this.updateNodeStats();
+                        this.log('节点内容已清空', 'success');
+                    } catch (error) {
+                        this.log(`清空节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                demoInnerHTML() {
+                    const node = this.getSelectedNode() || this.playground;
+
+                    try {
+                        node.innerHTML = '<div style="background: var(--warning); padding: 16px; border-radius: 8px; color: black; font-weight: bold;">通过 innerHTML 设置的内容 - HTML会被解析</div>';
+                        this.log('innerHTML 演示 - HTML被解析', 'info');
+                        this.updateNodeStats();
+                    } catch (error) {
+                        this.log(`innerHTML 演示失败: ${error.message}`, 'error');
+                    }
+                }
+
+                demoTextContent() {
+                    const node = this.getSelectedNode() || this.playground;
+
+                    try {
+                        node.textContent = '这是 textContent 设置的纯文本，不会解析HTML标签，所有内容都会显示为纯文本';
+                        this.log('textContent 演示 - 纯文本', 'info');
+                    } catch (error) {
+                        this.log(`textContent 演示失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 高级操作 ====================
+                editAsHTML() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    const newHTML = prompt('编辑 HTML 内容', node.innerHTML);
+                    if (newHTML !== null) {
+                        try {
+                            node.innerHTML = newHTML;
+                            this.updateNodeStats();
+                            this.log('HTML 已更新', 'success');
+                        } catch (error) {
+                            this.log(`编辑 HTML 失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                wrapNode() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        const wrapper = document.createElement('div');
+                        wrapper.style.border = '2px solid var(--primary)';
+                        wrapper.style.padding = '16px';
+                        wrapper.style.margin = '12px 0';
+                        wrapper.style.borderRadius = '12px';
+                        wrapper.style.backgroundColor = 'rgba(99,102,241,0.05)';
+                        wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+
+                        node.parentNode.insertBefore(wrapper, node);
+                        wrapper.appendChild(node);
+
+                        this.setSelectedNode(wrapper);
+                        this.log('节点已包裹在div中', 'success');
+                    } catch (error) {
+                        this.log(`包裹节点失败: ${error.message}`, 'error');
+                    }
+                }
+
+                insertAdjacent() {
+                    const node = this.getSelectedNode();
+                    if (!node) return;
+
+                    try {
+                        node.insertAdjacentHTML('beforeend', '<div style="background: var(--success); color: white; padding: 12px; margin-top: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">insertAdjacentHTML 插入的内容</div>');
+                        this.log('已插入 adjacent HTML', 'success');
+                    } catch (error) {
+                        this.log(`插入 adjacent HTML 失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 事件监听增强 ====================
+                addClickListener() {
+                    if (this.clickListener) {
+                        this.log('监听器已存在', 'warning');
+                        return;
+                    }
+
+                    try {
+                        this.clickListener = (e) => {
+                            const message = `点击事件触发于: ${this.getNodeDescription(e.target)}`;
+                            this.logEvent(message);
+                            this.log(message, 'success');
+                        };
+
+                        this.playground.addEventListener('click', this.clickListener);
+                        this.eventHandlers.set('click', this.clickListener);
+                        this.log('点击监听器已添加', 'success');
+                    } catch (error) {
+                        this.log(`添加监听器失败: ${error.message}`, 'error');
+                    }
+                }
+
+                removeClickListener() {
+                    if (this.clickListener) {
+                        try {
+                            this.playground.removeEventListener('click', this.clickListener);
+                            this.clickListener = null;
+                            this.eventHandlers.delete('click');
+                            this.log('点击监听器已移除', 'success');
+                        } catch (error) {
+                            this.log(`移除监听器失败: ${error.message}`, 'error');
+                        }
+                    }
+                }
+
+                onceListener() {
+                    try {
+                        const handler = (e) => {
+                            const message = '一次性事件触发，将自动移除';
+                            this.logEvent(message);
+                            this.log(message, 'success');
+                            e.target.removeEventListener('click', handler);
+                        };
+
+                        const node = this.getSelectedNode() || this.playground;
+                        node.addEventListener('click', handler, { once: true });
+                        this.log('一次性监听器已添加 (仅触发一次)', 'info');
+                    } catch (error) {
+                        this.log(`添加一次性监听器失败: ${error.message}`, 'error');
+                    }
+                }
+
+                delegationDemo() {
+                    if (this.delegationListener) {
+                        this.log('委托监听已存在', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const area = document.getElementById('delegationArea');
+
+                        this.delegationListener = (e) => {
+                            if (e.target.tagName === 'BUTTON') {
+                                const message = `委托捕获: 点击了按钮 "${e.target.textContent}"`;
+                                this.logEvent(message);
+                                this.log(message, 'success');
+                            }
+                        };
+
+                        area.addEventListener('click', this.delegationListener);
+                        this.eventHandlers.set('delegation', this.delegationListener);
+                        this.log('事件委托已启用 (父级监听子元素)', 'success');
+                    } catch (error) {
+                        this.log(`启用事件委托失败: ${error.message}`, 'error');
+                    }
+                }
+
+                // ==================== 性能与调试 ====================
+                measurePerformance() {
+                    const metrics = [];
+
+                    try {
+                        // 测试1: 创建100个节点
+                        let start = performance.now();
+                        const fragment = document.createDocumentFragment();
+                        for (let i = 0; i < 100; i++) {
+                            const div = document.createElement('div');
+                            div.textContent = `性能测试 ${i}`;
+                            div.style.display = 'none';
+                            fragment.appendChild(div);
+                        }
+                        this.playground.appendChild(fragment);
+                        let end = performance.now();
+                        metrics.push(`✅ 创建+插入100节点: ${(end - start).toFixed(2)}ms`);
+
+                        // 清理
+                        for (let i = 0; i < 100; i++) {
+                            this.playground.removeChild(this.playground.lastChild);
+                        }
+
+                        // 测试2: querySelector性能
+                        start = performance.now();
+                        for (let i = 0; i < 1000; i++) {
+                            this.playground.querySelector('.box');
+                        }
+                        end = performance.now();
+                        metrics.push(`✅ querySelector 1000次: ${(end - start).toFixed(2)}ms`);
+
+                        // 测试3: 属性操作性能
+                        const box = this.playground.querySelector('.box');
+                        if (box) {
+                            start = performance.now();
+                            for (let i = 0; i < 500; i++) {
+                                box.setAttribute('data-test', i);
+                                box.getAttribute('data-test');
+                            }
+                            end = performance.now();
+                            metrics.push(`✅ 属性操作 500次: ${(end - start).toFixed(2)}ms`);
+                        }
+
+                        // 测试4: classList 操作
+                        start = performance.now();
+                        for (let i = 0; i < 500; i++) {
+                            box.classList.toggle('test-class');
+                        }
+                        end = performance.now();
+                        metrics.push(`✅ classList 500次: ${(end - start).toFixed(2)}ms`);
+
+                        this.perfMetrics.innerHTML = metrics.join('<br>');
+                        this.log('性能测试完成', 'success');
+                    } catch (error) {
+                        this.log(`性能测试失败: ${error.message}`, 'error');
+                        this.perfMetrics.innerHTML = `❌ 测试失败: ${error.message}`;
+                    }
+                }
+
+                walkDOM() {
+                    let tree = '';
+
+                    try {
+                        function walk(node, depth) {
+                            if (!node) return;
+
+                            const indent = '  '.repeat(depth);
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                tree += `${indent}&lt;${node.tagName.toLowerCase()}`;
+                                if (node.id) tree += ` id="${node.id}"`;
+                                if (node.className && typeof node.className === 'string') {
+                                    const classes = node.className.split(' ').filter(c => c && c !== 'highlight');
+                                    if (classes.length) tree += ` class="${classes.join(' ')}"`;
+                                }
+                                tree += '&gt;\n';
+
+                                let child = node.firstChild;
+                                while (child) {
+                                    walk(child, depth + 1);
+                                    child = child.nextSibling;
+                                }
+                            } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                                const text = node.textContent.trim().substring(0, 30);
+                                tree += `${indent}"${text}${node.textContent.length > 30 ? '...' : ''}"\n`;
+                            }
+                        }
+
+                        walk(this.playground, 0);
+                        document.getElementById('domTreePreview').innerHTML = tree || 'DOM 树为空';
+                        this.log('DOM 树已生成', 'success');
+                    } catch (error) {
+                        this.log(`遍历 DOM 失败: ${error.message}`, 'error');
+                        document.getElementById('domTreePreview').innerHTML = `错误: ${error.message}`;
+                    }
+                }
+
+                serializeToXML() {
+                    try {
+                        const serializer = new XMLSerializer();
+                        const xml = serializer.serializeToString(this.playground);
+                        this.log(`DOM 序列化完成 (长度: ${xml.length} 字符)`, 'success');
+
+                        // 显示预览
+                        const preview = xml.substring(0, 500) + (xml.length > 500 ? '...' : '');
+                        document.getElementById('domTreePreview').innerHTML = this.escapeHtml(preview);
+                    } catch (error) {
+                        this.log(`序列化失败: ${error.message}`, 'error');
+                    }
+                }
+
+                resetDemo() {
+                    try {
+                        // 重置为初始结构
+                        this.playground.innerHTML = `
+                            <div class="box" id="box1" data-test="value1" data-info="第一个盒子" style="background: #6366f1;">
+                                <strong>box 1</strong>
+                                <span>内联文本</span>
+                            </div>
+                            <div class="box highlighted" id="box2" style="background: #ec4899;">
+                                box 2 (高亮)
+                                <ul class="item-list">
+                                    <li>项目 1</li>
+                                    <li>项目 2</li>
+                                    <li>项目 3</li>
+                                </ul>
+                            </div>
+                            <div class="box" id="box3" style="background: #22c55e;">
+                                box 3
+                                <p>这是一个段落 <a href="#" style="color: white;">链接</a></p>
+                            </div>
+                            <div id="demoDiv" class="demo-content" style="margin-top: 20px; padding: 16px; background: rgba(0,0,0,0.02); border-radius: 12px;">
+                                这是一段文本内容
+                                <br>
+                                <input type="text" value="输入框示例" placeholder="请输入">
+                            </div>
+                        `;
+
+                        this.clearSelection();
+                        this.updateNodeStats();
+                        this.log('演示区域已重置', 'success');
+
+                        // 清空查询结果
+                        document.getElementById('queryResult').innerHTML = '点击查询按钮查看结果...';
+                    } catch (error) {
+                        this.log(`重置失败: ${error.message}`, 'error');
+                    }
+                }
+            }
+
+            // 创建全局实例
+            window.domManager = new DOMManager();
+
+            // 添加防抖处理避免频繁操作
+            const debouncedUpdate = domManager.debounce(() => domManager.updateNodeStats(), 300);
+
+            // 监听DOM变化自动更新统计
+            const observer = new MutationObserver(debouncedUpdate);
+            observer.observe(document.getElementById('domPlayground'), {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true
+            });
+        })();
+    </script>
+</body>
+
+</html>

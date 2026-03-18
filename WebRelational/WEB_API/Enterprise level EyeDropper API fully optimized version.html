@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级 EyeDropper API · 完整优化版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #f0f7ff;
+            --bg-secondary: #ffffff;
+            --bg-panel: #ffffff;
+            --border: #c0d4f0;
+            --accent: #1e5b9e;
+            --accent-light: #e5f0ff;
+            --text-primary: #1a3b5c;
+            --text-secondary: #2c5778;
+            --success: #2c9b4a;
+            --error: #c94a4a;
+            --warning: #ffb347;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(145deg, var(--bg-primary), #e4ecf5);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+            color: var(--text-primary);
+        }
+
+        .app-container {
+            max-width: 1600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 2.8rem;
+            box-shadow: 0 30px 60px rgba(0, 20, 40, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.8);
+            padding: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(0, 100, 200, 0.15);
+            padding-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 1.5rem;
+            border-radius: 40px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            background: var(--accent-light);
+            padding: 0.5rem 1.8rem;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        .compatibility-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #fff3e0;
+            padding: 0.3rem 1rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 1.8rem;
+        }
+
+        @media (max-width: 800px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 30, 60, 0.08);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1.2rem 1.8rem;
+            background: var(--accent-light);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-header h2 {
+            font-size: 1.5rem;
+            font-weight: 550;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            background: var(--accent);
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+
+        .panel-content {
+            padding: 1.8rem;
+        }
+
+        .color-display-area {
+            background: #f8faff;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            border: 2px dashed var(--border);
+        }
+
+        .color-preview {
+            width: 200px;
+            height: 200px;
+            border-radius: 1.2rem;
+            margin: 1rem auto;
+            border: 4px solid white;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            background: var(--accent-light);
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0 0.8rem;
+            justify-content: center;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 0.7rem 1.8rem;
+            border-radius: 40px;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+            transition: 0.15s;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: #0d3b6b;
+            color: white;
+            box-shadow: 0 6px 12px rgba(20, 80, 150, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: #286fc0;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-box {
+            background: #0f233a;
+            color: #cbe4ff;
+            border-radius: 1.2rem;
+            padding: 1rem 1.3rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            border: 1px solid #254f7a;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 1rem 0;
+        }
+
+        .history-container {
+            min-height: 150px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8faff;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.6rem;
+            border-bottom: 1px solid #eee;
+            transition: background 0.1s;
+        }
+
+        .history-item:hover {
+            background: var(--accent-light);
+        }
+
+        .history-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .fallback-section {
+            background: #f0f6ff;
+            border-radius: 1.5rem;
+            padding: 1.2rem;
+            margin-top: 1.5rem;
+        }
+
+        input[type="color"] {
+            width: 80px;
+            height: 50px;
+            border: 2px solid white;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .note {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--accent-light);
+            padding: 0.2rem 1rem;
+            border-radius: 30px;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid rgba(70, 140, 220, 0.2);
+            margin: 2rem 0;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background: #1e3f60;
+            color: white;
+            padding: 0.8rem 1.6rem;
+            border-radius: 50px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+            border-left: 5px solid #4f9eff;
+            margin-top: 10px;
+            animation: slideIn 0.2s;
+            max-width: 350px;
+        }
+
+        .toast.error {
+            border-left-color: var(--error);
+            background: #4a2f2f;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+            background: #1e4a3a;
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning);
+            background: #4a3f2f;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 调试面板 */
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 400px;
+            background: #1a2f42;
+            border: 1px solid #2d6090;
+            border-radius: 1rem;
+            z-index: 9998;
+            box-shadow: 0 10px 30px black;
+            color: white;
+        }
+
+        .debug-header {
+            padding: 0.8rem 1rem;
+            background: #1b3f60;
+            border-bottom: 1px solid #2d6090;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        .debug-header .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .debug-content {
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .debug-section {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #2d5a80;
+        }
+
+        .debug-section h5 {
+            color: #4f9eff;
+            margin-bottom: 0.5rem;
+        }
+
+        .debug-section pre {
+            background: #0d263b;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            color: #c9e2ff;
+        }
+
+        /* 性能指标 */
+        .performance-metrics {
+            background: #f0f6ff;
+            border-radius: 1rem;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* 键盘快捷键提示 */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            z-index: 9997;
+            border: 1px solid var(--accent);
+        }
+
+        /* 错误对话框 */
+        .error-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .error-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 2rem;
+            max-width: 400px;
+            border-left: 5px solid var(--error);
+        }
+
+        .error-content h4 {
+            color: var(--error);
+            margin-bottom: 1rem;
+        }
+
+        .error-content button {
+            margin-top: 1rem;
+            padding: 0.5rem 2rem;
+            background: var(--accent);
+            border: none;
+            border-radius: 2rem;
+            color: white;
+            cursor: pointer;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            text-align: center;
+            color: #5a7b9c;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <h1>
+            🎨 EyeDropper API · 企业级完整实现
+            <small>优化版 · 全接口 + 容错 + 监控 + 调试</small>
+        </h1>
+        <div class="subtitle">
+            <span>✨ 屏幕任意位置取色 · 支持取消/超时 · 颜色转换 · 历史记录 · 降级方案</span>
+            <span class="compatibility-badge" id="supportBadge">🔍 检测兼容性中...</span>
+        </div>
+
+        <!-- 主区域：双栏布局 -->
+        <div class="grid-2">
+            <!-- 左侧：基础取色器 + 实时预览 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🎯 基础取色器</h2>
+                    <span class="badge">EyeDropper.open()</span>
+                </div>
+                <div class="panel-content">
+                    <div class="color-display-area">
+                        <div class="color-preview" id="colorPreview" style="background-color: #1e5b9e;">
+                            <span id="previewText" style="color: white;">当前颜色</span>
+                        </div>
+                        <div class="color-info" id="colorInfo">#1e5b9e</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="btnPickColor" data-i18n="pickColor">📌 开始取色</button>
+                        <button class="btn" id="btnPickWithTimeout" data-i18n="pickWithTimeout">⏱️ 5秒超时取色</button>
+                        <button class="btn" id="btnCancelPick" data-i18n="cancel">❌ 主动取消</button>
+                    </div>
+
+                    <div class="result-box" id="pickResult">
+                        点击按钮开始取色，支持屏幕任意位置
+                    </div>
+                    <div class="note" data-i18n="gestureHint">
+                        ⚡ 必须由用户手势触发 (如按钮点击)
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：高级功能 + 历史 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📋 高级功能</h2>
+                    <span class="badge">AbortController · 颜色转换</span>
+                </div>
+                <div class="panel-content">
+                    <div class="section">
+                        <h3 style="color:var(--accent); margin-bottom:1rem;" data-i18n="history">🕒 取色历史 (最多5条)</h3>
+                        <div class="history-container" id="historyContainer">
+                            <!-- 动态历史记录 -->
+                        </div>
+                    </div>
+
+                    <hr style="margin:1.5rem 0;">
+
+                    <div class="section">
+                        <h3 style="color:var(--accent); margin-bottom:1rem;" data-i18n="colorFormats">🔄 颜色格式转换</h3>
+                        <div class="flex-row" style="justify-content: space-between;">
+                            <span>HEX: <span id="convertHex">#1e5b9e</span></span>
+                            <span>RGB: <span id="convertRgb">30, 91, 158</span></span>
+                            <span>HSL: <span id="convertHsl">212°, 68%, 37%</span></span>
+                        </div>
+                        <div class="button-group" style="margin-top:1rem;">
+                            <button class="btn" id="btnCopyHex" data-i18n="copyHex">📋 复制HEX</button>
+                            <button class="btn" id="btnCopyRgb" data-i18n="copyRgb">📋 复制RGB</button>
+                        </div>
+                    </div>
+
+                    <hr style="margin:1.5rem 0;">
+
+                    <!-- 降级方案 -->
+                    <div class="fallback-section">
+                        <h3 style="color:var(--accent); margin-bottom:1rem;" data-i18n="fallback">⚠️ 兼容性降级方案</h3>
+                        <div class="flex-row">
+                            <input type="color" id="fallbackColorPicker" value="#1e5b9e">
+                            <button class="btn" id="btnUseFallback" data-i18n="useFallback">使用传统取色器</button>
+                        </div>
+                        <div class="note" style="margin-top:0.8rem;" data-i18n="fallbackHint">
+                            当 EyeDropper 不支持时，可降级为 &lt;input type="color"&gt;
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三行：API 详情 + 状态 + 性能监控 -->
+        <hr>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2rem;">
+            <div>
+                <h3 style="color:var(--accent);" data-i18n="currentStatus">📡 当前状态</h3>
+                <div style="background:#f0f7ff; border-radius:1.5rem; padding:1rem;">
+                    <div data-i18n="browserSupport">浏览器支持: <strong id="supportStatus">检测中</strong></div>
+                    <div data-i18n="secureContext">安全上下文: <strong id="secureStatus">检测中</strong></div>
+                    <div data-i18n="dropperInstance">取色器实例: <strong id="instanceStatus">未创建</strong></div>
+                </div>
+            </div>
+            <div>
+                <h3 style="color:var(--accent);" data-i18n="performance">📊 性能监控</h3>
+                <div class="performance-metrics" id="metricsContainer">
+                    <div data-i18n="avgPickTime">平均取色时间: <span id="avgPickTime">0</span> ms</div>
+                    <div data-i18n="pickCount">取色次数: <span id="pickCount">0</span></div>
+                    <div data-i18n="errorCount">错误次数: <span id="errorCount">0</span></div>
+                    <div data-i18n="successRate">成功率: <span id="successRate">100</span>%</div>
+                </div>
+            </div>
+            <div>
+                <h3 style="color:var(--accent);" data-i18n="shortcuts">⌨️ 键盘快捷键</h3>
+                <div style="background:#f0f7ff; border-radius:1.5rem; padding:1rem;">
+                    <div>Alt+P: 开始取色</div>
+                    <div>Alt+C: 取消取色</div>
+                    <div>Alt+H: 显示历史</div>
+                    <div>Alt+1: 复制HEX</div>
+                    <div>Alt+2: 复制RGB</div>
+                    <div>Alt+D: 调试面板</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            ⚡ EyeDropper API 完整企业级实现 · 包含重试、降级、监控、历史、国际化、调试面板
+        </footer>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        (function () {
+            // ==================== 企业级 EyeDropper 完整实现 ====================
+
+            // --- 国际化支持 ---
+            const I18n = {
+                locale: navigator.language.split('-')[0] || 'en',
+                fallback: 'en',
+                strings: {
+                    'zh-CN': {
+                        pickColor: '📌 开始取色',
+                        pickWithTimeout: '⏱️ 5秒超时取色',
+                        cancel: '❌ 主动取消',
+                        gestureHint: '⚡ 必须由用户手势触发 (如按钮点击)',
+                        history: '🕒 取色历史 (最多5条)',
+                        colorFormats: '🔄 颜色格式转换',
+                        copyHex: '📋 复制HEX',
+                        copyRgb: '📋 复制RGB',
+                        fallback: '⚠️ 兼容性降级方案',
+                        useFallback: '使用传统取色器',
+                        fallbackHint: '当 EyeDropper 不支持时，可降级为 <input type="color">',
+                        currentStatus: '📡 当前状态',
+                        browserSupport: '浏览器支持:',
+                        secureContext: '安全上下文:',
+                        dropperInstance: '取色器实例:',
+                        performance: '📊 性能监控',
+                        avgPickTime: '平均取色时间:',
+                        pickCount: '取色次数:',
+                        errorCount: '错误次数:',
+                        successRate: '成功率:',
+                        shortcuts: '⌨️ 键盘快捷键',
+                        pickSuccess: '取色成功: {color}',
+                        pickCancelled: '取色已取消',
+                        pickError: '取色失败: {error}',
+                        copySuccess: '已复制到剪贴板',
+                        historyEmpty: '暂无历史'
+                    },
+                    'en': {
+                        pickColor: '📌 Pick Color',
+                        pickWithTimeout: '⏱️ 5s Timeout Pick',
+                        cancel: '❌ Cancel',
+                        gestureHint: '⚡ Must be triggered by user gesture',
+                        history: '🕒 History (max 5)',
+                        colorFormats: '🔄 Color Formats',
+                        copyHex: '📋 Copy HEX',
+                        copyRgb: '📋 Copy RGB',
+                        fallback: '⚠️ Fallback Solution',
+                        useFallback: 'Use Classic Picker',
+                        fallbackHint: 'Fallback to <input type="color"> when EyeDropper not supported',
+                        currentStatus: '📡 Current Status',
+                        browserSupport: 'Browser Support:',
+                        secureContext: 'Secure Context:',
+                        dropperInstance: 'Dropper Instance:',
+                        performance: '📊 Performance',
+                        avgPickTime: 'Avg Pick Time:',
+                        pickCount: 'Pick Count:',
+                        errorCount: 'Error Count:',
+                        successRate: 'Success Rate:',
+                        shortcuts: '⌨️ Shortcuts',
+                        pickSuccess: 'Color picked: {color}',
+                        pickCancelled: 'Pick cancelled',
+                        pickError: 'Pick failed: {error}',
+                        copySuccess: 'Copied to clipboard',
+                        historyEmpty: 'No history'
+                    },
+                    'ja': {
+                        pickColor: '📌 色を選択',
+                        pickWithTimeout: '⏱️ 5秒タイムアウト',
+                        cancel: '❌ キャンセル',
+                        gestureHint: '⚡ ユーザージェスチャーが必要です',
+                        history: '🕒 履歴 (最大5件)',
+                        colorFormats: '🔄 カラー形式',
+                        copyHex: '📋 HEXをコピー',
+                        copyRgb: '📋 RGBをコピー',
+                        fallback: '⚠️ 代替手段',
+                        useFallback: '従来のピッカーを使用',
+                        fallbackHint: 'EyeDropper非対応時は<input type="color">を使用',
+                        currentStatus: '📡 現在の状態',
+                        browserSupport: 'ブラウザ対応:',
+                        secureContext: 'セキュアコンテキスト:',
+                        dropperInstance: 'インスタンス:',
+                        performance: '📊 パフォーマンス',
+                        avgPickTime: '平均取色時間:',
+                        pickCount: '取色回数:',
+                        errorCount: 'エラー数:',
+                        successRate: '成功率:',
+                        shortcuts: '⌨️ ショートカット',
+                        pickSuccess: '色を選択しました: {color}',
+                        pickCancelled: 'キャンセルしました',
+                        pickError: 'エラー: {error}',
+                        copySuccess: 'クリップボードにコピーしました',
+                        historyEmpty: '履歴はありません'
+                    }
+                },
+                t(key, params = {}) {
+                    let text = this.strings[this.locale]?.[key] ||
+                        this.strings[this.fallback][key] ||
+                        key;
+                    Object.keys(params).forEach(param => {
+                        text = text.replace(`{${param}}`, params[param]);
+                    });
+                    return text;
+                },
+                updateUI() {
+                    document.querySelectorAll('[data-i18n]').forEach(el => {
+                        const key = el.dataset.i18n;
+                        el.textContent = this.t(key);
+                    });
+                }
+            };
+
+            // --- 颜色服务 ---
+            const ColorService = {
+                hexToRgb(hex) {
+                    let r = 0, g = 0, b = 0;
+                    hex = hex.replace('#', '');
+                    if (hex.length === 3) {
+                        r = parseInt(hex[0] + hex[0], 16);
+                        g = parseInt(hex[1] + hex[1], 16);
+                        b = parseInt(hex[2] + hex[2], 16);
+                    } else if (hex.length === 6) {
+                        r = parseInt(hex.substring(0, 2), 16);
+                        g = parseInt(hex.substring(2, 4), 16);
+                        b = parseInt(hex.substring(4, 6), 16);
+                    }
+                    return { r, g, b };
+                },
+
+                rgbToHsl(r, g, b) {
+                    r /= 255, g /= 255, b /= 255;
+                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                    let h, s, l = (max + min) / 2;
+
+                    if (max === min) {
+                        h = s = 0;
+                    } else {
+                        const d = max - min;
+                        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                        switch (max) {
+                            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                            case g: h = (b - r) / d + 2; break;
+                            case b: h = (r - g) / d + 4; break;
+                        }
+                        h /= 6;
+                    }
+                    return {
+                        h: Math.round(h * 360),
+                        s: Math.round(s * 100),
+                        l: Math.round(l * 100)
+                    };
+                },
+
+                validateHex(hex) {
+                    if (!hex || typeof hex !== 'string') return false;
+                    hex = hex.trim().toUpperCase();
+                    if (!hex.startsWith('#')) hex = '#' + hex;
+                    return /^#([A-F0-9]{3}|[A-F0-9]{6})$/.test(hex);
+                }
+            };
+
+            // --- 历史记录管理 ---
+            const HistoryManager = {
+                maxSize: 5,
+                storageKey: 'eyedropper_history',
+
+                get() {
+                    const history = localStorage.getItem(this.storageKey);
+                    return history ? JSON.parse(history) : [];
+                },
+
+                add(color) {
+                    const history = this.get();
+                    const time = new Date().toLocaleTimeString();
+                    history.unshift({ color, time });
+                    if (history.length > this.maxSize) history.pop();
+                    localStorage.setItem(this.storageKey, JSON.stringify(history));
+                    this.render();
+                },
+
+                clear() {
+                    localStorage.removeItem(this.storageKey);
+                    this.render();
+                },
+
+                render() {
+                    const container = document.getElementById('historyContainer');
+                    const history = this.get();
+
+                    if (history.length === 0) {
+                        container.innerHTML = `<div style="color:#7a9bc2; text-align:center; padding:1rem;">${I18n.t('historyEmpty')}</div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    history.forEach(item => {
+                        html += `
+                            <div class="history-item">
+                                <div class="history-color" style="background-color: ${item.color};"></div>
+                                <div style="flex:1;">${item.color}</div>
+                                <div style="color:#888; font-size:0.8rem;">${item.time}</div>
+                                <button class="btn" style="padding:0.2rem 1rem;" onclick="applyHistoryColor('${item.color}')">使用</button>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            };
+
+            // 全局函数供历史按钮调用
+            window.applyHistoryColor = function (color) {
+                updateColorUI(color);
+                toast(I18n.t('pickSuccess', { color }), 'success');
+            };
+
+            // --- 性能监控 ---
+            const PerformanceMonitor = {
+                picks: [],
+                errors: 0,
+                startTime: null,
+
+                startPick() {
+                    this.startTime = performance.now();
+                },
+
+                endPick(success = true) {
+                    if (this.startTime) {
+                        const duration = performance.now() - this.startTime;
+                        this.picks.push({ duration, success });
+                        if (this.picks.length > 100) this.picks.shift();
+                    }
+                    this.startTime = null;
+                    this.updateUI();
+                },
+
+                recordError() {
+                    this.errors++;
+                    this.updateUI();
+                },
+
+                getAvgTime() {
+                    if (this.picks.length === 0) return 0;
+                    const sum = this.picks.reduce((acc, p) => acc + p.duration, 0);
+                    return Math.round(sum / this.picks.length);
+                },
+
+                getSuccessRate() {
+                    if (this.picks.length === 0) return 100;
+                    const success = this.picks.filter(p => p.success).length;
+                    return Math.round((success / this.picks.length) * 100);
+                },
+
+                updateUI() {
+                    document.getElementById('avgPickTime').textContent = this.getAvgTime();
+                    document.getElementById('pickCount').textContent = this.picks.length;
+                    document.getElementById('errorCount').textContent = this.errors;
+                    document.getElementById('successRate').textContent = this.getSuccessRate();
+                },
+
+                reset() {
+                    this.picks = [];
+                    this.errors = 0;
+                    this.updateUI();
+                }
+            };
+
+            // --- 错误边界 ---
+            const ErrorBoundary = {
+                setup() {
+                    window.addEventListener('unhandledrejection', (event) => {
+                        this.handleError(event.reason, 'unhandledrejection');
+                    });
+
+                    window.addEventListener('error', (event) => {
+                        this.handleError(event.error, 'global');
+                    });
+                },
+
+                handleError(error, context) {
+                    console.error(`[ErrorBoundary] ${context}:`, error);
+                    PerformanceMonitor.recordError();
+
+                    if (error.name !== 'AbortError' && !error.message.includes('cancelled')) {
+                        this.showErrorDialog(error, context);
+                    }
+                },
+
+                showErrorDialog(error, context) {
+                    const dialog = document.createElement('div');
+                    dialog.className = 'error-dialog';
+                    dialog.innerHTML = `
+                        <div class="error-content">
+                            <h4>⚠️ 错误</h4>
+                            <p>${error.message || '未知错误'}</p>
+                            <button onclick="this.closest('.error-dialog').remove()">确定</button>
+                        </div>
+                    `;
+                    document.body.appendChild(dialog);
+                    setTimeout(() => dialog.remove(), 5000);
+                }
+            };
+
+            // --- 调试面板 ---
+            const DebugPanel = {
+                enabled: false,
+                panel: null,
+
+                toggle() {
+                    this.enabled ? this.disable() : this.enable();
+                },
+
+                enable() {
+                    this.enabled = true;
+                    this.createPanel();
+                    toast('调试面板已开启', 'info');
+                },
+
+                disable() {
+                    this.enabled = false;
+                    this.panel?.remove();
+                    this.panel = null;
+                },
+
+                createPanel() {
+                    this.panel = document.createElement('div');
+                    this.panel.className = 'debug-panel';
+                    this.panel.innerHTML = `
+                        <div class="debug-header">
+                            <h4>🔧 调试面板</h4>
+                            <button class="close-btn">×</button>
+                        </div>
+                        <div class="debug-content">
+                            <div class="debug-section">
+                                <h5>取色器状态</h5>
+                                <pre id="debugDropperState"></pre>
+                            </div>
+                            <div class="debug-section">
+                                <h5>历史记录</h5>
+                                <pre id="debugHistory"></pre>
+                            </div>
+                            <div class="debug-section">
+                                <h5>性能指标</h5>
+                                <pre id="debugMetrics"></pre>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(this.panel);
+                    this.panel.querySelector('.close-btn').onclick = () => this.disable();
+                    this.update();
+                },
+
+                update() {
+                    if (!this.enabled || !this.panel) return;
+
+                    const stateEl = document.getElementById('debugDropperState');
+                    if (stateEl) {
+                        stateEl.textContent = JSON.stringify({
+                            supported: 'EyeDropper' in window,
+                            hasInstance: !!window.eyeDropperInstance,
+                            picking: !!currentAbortController
+                        }, null, 2);
+                    }
+
+                    const historyEl = document.getElementById('debugHistory');
+                    if (historyEl) {
+                        historyEl.textContent = JSON.stringify(HistoryManager.get(), null, 2);
+                    }
+
+                    const metricsEl = document.getElementById('debugMetrics');
+                    if (metricsEl) {
+                        metricsEl.textContent = JSON.stringify({
+                            avgTime: PerformanceMonitor.getAvgTime(),
+                            pickCount: PerformanceMonitor.picks.length,
+                            errors: PerformanceMonitor.errors,
+                            successRate: PerformanceMonitor.getSuccessRate()
+                        }, null, 2);
+                    }
+
+                    setTimeout(() => this.update(), 1000);
+                }
+            };
+
+            // --- 重试机制 ---
+            async function withRetry(fn, maxRetries = 3) {
+                let lastError;
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        return await fn();
+                    } catch (error) {
+                        lastError = error;
+                        if (error.name === 'AbortError') throw error;
+                        if (i < maxRetries - 1) {
+                            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+                        }
+                    }
+                }
+                throw lastError;
+            }
+
+            // --- 工具函数 ---
+            function toast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                container.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            function updateColorUI(hexColor) {
+                const preview = document.getElementById('colorPreview');
+                const info = document.getElementById('colorInfo');
+                const previewText = document.getElementById('previewText');
+
+                preview.style.backgroundColor = hexColor;
+                info.textContent = hexColor;
+
+                const rgb = ColorService.hexToRgb(hexColor);
+                const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+                previewText.style.color = brightness > 128 ? '#000' : '#fff';
+
+                document.getElementById('convertHex').textContent = hexColor;
+                document.getElementById('convertRgb').textContent = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+
+                const hsl = ColorService.rgbToHsl(rgb.r, rgb.g, rgb.b);
+                document.getElementById('convertHsl').textContent = `${hsl.h}°, ${hsl.s}%, ${hsl.l}%`;
+
+                document.getElementById('fallbackColorPicker').value = hexColor;
+            }
+
+            // --- 初始化 ---
+            const isSupported = 'EyeDropper' in window;
+            const isSecure = window.isSecureContext;
+
+            document.getElementById('supportStatus').innerHTML = isSupported ?
+                '<span style="color:#2c9b4a;">✅ 支持</span>' :
+                '<span style="color:#c94a4a;">❌ 不支持</span>';
+
+            document.getElementById('secureStatus').innerHTML = isSecure ?
+                '<span style="color:#2c9b4a;">✅ 安全上下文</span>' :
+                '<span style="color:#c94a4a;">❌ 非安全上下文</span>';
+
+            document.getElementById('supportBadge').innerHTML = isSupported ?
+                '✅ 当前浏览器支持 EyeDropper' :
+                '❌ 当前浏览器不支持 EyeDropper';
+
+            // 创建取色器实例
+            let eyeDropper = null;
+            let currentAbortController = null;
+            window.eyeDropperInstance = null;
+
+            if (isSupported) {
+                eyeDropper = new EyeDropper();
+                window.eyeDropperInstance = eyeDropper;
+                document.getElementById('instanceStatus').innerHTML = '已创建';
+            } else {
+                document.getElementById('instanceStatus').innerHTML = '未创建 (不支持)';
+            }
+
+            // 初始颜色
+            updateColorUI('#1e5b9e');
+            HistoryManager.render();
+            I18n.updateUI();
+            ErrorBoundary.setup();
+
+            // --- 核心取色函数 ---
+            async function pickColor(options = {}) {
+                if (!isSupported) {
+                    toast(I18n.t('pickError', { error: '浏览器不支持' }), 'error');
+                    return null;
+                }
+
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+
+                currentAbortController = new AbortController();
+                const { signal } = currentAbortController;
+
+                const timeout = options.timeout;
+                let timeoutId = null;
+
+                if (timeout) {
+                    timeoutId = setTimeout(() => {
+                        currentAbortController?.abort();
+                        document.getElementById('pickResult').innerHTML = I18n.t('pickCancelled') + ' (超时)';
+                    }, timeout);
+                }
+
+                document.getElementById('pickResult').innerHTML = '⏳ 取色中... 点击屏幕任意位置选取颜色，按 ESC 取消';
+                PerformanceMonitor.startPick();
+
+                try {
+                    const result = await withRetry(() => eyeDropper.open({ signal }));
+
+                    clearTimeout(timeoutId);
+                    const hexColor = result.sRGBHex;
+
+                    if (ColorService.validateHex(hexColor)) {
+                        updateColorUI(hexColor);
+                        HistoryManager.add(hexColor);
+                        document.getElementById('pickResult').innerHTML = `✅ ${I18n.t('pickSuccess', { color: hexColor })}`;
+                        toast(I18n.t('pickSuccess', { color: hexColor }), 'success');
+                        PerformanceMonitor.endPick(true);
+                    } else {
+                        throw new Error('无效的颜色格式');
+                    }
+
+                } catch (err) {
+                    clearTimeout(timeoutId);
+
+                    if (err.name === 'AbortError' || err.message.includes('abort')) {
+                        document.getElementById('pickResult').innerHTML = '⏹️ ' + I18n.t('pickCancelled');
+                        toast(I18n.t('pickCancelled'), 'info');
+                    } else {
+                        document.getElementById('pickResult').innerHTML = `❌ ${I18n.t('pickError', { error: err.message })}`;
+                        toast(I18n.t('pickError', { error: err.message }), 'error');
+                        PerformanceMonitor.recordError();
+                    }
+                    PerformanceMonitor.endPick(false);
+                } finally {
+                    currentAbortController = null;
+                }
+            }
+
+            // --- 事件绑定 ---
+            document.getElementById('btnPickColor').addEventListener('click', () => pickColor());
+
+            document.getElementById('btnPickWithTimeout').addEventListener('click', () => {
+                pickColor({ timeout: 5000 });
+            });
+
+            document.getElementById('btnCancelPick').addEventListener('click', () => {
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                    document.getElementById('pickResult').innerHTML = '⏹️ ' + I18n.t('pickCancelled');
+                    toast(I18n.t('pickCancelled'), 'info');
+                } else {
+                    toast('没有正在进行的取色操作', 'warning');
+                }
+            });
+
+            document.getElementById('btnCopyHex').addEventListener('click', () => {
+                const hex = document.getElementById('convertHex').textContent;
+                navigator.clipboard?.writeText(hex).then(() => {
+                    toast(I18n.t('copySuccess'), 'success');
+                });
+            });
+
+            document.getElementById('btnCopyRgb').addEventListener('click', () => {
+                const rgb = document.getElementById('convertRgb').textContent;
+                navigator.clipboard?.writeText(`rgb(${rgb})`).then(() => {
+                    toast(I18n.t('copySuccess'), 'success');
+                });
+            });
+
+            document.getElementById('btnUseFallback').addEventListener('click', () => {
+                document.getElementById('fallbackColorPicker').click();
+            });
+
+            document.getElementById('fallbackColorPicker').addEventListener('input', (e) => {
+                const hexColor = e.target.value;
+                updateColorUI(hexColor);
+                HistoryManager.add(hexColor);
+                toast(`使用降级取色器: ${hexColor}`, 'info');
+            });
+
+            // --- 键盘快捷键 ---
+            document.addEventListener('keydown', (e) => {
+                if (e.altKey) {
+                    e.preventDefault();
+                    switch (e.key) {
+                        case 'p': case 'P': document.getElementById('btnPickColor').click(); break;
+                        case 'c': case 'C': document.getElementById('btnCancelPick').click(); break;
+                        case 'h': case 'H': HistoryManager.render(); toast('历史已刷新', 'info'); break;
+                        case '1': document.getElementById('btnCopyHex').click(); break;
+                        case '2': document.getElementById('btnCopyRgb').click(); break;
+                        case 'd': case 'D': DebugPanel.toggle(); break;
+                        case 'r': case 'R': PerformanceMonitor.reset(); toast('性能指标已重置', 'info'); break;
+                    }
+
+                    const hint = document.createElement('div');
+                    hint.className = 'shortcut-hint';
+                    hint.textContent = `Alt+${e.key} 已执行`;
+                    document.body.appendChild(hint);
+                    setTimeout(() => hint.remove(), 2000);
+                }
+
+                if (e.key === 'Escape' && currentAbortController) {
+                    currentAbortController.abort();
+                    toast(I18n.t('pickCancelled'), 'info');
+                }
+            });
+
+            // 完成初始化
+            toast('EyeDropper 企业版已就绪', 'success');
+        })();
+    </script>
+</body>
+
+</html>
