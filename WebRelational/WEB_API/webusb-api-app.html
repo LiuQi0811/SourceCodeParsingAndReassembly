@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebUSB API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #60a5fa;
+            --accent: #93c5fd;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #eff6ff;
+            --bg-card: #ffffff;
+            --border: #bfdbfe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #eff6ff;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #0c1929;
+                --bg-card: #1e3a5f;
+                --border: #1e40af;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(37, 99, 235, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(37, 99, 235, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .device-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .device-card:hover { border-color: var(--primary); }
+        .device-card.selected { border-color: var(--primary); background: rgba(37, 99, 235, 0.05); }
+        
+        .device-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .device-icon { font-size: 24px; }
+        .device-name { font-weight: 600; font-size: 14px; }
+        .device-vendor { font-size: 12px; color: var(--text-secondary); }
+        
+        .device-info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-size: 11px; }
+        .device-info-item { background: var(--bg-card); padding: 8px; border-radius: 6px; }
+        .device-info-label { color: var(--text-muted); }
+        .device-info-value { font-weight: 600; margin-top: 2px; }
+        
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .status-dot.connected { background: var(--success); }
+        .status-dot.disconnected { background: var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.usb { background: rgba(37, 99, 235, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .api-block {
+            background: rgba(37, 99, 235, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(37, 99, 235, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .info-box {
+            background: rgba(37, 99, 235, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .transfer-result {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-top: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .hex-display {
+            word-break: break-all;
+            line-height: 1.8;
+        }
+        
+        .hex-byte { display: inline-block; padding: 2px 4px; margin: 1px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .device-info-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔌</div>
+            <div class="logo-text">WebUSB <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkUSBSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">设备管理</div>
+                    <div class="nav-item" data-tab="devices" onclick="switchTab('devices')">
+                        <span class="nav-icon">📱</span><span>设备列表</span>
+                    </div>
+                    <div class="nav-item" data-tab="connect" onclick="switchTab('connect')">
+                        <span class="nav-icon">🔗</span><span>连接设备</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">数据传输</div>
+                    <div class="nav-item" data-tab="control" onclick="switchTab('control')">
+                        <span class="nav-icon">🎛️</span><span>控制传输</span>
+                    </div>
+                    <div class="nav-item" data-tab="bulk" onclick="switchTab('bulk')">
+                        <span class="nav-icon">📦</span><span>批量传输</span>
+                    </div>
+                    <div class="nav-item" data-tab="interrupt" onclick="switchTab('interrupt')">
+                        <span class="nav-icon">⚡</span><span>中断传输</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">设备信息</div>
+                    <div class="nav-item" data-tab="descriptors" onclick="switchTab('descriptors')">
+                        <span class="nav-icon">📋</span><span>描述符</span>
+                    </div>
+                    <div class="nav-item" data-tab="interfaces" onclick="switchTab('interfaces')">
+                        <span class="nav-icon">🔌</span><span>接口管理</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebUSB API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-value" id="device-count">0</div>
+                        <div class="stat-label">已连接设备</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-value" id="transfer-count">0</div>
+                        <div class="stat-label">传输次数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📥</div>
+                        <div class="stat-value" id="bytes-transferred">0</div>
+                        <div class="stat-label">传输字节</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebUSB 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">WebUSB API</div>
+                                            <div class="result-value" id="usb-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">安全上下文</div>
+                                            <div class="result-value" id="secure-context">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">用户手势</div>
+                                            <div class="result-value" id="user-gesture">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">已授权设备</div>
+                                            <div class="result-value" id="granted-devices">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebUSB API 允许网页访问 USB 设备，如 Arduino、串口设备等。
+                        </div>
+                        
+                        <div class="warning-box">
+                            <strong>要求：</strong>HTTPS 环境 + 用户手势触发（点击按钮）
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="requestUSBDevice()">🔌 请求 USB 设备</button>
+                            <button class="btn btn-outline btn-lg" onclick="getGrantedDevices()">📋 获取已授权设备</button>
+                        </div>
+                        
+                        <div id="demo-result" style="display: none;">
+                            <div class="result-box">
+                                <div class="result-title">执行结果</div>
+                                <div id="demo-result-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设备列表 -->
+            <div id="panel-devices" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>设备列表</h1>
+                        <p>已连接的 USB 设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="refreshDevices()">🔄 刷新列表</button>
+                        <button class="btn btn-outline" onclick="requestUSBDevice()">➕ 添加设备</button>
+                    </div>
+                    
+                    <div id="device-list">
+                        <div class="info-box">
+                            暂无已连接设备。点击"添加设备"按钮请求 USB 设备访问权限。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连接设备 -->
+            <div id="panel-connect" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>连接设备</h1>
+                        <p>请求和连接 USB 设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        使用过滤器可以精确匹配特定类型的 USB 设备。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Vendor ID (十六进制)</label>
+                            <input type="text" class="form-input" id="filter-vendor-id" placeholder="例如: 0x2341">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Product ID (十六进制)</label>
+                            <input type="text" class="form-input" id="filter-product-id" placeholder="例如: 0x0043">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Class Code</label>
+                            <select class="form-select" id="filter-class">
+                                <option value="">任意</option>
+                                <option value="2">CDC (通信)</option>
+                                <option value="3">HID</option>
+                                <option value="8">Mass Storage</option>
+                                <option value="10">CDC Data</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subclass</label>
+                            <input type="text" class="form-input" id="filter-subclass" placeholder="可选">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="requestUSBDeviceWithFilter()">🔍 按过滤器请求</button>
+                        <button class="btn btn-outline" onclick="requestUSBDevice()">🔌 请求任意设备</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">常用设备过滤器</div>
+                        <div class="result-grid">
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x2341', '0x0043')">
+                                <div class="result-label">Arduino Uno</div>
+                                <div class="result-value">0x2341:0x0043</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x2341', '0x0001')">
+                                <div class="result-label">Arduino Serial</div>
+                                <div class="result-value">0x2341:0x0001</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('0x16c0', '0x05e1')">
+                                <div class="result-label">V-USB</div>
+                                <div class="result-value">0x16c0:0x05e1</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setFilter('', '', '2')">
+                                <div class="result-label">CDC 设备</div>
+                                <div class="result-value">Class 0x02</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 控制传输 -->
+            <div id="panel-control" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制传输</h1>
+                        <p>USB 控制端点传输</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        控制传输用于设备配置和状态查询。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="control-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">请求类型</label>
+                            <select class="form-select" id="request-type">
+                                <option value="0x80">设备到主机 (0x80)</option>
+                                <option value="0x00">主机到设备 (0x00)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">请求</label>
+                            <input type="text" class="form-input" id="request-value" value="0x06">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">值</label>
+                            <input type="text" class="form-input" id="value-field" value="0x0100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">索引</label>
+                            <input type="text" class="form-input" id="index-field" value="0x0000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">数据长度</label>
+                        <input type="number" class="form-input" id="control-length" value="64">
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="controlTransferIn()">📥 控制输入</button>
+                        <button class="btn btn-success" onclick="controlTransferOut()">📤 控制输出</button>
+                    </div>
+                    
+                    <div id="control-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">传输结果</div>
+                            <div class="transfer-result" id="control-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 批量传输 -->
+            <div id="panel-bulk" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>批量传输</h1>
+                        <p>USB 批量端点传输</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        批量传输用于大量数据传输，如串口通信。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="bulk-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">端点号</label>
+                            <input type="text" class="form-input" id="endpoint-number" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">方向</label>
+                            <select class="form-select" id="endpoint-direction">
+                                <option value="in">输入 (IN)</option>
+                                <option value="out">输出 (OUT)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">数据 (十六进制，空格分隔)</label>
+                        <input type="text" class="form-input" id="bulk-data" placeholder="例如: 01 02 03 04">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">接收长度</label>
+                        <input type="number" class="form-input" id="bulk-length" value="64">
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="bulkTransferIn()">📥 批量输入</button>
+                        <button class="btn btn-success" onclick="bulkTransferOut()">📤 批量输出</button>
+                    </div>
+                    
+                    <div id="bulk-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">传输结果</div>
+                            <div class="transfer-result" id="bulk-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中断传输 -->
+            <div id="panel-interrupt" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>中断传输</h1>
+                        <p>USB 中断端点传输</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        中断传输用于小量、低延迟数据，如 HID 设备。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="interrupt-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">端点号</label>
+                            <input type="text" class="form-input" id="interrupt-endpoint" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">接收长度</label>
+                            <input type="number" class="form-input" id="interrupt-length" value="64">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="interruptTransferIn()">📥 中断输入</button>
+                        <button class="btn btn-success" onclick="interruptTransferOut()">📤 中断输出</button>
+                    </div>
+                    
+                    <div id="interrupt-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">传输结果</div>
+                            <div class="transfer-result" id="interrupt-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 描述符 -->
+            <div id="panel-descriptors" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>描述符</h1>
+                        <p>USB 设备描述符信息</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        USB 描述符描述设备的各种属性和功能。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="descriptor-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getDeviceDescriptor()">📋 获取设备描述符</button>
+                        <button class="btn btn-outline" onclick="getConfigurationDescriptor()">⚙️ 获取配置描述符</button>
+                    </div>
+                    
+                    <div id="descriptor-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">描述符信息</div>
+                            <div id="descriptor-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 接口管理 -->
+            <div id="panel-interfaces" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>接口管理</h1>
+                        <p>USB 接口声明与配置</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        在进行数据传输前，需要声明接口。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择设备</label>
+                        <select class="form-select" id="interface-device-select">
+                            <option value="">-- 请选择设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">配置值</label>
+                            <input type="number" class="form-input" id="config-value" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">接口号</label>
+                            <input type="number" class="form-input" id="interface-number" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">备用设置</label>
+                            <input type="number" class="form-input" id="alternate-setting" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="selectConfiguration()">⚙️ 选择配置</button>
+                        <button class="btn btn-success" onclick="claimInterface()">🔌 声明接口</button>
+                        <button class="btn btn-outline" onclick="selectAlternateInterface()">🔄 选择备用设置</button>
+                        <button class="btn btn-danger" onclick="releaseInterface()">❌ 释放接口</button>
+                    </div>
+                    
+                    <div id="interface-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">操作结果</div>
+                            <div id="interface-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebUSB API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">USB</span>
+                        <p class="api-description">WebUSB API 的主入口，通过 navigator.usb 访问。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">USBDevice</span>
+                        <p class="api-description">代表一个 USB 设备。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">USBConfiguration</span>
+                        <p class="api-description">USB 配置描述符。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">USBInterface</span>
+                        <p class="api-description">USB 接口描述符。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">USBEndpoint</span>
+                        <p class="api-description">USB 端点描述符。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.usb.requestDevice(filters)</code></td><td>请求 USB 设备</td></tr>
+                            <tr><td><code>navigator.usb.getDevices()</code></td><td>获取已授权设备</td></tr>
+                            <tr><td><code>device.open()</code></td><td>打开设备</td></tr>
+                            <tr><td><code>device.close()</code></td><td>关闭设备</td></tr>
+                            <tr><td><code>device.selectConfiguration(configValue)</code></td><td>选择配置</td></tr>
+                            <tr><td><code>device.claimInterface(interfaceNumber)</code></td><td>声明接口</td></tr>
+                            <tr><td><code>device.releaseInterface(interfaceNumber)</code></td><td>释放接口</td></tr>
+                            <tr><td><code>device.controlTransferIn(setup, length)</code></td><td>控制输入</td></tr>
+                            <tr><td><code>device.controlTransferOut(setup, data)</code></td><td>控制输出</td></tr>
+                            <tr><td><code>device.transferIn(endpointNumber, length)</code></td><td>批量输入</td></tr>
+                            <tr><td><code>device.transferOut(endpointNumber, data)</code></td><td>批量输出</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="warning-box">
+                        <strong>最低版本要求：</strong>
+                        <ul style="margin-left: 16px; margin-top: 8px;">
+                            <li>Chrome 61+</li>
+                            <li>Edge 79+</li>
+                            <li>Opera 48+</li>
+                            <li>Firefox: 不支持</li>
+                            <li>Safari: 不支持</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var connectedDevices = [];
+        var selectedDevice = null;
+        var transferCount = 0;
+        var bytesTransferred = 0;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkUSBSupport();
+            setupUSBEventListeners();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== USB 支持检测 ====================
+        function checkUSBSupport() {
+            var usbSupported = 'usb' in navigator;
+            var isSecure = window.isSecureContext;
+            
+            document.getElementById('usb-support').textContent = usbSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('usb-support').style.color = usbSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('secure-context').textContent = isSecure ? '✓ 安全' : '✗ 不安全';
+            document.getElementById('secure-context').style.color = isSecure ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('user-gesture').textContent = '✓ 需要';
+            document.getElementById('user-gesture').style.color = 'var(--warning)';
+            
+            document.getElementById('api-status').textContent = usbSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = usbSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (usbSupported) {
+                getGrantedDevices();
+            }
+            
+            addLog('info', 'WebUSB 支持检测完成');
+        }
+
+        // ==================== USB 事件监听 ====================
+        function setupUSBEventListeners() {
+            if (!('usb' in navigator)) return;
+            
+            navigator.usb.addEventListener('connect', function(e) {
+                addLog('usb', '设备连接: ' + e.device.productName);
+                showToast('设备已连接: ' + e.device.productName, 'success');
+                refreshDevices();
+            });
+            
+            navigator.usb.addEventListener('disconnect', function(e) {
+                addLog('usb', '设备断开: ' + e.device.productName);
+                showToast('设备已断开: ' + e.device.productName, 'warning');
+                refreshDevices();
+            });
+        }
+
+        // ==================== 请求 USB 设备 ====================
+        async function requestUSBDevice() {
+            if (!('usb' in navigator)) {
+                showToast('WebUSB API 不支持', 'error');
+                return;
+            }
+            
+            try {
+                var device = await navigator.usb.requestDevice({ filters: [] });
+                
+                if (device) {
+                    await openDevice(device);
+                    showToast('已选择设备: ' + (device.productName || 'Unknown'), 'success');
+                    addLog('usb', '请求设备成功: ' + (device.productName || 'Unknown'));
+                    refreshDevices();
+                }
+            } catch (e) {
+                if (e.name === 'NotFoundError') {
+                    showToast('未找到匹配的设备', 'warning');
+                } else {
+                    showToast('请求失败: ' + e.message, 'error');
+                    addLog('error', '请求设备失败: ' + e.message);
+                }
+            }
+        }
+
+        async function requestUSBDeviceWithFilter() {
+            if (!('usb' in navigator)) {
+                showToast('WebUSB API 不支持', 'error');
+                return;
+            }
+            
+            var filters = [];
+            var filter = {};
+            
+            var vendorId = document.getElementById('filter-vendor-id').value.trim();
+            var productId = document.getElementById('filter-product-id').value.trim();
+            var classCode = document.getElementById('filter-class').value;
+            var subclass = document.getElementById('filter-subclass').value.trim();
+            
+            if (vendorId) filter.vendorId = parseInt(vendorId, 16);
+            if (productId) filter.productId = parseInt(productId, 16);
+            if (classCode) filter.classCode = parseInt(classCode);
+            if (subclass) filter.subclassCode = parseInt(subclass);
+            
+            if (Object.keys(filter).length > 0) {
+                filters.push(filter);
+            }
+            
+            try {
+                var device = await navigator.usb.requestDevice({ filters: filters });
+                
+                if (device) {
+                    await openDevice(device);
+                    showToast('已选择设备: ' + (device.productName || 'Unknown'), 'success');
+                    addLog('usb', '按过滤器请求设备成功');
+                    refreshDevices();
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+                addLog('error', '请求设备失败: ' + e.message);
+            }
+        }
+
+        function setFilter(vendorId, productId, classCode) {
+            document.getElementById('filter-vendor-id').value = vendorId;
+            document.getElementById('filter-product-id').value = productId;
+            document.getElementById('filter-class').value = classCode || '';
+            showToast('过滤器已设置', 'success');
+        }
+
+        // ==================== 获取已授权设备 ====================
+        async function getGrantedDevices() {
+            if (!('usb' in navigator)) return;
+            
+            try {
+                var devices = await navigator.usb.getDevices();
+                document.getElementById('granted-devices').textContent = devices.length;
+                
+                connectedDevices = [];
+                for (var device of devices) {
+                    if (!device.opened) {
+                        try {
+                            await device.open();
+                        } catch (e) {
+                            console.log('无法打开设备:', e);
+                        }
+                    }
+                    connectedDevices.push(device);
+                }
+                
+                updateDeviceList();
+                updateDeviceSelects();
+                
+                addLog('info', '获取已授权设备: ' + devices.length + ' 个');
+            } catch (e) {
+                addLog('error', '获取设备失败: ' + e.message);
+            }
+        }
+
+        // ==================== 打开设备 ====================
+        async function openDevice(device) {
+            try {
+                if (!device.opened) {
+                    await device.open();
+                }
+                
+                if (!connectedDevices.includes(device)) {
+                    connectedDevices.push(device);
+                }
+                
+                addLog('usb', '设备已打开: ' + (device.productName || 'Unknown'));
+                return true;
+            } catch (e) {
+                addLog('error', '打开设备失败: ' + e.message);
+                return false;
+            }
+        }
+
+        // ==================== 刷新设备列表 ====================
+        async function refreshDevices() {
+            await getGrantedDevices();
+        }
+
+        // ==================== 更新设备列表 UI ====================
+        function updateDeviceList() {
+            var container = document.getElementById('device-list');
+            document.getElementById('device-count').textContent = connectedDevices.length;
+            
+            if (connectedDevices.length === 0) {
+                container.innerHTML = '<div class="info-box">暂无已连接设备。点击"添加设备"按钮请求 USB 设备访问权限。</div>';
+                return;
+            }
+            
+            var html = '';
+            connectedDevices.forEach(function(device, index) {
+                html += '<div class="device-card" onclick="selectDevice(' + index + ')">' +
+                    '<div class="device-header">' +
+                    '<span class="device-icon">🔌</span>' +
+                    '<div>' +
+                    '<div class="device-name">' + (device.productName || 'Unknown Device') + '</div>' +
+                    '<div class="device-vendor">' + (device.manufacturerName || 'Unknown Manufacturer') + '</div>' +
+                    '</div>' +
+                    '<span class="status-dot ' + (device.opened ? 'connected' : 'disconnected') + '"></span>' +
+                    '</div>' +
+                    '<div class="device-info-grid">' +
+                    '<div class="device-info-item"><div class="device-info-label">Vendor ID</div><div class="device-info-value">0x' + device.vendorId.toString(16).padStart(4, '0') + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">Product ID</div><div class="device-info-value">0x' + device.productId.toString(16).padStart(4, '0') + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">序列号</div><div class="device-info-value">' + (device.serialNumber || '-') + '</div></div>' +
+                    '<div class="device-info-item"><div class="device-info-label">配置</div><div class="device-info-value">' + device.configurations.length + '</div></div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateDeviceSelects() {
+            var selects = ['control-device-select', 'bulk-device-select', 'interrupt-device-select', 
+                          'descriptor-device-select', 'interface-device-select'];
+            
+            selects.forEach(function(selectId) {
+                var select = document.getElementById(selectId);
+                if (!select) return;
+                
+                select.innerHTML = '<option value="">-- 请选择设备 --</option>';
+                connectedDevices.forEach(function(device, index) {
+                    select.innerHTML += '<option value="' + index + '">' + 
+                        (device.productName || 'Unknown') + ' (0x' + device.vendorId.toString(16) + ':0x' + device.productId.toString(16) + ')</option>';
+                });
+            });
+        }
+
+        function selectDevice(index) {
+            selectedDevice = connectedDevices[index];
+            var cards = document.querySelectorAll('.device-card');
+            cards.forEach(function(card, i) {
+                card.classList.toggle('selected', i === index);
+            });
+            showToast('已选择设备: ' + (selectedDevice.productName || 'Unknown'), 'success');
+        }
+
+        // ==================== 控制传输 ====================
+        async function controlTransferIn() {
+            var deviceIndex = document.getElementById('control-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var requestType = parseInt(document.getElementById('request-type').value, 16);
+                var request = parseInt(document.getElementById('request-value').value, 16);
+                var value = parseInt(document.getElementById('value-field').value, 16);
+                var index = parseInt(document.getElementById('index-field').value, 16);
+                var length = parseInt(document.getElementById('control-length').value);
+                
+                var result = await device.controlTransferIn(
+                    { requestType: requestType, request: request, value: value, index: index },
+                    length
+                );
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                
+                showControlResult('success', result.data, result.status);
+                showToast('控制传输成功', 'success');
+                addLog('usb', '控制输入成功');
+                
+            } catch (e) {
+                showControlResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        async function controlTransferOut() {
+            var deviceIndex = document.getElementById('control-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var requestType = parseInt(document.getElementById('request-type').value, 16);
+                var request = parseInt(document.getElementById('request-value').value, 16);
+                var value = parseInt(document.getElementById('value-field').value, 16);
+                var index = parseInt(document.getElementById('index-field').value, 16);
+                
+                var result = await device.controlTransferOut(
+                    { requestType: requestType, request: request, value: value, index: index }
+                );
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                
+                showControlResult('success', null, result.bytesWritten + ' bytes written');
+                showToast('控制传输成功', 'success');
+                addLog('usb', '控制输出成功');
+                
+            } catch (e) {
+                showControlResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        function showControlResult(status, data, message) {
+            document.getElementById('control-result').style.display = 'block';
+            
+            var html = '<div style="margin-bottom: 8px;">状态: ' + (status === 'success' ? '✓ 成功' : '✗ 失败') + '</div>';
+            html += '<div style="margin-bottom: 8px;">结果: ' + message + '</div>';
+            
+            if (data) {
+                html += '<div class="hex-display">' + formatDataView(data) + '</div>';
+            }
+            
+            document.getElementById('control-result-content').innerHTML = html;
+        }
+
+        // ==================== 批量传输 ====================
+        async function bulkTransferIn() {
+            var deviceIndex = document.getElementById('bulk-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var endpointNumber = parseInt(document.getElementById('endpoint-number').value);
+                var length = parseInt(document.getElementById('bulk-length').value);
+                
+                var result = await device.transferIn(endpointNumber, length);
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                
+                if (result.data) {
+                    bytesTransferred += result.data.byteLength;
+                    document.getElementById('bytes-transferred').textContent = bytesTransferred;
+                }
+                
+                showBulkResult('success', result.data, result.status);
+                showToast('批量传输成功', 'success');
+                addLog('usb', '批量输入成功');
+                
+            } catch (e) {
+                showBulkResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        async function bulkTransferOut() {
+            var deviceIndex = document.getElementById('bulk-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var endpointNumber = parseInt(document.getElementById('endpoint-number').value);
+                var dataStr = document.getElementById('bulk-data').value.trim();
+                
+                var data;
+                if (dataStr) {
+                    var bytes = dataStr.split(/\s+/).map(function(b) {
+                        return parseInt(b, 16);
+                    });
+                    data = new Uint8Array(bytes);
+                } else {
+                    data = new Uint8Array(0);
+                }
+                
+                var result = await device.transferOut(endpointNumber, data);
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                bytesTransferred += result.bytesWritten;
+                document.getElementById('bytes-transferred').textContent = bytesTransferred;
+                
+                showBulkResult('success', null, result.bytesWritten + ' bytes written');
+                showToast('批量传输成功', 'success');
+                addLog('usb', '批量输出成功');
+                
+            } catch (e) {
+                showBulkResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        function showBulkResult(status, data, message) {
+            document.getElementById('bulk-result').style.display = 'block';
+            
+            var html = '<div style="margin-bottom: 8px;">状态: ' + (status === 'success' ? '✓ 成功' : '✗ 失败') + '</div>';
+            html += '<div style="margin-bottom: 8px;">结果: ' + message + '</div>';
+            
+            if (data) {
+                html += '<div class="hex-display">' + formatDataView(data) + '</div>';
+            }
+            
+            document.getElementById('bulk-result-content').innerHTML = html;
+        }
+
+        // ==================== 中断传输 ====================
+        async function interruptTransferIn() {
+            var deviceIndex = document.getElementById('interrupt-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var endpointNumber = parseInt(document.getElementById('interrupt-endpoint').value);
+                var length = parseInt(document.getElementById('interrupt-length').value);
+                
+                var result = await device.transferIn(endpointNumber, length);
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                
+                showInterruptResult('success', result.data, result.status);
+                showToast('中断传输成功', 'success');
+                addLog('usb', '中断输入成功');
+                
+            } catch (e) {
+                showInterruptResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        async function interruptTransferOut() {
+            var deviceIndex = document.getElementById('interrupt-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            try {
+                var endpointNumber = parseInt(document.getElementById('interrupt-endpoint').value);
+                var data = new Uint8Array(0);
+                
+                var result = await device.transferOut(endpointNumber, data);
+                
+                transferCount++;
+                document.getElementById('transfer-count').textContent = transferCount;
+                
+                showInterruptResult('success', null, result.bytesWritten + ' bytes written');
+                showToast('中断传输成功', 'success');
+                addLog('usb', '中断输出成功');
+                
+            } catch (e) {
+                showInterruptResult('error', null, e.message);
+                showToast('传输失败: ' + e.message, 'error');
+            }
+        }
+
+        function showInterruptResult(status, data, message) {
+            document.getElementById('interrupt-result').style.display = 'block';
+            
+            var html = '<div style="margin-bottom: 8px;">状态: ' + (status === 'success' ? '✓ 成功' : '✗ 失败') + '</div>';
+            html += '<div style="margin-bottom: 8px;">结果: ' + message + '</div>';
+            
+            if (data) {
+                html += '<div class="hex-display">' + formatDataView(data) + '</div>';
+            }
+            
+            document.getElementById('interrupt-result-content').innerHTML = html;
+        }
+
+        // ==================== 描述符 ====================
+        function getDeviceDescriptor() {
+            var deviceIndex = document.getElementById('descriptor-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device) {
+                showToast('设备不存在', 'error');
+                return;
+            }
+            
+            document.getElementById('descriptor-result').style.display = 'block';
+            
+            var html = '<div class="result-grid">';
+            html += '<div class="result-item"><div class="result-label">Vendor ID</div><div class="result-value">0x' + device.vendorId.toString(16).padStart(4, '0') + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">Product ID</div><div class="result-value">0x' + device.productId.toString(16).padStart(4, '0') + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">设备类</div><div class="result-value">' + device.deviceClass + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">设备子类</div><div class="result-value">' + device.deviceSubclass + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">设备协议</div><div class="result-value">' + device.deviceProtocol + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">USB 版本</div><div class="result-value">' + device.usbVersionMajor + '.' + device.usbVersionMinor + '.' + device.usbVersionSubminor + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">设备版本</div><div class="result-value">' + device.deviceVersionMajor + '.' + device.deviceVersionMinor + '.' + device.deviceVersionSubminor + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">配置数</div><div class="result-value">' + device.configurations.length + '</div></div>';
+            html += '</div>';
+            
+            document.getElementById('descriptor-result-content').innerHTML = html;
+            showToast('设备描述符已获取', 'success');
+            addLog('usb', '获取设备描述符');
+        }
+
+        function getConfigurationDescriptor() {
+            var deviceIndex = document.getElementById('descriptor-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device) {
+                showToast('设备不存在', 'error');
+                return;
+            }
+            
+            document.getElementById('descriptor-result').style.display = 'block';
+            
+            var html = '<h4 style="margin-bottom: 12px;">配置描述符</h4>';
+            
+            device.configurations.forEach(function(config, i) {
+                html += '<div style="margin-bottom: 16px; padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm);">';
+                html += '<div style="font-weight: 600; margin-bottom: 8px;">配置 ' + i + '</div>';
+                html += '<div class="result-grid">';
+                html += '<div class="result-item"><div class="result-label">配置值</div><div class="result-value">' + config.configurationValue + '</div></div>';
+                html += '<div class="result-item"><div class="result-label">接口数</div><div class="result-value">' + config.interfaces.length + '</div></div>';
+                html += '</div>';
+                
+                config.interfaces.forEach(function(iface, j) {
+                    html += '<div style="margin-top: 12px; padding: 8px; background: var(--bg-card); border-radius: 6px;">';
+                    html += '<div style="font-size: 12px; font-weight: 600;">接口 ' + j + '</div>';
+                    html += '<div style="font-size: 11px; color: var(--text-secondary);">';
+                    html += '接口号: ' + iface.interfaceNumber + ', ';
+                    html += '备用设置: ' + iface.alternate.alternateSetting + ', ';
+                    html += '类: ' + iface.alternate.interfaceClass;
+                    html += '</div>';
+                    
+                    if (iface.alternate.endpoints.length > 0) {
+                        html += '<div style="margin-top: 8px; font-size: 11px;">端点: ';
+                        iface.alternate.endpoints.forEach(function(ep, k) {
+                            html += 'EP' + ep.endpointNumber + '(' + (ep.direction === 'in' ? 'IN' : 'OUT') + ') ';
+                        });
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            });
+            
+            document.getElementById('descriptor-result-content').innerHTML = html;
+            showToast('配置描述符已获取', 'success');
+            addLog('usb', '获取配置描述符');
+        }
+
+        // ==================== 接口管理 ====================
+        async function selectConfiguration() {
+            var deviceIndex = document.getElementById('interface-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var configValue = parseInt(document.getElementById('config-value').value);
+            
+            try {
+                await device.selectConfiguration(configValue);
+                showInterfaceResult('success', '配置 ' + configValue + ' 已选择');
+                showToast('配置已选择', 'success');
+                addLog('usb', '选择配置: ' + configValue);
+            } catch (e) {
+                showInterfaceResult('error', e.message);
+                showToast('选择配置失败: ' + e.message, 'error');
+            }
+        }
+
+        async function claimInterface() {
+            var deviceIndex = document.getElementById('interface-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var interfaceNumber = parseInt(document.getElementById('interface-number').value);
+            
+            try {
+                await device.claimInterface(interfaceNumber);
+                showInterfaceResult('success', '接口 ' + interfaceNumber + ' 已声明');
+                showToast('接口已声明', 'success');
+                addLog('usb', '声明接口: ' + interfaceNumber);
+            } catch (e) {
+                showInterfaceResult('error', e.message);
+                showToast('声明接口失败: ' + e.message, 'error');
+            }
+        }
+
+        async function selectAlternateInterface() {
+            var deviceIndex = document.getElementById('interface-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var interfaceNumber = parseInt(document.getElementById('interface-number').value);
+            var alternateSetting = parseInt(document.getElementById('alternate-setting').value);
+            
+            try {
+                await device.selectAlternateInterface(interfaceNumber, alternateSetting);
+                showInterfaceResult('success', '备用设置 ' + alternateSetting + ' 已选择');
+                showToast('备用设置已选择', 'success');
+                addLog('usb', '选择备用设置: ' + alternateSetting);
+            } catch (e) {
+                showInterfaceResult('error', e.message);
+                showToast('选择备用设置失败: ' + e.message, 'error');
+            }
+        }
+
+        async function releaseInterface() {
+            var deviceIndex = document.getElementById('interface-device-select').value;
+            if (!deviceIndex) {
+                showToast('请选择设备', 'warning');
+                return;
+            }
+            
+            var device = connectedDevices[deviceIndex];
+            if (!device || !device.opened) {
+                showToast('设备未打开', 'error');
+                return;
+            }
+            
+            var interfaceNumber = parseInt(document.getElementById('interface-number').value);
+            
+            try {
+                await device.releaseInterface(interfaceNumber);
+                showInterfaceResult('success', '接口 ' + interfaceNumber + ' 已释放');
+                showToast('接口已释放', 'success');
+                addLog('usb', '释放接口: ' + interfaceNumber);
+            } catch (e) {
+                showInterfaceResult('error', e.message);
+                showToast('释放接口失败: ' + e.message, 'error');
+            }
+        }
+
+        function showInterfaceResult(status, message) {
+            document.getElementById('interface-result').style.display = 'block';
+            var color = status === 'success' ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('interface-result-content').innerHTML = 
+                '<div style="color: ' + color + '; font-weight: 600;">' + message + '</div>';
+        }
+
+        // ==================== 工具函数 ====================
+        function formatDataView(dataView) {
+            var bytes = new Uint8Array(dataView.buffer);
+            var html = '';
+            for (var i = 0; i < bytes.length; i++) {
+                html += '<span class="hex-byte">' + bytes[i].toString(16).padStart(2, '0') + '</span>';
+                if ((i + 1) % 16 === 0) html += '<br>';
+            }
+            return html;
+        }
+
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

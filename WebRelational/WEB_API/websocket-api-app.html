@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #0891b2;
+            --primary-dark: #0e7490;
+            --secondary: #22d3ee;
+            --accent: #67e8f9;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #ecfeff;
+            --bg-card: #ffffff;
+            --border: #a5f3fc;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #ecfeff;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #083344;
+                --bg-card: #164e63;
+                --border: #155e75;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(8, 145, 178, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(8, 145, 178, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(8, 145, 178, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .connection-status.disconnected { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .connection-status.connecting { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected { background: var(--success); }
+        .status-dot.disconnected { background: var(--danger); }
+        .status-dot.connecting { background: var(--warning); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .message-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .message-box {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+        
+        .message-header {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .message-list {
+            height: 300px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .message-item {
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.03);
+            border-left: 3px solid var(--primary);
+        }
+        
+        .message-item.sent { border-left-color: var(--success); }
+        .message-item.received { border-left-color: var(--primary); }
+        .message-item.system { border-left-color: var(--warning); background: rgba(245, 158, 11, 0.1); }
+        .message-item.error { border-left-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+        
+        .message-time { color: #64748b; font-size: 10px; margin-bottom: 4px; }
+        .message-content { color: #e2e8f0; word-break: break-all; }
+        
+        .connection-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .connection-card:hover { border-color: var(--primary); }
+        .connection-card.active { border-color: var(--primary); background: rgba(8, 145, 178, 0.05); }
+        
+        .connection-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .connection-name { font-weight: 600; font-size: 14px; }
+        .connection-url { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        
+        .api-block {
+            background: rgba(8, 145, 178, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(8, 145, 178, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.ws { background: rgba(8, 145, 178, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .info-box {
+            background: rgba(8, 145, 178, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        @media (max-width: 1024px) { 
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .message-container { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🔌</div>
+            <div class="logo-text">WebSocket <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkWSSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">连接管理</div>
+                    <div class="nav-item" data-tab="connect" onclick="switchTab('connect')">
+                        <span class="nav-icon">🔗</span><span>新建连接</span>
+                    </div>
+                    <div class="nav-item" data-tab="connections" onclick="switchTab('connections')">
+                        <span class="nav-icon">📋</span><span>连接列表</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">消息</div>
+                    <div class="nav-item" data-tab="send" onclick="switchTab('send')">
+                        <span class="nav-icon">📤</span><span>发送消息</span>
+                    </div>
+                    <div class="nav-item" data-tab="receive" onclick="switchTab('receive')">
+                        <span class="nav-icon">📥</span><span>消息记录</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">高级功能</div>
+                    <div class="nav-item" data-tab="heartbeat" onclick="switchTab('heartbeat')">
+                        <span class="nav-icon">💓</span><span>心跳检测</span>
+                    </div>
+                    <div class="nav-item" data-tab="binary" onclick="switchTab('binary')">
+                        <span class="nav-icon">📦</span><span>二进制数据</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebSocket API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔌</div>
+                        <div class="stat-value" id="connection-count">0</div>
+                        <div class="stat-label">活动连接</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-value" id="sent-count">0</div>
+                        <div class="stat-label">已发送</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📥</div>
+                        <div class="stat-value" id="received-count">0</div>
+                        <div class="stat-label">已接收</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebSocket 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">WebSocket API</div>
+                                            <div class="result-value" id="ws-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">安全上下文</div>
+                                            <div class="result-value" id="secure-context">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">二进制类型</div>
+                                            <div class="result-value" id="binary-type">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">缓冲区</div>
+                                            <div class="result-value" id="buffer-support">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebSocket 提供全双工通信通道，适合实时应用。
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="quickConnect()">🔌 快速连接演示</button>
+                            <button class="btn btn-outline btn-lg" onclick="testEchoServer()">🔄 测试回显服务器</button>
+                        </div>
+                        
+                        <div class="message-container">
+                            <div class="message-box">
+                                <div class="message-header">
+                                    <span>📤 发送消息</span>
+                                    <span id="demo-sent-count">0</span>
+                                </div>
+                                <div class="message-list" id="demo-sent-list">
+                                    <div style="color: #64748b; text-align: center; padding: 20px;">等待发送...</div>
+                                </div>
+                            </div>
+                            <div class="message-box">
+                                <div class="message-header">
+                                    <span>📥 接收消息</span>
+                                    <span id="demo-received-count">0</span>
+                                </div>
+                                <div class="message-list" id="demo-received-list">
+                                    <div style="color: #64748b; text-align: center; padding: 20px;">等待接收...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新建连接 -->
+            <div id="panel-connect" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>新建连接</h1>
+                        <p>创建新的 WebSocket 连接</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebSocket 连接支持 ws:// 和 wss:// 协议。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">连接名称</label>
+                        <input type="text" class="form-input" id="connection-name" placeholder="例如: 聊天服务器">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">WebSocket URL</label>
+                        <input type="text" class="form-input" id="ws-url" placeholder="wss://example.com/socket">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">协议 (可选)</label>
+                            <input type="text" class="form-input" id="ws-protocol" placeholder="例如: chat, json">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">二进制类型</label>
+                            <select class="form-select" id="ws-binary-type">
+                                <option value="blob">Blob</option>
+                                <option value="arraybuffer">ArrayBuffer</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">自动重连</label>
+                            <select class="form-select" id="auto-reconnect">
+                                <option value="false">禁用</option>
+                                <option value="true">启用</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">重连间隔 (毫秒)</label>
+                            <input type="number" class="form-input" id="reconnect-interval" value="3000">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary btn-lg" onclick="createConnection()">🔌 创建连接</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">常用测试服务器</div>
+                        <div class="result-grid">
+                            <div class="result-item" style="cursor: pointer;" onclick="setTestUrl('wss://echo.websocket.org')">
+                                <div class="result-label">回显服务器</div>
+                                <div class="result-value">wss://echo.websocket.org</div>
+                            </div>
+                            <div class="result-item" style="cursor: pointer;" onclick="setTestUrl('wss://ws.postman-echo.com/raw')">
+                                <div class="result-label">Postman Echo</div>
+                                <div class="result-value">wss://ws.postman-echo.com/raw</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连接列表 -->
+            <div id="panel-connections" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>连接列表</h1>
+                        <p>管理所有 WebSocket 连接</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="refreshConnections()">🔄 刷新列表</button>
+                        <button class="btn btn-danger" onclick="closeAllConnections()">❌ 关闭所有</button>
+                    </div>
+                    
+                    <div id="connection-list">
+                        <div class="info-box">
+                            暂无活动连接。请先创建一个 WebSocket 连接。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 发送消息 -->
+            <div id="panel-send" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>发送消息</h1>
+                        <p>向 WebSocket 服务器发送消息</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">选择连接</label>
+                        <select class="form-select" id="send-connection">
+                            <option value="">-- 请选择连接 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">消息内容</label>
+                        <textarea class="form-textarea" id="message-content" rows="4" placeholder="输入要发送的消息..."></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">消息类型</label>
+                            <select class="form-select" id="message-type">
+                                <option value="text">文本</option>
+                                <option value="json">JSON</option>
+                                <option value="binary">二进制</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="sendMessage()">📤 发送</button>
+                        <button class="btn btn-outline" onclick="sendPing()">💓 发送 Ping</button>
+                        <button class="btn btn-outline" onclick="clearMessage()">🗑️ 清空</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">发送状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">缓冲区大小</div>
+                                <div class="result-value" id="buffered-amount">0 bytes</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">连接状态</div>
+                                <div class="result-value" id="send-conn-state">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 消息记录 -->
+            <div id="panel-receive" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>消息记录</h1>
+                        <p>查看所有收发的消息</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="demo-controls">
+                        <button class="btn btn-outline" onclick="clearMessages()">🗑️ 清空记录</button>
+                        <button class="btn btn-outline" onclick="exportMessages()">💾 导出记录</button>
+                    </div>
+                    
+                    <div class="message-container" style="grid-template-columns: 1fr;">
+                        <div class="message-box">
+                            <div class="message-header">
+                                <span>📋 消息记录</span>
+                                <span id="total-messages">0 条</span>
+                            </div>
+                            <div class="message-list" id="message-history" style="height: 400px;">
+                                <div style="color: #64748b; text-align: center; padding: 20px;">暂无消息记录</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 心跳检测 -->
+            <div id="panel-heartbeat" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>心跳检测</h1>
+                        <p>WebSocket 连接保活机制</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        心跳检测用于保持连接活跃，检测连接是否断开。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">心跳间隔 (秒)</label>
+                            <input type="number" class="form-input" id="heartbeat-interval" value="30">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">超时时间 (秒)</label>
+                            <input type="number" class="form-input" id="heartbeat-timeout" value="10">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">心跳消息</label>
+                        <input type="text" class="form-input" id="heartbeat-message" value="ping">
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startHeartbeat()">▶️ 启动心跳</button>
+                        <button class="btn btn-danger" onclick="stopHeartbeat()">⏹️ 停止心跳</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">心跳状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="heartbeat-status">未启动</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">已发送</div>
+                                <div class="result-value" id="heartbeat-sent">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">已响应</div>
+                                <div class="result-value" id="heartbeat-received">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">延迟</div>
+                                <div class="result-value" id="heartbeat-latency">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 二进制数据 -->
+            <div id="panel-binary" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>二进制数据</h1>
+                        <p>发送和接收二进制数据</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebSocket 支持发送 Blob 和 ArrayBuffer 两种二进制格式。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">选择连接</label>
+                        <select class="form-select" id="binary-connection">
+                            <option value="">-- 请选择连接 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">数据格式</label>
+                            <select class="form-select" id="binary-format">
+                                <option value="arraybuffer">ArrayBuffer</option>
+                                <option value="blob">Blob</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">十六进制数据</label>
+                            <input type="text" class="form-input" id="hex-data" placeholder="例如: 48 65 6c 6c 6f">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="sendBinaryData()">📦 发送二进制</button>
+                        <button class="btn btn-outline" onclick="generateRandomBinary()">🎲 随机数据</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">二进制统计</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">已发送</div>
+                                <div class="result-value" id="binary-sent">0 bytes</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">已接收</div>
+                                <div class="result-value" id="binary-received">0 bytes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebSocket API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">CONSTRUCTOR</span>
+                        <span class="api-signature">new WebSocket(url, protocols)</span>
+                        <p class="api-description">创建一个新的 WebSocket 连接。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">PROPERTY</span>
+                        <span class="api-signature">WebSocket.readyState</span>
+                        <p class="api-description">连接状态: CONNECTING(0), OPEN(1), CLOSING(2), CLOSED(3)</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">PROPERTY</span>
+                        <span class="api-signature">WebSocket.url</span>
+                        <p class="api-description">WebSocket 连接的 URL。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">PROPERTY</span>
+                        <span class="api-signature">WebSocket.protocol</span>
+                        <p class="api-description">服务器选择的子协议。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">PROPERTY</span>
+                        <span class="api-signature">WebSocket.binaryType</span>
+                        <p class="api-description">二进制数据类型: "blob" 或 "arraybuffer"</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">PROPERTY</span>
+                        <span class="api-signature">WebSocket.bufferedAmount</span>
+                        <p class="api-description">排队等待发送的数据字节数。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>WebSocket.send(data)</code></td><td>发送数据（文本或二进制）</td></tr>
+                            <tr><td><code>WebSocket.close(code, reason)</code></td><td>关闭连接</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">事件</h3>
+                    <table>
+                        <thead><tr><th>事件</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>onopen</code></td><td>连接建立时触发</td></tr>
+                            <tr><td><code>onmessage</code></td><td>收到消息时触发</td></tr>
+                            <tr><td><code>onerror</code></td><td>发生错误时触发</td></tr>
+                            <tr><td><code>onclose</code></td><td>连接关闭时触发</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">关闭代码</h3>
+                    <table>
+                        <thead><tr><th>代码</th><th>名称</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>1000</td><td>CLOSE_NORMAL</td><td>正常关闭</td></tr>
+                            <tr><td>1001</td><td>CLOSE_GOING_AWAY</td><td>端点离开</td></tr>
+                            <tr><td>1002</td><td>CLOSE_PROTOCOL_ERROR</td><td>协议错误</td></tr>
+                            <tr><td>1003</td><td>CLOSE_UNSUPPORTED</td><td>不支持的数据类型</td></tr>
+                            <tr><td>1006</td><td>CLOSE_ABNORMAL</td><td>异常关闭</td></tr>
+                            <tr><td>1007</td><td>Unsupported Data</td><td>数据类型不一致</td></tr>
+                            <tr><td>1008</td><td>Policy Violation</td><td>策略违规</td></tr>
+                            <tr><td>1009</td><td>CLOSE_TOO_LARGE</td><td>消息过大</td></tr>
+                            <tr><td>1010</td><td>Missing Extension</td><td>缺少扩展</td></tr>
+                            <tr><td>1011</td><td>Internal Error</td><td>内部错误</td></tr>
+                            <tr><td>1012</td><td>Service Restart</td><td>服务重启</td></tr>
+                            <tr><td>1013</td><td>Try Again Later</td><td>稍后重试</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        WebSocket 在所有现代浏览器中得到广泛支持。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var connections = {};
+        var activeConnectionId = null;
+        var sentCount = 0;
+        var receivedCount = 0;
+        var messages = [];
+        var heartbeatInterval = null;
+        var heartbeatSent = 0;
+        var heartbeatReceived = 0;
+        var binarySentBytes = 0;
+        var binaryReceivedBytes = 0;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkWSSupport();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== WebSocket 支持检测 ====================
+        function checkWSSupport() {
+            var wsSupported = 'WebSocket' in window;
+            var isSecure = window.isSecureContext;
+            
+            document.getElementById('ws-support').textContent = wsSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('ws-support').style.color = wsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('secure-context').textContent = isSecure ? '✓ 安全' : '✗ 不安全';
+            document.getElementById('secure-context').style.color = isSecure ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('binary-type').textContent = wsSupported ? 'Blob, ArrayBuffer' : '-';
+            document.getElementById('buffer-support').textContent = wsSupported ? '✓ 支持' : '-';
+            
+            document.getElementById('api-status').textContent = wsSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = wsSupported ? 'var(--success)' : 'var(--danger)';
+            
+            addLog('info', 'WebSocket 支持检测完成');
+        }
+
+        // ==================== 连接管理 ====================
+        function setTestUrl(url) {
+            document.getElementById('ws-url').value = url;
+            showToast('URL 已设置', 'success');
+        }
+
+        function createConnection() {
+            var name = document.getElementById('connection-name').value || 'Connection ' + (Object.keys(connections).length + 1);
+            var url = document.getElementById('ws-url').value.trim();
+            var protocol = document.getElementById('ws-protocol').value.trim();
+            var binaryType = document.getElementById('ws-binary-type').value;
+            var autoReconnect = document.getElementById('auto-reconnect').value === 'true';
+            var reconnectInterval = parseInt(document.getElementById('reconnect-interval').value) || 3000;
+            
+            if (!url) {
+                showToast('请输入 WebSocket URL', 'warning');
+                return;
+            }
+            
+            if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+                showToast('URL 必须以 ws:// 或 wss:// 开头', 'warning');
+                return;
+            }
+            
+            try {
+                var ws = protocol ? new WebSocket(url, protocol.split(',').map(p => p.trim())) : new WebSocket(url);
+                var id = Date.now().toString();
+                
+                ws.binaryType = binaryType;
+                
+                var conn = {
+                    id: id,
+                    name: name,
+                    url: url,
+                    ws: ws,
+                    autoReconnect: autoReconnect,
+                    reconnectInterval: reconnectInterval,
+                    reconnectAttempts: 0
+                };
+                
+                // 事件处理
+                ws.onopen = function() {
+                    conn.readyState = 'open';
+                    updateConnectionList();
+                    updateConnectionSelects();
+                    showToast('连接已建立: ' + name, 'success');
+                    addLog('ws', '连接已建立: ' + url);
+                    
+                    document.getElementById('connection-count').textContent = Object.keys(connections).filter(k => connections[k].ws.readyState === WebSocket.OPEN).length;
+                };
+                
+                ws.onmessage = function(event) {
+                    receivedCount++;
+                    document.getElementById('received-count').textContent = receivedCount;
+                    
+                    var data = event.data;
+                    var dataType = typeof data === 'string' ? 'text' : (data instanceof Blob ? 'blob' : 'arraybuffer');
+                    
+                    if (dataType !== 'text') {
+                        if (data instanceof Blob) {
+                            data.arrayBuffer().then(buffer => {
+                                binaryReceivedBytes += buffer.byteLength;
+                                document.getElementById('binary-received').textContent = binaryReceivedBytes + ' bytes';
+                            });
+                        } else {
+                            binaryReceivedBytes += data.byteLength;
+                            document.getElementById('binary-received').textContent = binaryReceivedBytes + ' bytes';
+                        }
+                    }
+                    
+                    addMessage('received', data, conn.name, dataType);
+                    
+                    // 心跳响应检测
+                    if (heartbeatInterval && data === 'pong') {
+                        heartbeatReceived++;
+                        document.getElementById('heartbeat-received').textContent = heartbeatReceived;
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    showToast('连接错误: ' + name, 'error');
+                    addLog('error', '连接错误: ' + url);
+                    addMessage('error', '连接错误', conn.name);
+                };
+                
+                ws.onclose = function(event) {
+                    conn.readyState = 'closed';
+                    updateConnectionList();
+                    updateConnectionSelects();
+                    
+                    document.getElementById('connection-count').textContent = Object.keys(connections).filter(k => connections[k].ws.readyState === WebSocket.OPEN).length;
+                    
+                    addLog('info', '连接关闭: ' + url + ' (Code: ' + event.code + ', Reason: ' + event.reason + ')');
+                    addMessage('system', '连接关闭 (Code: ' + event.code + ')', conn.name);
+                    
+                    // 自动重连
+                    if (conn.autoReconnect && event.code !== 1000) {
+                        conn.reconnectAttempts++;
+                        addLog('info', '尝试重连... (' + conn.reconnectAttempts + ')');
+                        setTimeout(function() {
+                            if (conn.autoReconnect) {
+                                reconnectConnection(conn);
+                            }
+                        }, conn.reconnectInterval);
+                    }
+                };
+                
+                connections[id] = conn;
+                activeConnectionId = id;
+                
+                updateConnectionList();
+                updateConnectionSelects();
+                
+                showToast('正在连接...', 'success');
+                addLog('ws', '创建连接: ' + url);
+                
+            } catch (e) {
+                showToast('创建连接失败: ' + e.message, 'error');
+                addLog('error', '创建连接失败: ' + e.message);
+            }
+        }
+
+        function reconnectConnection(conn) {
+            try {
+                var ws = new WebSocket(conn.url);
+                ws.binaryType = conn.ws.binaryType;
+                
+                ws.onopen = conn.ws.onopen;
+                ws.onmessage = conn.ws.onmessage;
+                ws.onerror = conn.ws.onerror;
+                ws.onclose = conn.ws.onclose;
+                
+                conn.ws = ws;
+                conn.readyState = 'connecting';
+                
+                updateConnectionList();
+                addLog('ws', '重连中: ' + conn.url);
+            } catch (e) {
+                addLog('error', '重连失败: ' + e.message);
+            }
+        }
+
+        function closeConnection(id) {
+            var conn = connections[id];
+            if (conn && conn.ws) {
+                conn.autoReconnect = false;
+                conn.ws.close(1000, 'User closed');
+                delete connections[id];
+                
+                if (activeConnectionId === id) {
+                    activeConnectionId = null;
+                }
+                
+                updateConnectionList();
+                updateConnectionSelects();
+                
+                showToast('连接已关闭', 'success');
+                addLog('info', '关闭连接: ' + conn.name);
+            }
+        }
+
+        function closeAllConnections() {
+            Object.keys(connections).forEach(function(id) {
+                closeConnection(id);
+            });
+            showToast('所有连接已关闭', 'success');
+        }
+
+        function refreshConnections() {
+            updateConnectionList();
+            updateConnectionSelects();
+            showToast('列表已刷新', 'success');
+        }
+
+        function updateConnectionList() {
+            var container = document.getElementById('connection-list');
+            
+            var activeConns = Object.keys(connections).filter(function(id) {
+                return connections[id].ws.readyState !== WebSocket.CLOSED;
+            });
+            
+            if (activeConns.length === 0) {
+                container.innerHTML = '<div class="info-box">暂无活动连接。请先创建一个 WebSocket 连接。</div>';
+                return;
+            }
+            
+            var html = '';
+            activeConns.forEach(function(id) {
+                var conn = connections[id];
+                var state = conn.ws.readyState;
+                var stateText = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][state];
+                var stateClass = state === WebSocket.OPEN ? 'connected' : state === WebSocket.CONNECTING ? 'connecting' : 'disconnected';
+                
+                html += '<div class="connection-card ' + (activeConnectionId === id ? 'active' : '') + '" onclick="selectConnection(\'' + id + '\')">';
+                html += '<div class="connection-header">';
+                html += '<div><div class="connection-name">' + conn.name + '</div>';
+                html += '<div class="connection-url">' + conn.url + '</div></div>';
+                html += '<div class="connection-status ' + stateClass + '"><span class="status-dot ' + stateClass + '"></span>' + stateText + '</div>';
+                html += '</div>';
+                html += '<div style="display: flex; gap: 8px; margin-top: 12px;">';
+                html += '<button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); closeConnection(\'' + id + '\')">❌ 关闭</button>';
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateConnectionSelects() {
+            var selects = ['send-connection', 'binary-connection'];
+            
+            selects.forEach(function(selectId) {
+                var select = document.getElementById(selectId);
+                if (!select) return;
+                
+                var currentValue = select.value;
+                select.innerHTML = '<option value="">-- 请选择连接 --</option>';
+                
+                Object.keys(connections).forEach(function(id) {
+                    var conn = connections[id];
+                    if (conn.ws.readyState === WebSocket.OPEN) {
+                        select.innerHTML += '<option value="' + id + '">' + conn.name + ' (' + conn.url + ')</option>';
+                    }
+                });
+                
+                if (connections[currentValue] && connections[currentValue].ws.readyState === WebSocket.OPEN) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        function selectConnection(id) {
+            activeConnectionId = id;
+            updateConnectionList();
+            var conn = connections[id];
+            if (conn) {
+                showToast('已选择: ' + conn.name, 'success');
+            }
+        }
+
+        // ==================== 消息发送 ====================
+        function sendMessage() {
+            var connId = document.getElementById('send-connection').value;
+            if (!connId) {
+                showToast('请选择连接', 'warning');
+                return;
+            }
+            
+            var conn = connections[connId];
+            if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+                showToast('连接未打开', 'error');
+                return;
+            }
+            
+            var content = document.getElementById('message-content').value;
+            var type = document.getElementById('message-type').value;
+            
+            if (!content) {
+                showToast('请输入消息内容', 'warning');
+                return;
+            }
+            
+            try {
+                var data;
+                if (type === 'json') {
+                    data = JSON.stringify(JSON.parse(content));
+                } else {
+                    data = content;
+                }
+                
+                conn.ws.send(data);
+                
+                sentCount++;
+                document.getElementById('sent-count').textContent = sentCount;
+                document.getElementById('buffered-amount').textContent = conn.ws.bufferedAmount + ' bytes';
+                document.getElementById('send-conn-state').textContent = 'OPEN';
+                
+                addMessage('sent', data, conn.name, type);
+                showToast('消息已发送', 'success');
+                addLog('ws', '发送消息: ' + data.substring(0, 50) + (data.length > 50 ? '...' : ''));
+                
+            } catch (e) {
+                showToast('发送失败: ' + e.message, 'error');
+                addLog('error', '发送失败: ' + e.message);
+            }
+        }
+
+        function sendPing() {
+            var connId = document.getElementById('send-connection').value;
+            if (!connId) {
+                showToast('请选择连接', 'warning');
+                return;
+            }
+            
+            var conn = connections[connId];
+            if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+                showToast('连接未打开', 'error');
+                return;
+            }
+            
+            conn.ws.send('ping');
+            addMessage('sent', 'ping', conn.name, 'text');
+            showToast('Ping 已发送', 'success');
+        }
+
+        function clearMessage() {
+            document.getElementById('message-content').value = '';
+            showToast('已清空', 'success');
+        }
+
+        // ==================== 消息记录 ====================
+        function addMessage(type, content, connName, dataType) {
+            dataType = dataType || 'text';
+            
+            var msg = {
+                type: type,
+                content: content,
+                connection: connName,
+                dataType: dataType,
+                time: new Date()
+            };
+            
+            messages.unshift(msg);
+            if (messages.length > 100) messages.pop();
+            
+            document.getElementById('total-messages').textContent = messages.length + ' 条';
+            
+            updateMessageHistory();
+            updateDemoMessages(msg);
+        }
+
+        function updateMessageHistory() {
+            var container = document.getElementById('message-history');
+            
+            if (messages.length === 0) {
+                container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">暂无消息记录</div>';
+                return;
+            }
+            
+            var html = '';
+            messages.slice(0, 50).forEach(function(msg) {
+                var time = msg.time.toLocaleTimeString();
+                var content = typeof msg.content === 'string' ? msg.content : '[二进制数据]';
+                if (content.length > 200) content = content.substring(0, 200) + '...';
+                
+                html += '<div class="message-item ' + msg.type + '">';
+                html += '<div class="message-time">' + time + ' [' + msg.connection + '] ' + msg.dataType + '</div>';
+                html += '<div class="message-content">' + escapeHtml(content) + '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateDemoMessages(msg) {
+            if (msg.type === 'sent') {
+                var sentList = document.getElementById('demo-sent-list');
+                var count = document.getElementById('demo-sent-count');
+                count.textContent = parseInt(count.textContent) + 1;
+                
+                var html = '<div class="message-item sent">';
+                html += '<div class="message-time">' + msg.time.toLocaleTimeString() + '</div>';
+                html += '<div class="message-content">' + escapeHtml(msg.content) + '</div>';
+                html += '</div>';
+                
+                if (sentList.querySelector('div[style]')) {
+                    sentList.innerHTML = '';
+                }
+                sentList.innerHTML = html + sentList.innerHTML;
+            } else if (msg.type === 'received') {
+                var receivedList = document.getElementById('demo-received-list');
+                var count = document.getElementById('demo-received-count');
+                count.textContent = parseInt(count.textContent) + 1;
+                
+                var html = '<div class="message-item received">';
+                html += '<div class="message-time">' + msg.time.toLocaleTimeString() + '</div>';
+                html += '<div class="message-content">' + escapeHtml(msg.content) + '</div>';
+                html += '</div>';
+                
+                if (receivedList.querySelector('div[style]')) {
+                    receivedList.innerHTML = '';
+                }
+                receivedList.innerHTML = html + receivedList.innerHTML;
+            }
+        }
+
+        function clearMessages() {
+            messages = [];
+            updateMessageHistory();
+            document.getElementById('demo-sent-list').innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">等待发送...</div>';
+            document.getElementById('demo-received-list').innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">等待接收...</div>';
+            document.getElementById('demo-sent-count').textContent = '0';
+            document.getElementById('demo-received-count').textContent = '0';
+            showToast('消息已清空', 'success');
+        }
+
+        function exportMessages() {
+            if (messages.length === 0) {
+                showToast('没有消息可导出', 'warning');
+                return;
+            }
+            
+            var data = JSON.stringify(messages, null, 2);
+            var blob = new Blob([data], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'websocket-messages-' + new Date().toISOString().split('T')[0] + '.json';
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showToast('消息已导出', 'success');
+        }
+
+        // ==================== 心跳检测 ====================
+        function startHeartbeat() {
+            if (heartbeatInterval) {
+                showToast('心跳已在运行', 'warning');
+                return;
+            }
+            
+            var interval = parseInt(document.getElementById('heartbeat-interval').value) * 1000;
+            var message = document.getElementById('heartbeat-message').value;
+            
+            heartbeatSent = 0;
+            heartbeatReceived = 0;
+            document.getElementById('heartbeat-sent').textContent = '0';
+            document.getElementById('heartbeat-received').textContent = '0';
+            document.getElementById('heartbeat-status').textContent = '运行中';
+            document.getElementById('heartbeat-status').style.color = 'var(--success)';
+            
+            heartbeatInterval = setInterval(function() {
+                var connId = activeConnectionId || Object.keys(connections)[0];
+                if (!connId) return;
+                
+                var conn = connections[connId];
+                if (conn && conn.ws.readyState === WebSocket.OPEN) {
+                    conn.ws.send(message);
+                    heartbeatSent++;
+                    document.getElementById('heartbeat-sent').textContent = heartbeatSent;
+                    addLog('ws', '心跳发送: ' + message);
+                }
+            }, interval);
+            
+            showToast('心跳已启动', 'success');
+            addLog('info', '启动心跳检测');
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+                
+                document.getElementById('heartbeat-status').textContent = '已停止';
+                document.getElementById('heartbeat-status').style.color = 'var(--danger)';
+                
+                showToast('心跳已停止', 'success');
+                addLog('info', '停止心跳检测');
+            }
+        }
+
+        // ==================== 二进制数据 ====================
+        function sendBinaryData() {
+            var connId = document.getElementById('binary-connection').value;
+            if (!connId) {
+                showToast('请选择连接', 'warning');
+                return;
+            }
+            
+            var conn = connections[connId];
+            if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+                showToast('连接未打开', 'error');
+                return;
+            }
+            
+            var hexData = document.getElementById('hex-data').value.trim();
+            var format = document.getElementById('binary-format').value;
+            
+            if (!hexData) {
+                showToast('请输入十六进制数据', 'warning');
+                return;
+            }
+            
+            try {
+                var bytes = hexData.split(/\s+/).map(function(h) {
+                    return parseInt(h, 16);
+                });
+                
+                var buffer = new Uint8Array(bytes).buffer;
+                
+                if (format === 'blob') {
+                    var blob = new Blob([buffer]);
+                    conn.ws.send(blob);
+                } else {
+                    conn.ws.send(buffer);
+                }
+                
+                binarySentBytes += buffer.byteLength;
+                document.getElementById('binary-sent').textContent = binarySentBytes + ' bytes';
+                
+                sentCount++;
+                document.getElementById('sent-count').textContent = sentCount;
+                
+                addMessage('sent', '[二进制: ' + buffer.byteLength + ' bytes]', conn.name, format);
+                showToast('二进制数据已发送', 'success');
+                addLog('ws', '发送二进制数据: ' + buffer.byteLength + ' bytes');
+                
+            } catch (e) {
+                showToast('发送失败: ' + e.message, 'error');
+            }
+        }
+
+        function generateRandomBinary() {
+            var bytes = [];
+            for (var i = 0; i < 16; i++) {
+                bytes.push(Math.floor(Math.random() * 256).toString(16).padStart(2, '0'));
+            }
+            document.getElementById('hex-data').value = bytes.join(' ');
+            showToast('随机数据已生成', 'success');
+        }
+
+        // ==================== 快速演示 ====================
+        async function quickConnect() {
+            document.getElementById('ws-url').value = 'wss://echo.websocket.org';
+            document.getElementById('connection-name').value = 'Echo Server';
+            createConnection();
+        }
+
+        async function testEchoServer() {
+            if (Object.keys(connections).length === 0) {
+                await quickConnect();
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            var connId = Object.keys(connections)[0];
+            if (!connId) return;
+            
+            var conn = connections[connId];
+            if (conn && conn.ws.readyState === WebSocket.OPEN) {
+                var testMsg = 'Hello WebSocket! ' + new Date().toLocaleTimeString();
+                conn.ws.send(testMsg);
+                
+                sentCount++;
+                document.getElementById('sent-count').textContent = sentCount;
+                
+                addMessage('sent', testMsg, conn.name, 'text');
+                showToast('测试消息已发送', 'success');
+            }
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>

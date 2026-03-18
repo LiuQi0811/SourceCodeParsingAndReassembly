@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #dc2626;
+            --primary-dark: #b91c1c;
+            --secondary: #f87171;
+            --accent: #fca5a5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fef2f2;
+            --bg-card: #ffffff;
+            --border: #fecaca;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fef2f2;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #450a0a;
+                --bg-card: #7f1d1d;
+                --border: #991b1b;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(220, 38, 38, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(220, 38, 38, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+        
+        .video-box {
+            background: #000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            position: relative;
+        }
+        
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .video-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        
+        .device-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .device-select select {
+            flex: 1;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .connection-status.disconnected { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .connection-status.connecting { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.connected { background: var(--success); }
+        .status-dot.disconnected { background: var(--danger); }
+        .status-dot.connecting { background: var(--warning); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .ice-candidates {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+        }
+        
+        .ice-candidate {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sdp-display {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .api-block {
+            background: rgba(220, 38, 38, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(220, 38, 38, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.rtc { background: rgba(220, 38, 38, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .info-box {
+            background: rgba(220, 38, 38, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        @media (max-width: 1024px) { 
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .video-container { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .device-select { flex-direction: column; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">📹</div>
+            <div class="logo-text">WebRTC <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkRTCSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">媒体设备</div>
+                    <div class="nav-item" data-tab="media" onclick="switchTab('media')">
+                        <span class="nav-icon">📷</span><span>摄像头/麦克风</span>
+                    </div>
+                    <div class="nav-item" data-tab="screen" onclick="switchTab('screen')">
+                        <span class="nav-icon">🖥️</span><span>屏幕共享</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">连接</div>
+                    <div class="nav-item" data-tab="peer" onclick="switchTab('peer')">
+                        <span class="nav-icon">🔗</span><span>PeerConnection</span>
+                    </div>
+                    <div class="nav-item" data-tab="ice" onclick="switchTab('ice')">
+                        <span class="nav-icon">❄️</span><span>ICE 候选</span>
+                    </div>
+                    <div class="nav-item" data-tab="sdp" onclick="switchTab('sdp')">
+                        <span class="nav-icon">📝</span><span>SDP 协商</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">数据</div>
+                    <div class="nav-item" data-tab="datachannel" onclick="switchTab('datachannel')">
+                        <span class="nav-icon">💬</span><span>数据通道</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebRTC API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">📹</div>
+                        <div class="stat-value" id="stream-count">0</div>
+                        <div class="stat-label">媒体流</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔗</div>
+                        <div class="stat-value" id="connection-count">0</div>
+                        <div class="stat-label">连接数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">❄️</div>
+                        <div class="stat-value" id="ice-count">0</div>
+                        <div class="stat-label">ICE 候选</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebRTC 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">RTCPeerConnection</div>
+                                            <div class="result-value" id="rtc-peer-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">getUserMedia</div>
+                                            <div class="result-value" id="getusermedia-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">getDisplayMedia</div>
+                                            <div class="result-value" id="getdisplaymedia-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">RTCDataChannel</div>
+                                            <div class="result-value" id="datachannel-support">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">设备信息</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">摄像头</div>
+                                            <div class="result-value" id="camera-count">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">麦克风</div>
+                                            <div class="result-value" id="mic-count">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">扬声器</div>
+                                            <div class="result-value" id="speaker-count">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">编解码器</div>
+                                            <div class="result-value" id="codec-support">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebRTC 支持浏览器之间的实时音视频通信和数据传输。
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="startMediaDemo()">📹 开始媒体演示</button>
+                            <button class="btn btn-success btn-lg" onclick="startConnectionDemo()">🔗 开始连接演示</button>
+                        </div>
+                        
+                        <div class="video-container">
+                            <div class="video-box">
+                                <video id="local-video" autoplay muted playsinline></video>
+                                <div class="video-label">本地视频</div>
+                            </div>
+                            <div class="video-box">
+                                <video id="remote-video" autoplay playsinline></video>
+                                <div class="video-label">远程视频</div>
+                            </div>
+                        </div>
+                        
+                        <div class="video-controls">
+                            <button class="btn btn-primary" id="btn-toggle-video" onclick="toggleVideo()">📹 视频</button>
+                            <button class="btn btn-success" id="btn-toggle-audio" onclick="toggleAudio()">🎤 音频</button>
+                            <button class="btn btn-danger" onclick="stopAllStreams()">⏹️ 停止</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 摄像头/麦克风 -->
+            <div id="panel-media" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>摄像头/麦克风</h1>
+                        <p>访问用户的摄像头和麦克风设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        使用 <code>navigator.mediaDevices.getUserMedia()</code> 获取媒体流。
+                    </div>
+                    
+                    <div class="device-select">
+                        <select class="form-select" id="video-device">
+                            <option value="">选择摄像头</option>
+                        </select>
+                        <select class="form-select" id="audio-device">
+                            <option value="">选择麦克风</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">视频分辨率</label>
+                            <select class="form-select" id="video-resolution">
+                                <option value="1920x1080">1920x1080 (Full HD)</option>
+                                <option value="1280x720" selected>1280x720 (HD)</option>
+                                <option value="640x480">640x480 (VGA)</option>
+                                <option value="320x240">320x240 (QVGA)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">帧率</label>
+                            <select class="form-select" id="video-framerate">
+                                <option value="30" selected>30 fps</option>
+                                <option value="24">24 fps</option>
+                                <option value="15">15 fps</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startCamera()">📹 开启摄像头</button>
+                        <button class="btn btn-success" onclick="startMicrophone()">🎤 开启麦克风</button>
+                        <button class="btn btn-outline" onclick="startBoth()">📷 开启全部</button>
+                        <button class="btn btn-danger" onclick="stopMediaStream()">⏹️ 停止</button>
+                    </div>
+                    
+                    <div class="video-container" style="grid-template-columns: 1fr;">
+                        <div class="video-box">
+                            <video id="media-video" autoplay muted playsinline></video>
+                            <div class="video-label">预览</div>
+                        </div>
+                    </div>
+                    
+                    <div id="media-info" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">媒体轨道信息</div>
+                            <div id="media-info-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 屏幕共享 -->
+            <div id="panel-screen" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>屏幕共享</h1>
+                        <p>捕获屏幕、窗口或标签页</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        使用 <code>navigator.mediaDevices.getDisplayMedia()</code> 进行屏幕共享。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">共享类型</label>
+                            <select class="form-select" id="share-type">
+                                <option value="screen">整个屏幕</option>
+                                <option value="window">窗口</option>
+                                <option value="browser">标签页</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">包含音频</label>
+                            <select class="form-select" id="share-audio">
+                                <option value="false">否</option>
+                                <option value="true">是</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary btn-lg" onclick="startScreenShare()">🖥️ 开始屏幕共享</button>
+                        <button class="btn btn-danger" onclick="stopScreenShare()">⏹️ 停止共享</button>
+                    </div>
+                    
+                    <div class="video-container" style="grid-template-columns: 1fr;">
+                        <div class="video-box">
+                            <video id="screen-video" autoplay muted playsinline></video>
+                            <div class="video-label">屏幕共享</div>
+                        </div>
+                    </div>
+                    
+                    <div id="screen-info" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">共享信息</div>
+                            <div id="screen-info-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PeerConnection -->
+            <div id="panel-peer" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>PeerConnection</h1>
+                        <p>WebRTC 点对点连接</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        RTCPeerConnection 用于建立点对点连接，支持音视频和数据传输。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">ICE 服务器</label>
+                            <select class="form-select" id="ice-server">
+                                <option value="stun:stun.l.google.com:19302">Google STUN</option>
+                                <option value="stun:stun1.l.google.com:19302">Google STUN 2</option>
+                                <option value="none">无 (本地测试)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">连接模式</label>
+                            <select class="form-select" id="connection-mode">
+                                <option value="local">本地回环</option>
+                                <option value="manual">手动信令</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createPeerConnection()">🔗 创建连接</button>
+                        <button class="btn btn-success" onclick="createOffer()">📤 创建 Offer</button>
+                        <button class="btn btn-outline" onclick="createAnswer()">📥 创建 Answer</button>
+                        <button class="btn btn-danger" onclick="closePeerConnection()">❌ 关闭连接</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">连接状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">连接状态</div>
+                                <div class="result-value" id="connection-state">未连接</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">ICE 连接状态</div>
+                                <div class="result-value" id="ice-connection-state">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">ICE 收集状态</div>
+                                <div class="result-value" id="ice-gathering-state">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">信令状态</div>
+                                <div class="result-value" id="signaling-state">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ICE 候选 -->
+            <div id="panel-ice" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>ICE 候选</h1>
+                        <p>Interactive Connectivity Establishment</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        ICE 候选描述了 WebRTC 可以使用的连接方法。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="gatherICECandidates()">❄️ 收集 ICE 候选</button>
+                        <button class="btn btn-outline" onclick="clearICECandidates()">🗑️ 清空</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">ICE 候选列表</div>
+                        <div class="ice-candidates" id="ice-candidates-list">
+                            <div style="color: var(--text-muted);">等待收集...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">候选统计</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">Host 候选</div>
+                                <div class="result-value" id="host-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">SRFLX 候选</div>
+                                <div class="result-value" id="srflx-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">Relay 候选</div>
+                                <div class="result-value" id="relay-count">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">总计</div>
+                                <div class="result-value" id="total-ice-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SDP 协商 -->
+            <div id="panel-sdp" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>SDP 协商</h1>
+                        <p>Session Description Protocol</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        SDP 描述了会话的媒体能力和配置信息。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">远程 SDP (粘贴对方的 SDP)</label>
+                        <textarea class="form-textarea" id="remote-sdp" rows="4" placeholder="粘贴远程 SDP..."></textarea>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="generateLocalSDP()">📝 生成本地 SDP</button>
+                        <button class="btn btn-success" onclick="setRemoteSDP()">✅ 设置远程 SDP</button>
+                        <button class="btn btn-outline" onclick="copyLocalSDP()">📋 复制本地 SDP</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">本地 SDP</div>
+                        <div class="sdp-display" id="local-sdp-display">等待生成...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据通道 -->
+            <div id="panel-datachannel" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>数据通道</h1>
+                        <p>RTCDataChannel 点对点数据传输</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        数据通道支持低延迟的点对点数据传输，可用于聊天、文件传输等。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">通道名称</label>
+                            <input type="text" class="form-input" id="channel-name" value="dataChannel">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">有序传输</label>
+                            <select class="form-select" id="ordered-mode">
+                                <option value="true">有序</option>
+                                <option value="false">无序</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createDataChannel()">💬 创建数据通道</button>
+                        <button class="btn btn-success" onclick="sendDataMessage()">📤 发送消息</button>
+                        <button class="btn btn-danger" onclick="closeDataChannel()">❌ 关闭通道</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">消息</label>
+                        <input type="text" class="form-input" id="data-message" placeholder="输入要发送的消息">
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">数据通道状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="datachannel-state">未创建</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">消息数</div>
+                                <div class="result-value" id="message-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">消息日志</div>
+                        <div class="log-container" id="datachannel-log">
+                            <div class="log-entry">等待消息...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebRTC API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">RTCPeerConnection</span>
+                        <p class="api-description">WebRTC 连接的核心接口，用于建立点对点连接。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">MediaStream</span>
+                        <p class="api-description">媒体流，包含音频和/或视频轨道。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">MediaStreamTrack</span>
+                        <p class="api-description">单个媒体轨道（音频或视频）。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">RTCSessionDescription</span>
+                        <p class="api-description">会话描述，包含 SDP 信息。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">RTCIceCandidate</span>
+                        <p class="api-description">ICE 候选，描述可能的连接方法。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">RTCDataChannel</span>
+                        <p class="api-description">数据通道，用于点对点数据传输。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.mediaDevices.getUserMedia()</code></td><td>获取用户媒体</td></tr>
+                            <tr><td><code>navigator.mediaDevices.getDisplayMedia()</code></td><td>获取屏幕共享</td></tr>
+                            <tr><td><code>navigator.mediaDevices.enumerateDevices()</code></td><td>枚举设备</td></tr>
+                            <tr><td><code>new RTCPeerConnection()</code></td><td>创建连接</td></tr>
+                            <tr><td><code>peerConnection.createOffer()</code></td><td>创建 Offer</td></tr>
+                            <tr><td><code>peerConnection.createAnswer()</code></td><td>创建 Answer</td></tr>
+                            <tr><td><code>peerConnection.setLocalDescription()</code></td><td>设置本地描述</td></tr>
+                            <tr><td><code>peerConnection.setRemoteDescription()</code></td><td>设置远程描述</td></tr>
+                            <tr><td><code>peerConnection.addIceCandidate()</code></td><td>添加 ICE 候选</td></tr>
+                            <tr><td><code>peerConnection.createDataChannel()</code></td><td>创建数据通道</td></tr>
+                            <tr><td><code>peerConnection.addTrack()</code></td><td>添加媒体轨道</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        WebRTC 在所有现代浏览器中得到广泛支持。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var streamCount = 0;
+        var connectionCount = 0;
+        var iceCount = 0;
+        var messageCount = 0;
+        
+        var localStream = null;
+        var screenStream = null;
+        var peerConnection = null;
+        var dataChannel = null;
+        var localSDP = null;
+        var iceCandidates = [];
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkRTCSupport();
+            enumerateDevices();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== WebRTC 支持检测 ====================
+        function checkRTCSupport() {
+            var peerSupport = 'RTCPeerConnection' in window;
+            var getUserMediaSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            var getDisplayMediaSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+            var dataChannelSupport = 'RTCDataChannel' in window;
+            
+            document.getElementById('rtc-peer-support').textContent = peerSupport ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('rtc-peer-support').style.color = peerSupport ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('getusermedia-support').textContent = getUserMediaSupport ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('getusermedia-support').style.color = getUserMediaSupport ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('getdisplaymedia-support').textContent = getDisplayMediaSupport ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('getdisplaymedia-support').style.color = getDisplayMediaSupport ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('datachannel-support').textContent = dataChannelSupport ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('datachannel-support').style.color = dataChannelSupport ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = peerSupport ? '✓' : '✗';
+            document.getElementById('api-status').style.color = peerSupport ? 'var(--success)' : 'var(--danger)';
+            
+            addLog('info', 'WebRTC 支持检测完成');
+        }
+
+        // ==================== 枚举设备 ====================
+        async function enumerateDevices() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                document.getElementById('camera-count').textContent = '不支持';
+                document.getElementById('mic-count').textContent = '不支持';
+                document.getElementById('speaker-count').textContent = '不支持';
+                return;
+            }
+            
+            try {
+                var devices = await navigator.mediaDevices.enumerateDevices();
+                
+                var videoDevices = devices.filter(d => d.kind === 'videoinput');
+                var audioDevices = devices.filter(d => d.kind === 'audioinput');
+                var speakerDevices = devices.filter(d => d.kind === 'audiooutput');
+                
+                document.getElementById('camera-count').textContent = videoDevices.length;
+                document.getElementById('mic-count').textContent = audioDevices.length;
+                document.getElementById('speaker-count').textContent = speakerDevices.length;
+                document.getElementById('codec-support').textContent = 'VP8/H.264';
+                
+                // 填充设备选择
+                var videoSelect = document.getElementById('video-device');
+                var audioSelect = document.getElementById('audio-device');
+                
+                videoSelect.innerHTML = '<option value="">选择摄像头</option>';
+                audioSelect.innerHTML = '<option value="">选择麦克风</option>';
+                
+                videoDevices.forEach(function(device) {
+                    videoSelect.innerHTML += '<option value="' + device.deviceId + '">' + (device.label || 'Camera ' + device.deviceId.substr(0, 8)) + '</option>';
+                });
+                
+                audioDevices.forEach(function(device) {
+                    audioSelect.innerHTML += '<option value="' + device.deviceId + '">' + (device.label || 'Mic ' + device.deviceId.substr(0, 8)) + '</option>';
+                });
+                
+                addLog('info', '枚举设备: ' + devices.length + ' 个');
+            } catch (e) {
+                addLog('error', '枚举设备失败: ' + e.message);
+            }
+        }
+
+        // ==================== 媒体设备 ====================
+        async function startCamera() {
+            try {
+                var resolution = document.getElementById('video-resolution').value.split('x');
+                var framerate = parseInt(document.getElementById('video-framerate').value);
+                var videoDeviceId = document.getElementById('video-device').value;
+                
+                var constraints = {
+                    video: {
+                        width: { ideal: parseInt(resolution[0]) },
+                        height: { ideal: parseInt(resolution[1]) },
+                        frameRate: { ideal: framerate }
+                    },
+                    audio: false
+                };
+                
+                if (videoDeviceId) {
+                    constraints.video.deviceId = { exact: videoDeviceId };
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                var video = document.getElementById('media-video');
+                video.srcObject = localStream;
+                
+                streamCount++;
+                document.getElementById('stream-count').textContent = streamCount;
+                
+                showMediaInfo(localStream);
+                showToast('摄像头已开启', 'success');
+                addLog('rtc', '开启摄像头成功');
+                
+            } catch (e) {
+                showToast('无法访问摄像头: ' + e.message, 'error');
+                addLog('error', '摄像头访问失败: ' + e.message);
+            }
+        }
+
+        async function startMicrophone() {
+            try {
+                var audioDeviceId = document.getElementById('audio-device').value;
+                
+                var constraints = {
+                    video: false,
+                    audio: true
+                };
+                
+                if (audioDeviceId) {
+                    constraints.audio = { deviceId: { exact: audioDeviceId } };
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                streamCount++;
+                document.getElementById('stream-count').textContent = streamCount;
+                
+                showMediaInfo(localStream);
+                showToast('麦克风已开启', 'success');
+                addLog('rtc', '开启麦克风成功');
+                
+            } catch (e) {
+                showToast('无法访问麦克风: ' + e.message, 'error');
+                addLog('error', '麦克风访问失败: ' + e.message);
+            }
+        }
+
+        async function startBoth() {
+            try {
+                var resolution = document.getElementById('video-resolution').value.split('x');
+                var framerate = parseInt(document.getElementById('video-framerate').value);
+                var videoDeviceId = document.getElementById('video-device').value;
+                var audioDeviceId = document.getElementById('audio-device').value;
+                
+                var constraints = {
+                    video: {
+                        width: { ideal: parseInt(resolution[0]) },
+                        height: { ideal: parseInt(resolution[1]) },
+                        frameRate: { ideal: framerate }
+                    },
+                    audio: true
+                };
+                
+                if (videoDeviceId) {
+                    constraints.video.deviceId = { exact: videoDeviceId };
+                }
+                if (audioDeviceId) {
+                    constraints.audio = { deviceId: { exact: audioDeviceId } };
+                }
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                var video = document.getElementById('media-video');
+                video.srcObject = localStream;
+                
+                streamCount++;
+                document.getElementById('stream-count').textContent = streamCount;
+                
+                showMediaInfo(localStream);
+                showToast('摄像头和麦克风已开启', 'success');
+                addLog('rtc', '开启摄像头和麦克风成功');
+                
+            } catch (e) {
+                showToast('无法访问设备: ' + e.message, 'error');
+                addLog('error', '设备访问失败: ' + e.message);
+            }
+        }
+
+        function stopMediaStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            var video = document.getElementById('media-video');
+            video.srcObject = null;
+            
+            document.getElementById('media-info').style.display = 'none';
+            showToast('媒体已停止', 'success');
+            addLog('info', '停止媒体流');
+        }
+
+        function showMediaInfo(stream) {
+            document.getElementById('media-info').style.display = 'block';
+            
+            var html = '<div class="result-grid">';
+            
+            stream.getTracks().forEach(function(track, i) {
+                var settings = track.getSettings();
+                html += '<div class="result-item">';
+                html += '<div class="result-label">轨道 ' + (i + 1) + '</div>';
+                html += '<div class="result-value">' + track.kind + ' (' + track.label + ')</div>';
+                html += '</div>';
+                
+                if (track.kind === 'video') {
+                    html += '<div class="result-item">';
+                    html += '<div class="result-label">分辨率</div>';
+                    html += '<div class="result-value">' + (settings.width || '-') + 'x' + (settings.height || '-') + '</div>';
+                    html += '</div>';
+                    html += '<div class="result-item">';
+                    html += '<div class="result-label">帧率</div>';
+                    html += '<div class="result-value">' + (settings.frameRate || '-') + ' fps</div>';
+                    html += '</div>';
+                }
+            });
+            
+            html += '</div>';
+            document.getElementById('media-info-content').innerHTML = html;
+        }
+
+        // ==================== 屏幕共享 ====================
+        async function startScreenShare() {
+            try {
+                var includeAudio = document.getElementById('share-audio').value === 'true';
+                
+                var constraints = {
+                    video: true,
+                    audio: includeAudio
+                };
+                
+                screenStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+                
+                var video = document.getElementById('screen-video');
+                video.srcObject = screenStream;
+                
+                // 监听结束事件
+                screenStream.getVideoTracks()[0].onended = function() {
+                    stopScreenShare();
+                };
+                
+                streamCount++;
+                document.getElementById('stream-count').textContent = streamCount;
+                
+                showScreenInfo(screenStream);
+                showToast('屏幕共享已开始', 'success');
+                addLog('rtc', '开始屏幕共享');
+                
+            } catch (e) {
+                if (e.name === 'NotAllowedError') {
+                    showToast('用户取消了屏幕共享', 'warning');
+                } else {
+                    showToast('屏幕共享失败: ' + e.message, 'error');
+                }
+                addLog('error', '屏幕共享失败: ' + e.message);
+            }
+        }
+
+        function stopScreenShare() {
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
+            
+            var video = document.getElementById('screen-video');
+            video.srcObject = null;
+            
+            document.getElementById('screen-info').style.display = 'none';
+            showToast('屏幕共享已停止', 'success');
+            addLog('info', '停止屏幕共享');
+        }
+
+        function showScreenInfo(stream) {
+            document.getElementById('screen-info').style.display = 'block';
+            
+            var videoTrack = stream.getVideoTracks()[0];
+            var settings = videoTrack.getSettings();
+            
+            var html = '<div class="result-grid">';
+            html += '<div class="result-item"><div class="result-label">类型</div><div class="result-value">' + (settings.displaySurface || 'screen') + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">分辨率</div><div class="result-value">' + settings.width + 'x' + settings.height + '</div></div>';
+            html += '<div class="result-item"><div class="result-label">帧率</div><div class="result-value">' + (settings.frameRate || '-') + ' fps</div></div>';
+            html += '<div class="result-item"><div class="result-label">音频</div><div class="result-value">' + (stream.getAudioTracks().length > 0 ? '是' : '否') + '</div></div>';
+            html += '</div>';
+            
+            document.getElementById('screen-info-content').innerHTML = html;
+        }
+
+        // ==================== PeerConnection ====================
+        function createPeerConnection() {
+            if (peerConnection) {
+                closePeerConnection();
+            }
+            
+            var iceServer = document.getElementById('ice-server').value;
+            var config = {};
+            
+            if (iceServer !== 'none') {
+                config.iceServers = [{ urls: iceServer }];
+            }
+            
+            peerConnection = new RTCPeerConnection(config);
+            
+            // 监听事件
+            peerConnection.onconnectionstatechange = function() {
+                document.getElementById('connection-state').textContent = peerConnection.connectionState;
+                addLog('rtc', '连接状态: ' + peerConnection.connectionState);
+            };
+            
+            peerConnection.oniceconnectionstatechange = function() {
+                document.getElementById('ice-connection-state').textContent = peerConnection.iceConnectionState;
+            };
+            
+            peerConnection.onicegatheringstatechange = function() {
+                document.getElementById('ice-gathering-state').textContent = peerConnection.iceGatheringState;
+            };
+            
+            peerConnection.onsignalingstatechange = function() {
+                document.getElementById('signaling-state').textContent = peerConnection.signalingState;
+            };
+            
+            peerConnection.onicecandidate = function(event) {
+                if (event.candidate) {
+                    iceCandidates.push(event.candidate);
+                    iceCount++;
+                    document.getElementById('ice-count').textContent = iceCount;
+                    addICECandidateToList(event.candidate);
+                }
+            };
+            
+            peerConnection.ondatachannel = function(event) {
+                dataChannel = event.channel;
+                setupDataChannelEvents();
+                showToast('收到数据通道', 'success');
+            };
+            
+            peerConnection.ontrack = function(event) {
+                var remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+            
+            connectionCount++;
+            document.getElementById('connection-count').textContent = connectionCount;
+            
+            document.getElementById('connection-state').textContent = 'new';
+            document.getElementById('ice-connection-state').textContent = 'new';
+            document.getElementById('signaling-state').textContent = 'stable';
+            
+            showToast('PeerConnection 已创建', 'success');
+            addLog('rtc', '创建 PeerConnection');
+        }
+
+        async function createOffer() {
+            if (!peerConnection) {
+                showToast('请先创建连接', 'warning');
+                return;
+            }
+            
+            try {
+                var offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                localSDP = offer.sdp;
+                document.getElementById('local-sdp-display').textContent = offer.sdp;
+                
+                showToast('Offer 已创建', 'success');
+                addLog('rtc', '创建 Offer');
+                
+            } catch (e) {
+                showToast('创建 Offer 失败: ' + e.message, 'error');
+                addLog('error', '创建 Offer 失败: ' + e.message);
+            }
+        }
+
+        async function createAnswer() {
+            if (!peerConnection) {
+                showToast('请先创建连接', 'warning');
+                return;
+            }
+            
+            try {
+                var answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                localSDP = answer.sdp;
+                document.getElementById('local-sdp-display').textContent = answer.sdp;
+                
+                showToast('Answer 已创建', 'success');
+                addLog('rtc', '创建 Answer');
+                
+            } catch (e) {
+                showToast('创建 Answer 失败: ' + e.message, 'error');
+                addLog('error', '创建 Answer 失败: ' + e.message);
+            }
+        }
+
+        function closePeerConnection() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            document.getElementById('connection-state').textContent = 'closed';
+            showToast('连接已关闭', 'success');
+            addLog('info', '关闭 PeerConnection');
+        }
+
+        // ==================== ICE 候选 ====================
+        async function gatherICECandidates() {
+            if (!peerConnection) {
+                createPeerConnection();
+            }
+            
+            try {
+                var offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                showToast('ICE 候选收集中...', 'success');
+                addLog('rtc', '开始收集 ICE 候选');
+                
+            } catch (e) {
+                showToast('收集失败: ' + e.message, 'error');
+            }
+        }
+
+        function addICECandidateToList(candidate) {
+            var list = document.getElementById('ice-candidates-list');
+            
+            var type = candidate.candidate.split(' ')[7];
+            var hostCount = iceCandidates.filter(c => c.candidate.includes(' host ')).length;
+            var srflxCount = iceCandidates.filter(c => c.candidate.includes(' srflx ')).length;
+            var relayCount = iceCandidates.filter(c => c.candidate.includes(' relay ')).length;
+            
+            document.getElementById('host-count').textContent = hostCount;
+            document.getElementById('srflx-count').textContent = srflxCount;
+            document.getElementById('relay-count').textContent = relayCount;
+            document.getElementById('total-ice-count').textContent = iceCandidates.length;
+            
+            var html = '<div class="ice-candidate">';
+            html += '<strong>[' + type + ']</strong> ';
+            html += candidate.candidate.substring(0, 100) + '...';
+            html += '</div>';
+            
+            if (iceCandidates.length === 1) {
+                list.innerHTML = html;
+            } else {
+                list.innerHTML = html + list.innerHTML;
+            }
+        }
+
+        function clearICECandidates() {
+            iceCandidates = [];
+            document.getElementById('ice-candidates-list').innerHTML = '<div style="color: var(--text-muted);">等待收集...</div>';
+            document.getElementById('host-count').textContent = '0';
+            document.getElementById('srflx-count').textContent = '0';
+            document.getElementById('relay-count').textContent = '0';
+            document.getElementById('total-ice-count').textContent = '0';
+            showToast('已清空', 'success');
+        }
+
+        // ==================== SDP 协商 ====================
+        async function generateLocalSDP() {
+            if (!peerConnection) {
+                createPeerConnection();
+            }
+            
+            try {
+                var offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                localSDP = offer.sdp;
+                document.getElementById('local-sdp-display').textContent = offer.sdp;
+                
+                showToast('本地 SDP 已生成', 'success');
+                addLog('rtc', '生成本地 SDP');
+                
+            } catch (e) {
+                showToast('生成失败: ' + e.message, 'error');
+            }
+        }
+
+        async function setRemoteSDP() {
+            if (!peerConnection) {
+                showToast('请先创建连接', 'warning');
+                return;
+            }
+            
+            var remoteSDP = document.getElementById('remote-sdp').value.trim();
+            if (!remoteSDP) {
+                showToast('请输入远程 SDP', 'warning');
+                return;
+            }
+            
+            try {
+                var desc = new RTCSessionDescription({
+                    type: peerConnection.signalingState === 'have-local-offer' ? 'answer' : 'offer',
+                    sdp: remoteSDP
+                });
+                
+                await peerConnection.setRemoteDescription(desc);
+                showToast('远程 SDP 已设置', 'success');
+                addLog('rtc', '设置远程 SDP');
+                
+            } catch (e) {
+                showToast('设置失败: ' + e.message, 'error');
+            }
+        }
+
+        function copyLocalSDP() {
+            if (!localSDP) {
+                showToast('请先生成 SDP', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(localSDP);
+            showToast('SDP 已复制', 'success');
+        }
+
+        // ==================== 数据通道 ====================
+        function createDataChannel() {
+            if (!peerConnection) {
+                createPeerConnection();
+            }
+            
+            var channelName = document.getElementById('channel-name').value || 'dataChannel';
+            var ordered = document.getElementById('ordered-mode').value === 'true';
+            
+            dataChannel = peerConnection.createDataChannel(channelName, {
+                ordered: ordered
+            });
+            
+            setupDataChannelEvents();
+            
+            document.getElementById('datachannel-state').textContent = 'connecting';
+            showToast('数据通道已创建', 'success');
+            addLog('rtc', '创建数据通道: ' + channelName);
+        }
+
+        function setupDataChannelEvents() {
+            if (!dataChannel) return;
+            
+            dataChannel.onopen = function() {
+                document.getElementById('datachannel-state').textContent = 'open';
+                showToast('数据通道已打开', 'success');
+                addLog('rtc', '数据通道打开');
+            };
+            
+            dataChannel.onclose = function() {
+                document.getElementById('datachannel-state').textContent = 'closed';
+                addLog('info', '数据通道关闭');
+            };
+            
+            dataChannel.onerror = function(error) {
+                document.getElementById('datachannel-state').textContent = 'error';
+                addLog('error', '数据通道错误: ' + error);
+            };
+            
+            dataChannel.onmessage = function(event) {
+                messageCount++;
+                document.getElementById('message-count').textContent = messageCount;
+                
+                var log = document.getElementById('datachannel-log');
+                var entry = '<div class="log-entry"><span class="log-time">' + new Date().toLocaleTimeString() + '</span>' +
+                    '<span class="log-type info">RECV</span>' + event.data + '</div>';
+                log.innerHTML = entry + log.innerHTML;
+                
+                addLog('rtc', '收到消息: ' + event.data);
+            };
+        }
+
+        function sendDataMessage() {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                showToast('数据通道未打开', 'warning');
+                return;
+            }
+            
+            var message = document.getElementById('data-message').value;
+            if (!message) {
+                showToast('请输入消息', 'warning');
+                return;
+            }
+            
+            dataChannel.send(message);
+            
+            messageCount++;
+            document.getElementById('message-count').textContent = messageCount;
+            
+            var log = document.getElementById('datachannel-log');
+            var entry = '<div class="log-entry"><span class="log-time">' + new Date().toLocaleTimeString() + '</span>' +
+                '<span class="log-type rtc">SEND</span>' + message + '</div>';
+            log.innerHTML = entry + log.innerHTML;
+            
+            document.getElementById('data-message').value = '';
+            showToast('消息已发送', 'success');
+            addLog('rtc', '发送消息: ' + message);
+        }
+
+        function closeDataChannel() {
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+            
+            document.getElementById('datachannel-state').textContent = 'closed';
+            showToast('数据通道已关闭', 'success');
+            addLog('info', '关闭数据通道');
+        }
+
+        // ==================== 演示功能 ====================
+        async function startMediaDemo() {
+            await startBoth();
+        }
+
+        async function startConnectionDemo() {
+            createPeerConnection();
+            await createOffer();
+            showToast('连接演示已启动', 'success');
+        }
+
+        function toggleVideo() {
+            if (localStream) {
+                var videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    var btn = document.getElementById('btn-toggle-video');
+                    btn.textContent = videoTrack.enabled ? '📹 视频' : '🚫 视频';
+                    showToast(videoTrack.enabled ? '视频已开启' : '视频已关闭', 'success');
+                }
+            }
+        }
+
+        function toggleAudio() {
+            if (localStream) {
+                var audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    var btn = document.getElementById('btn-toggle-audio');
+                    btn.textContent = audioTrack.enabled ? '🎤 音频' : '🔇 音频';
+                    showToast(audioTrack.enabled ? '音频已开启' : '音频已关闭', 'success');
+                }
+            }
+        }
+
+        function stopAllStreams() {
+            stopMediaStream();
+            stopScreenShare();
+            closePeerConnection();
+            closeDataChannel();
+            showToast('所有流已停止', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>
