@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebXR Device API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #ec4899;
+            --primary-dark: #db2777;
+            --secondary: #f472b6;
+            --accent: #f9a8d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #fdf2f8;
+            --bg-card: #ffffff;
+            --border: #fbcfe8;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #fdf2f8;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #500724;
+                --bg-card: #831843;
+                --border: #9d174d;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(236, 72, 153, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(236, 72, 153, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(236, 72, 153, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .xr-canvas-container {
+            background: #000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            margin: 16px 0;
+        }
+        
+        .xr-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .xr-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 14px;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .xr-overlay h3 { margin-bottom: 12px; font-size: 18px; }
+        
+        .session-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .session-status.active { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .session-status.inactive { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.active { background: var(--success); }
+        .status-dot.inactive { background: var(--danger); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .pose-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .pose-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .pose-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .pose-value { font-size: 14px; font-weight: 600; font-family: monospace; }
+        
+        .matrix-display {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            overflow-x: auto;
+        }
+        
+        .matrix-row { display: flex; gap: 8px; margin-bottom: 4px; }
+        .matrix-cell { width: 60px; text-align: right; }
+        
+        .input-source-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .input-source-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .input-source-type { font-weight: 600; }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.xr { background: rgba(236, 72, 153, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .api-block {
+            background: rgba(236, 72, 153, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .info-box {
+            background: rgba(236, 72, 153, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .anchor-list { max-height: 300px; overflow-y: auto; }
+        .anchor-item {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🥽</div>
+            <div class="logo-text">WebXR <span>Device API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkXRSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">会话管理</div>
+                    <div class="nav-item" data-tab="session" onclick="switchTab('session')">
+                        <span class="nav-icon">🎮</span><span>XR 会话</span>
+                    </div>
+                    <div class="nav-item" data-tab="reference" onclick="switchTab('reference')">
+                        <span class="nav-icon">📐</span><span>参考空间</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">追踪</div>
+                    <div class="nav-item" data-tab="viewer" onclick="switchTab('viewer')">
+                        <span class="nav-icon">👁️</span><span>视图姿态</span>
+                    </div>
+                    <div class="nav-item" data-tab="input" onclick="switchTab('input')">
+                        <span class="nav-icon">🎮</span><span>输入源</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">AR 功能</div>
+                    <div class="nav-item" data-tab="hittest" onclick="switchTab('hittest')">
+                        <span class="nav-icon">🎯</span><span>命中测试</span>
+                    </div>
+                    <div class="nav-item" data-tab="anchors" onclick="switchTab('anchors')">
+                        <span class="nav-icon">⚓</span><span>锚点</span>
+                    </div>
+                    <div class="nav-item" data-tab="planes" onclick="switchTab('planes')">
+                        <span class="nav-icon">📦</span><span>平面检测</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebXR Device API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🥽</div>
+                        <div class="stat-value" id="session-status-display">-</div>
+                        <div class="stat-label">会话状态</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👁️</div>
+                        <div class="stat-value" id="view-count">0</div>
+                        <div class="stat-label">视图数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-value" id="input-count">0</div>
+                        <div class="stat-label">输入源</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebXR 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">WebXR API</div>
+                                            <div class="result-value" id="xr-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">VR 支持</div>
+                                            <div class="result-value" id="vr-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">AR 支持</div>
+                                            <div class="result-value" id="ar-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">安全上下文</div>
+                                            <div class="result-value" id="secure-context">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebXR Device API 提供对 AR/VR 设备的访问，支持沉浸式体验。
+                        </div>
+                        
+                        <div class="warning-box">
+                            <strong>要求：</strong>HTTPS 环境 + 支持 WebXR 的设备/浏览器
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="startVRSession()">🥽 启动 VR 会话</button>
+                            <button class="btn btn-success btn-lg" onclick="startARSession()">📱 启动 AR 会话</button>
+                        </div>
+                        
+                        <div class="xr-canvas-container">
+                            <canvas id="xr-canvas" class="xr-canvas"></canvas>
+                            <div class="xr-overlay" id="xr-overlay">
+                                <h3>WebXR 演示</h3>
+                                <p>点击上方按钮启动 VR 或 AR 会话</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- XR 会话 -->
+            <div id="panel-session" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>XR 会话</h1>
+                        <p>创建和管理 XRSession</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        XRSession 是 WebXR 的核心，代表一个 AR 或 VR 会话。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">会话模式</label>
+                            <select class="form-select" id="session-mode">
+                                <option value="immersive-vr">沉浸式 VR</option>
+                                <option value="immersive-ar">沉浸式 AR</option>
+                                <option value="inline">内联模式</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">特征要求</label>
+                            <select class="form-select" id="session-features">
+                                <option value="">无</option>
+                                <option value="local">local</option>
+                                <option value="local-floor">local-floor</option>
+                                <option value="bounded-floor">bounded-floor</option>
+                                <option value="unbounded">unbounded</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startSession()">▶️ 启动会话</button>
+                        <button class="btn btn-danger" onclick="endSession()">⏹️ 结束会话</button>
+                        <button class="btn btn-outline" onclick="getSessionInfo()">📋 会话信息</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">会话状态</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="session-state">未启动</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">模式</div>
+                                <div class="result-value" id="session-mode-display">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">可见性</div>
+                                <div class="result-value" id="visibility-state">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">帧率</div>
+                                <div class="result-value" id="frame-rate">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 参考空间 -->
+            <div id="panel-reference" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>参考空间</h1>
+                        <p>XRReferenceSpace 空间定位</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        参考空间定义了 XR 体验的坐标系统和边界。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">参考空间类型</label>
+                        <select class="form-select" id="reference-type">
+                            <option value="viewer">viewer - 观察者空间</option>
+                            <option value="local">local - 本地空间</option>
+                            <option value="local-floor">local-floor - 本地地面</option>
+                            <option value="bounded-floor">bounded-floor - 有界地面</option>
+                            <option value="unbounded">unbounded - 无界空间</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getReferenceSpace()">📐 获取参考空间</button>
+                        <button class="btn btn-outline" onclick="getOriginOffset()">📍 获取原点偏移</button>
+                    </div>
+                    
+                    <div id="reference-info" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">参考空间信息</div>
+                            <div id="reference-info-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视图姿态 -->
+            <div id="panel-viewer" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>视图姿态</h1>
+                        <p>XRViewerPose 和 XRView</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        视图姿态包含用户的头部位置和方向，以及每只眼睛的视图信息。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startPoseTracking()">▶️ 开始追踪</button>
+                        <button class="btn btn-danger" onclick="stopPoseTracking()">⏹️ 停止追踪</button>
+                    </div>
+                    
+                    <div class="pose-display">
+                        <div class="pose-card">
+                            <div class="pose-label">位置 X</div>
+                            <div class="pose-value" id="pose-x">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">位置 Y</div>
+                            <div class="pose-value" id="pose-y">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">位置 Z</div>
+                            <div class="pose-value" id="pose-z">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 X</div>
+                            <div class="pose-value" id="pose-rx">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 Y</div>
+                            <div class="pose-value" id="pose-ry">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 Z</div>
+                            <div class="pose-value" id="pose-rz">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 16px;">
+                        <div class="result-title">视图矩阵</div>
+                        <div class="matrix-display" id="view-matrix">
+                            <div class="matrix-row"><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输入源 -->
+            <div id="panel-input" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>输入源</h1>
+                        <p>XRInputSource 控制器输入</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        输入源代表 VR/AR 控制器、手柄或手势输入。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getInputSources()">🎮 获取输入源</button>
+                        <button class="btn btn-outline" onclick="startInputTracking()">▶️ 开始监听</button>
+                    </div>
+                    
+                    <div id="input-list">
+                        <div class="info-box">
+                            暂无输入源。启动 XR 会话后可检测控制器。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 命中测试 -->
+            <div id="panel-hittest" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>命中测试</h1>
+                        <p>XRHitTestSource 射线检测</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        命中测试用于检测射线与真实世界表面的交点（仅 AR）。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">实体类型</label>
+                            <select class="form-select" id="hit-entity">
+                                <option value="point">point - 点</option>
+                                <option value="plane">plane - 平面</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createHitTestSource()">🎯 创建命中测试</button>
+                        <button class="btn btn-outline" onclick="getHitTestResults()">📋 获取结果</button>
+                        <button class="btn btn-danger" onclick="cancelHitTestSource()">❌ 取消测试</button>
+                    </div>
+                    
+                    <div id="hittest-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">命中测试结果</div>
+                            <div id="hittest-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 锚点 -->
+            <div id="panel-anchors" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>锚点</h1>
+                        <p>XRAnchor 空间锚点</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        锚点用于在 AR 场景中固定虚拟对象的位置。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createAnchor()">⚓ 创建锚点</button>
+                        <button class="btn btn-outline" onclick="getAnchors()">📋 获取锚点列表</button>
+                    </div>
+                    
+                    <div id="anchor-list-container">
+                        <div class="result-box">
+                            <div class="result-title">锚点列表</div>
+                            <div class="anchor-list" id="anchor-list">
+                                <div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无锚点</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 平面检测 -->
+            <div id="panel-planes" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>平面检测</h1>
+                        <p>XRPlane 环境平面检测</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        平面检测用于识别真实环境中的平面（地板、墙壁、桌面等）。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getDetectedPlanes()">📦 检测平面</button>
+                        <button class="btn btn-outline" onclick="startPlaneDetection()">▶️ 开始检测</button>
+                    </div>
+                    
+                    <div id="plane-list-container">
+                        <div class="result-box">
+                            <div class="result-title">检测到的平面</div>
+                            <div id="plane-list">
+                                <div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无检测到的平面</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebXR Device API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRSystem</span>
+                        <p class="api-description">WebXR 的主入口，通过 navigator.xr 访问。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRSession</span>
+                        <p class="api-description">代表一个 AR 或 VR 会话。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRFrame</span>
+                        <p class="api-description">单帧渲染数据，包含姿态和视图信息。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRView</span>
+                        <p class="api-description">单个视图（眼睛）的渲染信息。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRViewerPose</span>
+                        <p class="api-description">用户的头部姿态信息。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRReferenceSpace</span>
+                        <p class="api-description">参考空间，定义坐标系统。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRRigidTransform</span>
+                        <p class="api-description">刚体变换，包含位置和旋转。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">XRInputSource</span>
+                        <p class="api-description">输入源，代表控制器或手势。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.xr.isSessionSupported(mode)</code></td><td>检查会话支持</td></tr>
+                            <tr><td><code>navigator.xr.requestSession(mode, options)</code></td><td>请求会话</td></tr>
+                            <tr><td><code>XRSession.requestReferenceSpace(type)</code></td><td>请求参考空间</td></tr>
+                            <tr><td><code>XRSession.requestAnimationFrame(callback)</code></td><td>请求动画帧</td></tr>
+                            <tr><td><code>XRSession.end()</code></td><td>结束会话</td></tr>
+                            <tr><td><code>XRFrame.getViewerPose(space)</code></td><td>获取观察者姿态</td></tr>
+                            <tr><td><code>XRFrame.getPose(space, baseSpace)</code></td><td>获取空间姿态</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">会话模式</h3>
+                    <table>
+                        <thead><tr><th>模式</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>immersive-vr</code></td><td>沉浸式 VR</td></tr>
+                            <tr><td><code>immersive-ar</code></td><td>沉浸式 AR</td></tr>
+                            <tr><td><code>inline</code></td><td>内联模式（页面内）</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        <strong>最低版本要求：</strong>
+                        <ul style="margin-left: 16px; margin-top: 8px;">
+                            <li>Chrome 79+</li>
+                            <li>Edge 79+</li>
+                            <li>Firefox: 部分支持</li>
+                            <li>Safari: iOS 15+ (部分)</li>
+                            <li>Opera 66+</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var xrSession = null;
+        var xrReferenceSpace = null;
+        var xrGLLayer = null;
+        var gl = null;
+        var isTracking = false;
+        var frameCount = 0;
+        var inputSources = [];
+        var anchors = [];
+        var hitTestSource = null;
+        var animationId = null;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkXRSupport();
+            initCanvas();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== Canvas 初始化 ====================
+        function initCanvas() {
+            var canvas = document.getElementById('xr-canvas');
+            canvas.width = 800;
+            canvas.height = 450;
+            
+            gl = canvas.getContext('webgl2', { xrCompatible: true });
+            if (!gl) {
+                gl = canvas.getContext('webgl', { xrCompatible: true });
+            }
+            
+            var ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = '#1e1b4b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = 'rgba(236, 72, 153, 0.3)';
+                ctx.lineWidth = 1;
+                for (var x = 0; x < canvas.width; x += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (var y = 0; y < canvas.height; y += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // ==================== WebXR 支持检测 ====================
+        async function checkXRSupport() {
+            var xrSupported = 'xr' in navigator;
+            var isSecure = window.isSecureContext;
+            
+            document.getElementById('xr-support').textContent = xrSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('xr-support').style.color = xrSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('secure-context').textContent = isSecure ? '✓ 安全' : '✗ 不安全';
+            document.getElementById('secure-context').style.color = isSecure ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = xrSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = xrSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (xrSupported) {
+                var vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+                var arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                
+                document.getElementById('vr-support').textContent = vrSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('vr-support').style.color = vrSupported ? 'var(--success)' : 'var(--danger)';
+                
+                document.getElementById('ar-support').textContent = arSupported ? '✓ 支持' : '✗ 不支持';
+                document.getElementById('ar-support').style.color = arSupported ? 'var(--success)' : 'var(--danger)';
+            } else {
+                document.getElementById('vr-support').textContent = '✗ 不支持';
+                document.getElementById('vr-support').style.color = 'var(--danger)';
+                document.getElementById('ar-support').textContent = '✗ 不支持';
+                document.getElementById('ar-support').style.color = 'var(--danger)';
+            }
+            
+            addLog('info', 'WebXR 支持检测完成');
+        }
+
+        // ==================== 会话管理 ====================
+        async function startVRSession() {
+            document.getElementById('session-mode').value = 'immersive-vr';
+            await startSession();
+        }
+
+        async function startARSession() {
+            document.getElementById('session-mode').value = 'immersive-ar';
+            await startSession();
+        }
+
+        async function startSession() {
+            if (!('xr' in navigator)) {
+                showToast('WebXR API 不支持', 'error');
+                return;
+            }
+            
+            var mode = document.getElementById('session-mode').value;
+            var feature = document.getElementById('session-features').value;
+            
+            var options = { optionalFeatures: [] };
+            if (feature) {
+                options.requiredFeatures = [feature];
+            }
+            
+            try {
+                document.getElementById('session-state').textContent = '请求中...';
+                
+                xrSession = await navigator.xr.requestSession(mode, options);
+                
+                document.getElementById('session-state').textContent = '已启动';
+                document.getElementById('session-mode-display').textContent = mode;
+                document.getElementById('session-status-display').textContent = '活动';
+                document.getElementById('xr-overlay').style.display = 'none';
+                
+                // 设置 WebGL 层
+                await gl.makeXRCompatible();
+                xrGLLayer = new XRWebGLLayer(xrSession, gl);
+                await xrSession.updateRenderState({ baseLayer: xrGLLayer });
+                
+                // 获取参考空间
+                xrReferenceSpace = await xrSession.requestReferenceSpace('local');
+                
+                // 监听事件
+                xrSession.addEventListener('end', onSessionEnd);
+                xrSession.addEventListener('visibilitychange', onVisibilityChange);
+                
+                // 开始渲染循环
+                startRenderLoop();
+                
+                showToast('XR 会话已启动', 'success');
+                addLog('xr', '启动 ' + mode + ' 会话');
+                
+            } catch (e) {
+                document.getElementById('session-state').textContent = '启动失败';
+                showToast('启动失败: ' + e.message, 'error');
+                addLog('error', '会话启动失败: ' + e.message);
+            }
+        }
+
+        async function endSession() {
+            if (xrSession) {
+                await xrSession.end();
+                xrSession = null;
+                xrReferenceSpace = null;
+                
+                document.getElementById('session-state').textContent = '已结束';
+                document.getElementById('session-status-display').textContent = '未启动';
+                document.getElementById('xr-overlay').style.display = 'flex';
+                
+                showToast('会话已结束', 'success');
+                addLog('xr', '结束 XR 会话');
+            }
+        }
+
+        function onSessionEnd() {
+            xrSession = null;
+            xrReferenceSpace = null;
+            isTracking = false;
+            
+            document.getElementById('session-state').textContent = '已结束';
+            document.getElementById('session-status-display').textContent = '未启动';
+            document.getElementById('xr-overlay').style.display = 'flex';
+            
+            addLog('info', '会话已结束');
+        }
+
+        function onVisibilityChange() {
+            if (xrSession) {
+                document.getElementById('visibility-state').textContent = xrSession.visibilityState;
+            }
+        }
+
+        function getSessionInfo() {
+            if (!xrSession) {
+                showToast('没有活动会话', 'warning');
+                return;
+            }
+            
+            var info = '会话模式: ' + xrSession.mode + '\n';
+            info += '可见性: ' + xrSession.visibilityState + '\n';
+            info += '输入源数: ' + xrSession.inputSources.length;
+            
+            showToast('会话信息已获取', 'success');
+            addLog('xr', '获取会话信息');
+        }
+
+        // ==================== 渲染循环 ====================
+        function startRenderLoop() {
+            function renderFrame(time, frame) {
+                if (!xrSession) return;
+                
+                frameCount++;
+                document.getElementById('frame-rate').textContent = Math.round(1000 / 16.67) + ' fps';
+                
+                // 获取观察者姿态
+                var pose = frame.getViewerPose(xrReferenceSpace);
+                
+                if (pose) {
+                    document.getElementById('view-count').textContent = pose.views.length;
+                    
+                    // 更新位置显示
+                    var pos = pose.transform.position;
+                    var orient = pose.transform.orientation;
+                    
+                    document.getElementById('pose-x').textContent = pos.x.toFixed(3);
+                    document.getElementById('pose-y').textContent = pos.y.toFixed(3);
+                    document.getElementById('pose-z').textContent = pos.z.toFixed(3);
+                    document.getElementById('pose-rx').textContent = orient.x.toFixed(3);
+                    document.getElementById('pose-ry').textContent = orient.y.toFixed(3);
+                    document.getElementById('pose-rz').textContent = orient.z.toFixed(3);
+                    
+                    // 更新视图矩阵
+                    if (pose.views.length > 0) {
+                        var viewMatrix = pose.views[0].transform.matrix;
+                        updateMatrixDisplay(viewMatrix);
+                    }
+                }
+                
+                // 更新输入源
+                inputSources = Array.from(xrSession.inputSources);
+                document.getElementById('input-count').textContent = inputSources.length;
+                
+                xrSession.requestAnimationFrame(renderFrame);
+            }
+            
+            xrSession.requestAnimationFrame(renderFrame);
+        }
+
+        function updateMatrixDisplay(matrix) {
+            var html = '';
+            for (var i = 0; i < 4; i++) {
+                html += '<div class="matrix-row">';
+                for (var j = 0; j < 4; j++) {
+                    html += '<span class="matrix-cell">' + matrix[i * 4 + j].toFixed(2) + '</span>';
+                }
+                html += '</div>';
+            }
+            document.getElementById('view-matrix').innerHTML = html;
+        }
+
+        // ==================== 参考空间 ====================
+        async function getReferenceSpace() {
+            if (!xrSession) {
+                showToast('请先启动会话', 'warning');
+                return;
+            }
+            
+            var type = document.getElementById('reference-type').value;
+            
+            try {
+                xrReferenceSpace = await xrSession.requestReferenceSpace(type);
+                
+                document.getElementById('reference-info').style.display = 'block';
+                document.getElementById('reference-info-content').innerHTML = 
+                    '<div class="result-grid">' +
+                    '<div class="result-item"><div class="result-label">类型</div><div class="result-value">' + type + '</div></div>' +
+                    '</div>';
+                
+                showToast('参考空间已获取', 'success');
+                addLog('xr', '获取参考空间: ' + type);
+            } catch (e) {
+                showToast('获取失败: ' + e.message, 'error');
+            }
+        }
+
+        function getOriginOffset() {
+            if (!xrReferenceSpace) {
+                showToast('请先获取参考空间', 'warning');
+                return;
+            }
+            
+            var offset = xrReferenceSpace.originOffset;
+            var pos = offset.position;
+            var orient = offset.orientation;
+            
+            document.getElementById('reference-info').style.display = 'block';
+            document.getElementById('reference-info-content').innerHTML = 
+                '<div class="result-grid">' +
+                '<div class="result-item"><div class="result-label">位置 X</div><div class="result-value">' + pos.x.toFixed(3) + '</div></div>' +
+                '<div class="result-item"><div class="result-label">位置 Y</div><div class="result-value">' + pos.y.toFixed(3) + '</div></div>' +
+                '<div class="result-item"><div class="result-label">位置 Z</div><div class="result-value">' + pos.z.toFixed(3) + '</div></div>' +
+                '<div class="result-item"><div class="result-label">旋转 W</div><div class="result-value">' + orient.w.toFixed(3) + '</div></div>' +
+                '</div>';
+            
+            showToast('原点偏移已获取', 'success');
+        }
+
+        // ==================== 姿态追踪 ====================
+        function startPoseTracking() {
+            if (!xrSession) {
+                showToast('请先启动会话', 'warning');
+                return;
+            }
+            isTracking = true;
+            showToast('姿态追踪已开始', 'success');
+            addLog('xr', '开始姿态追踪');
+        }
+
+        function stopPoseTracking() {
+            isTracking = false;
+            showToast('姿态追踪已停止', 'success');
+        }
+
+        // ==================== 输入源 ====================
+        function getInputSources() {
+            if (!xrSession) {
+                showToast('请先启动会话', 'warning');
+                return;
+            }
+            
+            inputSources = Array.from(xrSession.inputSources);
+            updateInputSourceList();
+            
+            showToast('输入源已获取: ' + inputSources.length + ' 个', 'success');
+            addLog('xr', '获取输入源: ' + inputSources.length + ' 个');
+        }
+
+        function updateInputSourceList() {
+            var container = document.getElementById('input-list');
+            
+            if (inputSources.length === 0) {
+                container.innerHTML = '<div class="info-box">暂无输入源。启动 XR 会话后可检测控制器。</div>';
+                return;
+            }
+            
+            var html = '';
+            inputSources.forEach(function(source, i) {
+                html += '<div class="input-source-card">' +
+                    '<div class="input-source-header">' +
+                    '<span class="input-source-type">输入源 #' + i + '</span>' +
+                    '</div>' +
+                    '<div class="result-grid">' +
+                    '<div class="result-item"><div class="result-label">类型</div><div class="result-value">' + (source.targetRaySpace ? '控制器' : '其他') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">手</div><div class="result-value">' + (source.handedness || 'none') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">配置</div><div class="result-value">' + (source.profiles[0] || 'unknown') + '</div></div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function startInputTracking() {
+            if (!xrSession) {
+                showToast('请先启动会话', 'warning');
+                return;
+            }
+            
+            xrSession.addEventListener('inputsourceschange', function(e) {
+                inputSources = Array.from(xrSession.inputSources);
+                updateInputSourceList();
+                addLog('xr', '输入源变化');
+            });
+            
+            showToast('输入监听已开始', 'success');
+        }
+
+        // ==================== 命中测试 ====================
+        async function createHitTestSource() {
+            if (!xrSession) {
+                showToast('请先启动 AR 会话', 'warning');
+                return;
+            }
+            
+            if (xrSession.mode !== 'immersive-ar') {
+                showToast('命中测试仅支持 AR 模式', 'warning');
+                return;
+            }
+            
+            try {
+                var entity = document.getElementById('hit-entity').value;
+                
+                hitTestSource = await xrSession.requestHitTestSource({
+                    space: xrReferenceSpace,
+                    entityTypes: [entity]
+                });
+                
+                showToast('命中测试已创建', 'success');
+                addLog('xr', '创建命中测试源');
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function getHitTestResults() {
+            if (!hitTestSource) {
+                showToast('请先创建命中测试', 'warning');
+                return;
+            }
+            
+            document.getElementById('hittest-result').style.display = 'block';
+            document.getElementById('hittest-result-content').innerHTML = 
+                '<div style="color: var(--text-muted);">命中测试结果将在下一帧更新</div>';
+            
+            showToast('命中测试结果已获取', 'success');
+        }
+
+        function cancelHitTestSource() {
+            if (hitTestSource) {
+                hitTestSource.cancel();
+                hitTestSource = null;
+                showToast('命中测试已取消', 'success');
+            }
+        }
+
+        // ==================== 锚点 ====================
+        async function createAnchor() {
+            if (!xrSession) {
+                showToast('请先启动 AR 会话', 'warning');
+                return;
+            }
+            
+            if (!xrSession.enabledFeatures || !xrSession.enabledFeatures.includes('anchors')) {
+                showToast('锚点功能不可用', 'warning');
+                return;
+            }
+            
+            try {
+                var anchor = await xrSession.createAnchor(
+                    new XRRigidTransform({ x: 0, y: 0, z: -1 })
+                );
+                
+                anchors.push(anchor);
+                updateAnchorList();
+                
+                showToast('锚点已创建', 'success');
+                addLog('xr', '创建锚点');
+            } catch (e) {
+                showToast('创建失败: ' + e.message, 'error');
+            }
+        }
+
+        function getAnchors() {
+            updateAnchorList();
+            showToast('锚点列表已更新', 'success');
+        }
+
+        function updateAnchorList() {
+            var container = document.getElementById('anchor-list');
+            
+            if (anchors.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无锚点</div>';
+                return;
+            }
+            
+            var html = '';
+            anchors.forEach(function(anchor, i) {
+                html += '<div class="anchor-item">' +
+                    '<div class="result-grid">' +
+                    '<div class="result-item"><div class="result-label">锚点 #' + i + '</div><div class="result-value">已创建</div></div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // ==================== 平面检测 ====================
+        function getDetectedPlanes() {
+            if (!xrSession) {
+                showToast('请先启动 AR 会话', 'warning');
+                return;
+            }
+            
+            document.getElementById('plane-list').innerHTML = 
+                '<div style="color: var(--text-muted); text-align: center; padding: 20px;">平面检测需要 AR 会话和 world-tracking 特性</div>';
+            
+            showToast('平面检测已请求', 'success');
+            addLog('xr', '请求平面检测');
+        }
+
+        function startPlaneDetection() {
+            if (!xrSession) {
+                showToast('请先启动 AR 会话', 'warning');
+                return;
+            }
+            showToast('平面检测已开始', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

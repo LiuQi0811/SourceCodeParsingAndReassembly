@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVR API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #a78bfa;
+            --accent: #c4b5fd;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f5f3ff;
+            --bg-card: #ffffff;
+            --border: #ddd6fe;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f5f3ff;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #1e1b4b;
+                --bg-card: #312e81;
+                --border: #4338ca;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(139, 92, 246, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .vr-canvas-container {
+            background: #000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            margin: 16px 0;
+        }
+        
+        .vr-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .vr-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 14px;
+        }
+        
+        .device-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .device-card:hover { border-color: var(--primary); }
+        .device-card.selected { border-color: var(--primary); background: rgba(139, 92, 246, 0.05); }
+        
+        .device-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .device-icon { font-size: 24px; }
+        .device-name { font-weight: 600; font-size: 14px; }
+        .device-type { font-size: 12px; color: var(--text-secondary); }
+        
+        .pose-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .pose-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .pose-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .pose-value { font-size: 14px; font-weight: 600; font-family: monospace; }
+        
+        .eye-params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .eye-card {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+        }
+        
+        .eye-title { font-weight: 600; margin-bottom: 12px; text-align: center; }
+        
+        .matrix-display {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #e2e8f0;
+            overflow-x: auto;
+        }
+        
+        .matrix-row { display: flex; gap: 8px; margin-bottom: 4px; }
+        .matrix-cell { width: 60px; text-align: right; }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.vr { background: rgba(139, 92, 246, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .api-block {
+            background: rgba(139, 92, 246, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .info-box {
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .danger-box {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--danger);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .eye-params { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">🥽</div>
+            <div class="logo-text">WebVR <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkVRSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">设备管理</div>
+                    <div class="nav-item" data-tab="devices" onclick="switchTab('devices')">
+                        <span class="nav-icon">🥽</span><span>VR 设备</span>
+                    </div>
+                    <div class="nav-item" data-tab="display" onclick="switchTab('display')">
+                        <span class="nav-icon">📺</span><span>显示控制</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">追踪</div>
+                    <div class="nav-item" data-tab="pose" onclick="switchTab('pose')">
+                        <span class="nav-icon">🎯</span><span>姿态追踪</span>
+                    </div>
+                    <div class="nav-item" data-tab="eyes" onclick="switchTab('eyes')">
+                        <span class="nav-icon">👁️</span><span>眼睛参数</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">渲染</div>
+                    <div class="nav-item" data-tab="render" onclick="switchTab('render')">
+                        <span class="nav-icon">🎨</span><span>帧渲染</span>
+                    </div>
+                    <div class="nav-item" data-tab="layers" onclick="switchTab('layers')">
+                        <span class="nav-icon">📑</span><span>图层</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebVR API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="danger-box">
+                    <strong>⚠️ 重要提示：</strong>WebVR API 已被废弃，推荐使用 WebXR Device API。此应用仅用于学习参考。
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🥽</div>
+                        <div class="stat-value" id="device-count">0</div>
+                        <div class="stat-label">VR 设备</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📺</div>
+                        <div class="stat-value" id="display-count">0</div>
+                        <div class="stat-label">VR 显示</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value" id="frame-count">0</div>
+                        <div class="stat-label">渲染帧数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebVR 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">WebVR API</div>
+                                            <div class="result-value" id="vr-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">WebXR API</div>
+                                            <div class="result-value" id="xr-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">安全上下文</div>
+                                            <div class="result-value" id="secure-context">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">VR 显示</div>
+                                            <div class="result-value" id="vr-displays">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebVR API 提供虚拟现实设备的访问能力，支持头戴显示器和运动控制器。
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="getVRDisplays()">🥽 获取 VR 设备</button>
+                            <button class="btn btn-outline btn-lg" onclick="startVRDemo()">▶️ 启动演示</button>
+                        </div>
+                        
+                        <div class="vr-canvas-container">
+                            <canvas id="vr-canvas" class="vr-canvas"></canvas>
+                            <div class="vr-overlay" id="vr-overlay">点击"启动演示"开始 VR 渲染</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VR 设备 -->
+            <div id="panel-devices" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>VR 设备</h1>
+                        <p>检测和连接 VR 设备</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebVR 支持各种 VR 头戴显示器，如 Oculus Rift、HTC Vive 等。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getVRDisplays()">🔄 刷新设备</button>
+                        <button class="btn btn-outline" onclick="requestPresent()">🥽 进入 VR 模式</button>
+                        <button class="btn btn-danger" onclick="exitPresent()">⏹️ 退出 VR 模式</button>
+                    </div>
+                    
+                    <div id="device-list">
+                        <div class="info-box">
+                            暂无检测到 VR 设备。请确保 VR 设备已连接并安装驱动。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 显示控制 -->
+            <div id="panel-display" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>显示控制</h1>
+                        <p>VR 显示参数配置</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">选择 VR 显示</label>
+                        <select class="form-select" id="display-select">
+                            <option value="">-- 请选择显示设备 --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getDisplayInfo()">📋 获取显示信息</button>
+                        <button class="btn btn-outline" onclick="requestFullscreen()">📺 全屏显示</button>
+                    </div>
+                    
+                    <div id="display-info" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">显示参数</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">显示名称</div>
+                                    <div class="result-value" id="display-name">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">分辨率</div>
+                                    <div class="result-value" id="display-resolution">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">刷新率</div>
+                                    <div class="result-value" id="display-refresh">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">FOV</div>
+                                    <div class="result-value" id="display-fov">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 姿态追踪 -->
+            <div id="panel-pose" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>姿态追踪</h1>
+                        <p>VR 头盔位置和方向追踪</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        VRPose 提供头盔的位置和方向信息，用于渲染正确的视角。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startPoseTracking()">▶️ 开始追踪</button>
+                        <button class="btn btn-danger" onclick="stopPoseTracking()">⏹️ 停止追踪</button>
+                    </div>
+                    
+                    <div class="pose-display">
+                        <div class="pose-card">
+                            <div class="pose-label">位置 X</div>
+                            <div class="pose-value" id="pose-x">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">位置 Y</div>
+                            <div class="pose-value" id="pose-y">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">位置 Z</div>
+                            <div class="pose-value" id="pose-z">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 X</div>
+                            <div class="pose-value" id="pose-rx">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 Y</div>
+                            <div class="pose-value" id="pose-ry">0.00</div>
+                        </div>
+                        <div class="pose-card">
+                            <div class="pose-label">旋转 Z</div>
+                            <div class="pose-value" id="pose-rz">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 16px;">
+                        <div class="result-title">四元数方向</div>
+                        <div class="matrix-display" id="quaternion-display">
+                            <div class="matrix-row">
+                                <span class="matrix-cell">X: 0.00</span>
+                                <span class="matrix-cell">Y: 0.00</span>
+                                <span class="matrix-cell">Z: 0.00</span>
+                                <span class="matrix-cell">W: 1.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 眼睛参数 -->
+            <div id="panel-eyes" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>眼睛参数</h1>
+                        <p>VREyeParameters 眼睛渲染参数</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        眼睛参数包含渲染所需的各种参数，如视场角、偏移等。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="getEyeParameters()">👁️ 获取眼睛参数</button>
+                    </div>
+                    
+                    <div class="eye-params">
+                        <div class="eye-card">
+                            <div class="eye-title">👁️ 左眼</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">偏移 X</div>
+                                    <div class="result-value" id="left-offset-x">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">偏移 Y</div>
+                                    <div class="result-value" id="left-offset-y">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">偏移 Z</div>
+                                    <div class="result-value" id="left-offset-z">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">渲染宽度</div>
+                                    <div class="result-value" id="left-width">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">渲染高度</div>
+                                    <div class="result-value" id="left-height">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="eye-card">
+                            <div class="eye-title">👁️ 右眼</div>
+                            <div class="result-grid">
+                                <div class="result-item">
+                                    <div class="result-label">偏移 X</div>
+                                    <div class="result-value" id="right-offset-x">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">偏移 Y</div>
+                                    <div class="result-value" id="right-offset-y">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">偏移 Z</div>
+                                    <div class="result-value" id="right-offset-z">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">渲染宽度</div>
+                                    <div class="result-value" id="right-width">-</div>
+                                </div>
+                                <div class="result-item">
+                                    <div class="result-label">渲染高度</div>
+                                    <div class="result-value" id="right-height">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 16px;">
+                        <div class="result-title">视场角 (FOV)</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">左眼上</div>
+                                <div class="result-value" id="left-fov-up">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">左眼下</div>
+                                <div class="result-value" id="left-fov-down">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">左眼左</div>
+                                <div class="result-value" id="left-fov-left">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">左眼右</div>
+                                <div class="result-value" id="left-fov-right">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 帧渲染 -->
+            <div id="panel-render" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>帧渲染</h1>
+                        <p>VR 帧渲染循环</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        VR 渲染使用 VRFrameData 获取每帧的姿态和投影矩阵。
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="startRendering()">▶️ 开始渲染</button>
+                        <button class="btn btn-danger" onclick="stopRendering()">⏹️ 停止渲染</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">渲染统计</div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-label">帧率</div>
+                                <div class="result-value" id="fps">0 FPS</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">总帧数</div>
+                                <div class="result-value" id="total-frames">0</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">渲染时间</div>
+                                <div class="result-value" id="render-time">0 ms</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">状态</div>
+                                <div class="result-value" id="render-status">未开始</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box" style="margin-top: 16px;">
+                        <div class="result-title">投影矩阵</div>
+                        <div class="matrix-display" id="projection-matrix">
+                            <div class="matrix-row"><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span><span class="matrix-cell">0.00</span></div>
+                            <div class="matrix-row"><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">0.00</span><span class="matrix-cell">1.00</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图层 -->
+            <div id="panel-layers" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>图层</h1>
+                        <p>VRLayer 图层配置</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        VRLayer 定义了 VR 渲染的源画布和目标参数。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">源画布</label>
+                        <select class="form-select" id="source-canvas">
+                            <option value="vr-canvas">VR Canvas</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">左边界</label>
+                            <input type="number" class="form-input" id="layer-left" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">右边界</label>
+                            <input type="number" class="form-input" id="layer-right" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">上边界</label>
+                            <input type="number" class="form-input" id="layer-top" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">下边界</label>
+                            <input type="number" class="form-input" id="layer-bottom" value="1">
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createLayer()">📑 创建图层</button>
+                        <button class="btn btn-outline" onclick="getLayers()">📋 获取图层</button>
+                    </div>
+                    
+                    <div id="layer-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">图层信息</div>
+                            <div id="layer-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebVR API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="danger-box">
+                    <strong>⚠️ 废弃警告：</strong>WebVR API 已被 WebXR Device API 取代。建议新项目使用 WebXR。
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">Navigator.vr</span>
+                        <p class="api-description">WebVR API 的主入口。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VRDisplay</span>
+                        <p class="api-description">代表一个 VR 显示设备。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VRDisplayCapabilities</span>
+                        <p class="api-description">VR 显示设备的能力描述。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VRPose</span>
+                        <p class="api-description">VR 设备的姿态信息（位置和方向）。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VREyeParameters</span>
+                        <p class="api-description">眼睛渲染参数。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VRFrameData</span>
+                        <p class="api-description">每帧渲染所需的数据。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VRLayer</span>
+                        <p class="api-description">VR 渲染图层。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">主要方法</h3>
+                    <table>
+                        <thead><tr><th>方法</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>navigator.getVRDisplays()</code></td><td>获取 VR 设备列表</td></tr>
+                            <tr><td><code>VRDisplay.requestPresent(layers)</code></td><td>请求进入 VR 模式</td></tr>
+                            <tr><td><code>VRDisplay.exitPresent()</code></td><td>退出 VR 模式</td></tr>
+                            <tr><td><code>VRDisplay.getFrameData(frameData)</code></td><td>获取帧数据</td></tr>
+                            <tr><td><code>VRDisplay.submitFrame()</code></td><td>提交渲染帧</td></tr>
+                            <tr><td><code>VRDisplay.getEyeParameters(eye)</code></td><td>获取眼睛参数</td></tr>
+                            <tr><td><code>VRDisplay.getPose()</code></td><td>获取当前姿态</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">替代方案</h3>
+                    <div class="info-box">
+                        <strong>WebXR Device API</strong> 是 WebVR 的替代方案，提供更现代的 AR/VR 支持。
+                        <ul style="margin-left: 16px; margin-top: 8px;">
+                            <li>navigator.xr.requestDevice()</li>
+                            <li>XRSession, XRFrame, XRView</li>
+                            <li>支持 AR 和 VR 模式</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var vrDisplays = [];
+        var selectedDisplay = null;
+        var frameCount = 0;
+        var isRendering = false;
+        var isTracking = false;
+        var renderLoop = null;
+        var trackingLoop = null;
+        var frameData = null;
+        var lastFrameTime = 0;
+        var fpsValues = [];
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkVRSupport();
+            initCanvas();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== Canvas 初始化 ====================
+        function initCanvas() {
+            var canvas = document.getElementById('vr-canvas');
+            canvas.width = 800;
+            canvas.height = 450;
+            
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1e1b4b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制网格
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+            ctx.lineWidth = 1;
+            for (var x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (var y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // 绘制中心标记
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 30, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2 - 40, canvas.height / 2);
+            ctx.lineTo(canvas.width / 2 + 40, canvas.height / 2);
+            ctx.moveTo(canvas.width / 2, canvas.height / 2 - 40);
+            ctx.lineTo(canvas.width / 2, canvas.height / 2 + 40);
+            ctx.stroke();
+        }
+
+        // ==================== VR 支持检测 ====================
+        function checkVRSupport() {
+            var vrSupported = 'getVRDisplays' in navigator;
+            var xrSupported = 'xr' in navigator;
+            var isSecure = window.isSecureContext;
+            
+            document.getElementById('vr-support').textContent = vrSupported ? '✓ 支持' : '✗ 不支持/已废弃';
+            document.getElementById('vr-support').style.color = vrSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('xr-support').textContent = xrSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('xr-support').style.color = xrSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('secure-context').textContent = isSecure ? '✓ 安全' : '✗ 不安全';
+            document.getElementById('secure-context').style.color = isSecure ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = vrSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = vrSupported ? 'var(--success)' : 'var(--danger)';
+            
+            if (vrSupported) {
+                getVRDisplays();
+            } else {
+                document.getElementById('vr-displays').textContent = '0';
+            }
+            
+            addLog('info', 'WebVR 支持检测完成');
+        }
+
+        // ==================== 获取 VR 设备 ====================
+        async function getVRDisplays() {
+            if (!('getVRDisplays' in navigator)) {
+                showToast('WebVR API 不支持或已废弃', 'error');
+                addLog('error', 'WebVR API 不支持');
+                return;
+            }
+            
+            try {
+                var displays = await navigator.getVRDisplays();
+                vrDisplays = displays;
+                
+                document.getElementById('device-count').textContent = displays.length;
+                document.getElementById('display-count').textContent = displays.length;
+                document.getElementById('vr-displays').textContent = displays.length;
+                
+                updateDeviceList();
+                updateDisplaySelect();
+                
+                if (displays.length > 0) {
+                    showToast('检测到 ' + displays.length + ' 个 VR 设备', 'success');
+                    addLog('vr', '检测到 ' + displays.length + ' 个 VR 设备');
+                } else {
+                    showToast('未检测到 VR 设备', 'warning');
+                    addLog('info', '未检测到 VR 设备');
+                }
+                
+            } catch (e) {
+                showToast('获取设备失败: ' + e.message, 'error');
+                addLog('error', '获取 VR 设备失败: ' + e.message);
+            }
+        }
+
+        // ==================== 更新设备列表 ====================
+        function updateDeviceList() {
+            var container = document.getElementById('device-list');
+            
+            if (vrDisplays.length === 0) {
+                container.innerHTML = '<div class="info-box">暂无检测到 VR 设备。请确保 VR 设备已连接并安装驱动。</div>';
+                return;
+            }
+            
+            var html = '';
+            vrDisplays.forEach(function(display, index) {
+                var capabilities = display.capabilities || {};
+                
+                html += '<div class="device-card" onclick="selectVRDisplay(' + index + ')">' +
+                    '<div class="device-header">' +
+                    '<span class="device-icon">🥽</span>' +
+                    '<div>' +
+                    '<div class="device-name">' + (display.displayName || 'VR Display ' + index) + '</div>' +
+                    '<div class="device-type">' + (capabilities.hasPosition ? '6DoF' : '3DoF') + '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="result-grid">' +
+                    '<div class="result-item"><div class="result-label">最大层</div><div class="result-value">' + (capabilities.maxLayers || 1) + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">可以呈现</div><div class="result-value">' + (capabilities.canPresent ? '是' : '否') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">位置追踪</div><div class="result-value">' + (capabilities.hasPosition ? '是' : '否') + '</div></div>' +
+                    '<div class="result-item"><div class="result-label">方向追踪</div><div class="result-value">' + (capabilities.hasOrientation ? '是' : '否') + '</div></div>' +
+                    '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateDisplaySelect() {
+            var select = document.getElementById('display-select');
+            select.innerHTML = '<option value="">-- 请选择显示设备 --</option>';
+            
+            vrDisplays.forEach(function(display, index) {
+                select.innerHTML += '<option value="' + index + '">' + 
+                    (display.displayName || 'VR Display ' + index) + '</option>';
+            });
+        }
+
+        function selectVRDisplay(index) {
+            selectedDisplay = vrDisplays[index];
+            var cards = document.querySelectorAll('.device-card');
+            cards.forEach(function(card, i) {
+                card.classList.toggle('selected', i === index);
+            });
+            showToast('已选择: ' + (selectedDisplay.displayName || 'VR Display'), 'success');
+        }
+
+        // ==================== 显示信息 ====================
+        function getDisplayInfo() {
+            var index = document.getElementById('display-select').value;
+            if (!index) {
+                showToast('请选择显示设备', 'warning');
+                return;
+            }
+            
+            var display = vrDisplays[index];
+            if (!display) {
+                showToast('设备不存在', 'error');
+                return;
+            }
+            
+            document.getElementById('display-info').style.display = 'block';
+            
+            document.getElementById('display-name').textContent = display.displayName || 'Unknown';
+            document.getElementById('display-resolution').textContent = 
+                display.displayWidth + ' x ' + display.displayHeight;
+            document.getElementById('display-refresh').textContent = 
+                display.displayRefreshRate ? display.displayRefreshRate + ' Hz' : '-';
+            
+            var leftEye = display.getEyeParameters('left');
+            if (leftEye && leftEye.fieldOfView) {
+                var fov = leftEye.fieldOfView;
+                document.getElementById('display-fov').textContent = 
+                    fov.upDegrees + '° / ' + fov.downDegrees + '°';
+            } else {
+                document.getElementById('display-fov').textContent = '-';
+            }
+            
+            addLog('vr', '获取显示信息');
+            showToast('显示信息已获取', 'success');
+        }
+
+        // ==================== VR 模式 ====================
+        async function requestPresent() {
+            if (!selectedDisplay) {
+                if (vrDisplays.length > 0) {
+                    selectedDisplay = vrDisplays[0];
+                } else {
+                    showToast('请先选择 VR 设备', 'warning');
+                    return;
+                }
+            }
+            
+            var canvas = document.getElementById('vr-canvas');
+            var layer = { source: canvas };
+            
+            try {
+                await selectedDisplay.requestPresent([layer]);
+                showToast('已进入 VR 模式', 'success');
+                addLog('vr', '进入 VR 模式');
+                startRendering();
+            } catch (e) {
+                showToast('进入 VR 模式失败: ' + e.message, 'error');
+                addLog('error', '进入 VR 模式失败: ' + e.message);
+            }
+        }
+
+        async function exitPresent() {
+            if (!selectedDisplay) {
+                showToast('没有活动的 VR 会话', 'warning');
+                return;
+            }
+            
+            try {
+                stopRendering();
+                await selectedDisplay.exitPresent();
+                showToast('已退出 VR 模式', 'success');
+                addLog('vr', '退出 VR 模式');
+            } catch (e) {
+                showToast('退出失败: ' + e.message, 'error');
+            }
+        }
+
+        function requestFullscreen() {
+            var canvas = document.getElementById('vr-canvas');
+            if (canvas.requestFullscreen) {
+                canvas.requestFullscreen();
+            } else if (canvas.webkitRequestFullscreen) {
+                canvas.webkitRequestFullscreen();
+            }
+        }
+
+        // ==================== 姿态追踪 ====================
+        function startPoseTracking() {
+            if (isTracking) return;
+            
+            isTracking = true;
+            document.getElementById('render-status').textContent = '追踪中';
+            
+            trackingLoop = setInterval(function() {
+                updatePose();
+            }, 16);
+            
+            showToast('开始姿态追踪', 'success');
+            addLog('vr', '开始姿态追踪');
+        }
+
+        function stopPoseTracking() {
+            isTracking = false;
+            if (trackingLoop) {
+                clearInterval(trackingLoop);
+                trackingLoop = null;
+            }
+            document.getElementById('render-status').textContent = '已停止';
+            showToast('停止姿态追踪', 'success');
+        }
+
+        function updatePose() {
+            var display = selectedDisplay || vrDisplays[0];
+            if (!display) return;
+            
+            var pose = display.getPose ? display.getPose() : null;
+            
+            if (pose) {
+                var pos = pose.position;
+                var orient = pose.orientation;
+                
+                if (pos) {
+                    document.getElementById('pose-x').textContent = pos[0].toFixed(3);
+                    document.getElementById('pose-y').textContent = pos[1].toFixed(3);
+                    document.getElementById('pose-z').textContent = pos[2].toFixed(3);
+                }
+                
+                if (orient) {
+                    document.getElementById('pose-rx').textContent = orient[0].toFixed(3);
+                    document.getElementById('pose-ry').textContent = orient[1].toFixed(3);
+                    document.getElementById('pose-rz').textContent = orient[2].toFixed(3);
+                    
+                    document.getElementById('quaternion-display').innerHTML = 
+                        '<div class="matrix-row">' +
+                        '<span class="matrix-cell">X: ' + orient[0].toFixed(3) + '</span>' +
+                        '<span class="matrix-cell">Y: ' + orient[1].toFixed(3) + '</span>' +
+                        '<span class="matrix-cell">Z: ' + orient[2].toFixed(3) + '</span>' +
+                        '<span class="matrix-cell">W: ' + orient[3].toFixed(3) + '</span>' +
+                        '</div>';
+                }
+            } else {
+                // 模拟姿态数据
+                var time = Date.now() / 1000;
+                document.getElementById('pose-x').textContent = Math.sin(time).toFixed(3);
+                document.getElementById('pose-y').textContent = Math.cos(time * 0.5).toFixed(3);
+                document.getElementById('pose-z').textContent = Math.sin(time * 0.3).toFixed(3);
+                document.getElementById('pose-rx').textContent = (Math.sin(time * 0.7) * 0.5).toFixed(3);
+                document.getElementById('pose-ry').textContent = (Math.cos(time * 0.5) * 0.5).toFixed(3);
+                document.getElementById('pose-rz').textContent = (Math.sin(time * 0.3) * 0.5).toFixed(3);
+            }
+        }
+
+        // ==================== 眼睛参数 ====================
+        function getEyeParameters() {
+            var display = selectedDisplay || vrDisplays[0];
+            if (!display) {
+                showToast('请先选择 VR 设备', 'warning');
+                return;
+            }
+            
+            try {
+                var leftEye = display.getEyeParameters('left');
+                var rightEye = display.getEyeParameters('right');
+                
+                if (leftEye) {
+                    var offset = leftEye.offset;
+                    document.getElementById('left-offset-x').textContent = offset ? offset[0].toFixed(4) : '-';
+                    document.getElementById('left-offset-y').textContent = offset ? offset[1].toFixed(4) : '-';
+                    document.getElementById('left-offset-z').textContent = offset ? offset[2].toFixed(4) : '-';
+                    document.getElementById('left-width').textContent = leftEye.renderWidth || '-';
+                    document.getElementById('left-height').textContent = leftEye.renderHeight || '-';
+                    
+                    if (leftEye.fieldOfView) {
+                        document.getElementById('left-fov-up').textContent = leftEye.fieldOfView.upDegrees + '°';
+                        document.getElementById('left-fov-down').textContent = leftEye.fieldOfView.downDegrees + '°';
+                        document.getElementById('left-fov-left').textContent = leftEye.fieldOfView.leftDegrees + '°';
+                        document.getElementById('left-fov-right').textContent = leftEye.fieldOfView.rightDegrees + '°';
+                    }
+                }
+                
+                if (rightEye) {
+                    var offset = rightEye.offset;
+                    document.getElementById('right-offset-x').textContent = offset ? offset[0].toFixed(4) : '-';
+                    document.getElementById('right-offset-y').textContent = offset ? offset[1].toFixed(4) : '-';
+                    document.getElementById('right-offset-z').textContent = offset ? offset[2].toFixed(4) : '-';
+                    document.getElementById('right-width').textContent = rightEye.renderWidth || '-';
+                    document.getElementById('right-height').textContent = rightEye.renderHeight || '-';
+                }
+                
+                showToast('眼睛参数已获取', 'success');
+                addLog('vr', '获取眼睛参数');
+                
+            } catch (e) {
+                showToast('获取眼睛参数失败: ' + e.message, 'error');
+            }
+        }
+
+        // ==================== 帧渲染 ====================
+        function startRendering() {
+            if (isRendering) return;
+            
+            isRendering = true;
+            document.getElementById('vr-overlay').style.display = 'none';
+            document.getElementById('render-status').textContent = '渲染中';
+            
+            lastFrameTime = performance.now();
+            
+            renderLoop = requestAnimationFrame(renderFrame);
+            
+            showToast('开始渲染', 'success');
+            addLog('vr', '开始渲染');
+        }
+
+        function stopRendering() {
+            isRendering = false;
+            if (renderLoop) {
+                cancelAnimationFrame(renderLoop);
+                renderLoop = null;
+            }
+            document.getElementById('render-status').textContent = '已停止';
+            showToast('停止渲染', 'success');
+        }
+
+        function renderFrame(timestamp) {
+            if (!isRendering) return;
+            
+            var display = selectedDisplay || vrDisplays[0];
+            var canvas = document.getElementById('vr-canvas');
+            var ctx = canvas.getContext('2d');
+            
+            // 计算 FPS
+            var deltaTime = timestamp - lastFrameTime;
+            lastFrameTime = timestamp;
+            var fps = 1000 / deltaTime;
+            fpsValues.push(fps);
+            if (fpsValues.length > 30) fpsValues.shift();
+            var avgFps = fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length;
+            
+            document.getElementById('fps').textContent = Math.round(avgFps) + ' FPS';
+            document.getElementById('render-time').textContent = deltaTime.toFixed(2) + ' ms';
+            
+            frameCount++;
+            document.getElementById('total-frames').textContent = frameCount;
+            document.getElementById('frame-count').textContent = frameCount;
+            
+            // 渲染场景
+            ctx.fillStyle = '#1e1b4b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制网格
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+            ctx.lineWidth = 1;
+            for (var x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (var y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // 绘制动态元素
+            var time = timestamp / 1000;
+            var centerX = canvas.width / 2;
+            var centerY = canvas.height / 2;
+            
+            // 旋转的圆环
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
+            ctx.lineWidth = 3;
+            for (var i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 50 + i * 30 + Math.sin(time + i) * 10, 
+                    time + i * 0.5, time + i * 0.5 + Math.PI);
+                ctx.stroke();
+            }
+            
+            // 中心标记
+            ctx.strokeStyle = 'rgba(167, 139, 250, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(centerX - 30, centerY);
+            ctx.lineTo(centerX + 30, centerY);
+            ctx.moveTo(centerX, centerY - 30);
+            ctx.lineTo(centerX, centerY + 30);
+            ctx.stroke();
+            
+            // 提交帧
+            if (display && display.submitFrame) {
+                try {
+                    display.submitFrame();
+                } catch (e) {
+                    // 忽略提交错误
+                }
+            }
+            
+            renderLoop = requestAnimationFrame(renderFrame);
+        }
+
+        // ==================== 图层 ====================
+        function createLayer() {
+            var canvas = document.getElementById('vr-canvas');
+            
+            var layer = {
+                source: canvas,
+                leftBounds: [0, 0, 0.5, 1],
+                rightBounds: [0.5, 0, 0.5, 1]
+            };
+            
+            document.getElementById('layer-result').style.display = 'block';
+            document.getElementById('layer-result-content').innerHTML = 
+                '<div class="result-grid">' +
+                '<div class="result-item"><div class="result-label">源</div><div class="result-value">Canvas</div></div>' +
+                '<div class="result-item"><div class="result-label">左边界</div><div class="result-value">[0, 0, 0.5, 1]</div></div>' +
+                '<div class="result-item"><div class="result-label">右边界</div><div class="result-value">[0.5, 0, 1, 1]</div></div>' +
+                '</div>';
+            
+            showToast('图层已创建', 'success');
+            addLog('vr', '创建图层');
+        }
+
+        function getLayers() {
+            var display = selectedDisplay || vrDisplays[0];
+            if (!display) {
+                showToast('请先选择 VR 设备', 'warning');
+                return;
+            }
+            
+            var layers = display.getLayers ? display.getLayers() : [];
+            
+            document.getElementById('layer-result').style.display = 'block';
+            document.getElementById('layer-result-content').innerHTML = 
+                '<div>当前图层数: ' + layers.length + '</div>';
+            
+            showToast('图层信息已获取', 'success');
+        }
+
+        // ==================== VR 演示 ====================
+        function startVRDemo() {
+            if (vrDisplays.length === 0) {
+                showToast('请先获取 VR 设备', 'warning');
+                return;
+            }
+            
+            selectedDisplay = vrDisplays[0];
+            startRendering();
+            startPoseTracking();
+        }
+
+        // ==================== 工具函数 ====================
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

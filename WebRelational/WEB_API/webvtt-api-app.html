@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVTT API 管理平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #0d9488;
+            --primary-dark: #0f766e;
+            --secondary: #2dd4bf;
+            --accent: #5eead4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-main: #f0fdfa;
+            --bg-card: #ffffff;
+            --border: #99f6e4;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f0fdfa;
+                --text-secondary: #d1d5db;
+                --text-muted: #9ca3af;
+                --bg-main: #042f2e;
+                --bg-card: #134e4a;
+                --border: #115e59;
+            }
+        }
+        
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(13, 148, 136, 0.3);
+        }
+        
+        .logo { display: flex; align-items: center; gap: 10px; }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text { font-size: 16px; font-weight: 700; color: white; }
+        .logo-text span { font-weight: 400; opacity: 0.85; }
+        
+        .header-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: var(--radius-sm);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .mobile-menu-btn {
+            display: none;
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .main-layout { display: flex; padding-top: 60px; min-height: calc(100vh - 60px); }
+        
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 60px; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-content { padding: 16px 12px; }
+        .nav-section { margin-bottom: 20px; }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover { background: var(--bg-main); color: var(--text-primary); }
+        .nav-item.active { background: rgba(13, 148, 136, 0.1); color: var(--primary); }
+        .nav-icon { font-size: 16px; }
+        
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: calc(100% - 220px);
+            max-width: 100%;
+        }
+        
+        .page-header { margin-bottom: 20px; }
+        .page-title-group h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .page-title-group p { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            background: rgba(13, 148, 136, 0.1);
+            margin-bottom: 12px;
+        }
+        
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .stat-label { font-size: 12px; color: var(--text-secondary); }
+        
+        .card-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
+            overflow-x: auto;
+        }
+        
+        .card-tab {
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        
+        .card-tab:hover { color: var(--primary); }
+        .card-tab.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        
+        .card-panel { display: none; padding: 20px; }
+        .card-panel.active { display: block; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 8px 14px; font-size: 12px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        
+        .result-box {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+        }
+        
+        .result-title { font-weight: 600; margin-bottom: 12px; font-size: 14px; }
+        .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        
+        .result-item {
+            background: var(--bg-card);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        
+        .result-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .result-value { font-size: 14px; font-weight: 600; word-break: break-all; }
+        
+        .video-container {
+            background: #000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+            margin: 16px 0;
+        }
+        
+        .video-container video {
+            width: 100%;
+            display: block;
+        }
+        
+        .subtitle-overlay {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 0 20px;
+        }
+        
+        .subtitle-text {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+        
+        .cue-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .cue-item {
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .cue-item:hover { border-color: var(--primary); }
+        .cue-item.active { border-color: var(--primary); background: rgba(13, 148, 136, 0.05); }
+        
+        .cue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .cue-time { font-size: 12px; color: var(--primary); font-weight: 600; font-family: monospace; }
+        .cue-actions { display: flex; gap: 4px; }
+        
+        .cue-text { font-size: 13px; color: var(--text-primary); }
+        
+        .vtt-editor {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+        
+        .vtt-editor-header {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .vtt-editor-title { font-size: 12px; font-weight: 600; color: #94a3b8; }
+        
+        .vtt-editor textarea {
+            width: 100%;
+            min-height: 300px;
+            background: transparent;
+            border: none;
+            color: #e2e8f0;
+            font-family: monospace;
+            font-size: 13px;
+            padding: 16px;
+            resize: vertical;
+        }
+        
+        .vtt-editor textarea:focus { outline: none; }
+        
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .time-input {
+            width: 60px;
+            text-align: center;
+        }
+        
+        .time-separator { color: var(--text-muted); }
+        
+        .log-container {
+            background: #1e293b;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            color: #e2e8f0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #94a3b8; margin-right: 8px; }
+        .log-type { padding: 2px 6px; border-radius: 3px; margin-right: 6px; }
+        .log-type.info { background: rgba(59, 130, 246, 0.3); }
+        .log-type.vtt { background: rgba(13, 148, 136, 0.3); }
+        .log-type.error { background: rgba(239, 68, 68, 0.3); }
+        .log-type.success { background: rgba(16, 185, 129, 0.3); }
+        
+        .api-block {
+            background: rgba(13, 148, 136, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .api-method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-right: 10px;
+            background: rgba(13, 148, 136, 0.15);
+            color: var(--primary);
+        }
+        
+        .api-signature { font-family: monospace; font-size: 13px; font-weight: 500; }
+        .api-description { margin-top: 8px; font-size: 13px; color: var(--text-secondary); }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+            position: relative;
+        }
+        
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px; right: 10px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .code-block .copy-btn:hover { background: rgba(255,255,255,0.2); color: white; }
+        
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 3000; }
+        
+        .toast {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+            min-width: 280px;
+            border: 1px solid var(--border);
+        }
+        
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        
+        .info-box {
+            background: rgba(13, 148, 136, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning);
+            padding: 12px;
+            margin-bottom: 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--bg-main); font-weight: 600; }
+        
+        .region-preview {
+            background: #000;
+            border-radius: var(--radius-sm);
+            position: relative;
+            height: 200px;
+            margin-top: 16px;
+        }
+        
+        .region-box {
+            position: absolute;
+            border: 2px dashed var(--primary);
+            background: rgba(13, 148, 136, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: flex; }
+            .sidebar { transform: translateX(-100%); width: 260px; }
+            .sidebar.open { transform: translateX(0); }
+            .content { margin-left: 0; width: 100%; padding: 16px; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .card-tabs { padding: 0 12px; }
+            .card-tab { padding: 12px; font-size: 12px; }
+            .card-panel { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="logo-icon">📝</div>
+            <div class="logo-text">WebVTT <span>API</span></div>
+        </div>
+        <button class="header-btn" onclick="checkVTTSupport()">🔍 检测支持</button>
+    </header>
+    
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="nav-section">
+                    <div class="nav-section-title">概览</div>
+                    <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')">
+                        <span class="nav-icon">📊</span><span>控制台</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">编辑器</div>
+                    <div class="nav-item" data-tab="editor" onclick="switchTab('editor')">
+                        <span class="nav-icon">✏️</span><span>VTT 编辑器</span>
+                    </div>
+                    <div class="nav-item" data-tab="cues" onclick="switchTab('cues')">
+                        <span class="nav-icon">💬</span><span>字幕管理</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">预览</div>
+                    <div class="nav-item" data-tab="preview" onclick="switchTab('preview')">
+                        <span class="nav-icon">🎬</span><span>视频预览</span>
+                    </div>
+                    <div class="nav-item" data-tab="regions" onclick="switchTab('regions')">
+                        <span class="nav-icon">📐</span><span>区域设置</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">工具</div>
+                    <div class="nav-item" data-tab="parser" onclick="switchTab('parser')">
+                        <span class="nav-icon">🔍</span><span>VTT 解析器</span>
+                    </div>
+                    <div class="nav-item" data-tab="converter" onclick="switchTab('converter')">
+                        <span class="nav-icon">🔄</span><span>格式转换</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">系统</div>
+                    <div class="nav-item" data-tab="api-docs" onclick="switchTab('api-docs')">
+                        <span class="nav-icon">📚</span><span>API文档</span>
+                    </div>
+                    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <span class="nav-icon">📋</span><span>操作日志</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="content">
+            <!-- 控制台 -->
+            <div id="panel-dashboard" class="tab-panel active">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>控制台</h1>
+                        <p>WebVTT API 管理概览</p>
+                    </div>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">💬</div>
+                        <div class="stat-value" id="cue-count">0</div>
+                        <div class="stat-label">字幕条数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📐</div>
+                        <div class="stat-value" id="region-count">0</div>
+                        <div class="stat-label">区域数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎬</div>
+                        <div class="stat-value" id="track-count">0</div>
+                        <div class="stat-label">轨道数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value" id="api-status">-</div>
+                        <div class="stat-label">API状态</div>
+                    </div>
+                </div>
+                
+                <div class="card-container">
+                    <div class="card-tabs">
+                        <button class="card-tab active" onclick="switchSubTab('overview', 'dashboard', this)">概览</button>
+                        <button class="card-tab" onclick="switchSubTab('demo', 'dashboard', this)">快速演示</button>
+                    </div>
+                    
+                    <div id="subtab-overview" class="card-panel active">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">WebVTT 支持状态</label>
+                                <div class="result-box" style="margin-top: 0;">
+                                    <div class="result-grid">
+                                        <div class="result-item">
+                                            <div class="result-label">VTTCue</div>
+                                            <div class="result-value" id="vttcue-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">VTTRegion</div>
+                                            <div class="result-value" id="vttregion-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">TextTrack</div>
+                                            <div class="result-value" id="texttrack-support">检测中...</div>
+                                        </div>
+                                        <div class="result-item">
+                                            <div class="result-label">Track 元素</div>
+                                            <div class="result-value" id="track-support">检测中...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="subtab-demo" class="card-panel">
+                        <div class="info-box">
+                            WebVTT (Web Video Text Tracks) 是用于在 HTML5 视频中显示字幕、标题和其他文本轨道的格式。
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary btn-lg" onclick="loadSampleVTT()">📝 加载示例 VTT</button>
+                            <button class="btn btn-outline btn-lg" onclick="createNewVTT()">➕ 创建新 VTT</button>
+                        </div>
+                        
+                        <div class="video-container">
+                            <video id="demo-video" controls>
+                                <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA" type="video/mp4">
+                            </video>
+                            <div class="subtitle-overlay">
+                                <div class="subtitle-text" id="demo-subtitle">字幕预览区域</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VTT 编辑器 -->
+            <div id="panel-editor" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>VTT 编辑器</h1>
+                        <p>创建和编辑 WebVTT 文件</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        WebVTT 文件以 WEBVTT 开头，包含时间戳和字幕文本。
+                    </div>
+                    
+                    <div class="vtt-editor">
+                        <div class="vtt-editor-header">
+                            <span class="vtt-editor-title">WebVTT 文件</span>
+                            <div>
+                                <button class="btn btn-sm btn-outline" onclick="formatVTT()">📐 格式化</button>
+                                <button class="btn btn-sm btn-primary" onclick="parseVTT()">✅ 解析</button>
+                            </div>
+                        </div>
+                        <textarea id="vtt-content" placeholder="WEBVTT
+
+00:00:00.000 --> 00:00:05.000
+第一条字幕文本
+
+00:00:05.000 --> 00:00:10.000
+第二条字幕文本"></textarea>
+                    </div>
+                    
+                    <div class="demo-controls" style="margin-top: 16px;">
+                        <button class="btn btn-primary" onclick="downloadVTT()">💾 下载 VTT</button>
+                        <button class="btn btn-outline" onclick="loadVTTFile()">📂 加载文件</button>
+                        <button class="btn btn-danger" onclick="clearVTT()">🗑️ 清空</button>
+                    </div>
+                    
+                    <input type="file" id="vtt-file-input" accept=".vtt" style="display: none;" onchange="handleVTTFile(event)">
+                </div>
+            </div>
+
+            <!-- 字幕管理 -->
+            <div id="panel-cues" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>字幕管理</h1>
+                        <p>管理 VTTCue 字幕条目</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        VTTCue 表示单个字幕提示，包含开始时间、结束时间和文本内容。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">开始时间</label>
+                            <div class="time-input-group">
+                                <input type="number" class="form-input time-input" id="start-hours" value="0" min="0" max="23">
+                                <span class="time-separator">:</span>
+                                <input type="number" class="form-input time-input" id="start-minutes" value="0" min="0" max="59">
+                                <span class="time-separator">:</span>
+                                <input type="number" class="form-input time-input" id="start-seconds" value="0" min="0" max="59">
+                                <span class="time-separator">.</span>
+                                <input type="number" class="form-input time-input" id="start-ms" value="0" min="0" max="999">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">结束时间</label>
+                            <div class="time-input-group">
+                                <input type="number" class="form-input time-input" id="end-hours" value="0" min="0" max="23">
+                                <span class="time-separator">:</span>
+                                <input type="number" class="form-input time-input" id="end-minutes" value="0" min="0" max="59">
+                                <span class="time-separator">:</span>
+                                <input type="number" class="form-input time-input" id="end-seconds" value="5" min="0" max="59">
+                                <span class="time-separator">.</span>
+                                <input type="number" class="form-input time-input" id="end-ms" value="0" min="0" max="999">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">字幕文本</label>
+                            <textarea class="form-textarea" id="cue-text" rows="2" placeholder="输入字幕文本..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">对齐方式</label>
+                            <select class="form-select" id="cue-align">
+                                <option value="center">居中</option>
+                                <option value="left">左对齐</option>
+                                <option value="right">右对齐</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">垂直位置</label>
+                            <select class="form-select" id="cue-position">
+                                <option value="auto">自动</option>
+                                <option value="line-top">顶部</option>
+                                <option value="line-center">中间</option>
+                                <option value="line-bottom">底部</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">大小</label>
+                            <select class="form-select" id="cue-size">
+                                <option value="100">100%</option>
+                                <option value="80">80%</option>
+                                <option value="60">60%</option>
+                                <option value="40">40%</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="addCue()">➕ 添加字幕</button>
+                        <button class="btn btn-success" onclick="updateCue()">✏️ 更新字幕</button>
+                        <button class="btn btn-danger" onclick="deleteCue()">🗑️ 删除字幕</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">字幕列表</div>
+                        <div class="cue-list" id="cue-list">
+                            <div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无字幕</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视频预览 -->
+            <div id="panel-preview" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>视频预览</h1>
+                        <p>预览字幕效果</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        将字幕添加到视频轨道，实时预览效果。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">视频源</label>
+                        <input type="file" id="video-file-input" accept="video/*" onchange="loadVideoFile(event)">
+                    </div>
+                    
+                    <div class="video-container">
+                        <video id="preview-video" controls></video>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="addTrackToVideo()">📺 添加字幕轨道</button>
+                        <button class="btn btn-outline" onclick="toggleTrack()">👁️ 切换显示</button>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-title">轨道信息</div>
+                        <div id="track-info">
+                            <div style="color: var(--text-muted);">暂无轨道信息</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 区域设置 -->
+            <div id="panel-regions" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>区域设置</h1>
+                        <p>VTTRegion 字幕显示区域</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        VTTRegion 定义字幕在视频中的显示区域。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">区域 ID</label>
+                            <input type="text" class="form-input" id="region-id" value="region1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">宽度 (%)</label>
+                            <input type="number" class="form-input" id="region-width" value="100" min="0" max="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">行数</label>
+                            <input type="number" class="form-input" id="region-lines" value="3" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">区域锚点 X (%)</label>
+                            <input type="number" class="form-input" id="region-anchor-x" value="0" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">区域锚点 Y (%)</label>
+                            <input type="number" class="form-input" id="region-anchor-y" value="100" min="0" max="100">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">视口锚点 X (%)</label>
+                            <input type="number" class="form-input" id="region-viewport-x" value="0" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">视口锚点 Y (%)</label>
+                            <input type="number" class="form-input" id="region-viewport-y" value="100" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">滚动</label>
+                            <select class="form-select" id="region-scroll">
+                                <option value="">无</option>
+                                <option value="up">向上</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="createRegion()">📐 创建区域</button>
+                        <button class="btn btn-outline" onclick="listRegions()">📋 列出区域</button>
+                    </div>
+                    
+                    <div class="region-preview">
+                        <div class="region-box" id="region-preview-box" style="left: 0; bottom: 0; width: 100%; height: 30%;">
+                            区域预览
+                        </div>
+                    </div>
+                    
+                    <div id="region-list" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">区域列表</div>
+                            <div id="region-list-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VTT 解析器 -->
+            <div id="panel-parser" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>VTT 解析器</h1>
+                        <p>解析 WebVTT 文件内容</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        输入 VTT 内容，解析并显示所有字幕信息。
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">VTT 内容</label>
+                        <textarea class="form-textarea" id="parse-input" rows="6" placeholder="粘贴 VTT 内容..."></textarea>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="parseVTTContent()">🔍 解析</button>
+                        <button class="btn btn-outline" onclick="loadSampleForParse()">📝 加载示例</button>
+                    </div>
+                    
+                    <div id="parse-result" style="display: none;">
+                        <div class="result-box">
+                            <div class="result-title">解析结果</div>
+                            <div id="parse-result-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 格式转换 -->
+            <div id="panel-converter" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>格式转换</h1>
+                        <p>字幕格式转换工具</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="info-box">
+                        支持将 SRT 格式转换为 WebVTT 格式。
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">输入格式</label>
+                            <select class="form-select" id="input-format">
+                                <option value="srt">SRT</option>
+                                <option value="vtt">WebVTT</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">输出格式</label>
+                            <select class="form-select" id="output-format">
+                                <option value="vtt">WebVTT</option>
+                                <option value="srt">SRT</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">输入内容</label>
+                        <textarea class="form-textarea" id="convert-input" rows="6" placeholder="粘贴字幕内容..."></textarea>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-primary" onclick="convertFormat()">🔄 转换</button>
+                        <button class="btn btn-outline" onclick="loadSampleSRT()">📝 加载 SRT 示例</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">输出结果</label>
+                        <textarea class="form-textarea" id="convert-output" rows="6" readonly placeholder="转换结果..."></textarea>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="btn btn-outline" onclick="copyConvertOutput()">📋 复制结果</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API文档 -->
+            <div id="panel-api-docs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>API 文档</h1>
+                        <p>WebVTT API 完整文档</p>
+                    </div>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <h3 style="margin-bottom: 16px;">核心接口</h3>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VTTCue</span>
+                        <p class="api-description">表示单个字幕提示。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">VTTRegion</span>
+                        <p class="api-description">定义字幕显示区域。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">TextTrack</span>
+                        <p class="api-description">文本轨道接口。</p>
+                    </div>
+                    
+                    <div class="api-block">
+                        <span class="api-method">INTERFACE</span>
+                        <span class="api-signature">TextTrackCueList</span>
+                        <p class="api-description">字幕提示列表。</p>
+                    </div>
+
+                    <h3 style="margin: 20px 0 12px;">VTTCue 属性</h3>
+                    <table>
+                        <thead><tr><th>属性</th><th>类型</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>startTime</td><td>double</td><td>开始时间（秒）</td></tr>
+                            <tr><td>endTime</td><td>double</td><td>结束时间（秒）</td></tr>
+                            <tr><td>text</td><td>string</td><td>字幕文本</td></tr>
+                            <tr><td>align</td><td>string</td><td>对齐方式</td></tr>
+                            <tr><td>line</td><td>string/number</td><td>垂直位置</td></tr>
+                            <tr><td>position</td><td>string/number</td><td>水平位置</td></tr>
+                            <tr><td>size</td><td>number</td><td>宽度百分比</td></tr>
+                            <tr><td>vertical</td><td>string</td><td>文字方向</td></tr>
+                            <tr><td>region</td><td>VTTRegion</td><td>关联区域</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">VTTRegion 属性</h3>
+                    <table>
+                        <thead><tr><th>属性</th><th>类型</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td>id</td><td>string</td><td>区域标识</td></tr>
+                            <tr><td>width</td><td>number</td><td>宽度百分比</td></tr>
+                            <tr><td>lines</td><td>number</td><td>显示行数</td></tr>
+                            <tr><td>regionAnchorX/Y</td><td>number</td><td>区域锚点</td></tr>
+                            <tr><td>viewportAnchorX/Y</td><td>number</td><td>视口锚点</td></tr>
+                            <tr><td>scroll</td><td>string</td><td>滚动方式</td></tr>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin: 20px 0 12px;">WebVTT 文件格式</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>WEBVTT
+
+NOTE 这是一个注释
+
+00:00:00.000 --> 00:00:05.000 align:center
+第一条字幕文本
+
+00:00:05.000 --> 00:00:10.000
+第二条字幕文本
+可以有多行</div>
+
+                    <h3 style="margin: 20px 0 12px;">浏览器支持</h3>
+                    <div class="info-box">
+                        WebVTT 在所有现代浏览器中得到广泛支持。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志 -->
+            <div id="panel-logs" class="tab-panel">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1>操作日志</h1>
+                        <p>查看所有操作记录</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+                
+                <div class="card-container" style="padding: 20px;">
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry">等待操作...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ==================== 数据 ====================
+        var logs = [];
+        var cues = [];
+        var regions = [];
+        var tracks = [];
+        var selectedCueIndex = -1;
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            checkVTTSupport();
+        });
+
+        // ==================== 标签切换 ====================
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.tab === tabId) item.classList.add('active');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) panel.classList.add('active');
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function switchSubTab(subId, parent, btn) {
+            var parentEl = document.getElementById('panel-' + parent);
+            if (!parentEl) return;
+            parentEl.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            parentEl.querySelectorAll('.card-panel').forEach(p => p.classList.remove('active'));
+            var panel = document.getElementById('subtab-' + subId);
+            if (panel) panel.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // ==================== WebVTT 支持检测 ====================
+        function checkVTTSupport() {
+            var vttcueSupported = 'VTTCue' in window;
+            var vttregionSupported = 'VTTRegion' in window;
+            var texttrackSupported = 'TextTrack' in window;
+            var trackSupported = 'Track' in window;
+            
+            document.getElementById('vttcue-support').textContent = vttcueSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('vttcue-support').style.color = vttcueSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('vttregion-support').textContent = vttregionSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('vttregion-support').style.color = vttregionSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('texttrack-support').textContent = texttrackSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('texttrack-support').style.color = texttrackSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('track-support').textContent = trackSupported ? '✓ 支持' : '✗ 不支持';
+            document.getElementById('track-support').style.color = trackSupported ? 'var(--success)' : 'var(--danger)';
+            
+            document.getElementById('api-status').textContent = vttcueSupported ? '✓' : '✗';
+            document.getElementById('api-status').style.color = vttcueSupported ? 'var(--success)' : 'var(--danger)';
+            
+            addLog('info', 'WebVTT 支持检测完成');
+        }
+
+        // ==================== VTT 编辑器 ====================
+        function loadSampleVTT() {
+            var sample = 'WEBVTT\n\n' +
+                'NOTE 这是一个示例 WebVTT 文件\n\n' +
+                '00:00:00.000 --> 00:00:03.000 align:center\n' +
+                '欢迎观看视频\n\n' +
+                '00:00:03.000 --> 00:00:06.000\n' +
+                '这是第二条字幕\n' +
+                '可以有多行\n\n' +
+                '00:00:06.000 --> 00:00:10.000 align:right\n' +
+                '字幕可以有不同的对齐方式';
+            
+            document.getElementById('vtt-content').value = sample;
+            showToast('示例 VTT 已加载', 'success');
+            addLog('vtt', '加载示例 VTT');
+        }
+
+        function createNewVTT() {
+            document.getElementById('vtt-content').value = 'WEBVTT\n\n';
+            showToast('已创建新 VTT 文件', 'success');
+            addLog('vtt', '创建新 VTT');
+        }
+
+        function parseVTT() {
+            var content = document.getElementById('vtt-content').value;
+            parseVTTContentInternal(content);
+            showToast('VTT 解析完成', 'success');
+        }
+
+        function parseVTTContentInternal(content) {
+            cues = [];
+            var lines = content.split('\n');
+            var i = 0;
+            
+            // 跳过 WEBVTT 头
+            while (i < lines.length && !lines[i].includes('-->')) {
+                i++;
+            }
+            
+            while (i < lines.length) {
+                var line = lines[i].trim();
+                
+                if (line.includes('-->')) {
+                    var timeMatch = line.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+                    
+                    if (timeMatch) {
+                        var startTime = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000;
+                        var endTime = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000;
+                        
+                        // 解析设置
+                        var settings = {};
+                        var settingMatch = line.match(/align:(left|center|right)/);
+                        if (settingMatch) settings.align = settingMatch[1];
+                        
+                        // 获取文本
+                        i++;
+                        var text = '';
+                        while (i < lines.length && lines[i].trim() && !lines[i].includes('-->')) {
+                            text += (text ? '\n' : '') + lines[i].trim();
+                            i++;
+                        }
+                        
+                        cues.push({
+                            startTime: startTime,
+                            endTime: endTime,
+                            text: text,
+                            settings: settings
+                        });
+                    }
+                }
+                
+                i++;
+            }
+            
+            updateCueList();
+            document.getElementById('cue-count').textContent = cues.length;
+            addLog('vtt', '解析到 ' + cues.length + ' 条字幕');
+        }
+
+        function formatVTT() {
+            var content = document.getElementById('vtt-content').value;
+            parseVTTContentInternal(content);
+            generateVTTFromCues();
+            showToast('VTT 已格式化', 'success');
+        }
+
+        function generateVTTFromCues() {
+            var vtt = 'WEBVTT\n\n';
+            
+            cues.forEach(function(cue, index) {
+                var startTime = formatTime(cue.startTime);
+                var endTime = formatTime(cue.endTime);
+                var settings = cue.settings.align ? ' align:' + cue.settings.align : '';
+                
+                vtt += startTime + ' --> ' + endTime + settings + '\n';
+                vtt += cue.text + '\n\n';
+            });
+            
+            document.getElementById('vtt-content').value = vtt;
+        }
+
+        function formatTime(seconds) {
+            var h = Math.floor(seconds / 3600);
+            var m = Math.floor((seconds % 3600) / 60);
+            var s = Math.floor(seconds % 60);
+            var ms = Math.floor((seconds % 1) * 1000);
+            
+            return h.toString().padStart(2, '0') + ':' +
+                   m.toString().padStart(2, '0') + ':' +
+                   s.toString().padStart(2, '0') + '.' +
+                   ms.toString().padStart(3, '0');
+        }
+
+        function downloadVTT() {
+            var content = document.getElementById('vtt-content').value;
+            var blob = new Blob([content], { type: 'text/vtt' });
+            var url = URL.createObjectURL(blob);
+            
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'subtitles.vtt';
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showToast('VTT 文件已下载', 'success');
+            addLog('vtt', '下载 VTT 文件');
+        }
+
+        function loadVTTFile() {
+            document.getElementById('vtt-file-input').click();
+        }
+
+        function handleVTTFile(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('vtt-content').value = e.target.result;
+                showToast('文件已加载', 'success');
+                addLog('vtt', '加载 VTT 文件: ' + file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        function clearVTT() {
+            document.getElementById('vtt-content').value = 'WEBVTT\n\n';
+            cues = [];
+            updateCueList();
+            document.getElementById('cue-count').textContent = '0';
+            showToast('已清空', 'success');
+        }
+
+        // ==================== 字幕管理 ====================
+        function addCue() {
+            var startTime = getTimeFromInputs('start');
+            var endTime = getTimeFromInputs('end');
+            var text = document.getElementById('cue-text').value;
+            var align = document.getElementById('cue-align').value;
+            
+            if (!text) {
+                showToast('请输入字幕文本', 'warning');
+                return;
+            }
+            
+            if (startTime >= endTime) {
+                showToast('开始时间必须小于结束时间', 'warning');
+                return;
+            }
+            
+            var cue = {
+                startTime: startTime,
+                endTime: endTime,
+                text: text,
+                settings: { align: align }
+            };
+            
+            cues.push(cue);
+            cues.sort(function(a, b) { return a.startTime - b.startTime; });
+            
+            updateCueList();
+            generateVTTFromCues();
+            document.getElementById('cue-count').textContent = cues.length;
+            
+            showToast('字幕已添加', 'success');
+            addLog('vtt', '添加字幕: ' + text.substring(0, 20));
+        }
+
+        function updateCue() {
+            if (selectedCueIndex < 0) {
+                showToast('请先选择要更新的字幕', 'warning');
+                return;
+            }
+            
+            var startTime = getTimeFromInputs('start');
+            var endTime = getTimeFromInputs('end');
+            var text = document.getElementById('cue-text').value;
+            var align = document.getElementById('cue-align').value;
+            
+            cues[selectedCueIndex] = {
+                startTime: startTime,
+                endTime: endTime,
+                text: text,
+                settings: { align: align }
+            };
+            
+            cues.sort(function(a, b) { return a.startTime - b.startTime; });
+            
+            updateCueList();
+            generateVTTFromCues();
+            
+            showToast('字幕已更新', 'success');
+            addLog('vtt', '更新字幕');
+        }
+
+        function deleteCue() {
+            if (selectedCueIndex < 0) {
+                showToast('请先选择要删除的字幕', 'warning');
+                return;
+            }
+            
+            cues.splice(selectedCueIndex, 1);
+            selectedCueIndex = -1;
+            
+            updateCueList();
+            generateVTTFromCues();
+            document.getElementById('cue-count').textContent = cues.length;
+            
+            showToast('字幕已删除', 'success');
+            addLog('vtt', '删除字幕');
+        }
+
+        function getTimeFromInputs(prefix) {
+            var h = parseInt(document.getElementById(prefix + '-hours').value) || 0;
+            var m = parseInt(document.getElementById(prefix + '-minutes').value) || 0;
+            var s = parseInt(document.getElementById(prefix + '-seconds').value) || 0;
+            var ms = parseInt(document.getElementById(prefix + '-ms').value) || 0;
+            
+            return h * 3600 + m * 60 + s + ms / 1000;
+        }
+
+        function setTimeToInputs(prefix, time) {
+            var h = Math.floor(time / 3600);
+            var m = Math.floor((time % 3600) / 60);
+            var s = Math.floor(time % 60);
+            var ms = Math.floor((time % 1) * 1000);
+            
+            document.getElementById(prefix + '-hours').value = h;
+            document.getElementById(prefix + '-minutes').value = m;
+            document.getElementById(prefix + '-seconds').value = s;
+            document.getElementById(prefix + '-ms').value = ms;
+        }
+
+        function updateCueList() {
+            var container = document.getElementById('cue-list');
+            
+            if (cues.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无字幕</div>';
+                return;
+            }
+            
+            var html = '';
+            cues.forEach(function(cue, index) {
+                var activeClass = index === selectedCueIndex ? 'active' : '';
+                html += '<div class="cue-item ' + activeClass + '" onclick="selectCue(' + index + ')">' +
+                    '<div class="cue-header">' +
+                    '<span class="cue-time">' + formatTime(cue.startTime) + ' --> ' + formatTime(cue.endTime) + '</span>' +
+                    '<div class="cue-actions">' +
+                    '<span style="font-size: 11px; color: var(--text-muted);">' + (cue.settings.align || 'center') + '</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="cue-text">' + escapeHtml(cue.text) + '</div>' +
+                    '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function selectCue(index) {
+            selectedCueIndex = index;
+            var cue = cues[index];
+            
+            setTimeToInputs('start', cue.startTime);
+            setTimeToInputs('end', cue.endTime);
+            document.getElementById('cue-text').value = cue.text;
+            document.getElementById('cue-align').value = cue.settings.align || 'center';
+            
+            updateCueList();
+        }
+
+        // ==================== 视频预览 ====================
+        function loadVideoFile(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            
+            var video = document.getElementById('preview-video');
+            video.src = URL.createObjectURL(file);
+            showToast('视频已加载', 'success');
+        }
+
+        function addTrackToVideo() {
+            var video = document.getElementById('preview-video');
+            
+            // 创建 TextTrack
+            var track = video.addTextTrack('subtitles', '字幕', 'zh');
+            track.mode = 'showing';
+            
+            // 添加字幕
+            cues.forEach(function(cue) {
+                var vttCue = new VTTCue(cue.startTime, cue.endTime, cue.text);
+                if (cue.settings.align) {
+                    vttCue.align = cue.settings.align;
+                }
+                track.addCue(vttCue);
+            });
+            
+            tracks.push(track);
+            document.getElementById('track-count').textContent = tracks.length;
+            
+            updateTrackInfo();
+            showToast('字幕轨道已添加', 'success');
+            addLog('vtt', '添加字幕轨道');
+        }
+
+        function toggleTrack() {
+            var video = document.getElementById('preview-video');
+            if (video.textTracks.length > 0) {
+                var track = video.textTracks[0];
+                track.mode = track.mode === 'showing' ? 'hidden' : 'showing';
+                showToast('字幕显示: ' + track.mode, 'success');
+            }
+        }
+
+        function updateTrackInfo() {
+            var video = document.getElementById('preview-video');
+            var container = document.getElementById('track-info');
+            
+            if (video.textTracks.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">暂无轨道信息</div>';
+                return;
+            }
+            
+            var html = '<div class="result-grid">';
+            for (var i = 0; i < video.textTracks.length; i++) {
+                var track = video.textTracks[i];
+                html += '<div class="result-item">' +
+                    '<div class="result-label">轨道 ' + i + '</div>' +
+                    '<div class="result-value">' + track.label + ' (' + track.language + ')</div>' +
+                    '</div>';
+                html += '<div class="result-item">' +
+                    '<div class="result-label">模式</div>' +
+                    '<div class="result-value">' + track.mode + '</div>' +
+                    '</div>';
+                html += '<div class="result-item">' +
+                    '<div class="result-label">字幕数</div>' +
+                    '<div class="result-value">' + track.cues.length + '</div>' +
+                    '</div>';
+            }
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        // ==================== 区域设置 ====================
+        function createRegion() {
+            if (!('VTTRegion' in window)) {
+                showToast('VTTRegion 不支持', 'error');
+                return;
+            }
+            
+            var region = new VTTRegion();
+            region.id = document.getElementById('region-id').value;
+            region.width = parseInt(document.getElementById('region-width').value);
+            region.lines = parseInt(document.getElementById('region-lines').value);
+            region.regionAnchorX = parseInt(document.getElementById('region-anchor-x').value);
+            region.regionAnchorY = parseInt(document.getElementById('region-anchor-y').value);
+            region.viewportAnchorX = parseInt(document.getElementById('region-viewport-x').value);
+            region.viewportAnchorY = parseInt(document.getElementById('region-viewport-y').value);
+            
+            var scroll = document.getElementById('region-scroll').value;
+            if (scroll) region.scroll = scroll;
+            
+            regions.push(region);
+            document.getElementById('region-count').textContent = regions.length;
+            
+            updateRegionPreview();
+            showToast('区域已创建', 'success');
+            addLog('vtt', '创建区域: ' + region.id);
+        }
+
+        function listRegions() {
+            var container = document.getElementById('region-list');
+            var content = document.getElementById('region-list-content');
+            
+            if (regions.length === 0) {
+                content.innerHTML = '<div style="color: var(--text-muted);">暂无区域</div>';
+            } else {
+                var html = '<div class="result-grid">';
+                regions.forEach(function(region, i) {
+                    html += '<div class="result-item">' +
+                        '<div class="result-label">ID</div>' +
+                        '<div class="result-value">' + region.id + '</div>' +
+                        '</div>';
+                    html += '<div class="result-item">' +
+                        '<div class="result-label">宽度</div>' +
+                        '<div class="result-value">' + region.width + '%</div>' +
+                        '</div>';
+                    html += '<div class="result-item">' +
+                        '<div class="result-label">行数</div>' +
+                        '<div class="result-value">' + region.lines + '</div>' +
+                        '</div>';
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            }
+            
+            container.style.display = 'block';
+        }
+
+        function updateRegionPreview() {
+            var box = document.getElementById('region-preview-box');
+            var width = document.getElementById('region-width').value;
+            var viewportY = document.getElementById('region-viewport-y').value;
+            
+            box.style.width = width + '%';
+            box.style.height = (parseInt(document.getElementById('region-lines').value) * 5) + '%';
+            box.style.bottom = (100 - viewportY) + '%';
+        }
+
+        // ==================== VTT 解析器 ====================
+        function parseVTTContent() {
+            var content = document.getElementById('parse-input').value;
+            parseVTTContentInternal(content);
+            
+            document.getElementById('parse-result').style.display = 'block';
+            
+            var html = '<div class="result-grid">' +
+                '<div class="result-item"><div class="result-label">字幕数</div><div class="result-value">' + cues.length + '</div></div>' +
+                '</div>';
+            
+            html += '<table style="margin-top: 16px;"><thead><tr><th>序号</th><th>开始</th><th>结束</th><th>文本</th></tr></thead><tbody>';
+            cues.forEach(function(cue, i) {
+                html += '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + formatTime(cue.startTime) + '</td>' +
+                    '<td>' + formatTime(cue.endTime) + '</td>' +
+                    '<td>' + escapeHtml(cue.text.substring(0, 30)) + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            
+            document.getElementById('parse-result-content').innerHTML = html;
+            showToast('解析完成', 'success');
+            addLog('vtt', '解析 VTT 内容');
+        }
+
+        function loadSampleForParse() {
+            document.getElementById('parse-input').value = 'WEBVTT\n\n' +
+                '00:00:01.000 --> 00:00:04.000\n' +
+                '第一条字幕\n\n' +
+                '00:00:05.000 --> 00:00:08.000\n' +
+                '第二条字幕';
+            showToast('示例已加载', 'success');
+        }
+
+        // ==================== 格式转换 ====================
+        function convertFormat() {
+            var input = document.getElementById('convert-input').value;
+            var inputFormat = document.getElementById('input-format').value;
+            var outputFormat = document.getElementById('output-format').value;
+            
+            if (!input) {
+                showToast('请输入内容', 'warning');
+                return;
+            }
+            
+            var result;
+            
+            if (inputFormat === 'srt' && outputFormat === 'vtt') {
+                result = srtToVtt(input);
+            } else if (inputFormat === 'vtt' && outputFormat === 'srt') {
+                result = vttToSrt(input);
+            } else {
+                result = input;
+            }
+            
+            document.getElementById('convert-output').value = result;
+            showToast('转换完成', 'success');
+            addLog('vtt', '格式转换: ' + inputFormat + ' -> ' + outputFormat);
+        }
+
+        function srtToVtt(srt) {
+            var vtt = 'WEBVTT\n\n';
+            
+            // SRT 时间格式: 00:00:00,000 --> 00:00:00,000
+            // VTT 时间格式: 00:00:00.000 --> 00:00:00.000
+            var lines = srt.split('\n');
+            var i = 0;
+            
+            while (i < lines.length) {
+                var line = lines[i].trim();
+                
+                // 跳过序号
+                if (/^\d+$/.test(line)) {
+                    i++;
+                    continue;
+                }
+                
+                // 转换时间
+                if (line.includes('-->')) {
+                    vtt += line.replace(/,/g, '.') + '\n';
+                    i++;
+                    
+                    // 添加文本
+                    while (i < lines.length && lines[i].trim()) {
+                        vtt += lines[i] + '\n';
+                        i++;
+                    }
+                    vtt += '\n';
+                }
+                
+                i++;
+            }
+            
+            return vtt;
+        }
+
+        function vttToSrt(vtt) {
+            var srt = '';
+            var lines = vtt.split('\n');
+            var i = 0;
+            var cueIndex = 1;
+            
+            // 跳过 WEBVTT 头
+            while (i < lines.length && !lines[i].includes('-->')) {
+                i++;
+            }
+            
+            while (i < lines.length) {
+                var line = lines[i].trim();
+                
+                if (line.includes('-->')) {
+                    srt += cueIndex + '\n';
+                    srt += line.replace(/\./g, ',').split(' ')[0] + ' --> ' + 
+                           line.split('-->')[1].trim().split(' ')[0].replace(/\./g, ',') + '\n';
+                    i++;
+                    
+                    while (i < lines.length && lines[i].trim()) {
+                        srt += lines[i] + '\n';
+                        i++;
+                    }
+                    srt += '\n';
+                    cueIndex++;
+                }
+                
+                i++;
+            }
+            
+            return srt;
+        }
+
+        function loadSampleSRT() {
+            document.getElementById('convert-input').value = '1\n' +
+                '00:00:01,000 --> 00:00:04,000\n' +
+                '第一条字幕\n\n' +
+                '2\n' +
+                '00:00:05,000 --> 00:00:08,000\n' +
+                '第二条字幕';
+            showToast('SRT 示例已加载', 'success');
+        }
+
+        function copyConvertOutput() {
+            var output = document.getElementById('convert-output').value;
+            navigator.clipboard.writeText(output);
+            showToast('已复制', 'success');
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addLog(type, msg) {
+            var now = new Date();
+            logs.unshift({ type: type, msg: msg, time: now.toTimeString().split(' ')[0] });
+            if (logs.length > 100) logs.pop();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            document.getElementById('log-container').innerHTML = logs.map(function(l) {
+                return '<div class="log-entry">' +
+                    '<span class="log-time">' + l.time + '</span>' +
+                    '<span class="log-type ' + l.type + '">' + l.type.toUpperCase() + '</span>' +
+                    l.msg + '</div>';
+            }).join('') || '<div class="log-entry">暂无日志</div>';
+        }
+
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+            showToast('日志已清空', 'success');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'success';
+            var t = document.createElement('div');
+            t.className = 'toast ' + type;
+            t.innerHTML = '<span>' + (type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠️') + '</span><span>' + msg + '</span>';
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(function() { 
+                t.style.opacity = '0'; 
+                setTimeout(function() { t.remove(); }, 300); 
+            }, 3000);
+        }
+
+        function copyCode(btn) {
+            var clone = btn.parentElement.cloneNode(true);
+            clone.querySelector('.copy-btn')?.remove();
+            navigator.clipboard.writeText(clone.textContent.trim());
+            btn.textContent = '已复制!';
+            setTimeout(function() { btn.textContent = '复制'; }, 2000);
+        }
+    </script>
+</body>
+</html>
