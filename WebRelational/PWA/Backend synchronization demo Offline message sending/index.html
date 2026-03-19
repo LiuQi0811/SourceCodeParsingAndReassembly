@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>后台同步演示 - 离线消息发送</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1976D2;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 5px;
+            display: none;
+            white-space: pre-line;
+        }
+
+        .online {
+            color: green;
+        }
+
+        .offline {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📨 离线消息发送器</h1>
+        <p>
+            当前状态:
+            <span id="onlineStatus" class="online">🟢 在线</span>
+        </p>
+        <p>尝试断开网络，输入消息并发送。恢复网络后，消息会自动发出。</p>
+        <input type="text" id="messageInput" placeholder="输入你的消息" value="Hello, world!">
+        <button onclick="sendMessage()">发送消息</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // 监听网络状态变化
+        window.addEventListener('online', () => {
+            document.getElementById('onlineStatus').innerHTML = '🟢 在线';
+            document.getElementById('onlineStatus').className = 'online';
+        });
+
+        window.addEventListener('offline', () => {
+            document.getElementById('onlineStatus').innerHTML = '🔴 离线';
+            document.getElementById('onlineStatus').className = 'offline';
+        });
+
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    console.log('ServiceWorker 注册成功，作用域: ', registration.scope);
+                    updateStatus('✅ Service Worker 已就绪，可以离线发送消息。');
+                } catch (error) {
+                    console.error('ServiceWorker 注册失败:', error);
+                    updateStatus('❌ Service Worker 注册失败，离线同步功能不可用。');
+                }
+            });
+        } else {
+            updateStatus('⚠️ 当前浏览器不支持 Background Sync API。请使用 Chrome/Edge 进行测试。');
+        }
+
+        // 发送消息逻辑
+        async function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            if (!message) return;
+
+            // 1. 尝试直接发送（如果在线）
+            if (navigator.onLine) {
+                try {
+                    await fakeApiCall(message);
+                    updateStatus(`✅ 消息已在线发送: "${message}"`);
+                } catch (error) {
+                    updateStatus(`❌ 在线发送失败`);
+                }
+                return;
+            }
+
+            // 2. 如果离线，保存到 IndexedDB 并注册同步
+            updateStatus('⏳ 网络已断开，正在保存消息并注册后台同步...');
+
+            try {
+                // 保存消息到 IndexedDB
+                await saveMessageToDB(message);
+
+                // 注册后台同步任务
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-messages');
+
+                updateStatus(`📦 消息已暂存，标签: "sync-messages"。网络恢复后会自动发送。\n你可以现在关闭页面或标签页来测试后台同步。`);
+            } catch (error) {
+                console.error('后台同步注册失败:', error);
+                updateStatus('❌ 后台同步注册失败');
+            }
+        }
+
+        // 模拟的 API 调用
+        function fakeApiCall(message) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    console.log('模拟发送消息到服务器:', message);
+                    resolve();
+                }, 500);
+            });
+        }
+
+        // 使用 IndexedDB 存储消息
+        async function saveMessageToDB(message) {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('MessageDB', 1);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('messages')) {
+                        db.createObjectStore('messages', { autoIncrement: true, keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const tx = db.transaction('messages', 'readwrite');
+                    const store = tx.objectStore('messages');
+                    store.add({ content: message, timestamp: Date.now() });
+
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = (e) => reject(e.target.error);
+                };
+
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // 监听来自 Service Worker 的消息
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data.type === 'SYNC_SUCCESS') {
+                updateStatus(`✅ 后台同步成功！消息已发送: "${event.data.message}"`);
+            }
+        });
+
+        function updateStatus(text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = text;
+        }
+    </script>
+</body>
+
+</html>

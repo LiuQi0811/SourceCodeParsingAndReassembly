@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量视频后台下载 - Background Fetch演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #downloadAll {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #downloadAll:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        #checkSupport {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        #checkSupport:hover {
+            background: #e0e0e0;
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .status-info {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 50px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-item .label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .status-item .value {
+            color: #333;
+        }
+
+        .supported {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .unsupported {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .video-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+        }
+
+        .video-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .video-card h3 {
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.1em;
+        }
+
+        .video-wrapper {
+            position: relative;
+            padding-top: 56.25%;
+            /* 16:9 Aspect Ratio */
+            background: #000;
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-footer {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            background: #f8f9fa;
+        }
+
+        .download-single {
+            flex: 1;
+            padding: 8px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .download-single:hover {
+            background: #218838;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            border-left: 4px solid #667eea;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            border-left-color: #28a745;
+        }
+
+        .notification.error {
+            border-left-color: #dc3545;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .modal-content ul {
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+
+        .modal-content li {
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .modal-close {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge.experimental {
+            background: #ffc107;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>
+            🎬 Background Fetch API 演示
+            <span class="badge experimental">实验性功能</span>
+        </h2>
+
+        <div class="header-controls">
+            <button id="downloadAll">
+                ⬇️ 后台下载全部视频
+            </button>
+            <button id="checkSupport">
+                🔍 检查浏览器支持
+            </button>
+            <button id="clearCache">
+                🗑️ 清除缓存
+            </button>
+        </div>
+
+        <!-- 状态卡片 -->
+        <div class="status-card">
+            <h3>📊 系统状态</h3>
+            <div class="status-info">
+                <div class="status-item">
+                    <span class="label">Background Fetch:</span>
+                    <span id="bgFetchStatus" class="value unsupported">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Service Worker:</span>
+                    <span id="swStatus" class="value unsupported">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">协议:</span>
+                    <span id="protocolStatus" class="value">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">浏览器:</span>
+                    <span id="browserInfo" class="value"></span>
+                </div>
+            </div>
+            <div class="progress-bar" id="globalProgress" style="display: none;">
+                <div class="progress-fill" id="globalProgressFill"></div>
+            </div>
+        </div>
+
+        <!-- 视频列表 -->
+        <div id="videoList" class="video-grid"></div>
+    </div>
+
+    <!-- 通知区域 -->
+    <div id="notification" class="notification">
+        <span id="notificationMessage"></span>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <h3>🔧 如何启用Background Fetch</h3>
+            <p>Background Fetch是实验性功能，需要手动开启：</p>
+            <ul>
+                <li>1️⃣ 使用Chrome 74+ 或 Edge 74+</li>
+                <li>2️⃣ 在地址栏输入 <strong>chrome://flags/#enable-experimental-web-platform-features</strong></li>
+                <li>3️⃣ 将"Experimental Web Platform features"设置为<strong>Enabled</strong></li>
+                <li>4️⃣ 重启浏览器</li>
+                <li>5️⃣ 使用HTTPS协议访问本页面（localhost除外）</li>
+            </ul>
+            <button class="modal-close" onclick="document.getElementById('helpModal').classList.remove('show')">
+                知道了
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 视频列表
+        const videoList = [
+            {
+                title: "海洋",
+                src: "http://vjs.zencdn.net/v/oceans.mp4",
+                size: "5.2 MB"
+            },
+            {
+                title: "西瓜视频 Demo",
+                src: "https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4",
+                size: "3.8 MB"
+            },
+            {
+                title: "大兔子",
+                src: "http://www.w3school.com.cn/example/html5/mov_bbb.mp4",
+                size: "1.2 MB"
+            },
+            {
+                title: "大灰熊",
+                src: "https://www.w3schools.com/html/movie.mp4",
+                size: "2.1 MB"
+            },
+            {
+                title: "冰川",
+                src: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+                size: "4.5 MB"
+            },
+            {
+                title: "新闻视频1",
+                src: "https://stream7.iqilu.com/10339/upload_transcode/202002/09/20200209105011F0zPoYzHry.mp4",
+                size: "6.7 MB"
+            },
+            {
+                title: "新闻视频2",
+                src: "https://stream7.iqilu.com/10339/upload_transcode/202002/09/20200209104902N3v5Vpxuvb.mp4",
+                size: "5.9 MB"
+            }
+        ];
+
+        // DOM元素
+        const videoListEl = document.getElementById("videoList");
+        const downloadAllBtn = document.getElementById("downloadAll");
+        const checkSupportBtn = document.getElementById("checkSupport");
+        const clearCacheBtn = document.getElementById("clearCache");
+        const notification = document.getElementById("notification");
+        const notificationMessage = document.getElementById("notificationMessage");
+        const bgFetchStatus = document.getElementById("bgFetchStatus");
+        const swStatus = document.getElementById("swStatus");
+        const protocolStatus = document.getElementById("protocolStatus");
+        const browserInfo = document.getElementById("browserInfo");
+        const helpModal = document.getElementById("helpModal");
+        const globalProgress = document.getElementById("globalProgress");
+        const globalProgressFill = document.getElementById("globalProgressFill");
+
+        // 当前活跃的下载任务
+        let activeBgFetch = null;
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            notificationMessage.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // 检查浏览器支持
+        async function checkBrowserSupport() {
+            // 检查Background Fetch
+            const hasBgFetch = 'BackgroundFetchManager' in window;
+            bgFetchStatus.textContent = hasBgFetch ? '✅ 支持' : '❌ 不支持';
+            bgFetchStatus.className = hasBgFetch ? 'value supported' : 'value unsupported';
+
+            // 检查Service Worker
+            const hasSw = 'serviceWorker' in navigator;
+            swStatus.textContent = hasSw ? '✅ 支持' : '❌ 不支持';
+            swStatus.className = hasSw ? 'value supported' : 'value unsupported';
+
+            // 检查协议
+            const isHttps = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+            protocolStatus.textContent = isHttps ? '✅ 安全' : '❌ 需要HTTPS';
+            protocolStatus.className = isHttps ? 'value supported' : 'value unsupported';
+
+            // 浏览器信息
+            const ua = navigator.userAgent;
+            let browserName = "未知";
+            if (ua.indexOf("Chrome") > -1) browserName = "Chrome";
+            else if (ua.indexOf("Edge") > -1) browserName = "Edge";
+            else if (ua.indexOf("Firefox") > -1) browserName = "Firefox";
+            else if (ua.indexOf("Safari") > -1) browserName = "Safari";
+            browserInfo.textContent = browserName;
+
+            // 如果不支持，显示帮助模态框
+            if (!hasBgFetch || !isHttps) {
+                setTimeout(() => {
+                    helpModal.classList.add('show');
+                }, 1000);
+            }
+
+            return hasBgFetch && hasSw && isHttps;
+        }
+
+        // 渲染视频列表
+        function renderVideoList() {
+            videoList.forEach((video, index) => {
+                const card = document.createElement("div");
+                card.className = "video-card";
+                card.innerHTML = `
+                    <h3>${video.title} <small style="font-size: 0.8em; opacity: 0.8;">${video.size}</small></h3>
+                    <div class="video-wrapper">
+                        <video controls preload="none" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180' viewBox='0 0 320 180'%3E%3Crect width='320' height='180' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23fff' font-family='Arial'%3E${video.title}%3C/text%3E%3C/svg%3E">
+                            <source src="${video.src}" type="video/mp4">
+                            您的浏览器不支持Video标签
+                        </video>
+                    </div>
+                    <div class="video-footer">
+                        <button class="download-single" data-index="${index}" data-src="${video.src}" data-title="${video.title}">
+                            ⬇️ 单独下载
+                        </button>
+                    </div>
+                `;
+                videoListEl.appendChild(card);
+            });
+
+            // 添加单独下载事件
+            document.querySelectorAll('.download-single').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const src = e.target.dataset.src;
+                    const title = e.target.dataset.title;
+                    window.open(src, '_blank');
+                    showNotification(`正在打开: ${title}`, 'success');
+                });
+            });
+        }
+
+        // 注册Service Worker
+        async function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) {
+                showNotification('您的浏览器不支持Service Worker', 'error');
+                return false;
+            }
+
+            try {
+                // 注销旧的Service Worker
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                    console.log('旧Service Worker已注销');
+                }
+
+                // 注册新的
+                const registration = await navigator.serviceWorker.register('/sw.js', {
+                    scope: '/'
+                });
+
+                console.log('Service Worker注册成功:', registration);
+                swStatus.textContent = '✅ 已注册';
+                swStatus.className = 'value supported';
+
+                // 等待激活
+                await navigator.serviceWorker.ready;
+                console.log('Service Worker已就绪');
+
+                return true;
+            } catch (error) {
+                console.error('Service Worker注册失败:', error);
+                showNotification('Service Worker注册失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // 启动后台下载
+        async function startBackgroundDownload() {
+            try {
+                // 检查支持
+                const isSupported = await checkBrowserSupport();
+                if (!isSupported) {
+                    // 降级方案：在新标签页打开所有视频
+                    if (confirm('您的浏览器不支持后台下载，是否在新标签页打开所有视频？')) {
+                        videoList.forEach(video => {
+                            window.open(video.src, '_blank');
+                        });
+                    }
+                    return;
+                }
+
+                // 确保Service Worker就绪
+                const registration = await navigator.serviceWorker.ready;
+
+                if (!registration.backgroundFetch) {
+                    throw new Error('BackgroundFetch不可用');
+                }
+
+                // 检查是否有正在进行的下载
+                const fetches = await registration.backgroundFetch.getIds();
+                if (fetches.length > 0) {
+                    if (!confirm('已有后台下载任务，是否继续新任务？')) {
+                        return;
+                    }
+                }
+
+                // 准备下载请求
+                const requests = videoList.map(video => {
+                    // 对跨域资源使用no-cors模式
+                    return new Request(video.src, {
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                });
+
+                const id = 'video-batch-' + Date.now();
+
+                // 估算总大小（假设每个视频50MB）
+                const estimatedTotal = videoList.length * 50 * 1024 * 1024;
+
+                // 启动后台下载
+                activeBgFetch = await registration.backgroundFetch.fetch(id, requests, {
+                    title: `正在后台下载 ${videoList.length} 个视频`,
+                    icons: [{
+                        src: '/icon.png',
+                        sizes: '192x192',
+                        type: 'image/png'
+                    }],
+                    downloadTotal: estimatedTotal
+                });
+
+                console.log('后台下载已启动:', activeBgFetch);
+
+                // 显示进度条
+                globalProgress.style.display = 'block';
+
+                // 监听进度
+                activeBgFetch.addEventListener('progress', () => {
+                    const { bytesDownloaded, bytesTotal, downloadTotal } = activeBgFetch;
+                    if (bytesTotal > 0) {
+                        const percent = Math.round((bytesDownloaded / bytesTotal) * 100);
+                        globalProgressFill.style.width = percent + '%';
+                    }
+                });
+
+                showNotification(`✅ 后台下载已启动！下载ID: ${id}`, 'success');
+
+            } catch (error) {
+                console.error('启动后台下载失败:', error);
+
+                // 错误处理
+                let errorMessage = error.message;
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    errorMessage = '部分视频源无法访问，可能存在跨域限制';
+                } else if (error.name === 'NotAllowedError') {
+                    errorMessage = '后台下载权限被拒绝';
+                } else if (error.name === 'QuotaExceededError') {
+                    errorMessage = '存储空间不足';
+                }
+
+                showNotification(`❌ ${errorMessage}`, 'error');
+
+                // 提供降级方案
+                if (confirm('是否尝试使用普通下载方式？')) {
+                    videoList.forEach(video => {
+                        window.open(video.src, '_blank');
+                    });
+                }
+            }
+        }
+
+        // 清除缓存
+        async function clearAllCaches() {
+            try {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+                showNotification('✅ 缓存已清除', 'success');
+            } catch (error) {
+                showNotification('❌ 清除缓存失败: ' + error.message, 'error');
+            }
+        }
+
+        // 初始化
+        async function init() {
+            renderVideoList();
+
+            // 检查支持
+            await checkBrowserSupport();
+
+            // 注册Service Worker
+            await registerServiceWorker();
+
+            // 监听下载按钮
+            downloadAllBtn.addEventListener("click", startBackgroundDownload);
+
+            // 检查支持按钮
+            checkSupportBtn.addEventListener("click", async () => {
+                const supported = await checkBrowserSupport();
+                if (!supported) {
+                    helpModal.classList.add('show');
+                } else {
+                    showNotification('✅ 您的浏览器完全支持Background Fetch！', 'success');
+                }
+            });
+
+            // 清除缓存按钮
+            clearCacheBtn.addEventListener("click", clearAllCaches);
+
+            // 点击模态框外部关闭
+            helpModal.addEventListener('click', (e) => {
+                if (e.target === helpModal) {
+                    helpModal.classList.remove('show');
+                }
+            });
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+
+</html>

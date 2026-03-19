@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频下载器 - 下载 + 视频库</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .main-tab {
+            padding: 12px 30px;
+            border: none;
+            background: none;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .main-tab:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .main-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .select-all-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .select-all-bar label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .select-all-bar input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .stats {
+            margin-left: auto;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .video-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+            position: relative;
+        }
+
+        .video-card.selected {
+            border: 3px solid #28a745;
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .video-card.downloading {
+            opacity: 0.9;
+            border: 2px solid #007bff;
+            animation: borderPulse 1.5s infinite;
+        }
+
+        @keyframes borderPulse {
+            0% {
+                border-color: #007bff;
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+            }
+
+            50% {
+                border-color: #00ccff;
+                box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+            }
+
+            100% {
+                border-color: #007bff;
+                box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+            }
+        }
+
+        .video-card.completed {
+            border: 3px solid #28a745;
+            background: linear-gradient(135deg, #f0fff0, #ffffff);
+        }
+
+        .video-card.error {
+            border: 3px solid #dc3545;
+            background: linear-gradient(135deg, #fff0f0, #ffffff);
+        }
+
+        .video-header {
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .video-header h3 {
+            font-size: 1.1em;
+            margin: 0;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-size {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+
+        .video-select {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            z-index: 10;
+            background: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .video-select input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #28a745;
+        }
+
+        .video-wrapper {
+            position: relative;
+            padding-top: 56.25%;
+            background: #000;
+            cursor: pointer;
+        }
+
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 2;
+        }
+
+        .video-wrapper:hover .preview-overlay {
+            opacity: 1;
+        }
+
+        .preview-text {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            pointer-events: none;
+        }
+
+        .video-thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            z-index: 1;
+        }
+
+        .video-preview-player {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 3;
+        }
+
+        .video-preview-player video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .close-preview {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 4;
+            transition: background 0.3s ease;
+        }
+
+        .close-preview:hover {
+            background: rgba(255, 0, 0, 0.8);
+        }
+
+        .video-info {
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .download-progress {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+            animation: gradientMove 2s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 0%;
+            }
+
+            100% {
+                background-position: 200% 0%;
+            }
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.4),
+                    transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .video-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .video-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-preview {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-preview:hover:not(:disabled) {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-download:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-download:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .global-progress {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 400px;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+            border-left: 4px solid #007bff;
+        }
+
+        .global-progress.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .global-progress h4 {
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-progress {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-progress:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .global-progress-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .global-progress-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .global-progress-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-title {
+            font-size: 13px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        .item-status {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .status-downloading {
+            background: #007bff;
+            color: white;
+            animation: statusPulse 1s infinite;
+        }
+
+        @keyframes statusPulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .status-completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .cache-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+
+        .info-item .label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .info-item .value {
+            color: #667eea;
+            font-weight: 600;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 3000;
+            border-left: 4px solid #28a745;
+            font-weight: 500;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            border-left-color: #dc3545;
+        }
+
+        .toast.warning {
+            border-left-color: #ffc107;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            background: #f8f9fa;
+            border-radius: 15px;
+            grid-column: 1 / -1;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .global-progress {
+                width: 90%;
+                left: 5%;
+                right: 5%;
+                bottom: 10px;
+            }
+
+            .toolbar {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>
+            📁 视频下载器
+            <small>下载 + 管理 + 播放</small>
+        </h1>
+
+        <!-- 主标签页切换 -->
+        <div class="main-tabs">
+            <button class="main-tab active" onclick="switchTab('downloader')">
+                ⬇️ 下载器
+            </button>
+            <button class="main-tab" onclick="switchTab('library')">
+                🎬 我的视频库
+            </button>
+        </div>
+
+        <!-- 下载器页面 -->
+        <div id="downloaderPage">
+            <div class="toolbar">
+                <button class="btn btn-primary" id="downloadSelected" disabled>
+                    ⬇️ 下载选中视频 (<span id="selectedCount">0</span>)
+                </button>
+                <button class="btn btn-success" id="selectAll">
+                    ✅ 全选
+                </button>
+                <button class="btn btn-warning" id="deselectAll">
+                    🔄 取消全选
+                </button>
+                <button class="btn" id="refreshMetadata">
+                    📊 刷新视频信息
+                </button>
+            </div>
+
+            <div class="select-all-bar">
+                <label>
+                    <input type="checkbox" id="selectAllCheckbox"> 全选当前页
+                </label>
+                <div class="stats">
+                    总视频: <span id="totalVideos">0</span> |
+                    已选择: <span id="selectedVideos">0</span> |
+                    已下载: <span id="downloadedVideos">0</span>
+                </div>
+            </div>
+
+            <div id="videoGrid" class="video-grid"></div>
+        </div>
+
+        <!-- 视频库页面 -->
+        <div id="libraryPage" style="display: none;">
+            <div class="cache-info">
+                <div class="info-item">
+                    <span class="label">📦 缓存名称:</span>
+                    <span class="value" id="cacheName">downloaded-videos</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">🎬 视频数量:</span>
+                    <span class="value" id="videoCount">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">💾 总大小:</span>
+                    <span class="value" id="totalSize">0 MB</span>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn btn-success" onclick="refreshLibrary()">
+                    🔄 刷新列表
+                </button>
+                <button class="btn btn-danger" onclick="clearAllVideos()">
+                    🗑️ 清除所有视频
+                </button>
+                <button class="btn btn-info" onclick="saveAllToDisk()">
+                    💾 全部保存到电脑
+                </button>
+            </div>
+
+            <div id="libraryGrid" class="video-grid"></div>
+        </div>
+    </div>
+
+    <!-- 全局进度面板 -->
+    <div class="global-progress" id="globalProgress">
+        <h4>
+            <span>📊 下载进度</span>
+            <button class="close-progress" id="closeProgressBtn">×</button>
+        </h4>
+        <div class="global-progress-list" id="globalProgressList"></div>
+        <div class="progress-bar" style="margin-top: 15px; height: 10px;">
+            <div class="progress-fill" id="globalProgressBar" style="width: 0%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px;">
+            <span id="globalProgressText">0/0 完成</span>
+            <span id="globalSpeed">0 KB/s</span>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        (function () {
+            // ==================== 基础视频列表 ====================
+            const baseVideoList = [
+                {
+                    id: 1,
+                    title: "海洋纪录片",
+                    src: "http://vjs.zencdn.net/v/oceans.mp4",
+                    format: "MP4",
+                    resolution: "640x360"
+                },
+                {
+                    id: 2,
+                    title: "西瓜视频 Demo",
+                    src: "https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/mp4/xgplayer-demo-360p.mp4",
+                    format: "MP4",
+                    resolution: "640x360"
+                },
+                {
+                    id: 3,
+                    title: "大兔子动画",
+                    src: "http://www.w3school.com.cn/example/html5/mov_bbb.mp4",
+                    format: "MP4",
+                    resolution: "640x360"
+                },
+                {
+                    id: 4,
+                    title: "大灰熊",
+                    src: "https://www.w3schools.com/html/movie.mp4",
+                    format: "MP4",
+                    resolution: "640x360"
+                },
+                {
+                    id: 5,
+                    title: "冰川 trailer",
+                    src: "https://media.w3.org/2010/05/sintel/trailer.mp4",
+                    format: "MP4",
+                    resolution: "1280x720"
+                },
+                {
+                    id: 6,
+                    title: "新闻视频1",
+                    src: "https://stream7.iqilu.com/10339/upload_transcode/202002/09/20200209105011F0zPoYzHry.mp4",
+                    format: "MP4",
+                    resolution: "1280x720"
+                },
+                {
+                    id: 7,
+                    title: "新闻视频2",
+                    src: "https://stream7.iqilu.com/10339/upload_transcode/202002/09/20200209104902N3v5Vpxuvb.mp4",
+                    format: "MP4",
+                    resolution: "1280x720"
+                },
+                {
+                    id: 8,
+                    title: "测试视频",
+                    src: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_1MB.mp4",
+                    format: "MP4",
+                    resolution: "1920x1080"
+                }
+            ];
+
+            // ==================== 全局变量 ====================
+            const CACHE_NAME = 'downloaded-videos';
+            let videoList = [];
+            let selectedVideos = new Set();
+            let downloadedVideos = new Set();
+            let downloadingVideos = new Set();
+            let downloadQueue = [];
+            let activeDownloads = 0;
+            const MAX_CONCURRENT_DOWNLOADS = 2;
+            let startTime = Date.now();
+            let totalBytesDownloaded = 0;
+            let videoProgress = new Map();
+            let currentlyPlaying = null;
+            let isLoadingMetadata = false;
+
+            // ==================== DOM 元素 ====================
+            const downloaderPage = document.getElementById('downloaderPage');
+            const libraryPage = document.getElementById('libraryPage');
+            const mainTabs = document.querySelectorAll('.main-tab');
+            const videoGrid = document.getElementById('videoGrid');
+            const libraryGrid = document.getElementById('libraryGrid');
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const downloadSelectedBtn = document.getElementById('downloadSelected');
+            const selectedCountSpan = document.getElementById('selectedCount');
+            const totalVideosSpan = document.getElementById('totalVideos');
+            const selectedVideosSpan = document.getElementById('selectedVideos');
+            const downloadedVideosSpan = document.getElementById('downloadedVideos');
+            const videoCountSpan = document.getElementById('videoCount');
+            const totalSizeSpan = document.getElementById('totalSize');
+            const globalProgress = document.getElementById('globalProgress');
+            const globalProgressBar = document.getElementById('globalProgressBar');
+            const globalProgressText = document.getElementById('globalProgressText');
+            const globalSpeed = document.getElementById('globalSpeed');
+            const globalProgressList = document.getElementById('globalProgressList');
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const closeProgressBtn = document.getElementById('closeProgressBtn');
+            const refreshMetadataBtn = document.getElementById('refreshMetadata');
+
+            // ==================== 工具函数 ====================
+            function showToast(message, type = 'success') {
+                toastMessage.textContent = message;
+                toast.className = `toast ${type}`;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            function formatBytes(bytes, decimals = 2) {
+                if (bytes === 0) return '0 Bytes';
+                if (!bytes || isNaN(bytes)) return '获取失败';
+                const k = 1024;
+                const dm = decimals < 0 ? 0 : decimals;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+
+            function formatDuration(seconds) {
+                if (!seconds || isNaN(seconds)) return '获取失败';
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+
+                if (hours > 0) {
+                    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                } else {
+                    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+                }
+            }
+
+            function formatSpeed(bytesPerSecond) {
+                return formatBytes(bytesPerSecond) + '/s';
+            }
+
+            // ==================== 标签页切换 ====================
+            window.switchTab = function (tab) {
+                mainTabs.forEach(t => t.classList.remove('active'));
+                event.target.classList.add('active');
+
+                if (tab === 'downloader') {
+                    downloaderPage.style.display = 'block';
+                    libraryPage.style.display = 'none';
+                } else {
+                    downloaderPage.style.display = 'none';
+                    libraryPage.style.display = 'block';
+                    loadLibrary();
+                }
+            };
+
+            // ==================== 视频信息获取 ====================
+            async function getVideoSize(url) {
+                try {
+                    const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
+                    if (response.ok) {
+                        const contentLength = response.headers.get('content-length');
+                        if (contentLength) return parseInt(contentLength, 10);
+                    }
+
+                    const rangeResponse = await fetch(url, {
+                        headers: { 'Range': 'bytes=0-0' }
+                    });
+
+                    if (rangeResponse.ok) {
+                        const contentRange = rangeResponse.headers.get('content-range');
+                        if (contentRange) {
+                            const match = contentRange.match(/bytes 0-0\/(\d+)/);
+                            if (match) return parseInt(match[1], 10);
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function getVideoDuration(url) {
+                return new Promise((resolve) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.src = url;
+
+                    const timeout = setTimeout(() => {
+                        video.src = '';
+                        resolve(null);
+                    }, 10000);
+
+                    video.onloadedmetadata = function () {
+                        clearTimeout(timeout);
+                        const duration = video.duration;
+                        video.src = '';
+                        resolve(duration);
+                    };
+
+                    video.onerror = function () {
+                        clearTimeout(timeout);
+                        video.src = '';
+                        resolve(null);
+                    };
+                });
+            }
+
+            async function initializeVideoList() {
+                showToast('正在获取视频信息...', 'info');
+                isLoadingMetadata = true;
+                renderVideos();
+
+                const metadataPromises = baseVideoList.map(async (video) => {
+                    const [size, duration] = await Promise.all([
+                        getVideoSize(video.src),
+                        getVideoDuration(video.src)
+                    ]);
+
+                    return {
+                        ...video,
+                        size: size,
+                        sizeFormatted: size ? formatBytes(size) : '获取失败',
+                        duration: duration,
+                        durationFormatted: duration ? formatDuration(duration) : '获取失败'
+                    };
+                });
+
+                videoList = await Promise.all(metadataPromises);
+                isLoadingMetadata = false;
+                renderVideos();
+                showToast('视频信息获取完成', 'success');
+            }
+
+            // ==================== 下载器页面渲染 ====================
+            function updateStats() {
+                totalVideosSpan.textContent = videoList.length;
+                selectedVideosSpan.textContent = selectedVideos.size;
+                downloadedVideosSpan.textContent = downloadedVideos.size;
+
+                if (selectedVideos.size === videoList.length) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (selectedVideos.size === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.indeterminate = true;
+                }
+
+                downloadSelectedBtn.disabled = selectedVideos.size === 0;
+                selectedCountSpan.textContent = selectedVideos.size;
+            }
+
+            function closeCurrentPreview() {
+                if (currentlyPlaying) {
+                    const oldPlayer = document.getElementById(`preview-player-${currentlyPlaying}`);
+                    const oldVideo = oldPlayer?.querySelector('video');
+                    if (oldVideo) {
+                        oldVideo.pause();
+                        oldVideo.currentTime = 0;
+                    }
+                    if (oldPlayer) {
+                        oldPlayer.style.display = 'none';
+                    }
+                    currentlyPlaying = null;
+                }
+            }
+
+            window.previewVideo = function (videoId, event) {
+                if (event) event.stopPropagation();
+
+                if (currentlyPlaying === videoId) {
+                    closeCurrentPreview();
+                    return;
+                }
+
+                closeCurrentPreview();
+
+                const player = document.getElementById(`preview-player-${videoId}`);
+                const video = player?.querySelector('video');
+
+                if (player && video) {
+                    player.style.display = 'block';
+                    video.play().catch(e => console.log('自动播放失败:', e));
+                    currentlyPlaying = videoId;
+                }
+            };
+
+            function renderVideos() {
+                videoGrid.innerHTML = '';
+
+                if (videoList.length === 0 && isLoadingMetadata) {
+                    for (let i = 0; i < 4; i++) {
+                        const loadingCard = document.createElement('div');
+                        loadingCard.className = 'video-card';
+                        loadingCard.innerHTML = `
+                            <div class="video-header">
+                                <h3>加载中...</h3>
+                                <span class="video-size">获取中</span>
+                            </div>
+                            <div class="video-wrapper">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white;">
+                                    <div class="loading-spinner"></div>
+                                </div>
+                            </div>
+                            <div class="video-info">
+                                <div class="info-row"><span class="info-label">格式:</span> <span>获取中...</span></div>
+                                <div class="info-row"><span class="info-label">分辨率:</span> <span>获取中...</span></div>
+                                <div class="info-row"><span class="info-label">时长:</span> <span>获取中...</span></div>
+                                <div class="info-row"><span class="info-label">大小:</span> <span>获取中...</span></div>
+                            </div>
+                        `;
+                        videoGrid.appendChild(loadingCard);
+                    }
+                    return;
+                }
+
+                videoList.forEach(video => {
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.id = `video-${video.id}`;
+
+                    if (selectedVideos.has(video.id)) card.classList.add('selected');
+                    if (downloadedVideos.has(video.id)) card.classList.add('completed');
+                    if (downloadingVideos.has(video.id)) card.classList.add('downloading');
+
+                    const progress = videoProgress.get(video.id) || 0;
+
+                    card.innerHTML = `
+                        <div class="video-header">
+                            <h3 title="${video.title}">${video.title}</h3>
+                            <span class="video-size">${video.sizeFormatted}</span>
+                        </div>
+                        <div class="video-select">
+                            <input type="checkbox" class="video-checkbox" data-id="${video.id}" 
+                                ${selectedVideos.has(video.id) ? 'checked' : ''}>
+                        </div>
+                        <div class="video-wrapper">
+                            <img class="video-thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180' viewBox='0 0 320 180'%3E%3Crect width='320' height='180' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23fff' font-family='Arial' font-size='14'%3E${video.title}%3C/text%3E%3C/svg%3E" alt="${video.title}">
+                            <div class="preview-overlay" onclick="previewVideo(${video.id}, event)">
+                                <span class="preview-text">👁️ 点击预览</span>
+                            </div>
+                            <div class="video-preview-player" id="preview-player-${video.id}">
+                                <video controls>
+                                    <source src="${video.src}" type="video/mp4">
+                                </video>
+                                <button class="close-preview" onclick="previewVideo(${video.id}, event)">×</button>
+                            </div>
+                        </div>
+                        <div class="video-info">
+                            <div class="info-row">
+                                <span class="info-label">格式:</span>
+                                <span>${video.format}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">分辨率:</span>
+                                <span>${video.resolution}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">时长:</span>
+                                <span>${video.durationFormatted}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">大小:</span>
+                                <span>${video.sizeFormatted}</span>
+                            </div>
+                            
+                            <div class="download-progress" id="progress-${video.id}" style="display: ${downloadingVideos.has(video.id) ? 'block' : 'none'};">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progress-fill-${video.id}" style="width: ${progress}%;"></div>
+                                </div>
+                                <div class="progress-text" id="progress-text-${video.id}">${progress}%</div>
+                            </div>
+                            
+                            <div class="video-actions">
+                                <button class="btn-preview" onclick="previewVideo(${video.id}, event)">👁️ 预览</button>
+                                <button class="btn-download" onclick="downloadSingle(${video.id}, event)" 
+                                    ${downloadedVideos.has(video.id) ? 'disabled' : ''}>
+                                    ${downloadedVideos.has(video.id) ? '✅ 已下载' : '⬇️ 下载'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    videoGrid.appendChild(card);
+
+                    const checkbox = card.querySelector('.video-checkbox');
+                    checkbox.addEventListener('change', function (e) {
+                        e.stopPropagation();
+                        const videoId = parseInt(e.target.dataset.id);
+                        if (e.target.checked) {
+                            selectedVideos.add(videoId);
+                            card.classList.add('selected');
+                        } else {
+                            selectedVideos.delete(videoId);
+                            card.classList.remove('selected');
+                        }
+                        updateStats();
+                    });
+                });
+
+                updateStats();
+            }
+
+            // ==================== 下载功能 ====================
+            window.downloadSingle = function (videoId, event) {
+                if (event) event.stopPropagation();
+
+                const video = videoList.find(v => v.id === videoId);
+
+                if (downloadedVideos.has(videoId)) {
+                    showToast('此视频已下载', 'warning');
+                    return;
+                }
+
+                if (downloadingVideos.has(videoId)) {
+                    showToast('此视频正在下载中', 'warning');
+                    return;
+                }
+
+                downloadQueue.push(videoId);
+                processDownloadQueue();
+
+                const progressDiv = document.getElementById(`progress-${videoId}`);
+                if (progressDiv) progressDiv.style.display = 'block';
+
+                showToast(`📥 已添加到下载队列: ${video.title}`, 'success');
+            };
+
+            async function processDownloadQueue() {
+                while (downloadQueue.length > 0 && activeDownloads < MAX_CONCURRENT_DOWNLOADS) {
+                    const videoId = downloadQueue.shift();
+                    activeDownloads++;
+                    downloadingVideos.add(videoId);
+
+                    const card = document.getElementById(`video-${videoId}`);
+                    if (card) card.classList.add('downloading');
+
+                    globalProgress.classList.add('show');
+
+                    await downloadVideo(videoId);
+
+                    activeDownloads--;
+                    downloadingVideos.delete(videoId);
+
+                    if (card) card.classList.remove('downloading');
+
+                    if (activeDownloads === 0 && downloadQueue.length === 0) {
+                        setTimeout(() => {
+                            if (activeDownloads === 0) {
+                                globalProgress.classList.remove('show');
+                                showToast('🎉 所有下载任务已完成！', 'success');
+                            }
+                        }, 3000);
+                    }
+                }
+            }
+
+            async function downloadVideo(videoId) {
+                const video = videoList.find(v => v.id === videoId);
+                const progressFill = document.getElementById(`progress-fill-${videoId}`);
+                const progressText = document.getElementById(`progress-text-${videoId}`);
+
+                try {
+                    showToast(`开始下载: ${video.title}`, 'success');
+
+                    const response = await fetch(video.src, {
+                        mode: 'cors',
+                        headers: { 'Range': 'bytes=0-' }
+                    });
+
+                    if (!response.ok && response.status !== 206) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const contentLength = response.headers.get('content-length');
+                    const total = contentLength ? parseInt(contentLength, 10) : 1024 * 1024 * 10;
+
+                    const reader = response.body.getReader();
+                    let receivedLength = 0;
+                    const chunks = [];
+
+                    const updateProgress = () => {
+                        if (total > 0) {
+                            const percent = Math.min(100, Math.round((receivedLength / total) * 100));
+                            videoProgress.set(videoId, percent);
+
+                            progressFill.style.width = percent + '%';
+                            progressText.textContent = percent + '%';
+
+                            updateGlobalProgress();
+                        }
+                    };
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        totalBytesDownloaded += value.length;
+                        updateProgress();
+                    }
+
+                    // 保存到缓存
+                    const blob = new Blob(chunks, { type: 'video/mp4' });
+                    const cache = await caches.open(CACHE_NAME);
+                    await cache.put(video.src, new Response(blob));
+
+                    // 下载到磁盘
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${video.title}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    downloadedVideos.add(videoId);
+                    videoProgress.set(videoId, 100);
+                    progressFill.style.width = '100%';
+                    progressText.textContent = '100% - 完成!';
+
+                    showToast(`✅ ${video.title} 下载完成！`, 'success');
+
+                } catch (error) {
+                    console.error('下载失败:', error);
+                    progressText.textContent = '下载失败';
+                    showToast(`❌ ${video.title} 下载失败: ${error.message}`, 'error');
+                }
+
+                updateStats();
+            }
+
+            function updateGlobalProgress() {
+                const totalSelected = selectedVideos.size;
+                const completed = [...downloadedVideos].filter(id => selectedVideos.has(id)).length;
+                const inProgress = [...downloadingVideos].filter(id => selectedVideos.has(id)).length;
+
+                if (totalSelected > 0) {
+                    const totalProgress = [...videoProgress.values()].reduce((a, b) => a + b, 0);
+                    const averageProgress = Math.min(100, Math.round(totalProgress / Math.max(1, videoProgress.size)));
+                    globalProgressBar.style.width = averageProgress + '%';
+                    globalProgressText.textContent = `${completed}/${totalSelected} 完成 (${inProgress} 进行中)`;
+                }
+
+                const timeElapsed = (Date.now() - startTime) / 1000;
+                if (timeElapsed > 0) {
+                    const speed = totalBytesDownloaded / timeElapsed;
+                    globalSpeed.textContent = formatSpeed(speed);
+                }
+
+                updateGlobalProgressList();
+            }
+
+            function updateGlobalProgressList() {
+                if (!globalProgressList) return;
+
+                const downloading = [...downloadingVideos].map(id => {
+                    const video = videoList.find(v => v.id === id);
+                    const progress = videoProgress.get(id) || 0;
+                    return `
+                        <div class="global-progress-item">
+                            <span class="item-title">⬇️ ${video.title}</span>
+                            <span class="item-status status-downloading">${progress}%</span>
+                        </div>
+                    `;
+                }).join('');
+
+                globalProgressList.innerHTML = downloading || '<div style="color:#999; text-align:center;">没有正在下载的任务</div>';
+            }
+
+            // ==================== 视频库功能 ====================
+            async function loadLibrary() {
+                libraryGrid.innerHTML = '<div class="empty-state"><div class="icon">📖</div><p>加载中...</p></div>';
+
+                try {
+                    const cache = await caches.open(CACHE_NAME);
+                    const requests = await cache.keys();
+
+                    videoCountSpan.textContent = requests.length;
+
+                    if (requests.length === 0) {
+                        libraryGrid.innerHTML = '<div class="empty-state"><div class="icon">🎬</div><p>还没有下载任何视频，先去下载吧！</p></div>';
+                        totalSizeSpan.textContent = '0 MB';
+                        return;
+                    }
+
+                    let totalBytes = 0;
+                    let videos = [];
+
+                    for (const request of requests) {
+                        const response = await cache.match(request);
+                        const blob = await response.blob();
+                        const size = blob.size;
+                        totalBytes += size;
+
+                        const url = request.url;
+                        const fileName = url.split('/').pop() || 'video.mp4';
+                        const title = fileName.replace('.mp4', '').replace(/-/g, ' ').replace(/_/g, ' ');
+
+                        videos.push({
+                            url: url,
+                            title: title,
+                            blob: blob,
+                            size: size,
+                            sizeFormatted: formatBytes(size)
+                        });
+                    }
+
+                    totalSizeSpan.textContent = formatBytes(totalBytes);
+
+                    libraryGrid.innerHTML = '';
+                    videos.forEach((video, index) => {
+                        const videoUrl = URL.createObjectURL(video.blob);
+
+                        const card = document.createElement('div');
+                        card.className = 'video-card';
+                        card.innerHTML = `
+                            <div class="video-header">
+                                <h3 title="${video.title}">${video.title}</h3>
+                                <span class="video-size">${video.sizeFormatted}</span>
+                            </div>
+                            <div class="video-wrapper">
+                                <video controls src="${videoUrl}"></video>
+                            </div>
+                            <div class="video-info">
+                                <div class="info-row">
+                                    <span class="info-label">来源:</span>
+                                    <span>${video.url.substring(0, 30)}...</span>
+                                </div>
+                                <div class="video-actions">
+                                    <button class="btn btn-success" onclick="saveVideoToDisk('${video.url.replace(/'/g, "\\'")}', '${video.title}')">💾 保存到电脑</button>
+                                    <button class="btn btn-danger" onclick="deleteVideo('${video.url.replace(/'/g, "\\'")}')">🗑️ 删除</button>
+                                </div>
+                            </div>
+                        `;
+
+                        libraryGrid.appendChild(card);
+                    });
+
+                } catch (error) {
+                    console.error('加载视频库失败:', error);
+                    libraryGrid.innerHTML = `<div class="empty-state"><div class="icon">❌</div><p>加载失败: ${error.message}</p></div>`;
+                }
+            }
+
+            window.saveVideoToDisk = async function (url, title) {
+                try {
+                    const cache = await caches.open(CACHE_NAME);
+                    const response = await cache.match(url);
+                    const blob = await response.blob();
+
+                    const downloadUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    a.download = `${title}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(downloadUrl);
+
+                    showToast('✅ 视频已保存到下载文件夹');
+                } catch (error) {
+                    showToast('❌ 保存失败: ' + error.message, 'error');
+                }
+            };
+
+            window.saveAllToDisk = async function () {
+                try {
+                    const cache = await caches.open(CACHE_NAME);
+                    const requests = await cache.keys();
+
+                    if (requests.length === 0) {
+                        showToast('没有视频可保存', 'warning');
+                        return;
+                    }
+
+                    showToast(`开始保存 ${requests.length} 个视频...`, 'info');
+
+                    for (const request of requests) {
+                        const response = await cache.match(request);
+                        const blob = await response.blob();
+                        const url = request.url;
+                        const fileName = url.split('/').pop() || 'video.mp4';
+                        const title = fileName.replace('.mp4', '').replace(/-/g, ' ').replace(/_/g, ' ');
+
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `${title}.mp4`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+
+                        await new Promise(r => setTimeout(r, 500));
+                    }
+
+                    showToast('✅ 所有视频已保存');
+                } catch (error) {
+                    showToast('❌ 保存失败: ' + error.message, 'error');
+                }
+            };
+
+            window.deleteVideo = async function (url) {
+                if (!confirm('确定要删除这个视频吗？')) return;
+
+                try {
+                    const cache = await caches.open(CACHE_NAME);
+                    await cache.delete(url);
+                    loadLibrary();
+                    showToast('✅ 视频已删除');
+                } catch (error) {
+                    showToast('❌ 删除失败: ' + error.message, 'error');
+                }
+            };
+
+            window.clearAllVideos = async function () {
+                if (!confirm('确定要删除所有视频吗？此操作不可恢复！')) return;
+
+                try {
+                    await caches.delete(CACHE_NAME);
+                    await caches.open(CACHE_NAME);
+                    loadLibrary();
+                    showToast('✅ 所有视频已清除');
+                } catch (error) {
+                    showToast('❌ 清除失败: ' + error.message, 'error');
+                }
+            };
+
+            window.refreshLibrary = function () {
+                loadLibrary();
+            };
+
+            // ==================== 事件监听 ====================
+            document.getElementById('downloadSelected').addEventListener('click', function () {
+                if (selectedVideos.size === 0) {
+                    showToast('请先选择要下载的视频', 'warning');
+                    return;
+                }
+
+                startTime = Date.now();
+                totalBytesDownloaded = 0;
+
+                let addedCount = 0;
+                selectedVideos.forEach(videoId => {
+                    if (!downloadedVideos.has(videoId) && !downloadingVideos.has(videoId)) {
+                        downloadQueue.push(videoId);
+                        addedCount++;
+
+                        const progressDiv = document.getElementById(`progress-${videoId}`);
+                        if (progressDiv) progressDiv.style.display = 'block';
+                    }
+                });
+
+                if (addedCount > 0) {
+                    processDownloadQueue();
+                    showToast(`开始下载 ${addedCount} 个视频`, 'success');
+                } else {
+                    showToast('所有选中的视频都已下载', 'warning');
+                }
+            });
+
+            document.getElementById('selectAll').addEventListener('click', function () {
+                videoList.forEach(video => selectedVideos.add(video.id));
+                renderVideos();
+            });
+
+            document.getElementById('deselectAll').addEventListener('click', function () {
+                selectedVideos.clear();
+                renderVideos();
+            });
+
+            refreshMetadataBtn.addEventListener('click', async function () {
+                showToast('正在刷新视频信息...', 'info');
+                isLoadingMetadata = true;
+                renderVideos();
+
+                const metadataPromises = videoList.map(async (video) => {
+                    const [size, duration] = await Promise.all([
+                        getVideoSize(video.src),
+                        getVideoDuration(video.src)
+                    ]);
+
+                    return {
+                        ...video,
+                        size: size,
+                        sizeFormatted: size ? formatBytes(size) : '获取失败',
+                        duration: duration,
+                        durationFormatted: duration ? formatDuration(duration) : '获取失败'
+                    };
+                });
+
+                videoList = await Promise.all(metadataPromises);
+                isLoadingMetadata = false;
+                renderVideos();
+                showToast('视频信息刷新完成', 'success');
+            });
+
+            selectAllCheckbox.addEventListener('change', function (e) {
+                if (e.target.checked) {
+                    videoList.forEach(video => selectedVideos.add(video.id));
+                } else {
+                    selectedVideos.clear();
+                }
+                renderVideos();
+            });
+
+            closeProgressBtn.addEventListener('click', function () {
+                globalProgress.classList.remove('show');
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.video-preview-player') && !e.target.closest('.preview-overlay') && !e.target.closest('.btn-preview')) {
+                    closeCurrentPreview();
+                }
+            });
+
+            // ==================== 初始化 ====================
+            initializeVideoList();
+        })();
+    </script>
+</body>
+
+</html>
