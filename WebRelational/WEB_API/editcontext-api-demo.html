@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EditContext API 企业级演示应用">
+    <meta name="theme-color" content="#059669">
+    <title>EditContext API Explorer</title>
+    
+    <style>
+        /* ==================== CSS Variables & Theme ==================== */
+        :root {
+            --primary-50: #ecfdf5;
+            --primary-100: #d1fae5;
+            --primary-200: #a7f3d0;
+            --primary-300: #6ee7b7;
+            --primary-400: #34d399;
+            --primary-500: #10b981;
+            --primary-600: #059669;
+            --primary-700: #047857;
+            --primary-800: #065f46;
+            --primary-900: #064e3b;
+            
+            --accent-500: #8b5cf6;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #3b82f6;
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+            --transition-slow: 350ms ease;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #ecfdf5;
+            --bg-tertiary: #d1fae5;
+            --bg-card: #ffffff;
+            --bg-code: #fafafa;
+            --text-primary: #064e3b;
+            --text-secondary: #047857;
+            --text-tertiary: #34d399;
+            --border-color: #a7f3d0;
+            --border-light: #d1fae5;
+            --accent-bg: rgba(16, 185, 129, 0.1);
+            --accent-border: rgba(16, 185, 129, 0.2);
+            --hover-bg: rgba(16, 185, 129, 0.05);
+            --scrollbar-track: #d1fae5;
+            --scrollbar-thumb: #6ee7b7;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #022c22;
+            --bg-secondary: #064e3b;
+            --bg-tertiary: #065f46;
+            --bg-card: #064e3b;
+            --bg-code: #022c22;
+            --text-primary: #ecfdf5;
+            --text-secondary: #a7f3d0;
+            --text-tertiary: #34d399;
+            --border-color: #065f46;
+            --border-light: #064e3b;
+            --accent-bg: rgba(16, 185, 129, 0.15);
+            --accent-border: rgba(16, 185, 129, 0.3);
+            --hover-bg: rgba(255, 255, 255, 0.05);
+            --scrollbar-track: #064e3b;
+            --scrollbar-thumb: #047857;
+        }
+        
+        /* ==================== Base Styles ==================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color var(--transition-normal), color var(--transition-normal);
+        }
+        
+        /* ==================== Scrollbar ==================== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-400);
+        }
+        
+        /* ==================== Layout ==================== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* ==================== Sidebar ==================== */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 100;
+            transition: transform var(--transition-normal);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .logo-text {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .logo-version {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 12px;
+        }
+        
+        .nav-section {
+            margin-bottom: 24px;
+        }
+        
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-tertiary);
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .nav-item:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+        
+        .nav-item.active {
+            background: var(--accent-bg);
+            color: var(--primary-600);
+            font-weight: 500;
+        }
+        
+        .nav-item-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .nav-item-badge {
+            margin-left: auto;
+            background: var(--primary-500);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* ==================== Main Content ==================== */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ==================== Header ==================== */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: var(--radius-md);
+            transition: background var(--transition-fast);
+        }
+        
+        .menu-toggle:hover {
+            background: var(--hover-bg);
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all var(--transition-fast);
+        }
+        
+        .header-btn:hover {
+            border-color: var(--primary-300);
+            color: var(--primary-600);
+        }
+        
+        .lang-select {
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        /* ==================== Content Area ==================== */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+        }
+        
+        /* ==================== Tab Panel ==================== */
+        .tab-panel {
+            display: none;
+        }
+        
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ==================== Cards ==================== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-500);
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* ==================== Buttons ==================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: none;
+            outline: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary-500);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-600);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--primary-300);
+            color: var(--primary-600);
+        }
+        
+        .btn-success {
+            background: var(--success-500);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--error-500);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        /* ==================== Editor Area ==================== */
+        .editor-container {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            min-height: 300px;
+            padding: 20px;
+            position: relative;
+            transition: border-color var(--transition-fast);
+        }
+        
+        .editor-container:focus-within {
+            border-color: var(--primary-400);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        .editor-area {
+            min-height: 250px;
+            outline: none;
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .editor-area:empty::before {
+            content: attr(data-placeholder);
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+        
+        .editor-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            margin: -20px -20px 20px -20px;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-btn {
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all var(--transition-fast);
+            color: var(--text-secondary);
+        }
+        
+        .toolbar-btn:hover {
+            background: var(--accent-bg);
+            border-color: var(--primary-300);
+            color: var(--primary-600);
+        }
+        
+        .toolbar-btn.active {
+            background: var(--primary-500);
+            color: white;
+            border-color: var(--primary-500);
+        }
+        
+        .toolbar-divider {
+            width: 1px;
+            background: var(--border-color);
+            margin: 0 4px;
+        }
+        
+        /* ==================== Selection Info ==================== */
+        .selection-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            margin-top: 16px;
+        }
+        
+        .selection-item {
+            text-align: center;
+        }
+        
+        .selection-label {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .selection-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-600);
+            font-family: monospace;
+        }
+        
+        /* ==================== Code Block ==================== */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .code-block code {
+            color: var(--text-primary);
+        }
+        
+        .code-keyword { color: #c678dd; }
+        .code-string { color: #98c379; }
+        .code-number { color: #d19a66; }
+        .code-comment { color: var(--text-tertiary); }
+        .code-function { color: #61afef; }
+        
+        /* ==================== Table ==================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .data-table td {
+            font-size: 14px;
+        }
+        
+        .data-table tr:hover td {
+            background: var(--hover-bg);
+        }
+        
+        /* ==================== Feature Grid ==================== */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: all var(--transition-fast);
+        }
+        
+        .feature-card:hover {
+            border-color: var(--primary-300);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+        
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        /* ==================== Section Header ==================== */
+        .section-header {
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+        
+        /* ==================== Info Box ==================== */
+        .info-box {
+            background: var(--accent-bg);
+            border: 1px solid var(--accent-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .info-box-icon {
+            color: var(--primary-500);
+            font-size: 20px;
+            margin-top: 2px;
+        }
+        
+        .info-box-content {
+            flex: 1;
+        }
+        
+        .info-box-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .info-box-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        
+        .info-box.warning .info-box-icon {
+            color: var(--warning-500);
+        }
+        
+        /* ==================== Result Panel ==================== */
+        .result-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .result-panel pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        
+        /* ==================== Status Badge ==================== */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-supported {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-500);
+        }
+        
+        .status-unsupported {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-500);
+        }
+        
+        /* ==================== Event Log ==================== */
+        .event-log {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .event-entry {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 12px;
+            font-family: monospace;
+            animation: slideIn 0.2s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .event-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .event-time {
+            color: var(--text-tertiary);
+            margin-right: 8px;
+        }
+        
+        .event-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        
+        .event-type.textupdate { background: rgba(16, 185, 129, 0.1); color: var(--success-500); }
+        .event-type.textformatupdate { background: rgba(59, 130, 246, 0.1); color: var(--info-500); }
+        .event-type.compositionstart { background: rgba(139, 92, 246, 0.1); color: var(--accent-500); }
+        .event-type.compositionend { background: rgba(245, 158, 11, 0.1); color: var(--warning-500); }
+        .event-type.characterboundsupdate { background: rgba(239, 68, 68, 0.1); color: var(--error-500); }
+        
+        /* ==================== Underline Styles ==================== */
+        .underline-squiggle {
+            text-decoration: underline wavy var(--error-500);
+            text-underline-offset: 3px;
+        }
+        
+        .underline-solid {
+            text-decoration: underline solid var(--primary-500);
+            text-underline-offset: 3px;
+        }
+        
+        .underline-dotted {
+            text-decoration: underline dotted var(--info-500);
+            text-underline-offset: 3px;
+        }
+        
+        .underline-dashed {
+            text-decoration: underline dashed var(--warning-500);
+            text-underline-offset: 3px;
+        }
+        
+        /* ==================== Responsive ==================== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: flex;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 99;
+            }
+            
+            .overlay.active {
+                display: block;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .header {
+                padding: 12px 16px;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+            
+            .header-btn span {
+                display: none;
+            }
+            
+            .editor-toolbar {
+                padding: 8px;
+            }
+            
+            .toolbar-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+        
+        /* ==================== Toast Notification ==================== */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+        }
+        
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast-success { border-left: 4px solid var(--success-500); }
+        .toast-error { border-left: 4px solid var(--error-500); }
+        .toast-info { border-left: 4px solid var(--info-500); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">✏️</div>
+                    <span class="logo-text">EditContext</span>
+                    <span class="logo-version" data-i18n="version">v1.0</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_overview">概览</div>
+                    <div class="nav-item active" data-tab="overview">
+                        <span class="nav-item-icon">🏠</span>
+                        <span data-i18n="nav_dashboard">仪表盘</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_api">API</div>
+                    <div class="nav-item" data-tab="editcontext">
+                        <span class="nav-item-icon">📦</span>
+                        <span>EditContext</span>
+                        <span class="nav-item-badge">7</span>
+                    </div>
+                    <div class="nav-item" data-tab="events">
+                        <span class="nav-item-icon">⚡</span>
+                        <span data-i18n="nav_events">事件</span>
+                        <span class="nav-item-badge">5</span>
+                    </div>
+                    <div class="nav-item" data-tab="formats">
+                        <span class="nav-item-icon">🎨</span>
+                        <span data-i18n="nav_formats">文本格式</span>
+                        <span class="nav-item-badge">4</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_demo">演示</div>
+                    <div class="nav-item" data-tab="editor">
+                        <span class="nav-item-icon">📝</span>
+                        <span data-i18n="nav_editor">富文本编辑器</span>
+                    </div>
+                    <div class="nav-item" data-tab="ime">
+                        <span class="nav-item-icon">⌨️</span>
+                        <span data-i18n="nav_ime">IME 输入</span>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="info-box" style="margin: 0;">
+                    <span class="info-box-icon">💡</span>
+                    <div class="info-box-content">
+                        <div class="info-box-title" data-i18n="tip_title">提示</div>
+                        <div class="info-box-text" data-i18n="tip_content">高级文本编辑 API</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <h1 class="header-title" data-i18n="header_title">EditContext API Explorer</h1>
+                </div>
+                <div class="header-right">
+                    <select class="lang-select" id="langSelect">
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                    </select>
+                    <button class="header-btn" id="themeToggle">
+                        <span id="themeIcon">🌙</span>
+                        <span data-i18n="theme_toggle">切换主题</span>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-area">
+                <!-- Overview Tab -->
+                <div class="tab-panel active" id="tab-overview">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="overview_title">EditContext API 概览</h2>
+                        <p class="section-desc" data-i18n="overview_desc">EditContext API 提供了更细粒度的文本编辑控制，支持 IME 输入和富文本编辑</p>
+                    </div>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">✏️</div>
+                            <h3 class="feature-title" data-i18n="feature_edit_title">文本编辑</h3>
+                            <p class="feature-desc" data-i18n="feature_edit_desc">提供更细粒度的文本编辑控制</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">⌨️</div>
+                            <h3 class="feature-title" data-i18n="feature_ime_title">IME 支持</h3>
+                            <p class="feature-desc" data-i18n="feature_ime_desc">完整支持输入法编辑器交互</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎨</div>
+                            <h3 class="feature-title" data-i18n="feature_format_title">文本格式</h3>
+                            <p class="feature-desc" data-i18n="feature_format_desc">支持拼写检查和文本格式化</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔧</div>
+                            <h3 class="feature-title" data-i18n="feature_control_title">完全控制</h3>
+                            <p class="feature-desc" data-i18n="feature_control_desc">完全控制文本选择和渲染</p>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📊</span>
+                                <span data-i18n="api_support">API 支持检测</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_api">API</th>
+                                        <th data-i18n="table_status">状态</th>
+                                        <th data-i18n="table_note">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="supportTable">
+                                    <!-- 动态填充 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">⚡</span>
+                                <span data-i18n="quick_start">快速开始</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// 创建 EditContext</span>
+<span class="code-keyword">const</span> editContext = <span class="code-keyword">new</span> <span class="code-function">EditContext</span>({
+    text: <span class="code-string">'Hello World'</span>,
+    selectionStart: <span class="code-number">0</span>,
+    selectionEnd: <span class="code-number">0</span>
+});
+
+<span class="code-comment">// 关联到元素</span>
+element.<span class="code-function">attachEditContext</span>(editContext);
+
+<span class="code-comment">// 监听文本更新</span>
+editContext.<span class="code-function">addEventListener</span>(<span class="code-string">'textupdate'</span>, (e) => {
+    console.<span class="code-function">log</span>(<span class="code-string">`文本更新: ${e.text}`</span>);
+    console.<span class="code-function">log</span>(<span class="code-string">`位置: ${e.updateRangeStart} - ${e.updateRangeEnd}`</span>);
+});
+
+<span class="code-comment">// 获取/设置文本</span>
+console.<span class="code-function">log</span>(editContext.text);  <span class="code-comment">// 当前文本</span>
+editContext.<span class="code-function">updateText</span>(<span class="code-number">0</span>, <span class="code-number">5</span>, <span class="code-string">'Hi'</span>);  <span class="code-comment">// 替换文本</span>
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- EditContext Tab -->
+                <div class="tab-panel" id="tab-editcontext">
+                    <div class="section-header">
+                        <h2 class="section-title">EditContext 接口</h2>
+                        <p class="section-desc" data-i18n="editcontext_desc">EditContext 是文本编辑的核心接口</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🔧</span>
+                                <span data-i18n="constructor">构造函数</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="code-block">
+                                <code><span class="code-keyword">new</span> <span class="code-function">EditContext</span>(options?)</code>
+                            </div>
+                            <table class="data-table" style="margin-top: 16px;">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_option">选项</th>
+                                        <th data-i18n="table_type">类型</th>
+                                        <th data-i18n="table_default">默认值</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>text</code></td><td>string</td><td>""</td><td data-i18n="text_option_desc">初始文本内容</td></tr>
+                                    <tr><td><code>selectionStart</code></td><td>number</td><td>0</td><td data-i18n="selectionstart_option_desc">选择起始位置</td></tr>
+                                    <tr><td><code>selectionEnd</code></td><td>number</td><td>0</td><td data-i18n="selectionend_option_desc">选择结束位置</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📋</span>
+                                <span data-i18n="properties">属性</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_property">属性</th>
+                                        <th data-i18n="table_type">类型</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>text</code></td><td>string</td><td data-i18n="text_prop_desc">当前文本内容</td></tr>
+                                    <tr><td><code>selectionStart</code></td><td>number</td><td data-i18n="selectionstart_prop_desc">选择起始位置</td></tr>
+                                    <tr><td><code>selectionEnd</code></td><td>number</td><td data-i18n="selectionend_prop_desc">选择结束位置</td></tr>
+                                    <tr><td><code>compositionRangeStart</code></td><td>number?</td><td data-i18n="compositionstart_prop_desc">组合范围起始</td></tr>
+                                    <tr><td><code>compositionRangeEnd</code></td><td>number?</td><td data-i18n="compositionend_prop_desc">组合范围结束</td></tr>
+                                    <tr><td><code>isInComposition</code></td><td>boolean</td><td data-i18n="isincomposition_prop_desc">是否在 IME 组合中</td></tr>
+                                    <tr><td><code>controlBounds</code></td><td>DOMRect?</td><td data-i18n="controlbounds_prop_desc">编辑控件边界</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🔧</span>
+                                <span data-i18n="methods">方法</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_method">方法</th>
+                                        <th data-i18n="table_params">参数</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>updateText()</code></td><td>rangeStart, rangeEnd, text</td><td data-i18n="updatetext_desc">更新指定范围的文本</td></tr>
+                                    <tr><td><code>updateSelection()</code></td><td>start, end</td><td data-i18n="updateselection_desc">更新选择范围</td></tr>
+                                    <tr><td><code>updateControlBounds()</code></td><td>bounds</td><td data-i18n="updatecontrolbounds_desc">更新控件边界</td></tr>
+                                    <tr><td><code>updateCompositionRange()</code></td><td>start, end</td><td data-i18n="updatecompositionrange_desc">更新组合范围</td></tr>
+                                    <tr><td><code>characterBounds()</code></td><td>rangeStart, rangeEnd</td><td data-i18n="characterbounds_desc">获取字符边界</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🎮</span>
+                                <span data-i18n="demo">演示</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="createEditContextDemo()">🔧 创建 EditContext</button>
+                                <button class="btn btn-secondary" onclick="checkEditContextProperties()">📋 检查属性</button>
+                            </div>
+                            <div class="result-panel" id="editContextResult">
+                                <pre>等待操作...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Events Tab -->
+                <div class="tab-panel" id="tab-events">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="events_title">事件</h2>
+                        <p class="section-desc" data-i18n="events_desc">EditContext 触发的事件</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">⚡</span>
+                                <span data-i18n="event_list">事件列表</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_event">事件</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>textupdate</code></td><td data-i18n="textupdate_event_desc">文本内容更新时触发</td></tr>
+                                    <tr><td><code>textformatupdate</code></td><td data-i18n="textformatupdate_event_desc">文本格式更新时触发（如拼写检查）</td></tr>
+                                    <tr><td><code>compositionstart</code></td><td data-i18n="compositionstart_event_desc">IME 组合开始时触发</td></tr>
+                                    <tr><td><code>compositionend</code></td><td data-i18n="compositionend_event_desc">IME 组合结束时触发</td></tr>
+                                    <tr><td><code>characterboundsupdate</code></td><td data-i18n="characterboundsupdate_event_desc">需要字符边界时触发</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📦</span>
+                                <span>TextUpdateEvent</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_property">属性</th>
+                                        <th data-i18n="table_type">类型</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>updateRangeStart</code></td><td>number</td><td data-i18n="updaterangestart_desc">更新范围起始</td></tr>
+                                    <tr><td><code>updateRangeEnd</code></td><td>number</td><td data-i18n="updaterangeend_desc">更新范围结束</td></tr>
+                                    <tr><td><code>text</code></td><td>string</td><td data-i18n="text_event_desc">插入的文本</td></tr>
+                                    <tr><td><code>selectionStart</code></td><td>number</td><td data-i18n="selectionstart_event_desc">新选择起始</td></tr>
+                                    <tr><td><code>selectionEnd</code></td><td>number</td><td data-i18n="selectionend_event_desc">新选择结束</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🎮</span>
+                                <span data-i18n="event_demo">事件演示</span>
+                            </h3>
+                        </div>
+                        <div-body">
+                            <div class="info-box" style="margin-bottom: 16px;">
+                                <span class="info-box-icon">ℹ️</span>
+                                <div class="info-box-content">
+                                    <div class="info-box-title" data-i18n="event_hint_title">说明</div>
+                                    <div class="info-box-text" data-i18n="event_hint_desc">在下方编辑器中输入文本，观察事件触发</div>
+                                </div>
+                            </div>
+                            
+                            <div class="editor-container" id="eventEditorContainer">
+                                <div class="editor-area" id="eventEditor" contenteditable="true" data-placeholder="在此输入文本..."></div>
+                            </div>
+                            
+                            <div class="selection-info" id="eventSelectionInfo">
+                                <div class="selection-item">
+                                    <div class="selection-label">文本长度</div>
+                                    <div class="selection-value" id="eventTextLength">0</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">选择起始</div>
+                                    <div class="selection-value" id="eventSelStart">0</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">选择结束</div>
+                                    <div class="selection-value" id="eventSelEnd">0</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">IME 状态</div>
+                                    <div class="selection-value" id="eventImeStatus">否</div>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group" style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="initEventDemo()">▶️ 初始化编辑器</button>
+                                <button class="btn btn-secondary" onclick="clearEventLog()">🗑️ 清空日志</button>
+                            </div>
+                            
+                            <div class="event-log" id="eventLog" style="margin-top: 16px;">
+                                <div class="event-entry">
+                                    <span class="event-time">--:--:--</span>
+                                    <span data-i18n="waiting_event">等待事件...</span>
+                                </div>
+                            </div>
+                        </div-body>
+                    </div>
+                </div>
+                
+                <!-- Formats Tab -->
+                <div class="tab-panel" id="tab-formats">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="formats_title">文本格式</h2>
+                        <p class="section-desc" data-i18n="formats_desc">EditContextTextFormat 用于表示文本格式（如拼写检查下划线）</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🎨</span>
+                                <span>EditContextTextFormat</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_property">属性</th>
+                                        <th data-i18n="table_type">类型</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>rangeStart</code></td><td>number</td><td data-i18n="rangestart_format_desc">格式范围起始</td></tr>
+                                    <tr><td><code>rangeEnd</code></td><td>number</td><td data-i18n="rangeend_format_desc">格式范围结束</td></tr>
+                                    <tr><td><code>underlineStyle</code></td><td>string</td><td data-i18n="underlinestyle_desc">下划线样式</td></tr>
+                                    <tr><td><code>underlineThickness</code></td><td>string</td><td data-i18n="underlinethickness_desc">下划线粗细</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📏</span>
+                                <span data-i18n="underline_styles">下划线样式</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_value">值</th>
+                                        <th data-i18n="table_example">示例</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>"squiggle"</code></td>
+                                        <td><span class="underline-squiggle">波浪线</span></td>
+                                        <td data-i18n="squiggle_desc">波浪线（拼写错误）</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>"solid"</code></td>
+                                        <td><span class="underline-solid">实线</span></td>
+                                        <td data-i18n="solid_desc">实线</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>"dotted"</code></td>
+                                        <td><span class="underline-dotted">点线</span></td>
+                                        <td data-i18n="dotted_desc">点线</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>"dashed"</code></td>
+                                        <td><span class="underline-dashed">虚线</span></td>
+                                        <td data-i18n="dashed_desc">虚线</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📐</span>
+                                <span data-i18n="underline_thickness">下划线粗细</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_value">值</th>
+                                        <th data-i18n="table_description">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>"thin"</code></td><td data-i18n="thin_desc">细线</td></tr>
+                                    <tr><td><code>"thick"</code></td><td data-i18n="thick_desc">粗线</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Editor Tab -->
+                <div class="tab-panel" id="tab-editor">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="editor_title">富文本编辑器</h2>
+                        <p class="section-desc" data-i18n="editor_desc">使用 EditContext API 实现的富文本编辑器</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📝</span>
+                                <span data-i18n="editor_demo">编辑器演示</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="editor-container" id="richEditorContainer">
+                                <div class="editor-toolbar">
+                                    <button class="toolbar-btn" onclick="editorAction('bold')" title="粗体"><b>B</b></button>
+                                    <button class="toolbar-btn" onclick="editorAction('italic')" title="斜体"><i>I</i></button>
+                                    <button class="toolbar-btn" onclick="editorAction('underline')" title="下划线"><u>U</u></button>
+                                    <span class="toolbar-divider"></span>
+                                    <button class="toolbar-btn" onclick="editorAction('clear')" title="清除格式">✕</button>
+                                    <span class="toolbar-divider"></span>
+                                    <button class="toolbar-btn" onclick="editorAction('undo')" title="撤销">↩️</button>
+                                    <button class="toolbar-btn" onclick="editorAction('redo')" title="重做">↪️</button>
+                                </div>
+                                <div class="editor-area" id="richEditor" contenteditable="true" data-placeholder="在此输入文本，尝试使用工具栏格式化..."></div>
+                            </div>
+                            
+                            <div class="selection-info" id="richSelectionInfo">
+                                <div class="selection-item">
+                                    <div class="selection-label">字符数</div>
+                                    <div class="selection-value" id="richCharCount">0</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">单词数</div>
+                                    <div class="selection-value" id="richWordCount">0</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">行数</div>
+                                    <div class="selection-value" id="richLineCount">0</div>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group" style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="initRichEditor()">▶️ 初始化编辑器</button>
+                                <button class="btn btn-secondary" onclick="getEditorContent()">📋 获取内容</button>
+                                <button class="btn btn-danger" onclick="clearEditor()">🗑️ 清空</button>
+                            </div>
+                            
+                            <div class="result-panel" id="editorResult">
+                                <pre>等待操作...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IME Tab -->
+                <div class="tab-panel" id="tab-ime">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="ime_title">IME 输入演示</h2>
+                        <p class="section-desc" data-i18n="ime_desc">演示输入法编辑器 (IME) 与 EditContext 的交互</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">⌨️</span>
+                                <span data-i18n="ime_demo">IME 演示</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-box" style="margin-bottom: 16px;">
+                                <span class="info-box-icon">ℹ️</span>
+                                <div class="info-box-content">
+                                    <div class="info-box-title" data-i18n="ime_hint_title">说明</div>
+                                    <div class="info-box-text" data-i18n="ime_hint_desc">切换到中文输入法，在下方编辑器中输入，观察 IME 组合过程</div>
+                                </div>
+                            </div>
+                            
+                            <div class="editor-container" id="imeEditorContainer">
+                                <div class="editor-area" id="imeEditor" contenteditable="true" data-placeholder="使用中文输入法在此输入..."></div>
+                            </div>
+                            
+                            <div class="selection-info" id="imeSelectionInfo">
+                                <div class="selection-item">
+                                    <div class="selection-label">组合状态</div>
+                                    <div class="selection-value" id="imeCompositionStatus">否</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">组合起始</div>
+                                    <div class="selection-value" id="imeCompositionStart">-</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">组合结束</div>
+                                    <div class="selection-value" id="imeCompositionEnd">-</div>
+                                </div>
+                                <div class="selection-item">
+                                    <div class="selection-label">组合文本</div>
+                                    <div class="selection-value" id="imeCompositionText" style="font-size: 14px;">-</div>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group" style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="initImeDemo()">▶️ 初始化 IME 监听</button>
+                            </div>
+                            
+                            <div class="event-log" id="imeEventLog" style="margin-top: 16px;">
+                                <div class="event-entry">
+                                    <span class="event-time">--:--:--</span>
+                                    <span data-i18n="waiting_ime">等待 IME 输入...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📖</span>
+                                <span data-i18n="ime_process">IME 组合过程</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// IME 组合流程:</span>
+1. <span class="code-function">compositionstart</span> - 用户开始输入法组合
+2. <span class="code-function">textupdate</span> - 组合过程中的文本更新
+3. <span class="code-function">characterboundsupdate</span> - 请求字符边界
+4. <span class="code-function">compositionend</span> - 组合完成
+
+<span class="code-comment">// 组合期间:</span>
+- editContext.isInComposition === <span class="code-keyword">true</span>
+- compositionRangeStart/end 标记组合范围
+- 文本暂时显示为组合状态（通常有下划线）
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Internationalization ====================
+        const i18n = {
+            zh: {
+                version: 'v1.0',
+                nav_overview: '概览',
+                nav_dashboard: '仪表盘',
+                nav_api: 'API',
+                nav_events: '事件',
+                nav_formats: '文本格式',
+                nav_demo: '演示',
+                nav_editor: '富文本编辑器',
+                nav_ime: 'IME 输入',
+                tip_title: '提示',
+                tip_content: '高级文本编辑 API',
+                header_title: 'EditContext API Explorer',
+                theme_toggle: '切换主题',
+                overview_title: 'EditContext API 概览',
+                overview_desc: 'EditContext API 提供了更细粒度的文本编辑控制，支持 IME 输入和富文本编辑',
+                feature_edit_title: '文本编辑',
+                feature_edit_desc: '提供更细粒度的文本编辑控制',
+                feature_ime_title: 'IME 支持',
+                feature_ime_desc: '完整支持输入法编辑器交互',
+                feature_format_title: '文本格式',
+                feature_format_desc: '支持拼写检查和文本格式化',
+                feature_control_title: '完全控制',
+                feature_control_desc: '完全控制文本选择和渲染',
+                api_support: 'API 支持检测',
+                table_api: 'API',
+                table_status: '状态',
+                table_note: '说明',
+                table_property: '属性',
+                table_type: '类型',
+                table_description: '描述',
+                table_option: '选项',
+                table_default: '默认值',
+                table_method: '方法',
+                table_params: '参数',
+                table_event: '事件',
+                table_value: '值',
+                table_example: '示例',
+                quick_start: '快速开始',
+                editcontext_desc: 'EditContext 是文本编辑的核心接口',
+                constructor: '构造函数',
+                properties: '属性',
+                methods: '方法',
+                demo: '演示',
+                events_title: '事件',
+                events_desc: 'EditContext 触发的事件',
+                event_list: '事件列表',
+                event_demo: '事件演示',
+                event_hint_title: '说明',
+                event_hint_desc: '在下方编辑器中输入文本，观察事件触发',
+                waiting_event: '等待事件...',
+                formats_title: '文本格式',
+                formats_desc: 'EditContextTextFormat 用于表示文本格式（如拼写检查下划线）',
+                underline_styles: '下划线样式',
+                underline_thickness: '下划线粗细',
+                editor_title: '富文本编辑器',
+                editor_desc: '使用 EditContext API 实现的富文本编辑器',
+                editor_demo: '编辑器演示',
+                ime_title: 'IME 输入演示',
+                ime_desc: '演示输入法编辑器 (IME) 与 EditContext 的交互',
+                ime_demo: 'IME 演示',
+                ime_hint_title: '说明',
+                ime_hint_desc: '切换到中文输入法，在下方编辑器中输入，观察 IME 组合过程',
+                ime_process: 'IME 组合过程',
+                waiting_ime: '等待 IME 输入...',
+                status_supported: '支持',
+                status_unsupported: '不支持',
+                editcontext_created: 'EditContext 已创建',
+                editor_initialized: '编辑器已初始化',
+                ime_initialized: 'IME 监听已初始化'
+            },
+            en: {
+                version: 'v1.0',
+                nav_overview: 'Overview',
+                nav_dashboard: 'Dashboard',
+                nav_api: 'API',
+                nav_events: 'Events',
+                nav_formats: 'Text Formats',
+                nav_demo: 'Demo',
+                nav_editor: 'Rich Editor',
+                nav_ime: 'IME Input',
+                tip_title: 'Tip',
+                tip_content: 'Advanced text editing API',
+                header_title: 'EditContext API Explorer',
+                theme_toggle: 'Toggle Theme',
+                overview_title: 'EditContext API Overview',
+                overview_desc: 'EditContext API provides fine-grained text editing control with IME support',
+                feature_edit_title: 'Text Editing',
+                feature_edit_desc: 'Fine-grained text editing control',
+                feature_ime_title: 'IME Support',
+                feature_ime_desc: 'Full IME (Input Method Editor) support',
+                feature_format_title: 'Text Formatting',
+                feature_format_desc: 'Spell check and text formatting support',
+                feature_control_title: 'Full Control',
+                feature_control_desc: 'Complete control over text selection and rendering',
+                api_support: 'API Support Detection',
+                table_api: 'API',
+                table_status: 'Status',
+                table_note: 'Note',
+                table_property: 'Property',
+                table_type: 'Type',
+                table_description: 'Description',
+                table_option: 'Option',
+                table_default: 'Default',
+                table_method: 'Method',
+                table_params: 'Parameters',
+                table_event: 'Event',
+                table_value: 'Value',
+                table_example: 'Example',
+                quick_start: 'Quick Start',
+                editcontext_desc: 'EditContext is the core interface for text editing',
+                constructor: 'Constructor',
+                properties: 'Properties',
+                methods: 'Methods',
+                demo: 'Demo',
+                events_title: 'Events',
+                events_desc: 'Events fired by EditContext',
+                event_list: 'Event List',
+                event_demo: 'Event Demo',
+                event_hint_title: 'Note',
+                event_hint_desc: 'Type in the editor below to observe events',
+                waiting_event: 'Waiting for events...',
+                formats_title: 'Text Formats',
+                formats_desc: 'EditContextTextFormat represents text formatting (e.g., spell check underlines)',
+                underline_styles: 'Underline Styles',
+                underline_thickness: 'Underline Thickness',
+                editor_title: 'Rich Text Editor',
+                editor_desc: 'Rich text editor using EditContext API',
+                editor_demo: 'Editor Demo',
+                ime_title: 'IME Input Demo',
+                ime_desc: 'Demonstrate IME (Input Method Editor) interaction with EditContext',
+                ime_demo: 'IME Demo',
+                ime_hint_title: 'Note',
+                ime_hint_desc: 'Switch to Chinese IME and type to observe composition',
+                ime_process: 'IME Composition Process',
+                waiting_ime: 'Waiting for IME input...',
+                status_supported: 'Supported',
+                status_unsupported: 'Unsupported',
+                editcontext_created: 'EditContext created',
+                editor_initialized: 'Editor initialized',
+                ime_initialized: 'IME listener initialized'
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function t(key) {
+            return i18n[currentLang][key] || key;
+        }
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+        }
+
+        // ==================== Theme Management ====================
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+
+        // ==================== Tab Navigation ====================
+        function initTabs() {
+            document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+                item.addEventListener('click', () => {
+                    const tabId = item.getAttribute('data-tab');
+                    switchTab(tabId);
+                    
+                    if (window.innerWidth <= 1024) {
+                        document.getElementById('sidebar').classList.remove('open');
+                        document.getElementById('overlay').classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-tab') === tabId) {
+                    item.classList.add('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // ==================== Mobile Menu ====================
+        function initMobileMenu() {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            });
+            
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            });
+        }
+
+        // ==================== Toast Notifications ====================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toastIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ==================== Support Detection ====================
+        function checkSupport() {
+            const supportTable = document.getElementById('supportTable');
+            const apis = [
+                { name: 'EditContext', check: typeof EditContext !== 'undefined', note: 'EditContext 构造函数' },
+                { name: 'attachEditContext', check: Element.prototype.attachEditContext !== undefined, note: '关联方法' },
+                { name: 'textupdate 事件', check: typeof EditContext !== 'undefined', note: '文本更新事件' },
+                { name: 'textformatupdate 事件', check: typeof EditContext !== 'undefined', note: '格式更新事件' },
+                { name: 'compositionstart/end', check: typeof EditContext !== 'undefined', note: 'IME 组合事件' },
+                { name: 'characterboundsupdate', check: typeof EditContext !== 'undefined', note: '字符边界事件' }
+            ];
+            
+            supportTable.innerHTML = apis.map(api => `
+                <tr>
+                    <td><code style="color: var(--primary-600);">${api.name}</code></td>
+                    <td><span class="status-badge ${api.check ? 'status-supported' : 'status-unsupported'}">${api.check ? '✓ ' + t('status_supported') : '✗ ' + t('status_unsupported')}</span></td>
+                    <td style="color: var(--text-secondary);">${api.note}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== EditContext Demo ====================
+        let demoEditContext = null;
+
+        function isEditContextSupported() {
+            return typeof EditContext !== 'undefined';
+        }
+
+        function createEditContextDemo() {
+            const result = document.getElementById('editContextResult');
+            
+            if (!isEditContextSupported()) {
+                result.innerHTML = `<pre style="color: var(--error-500);">EditContext API 不支持
+
+您的浏览器不支持此 API。
+
+支持的浏览器：
+- Chrome 121+
+- Edge 121+</pre>`;
+                showToast('API 不支持', 'error');
+                return;
+            }
+            
+            demoEditContext = new EditContext({
+                text: 'Hello EditContext!',
+                selectionStart: 6,
+                selectionEnd: 17
+            });
+            
+            result.innerHTML = `<pre style="color: var(--success-500);">EditContext 创建成功 ✓
+
+初始配置:
+- text: "Hello EditContext!"
+- selectionStart: 6
+- selectionEnd: 17
+
+当前状态:
+- text: "${demoEditContext.text}"
+- selectionStart: ${demoEditContext.selectionStart}
+- selectionEnd: ${demoEditContext.selectionEnd}
+- isInComposition: ${demoEditContext.isInComposition}</pre>`;
+            
+            showToast(t('editcontext_created'), 'success');
+        }
+
+        function checkEditContextProperties() {
+            const result = document.getElementById('editContextResult');
+            
+            if (!isEditContextSupported()) {
+                result.innerHTML = `<pre style="color: var(--error-500);">EditContext API 不支持</pre>`;
+                return;
+            }
+            
+            if (!demoEditContext) {
+                demoEditContext = new EditContext();
+            }
+            
+            result.innerHTML = `<pre>EditContext 属性检查:
+
+text: "${demoEditContext.text}"
+selectionStart: ${demoEditContext.selectionStart}
+selectionEnd: ${demoEditContext.selectionEnd}
+compositionRangeStart: ${demoEditContext.compositionRangeStart}
+compositionRangeEnd: ${demoEditContext.compositionRangeEnd}
+isInComposition: ${demoEditContext.isInComposition}
+controlBounds: ${demoEditContext.controlBounds ? 'DOMRect' : 'null'}
+
+方法:
+- updateText(): ${typeof demoEditContext.updateText === 'function' ? '✓' : '✗'}
+- updateSelection(): ${typeof demoEditContext.updateSelection === 'function' ? '✓' : '✗'}
+- updateControlBounds(): ${typeof demoEditContext.updateControlBounds === 'function' ? '✓' : '✗'}
+- updateCompositionRange(): ${typeof demoEditContext.updateCompositionRange === 'function' ? '✓' : '✗'}
+- characterBounds(): ${typeof demoEditContext.characterBounds === 'function' ? '✓' : '✗'}</pre>`;
+        }
+
+        // ==================== Event Demo ====================
+        let eventEditContext = null;
+
+        function initEventDemo() {
+            if (!isEditContextSupported()) {
+                showToast('EditContext API 不支持', 'error');
+                return;
+            }
+            
+            const editor = document.getElementById('eventEditor');
+            
+            eventEditContext = new EditContext();
+            
+            // Attach EditContext to the editor element
+            if (editor.attachEditContext) {
+                editor.attachEditContext(eventEditContext);
+            }
+            
+            // Event listeners
+            eventEditContext.addEventListener('textupdate', (e) => {
+                addEventLogEntry('textupdate', `text: "${e.text}", range: ${e.updateRangeStart}-${e.updateRangeEnd}, sel: ${e.selectionStart}-${e.selectionEnd}`);
+                updateEventSelectionInfo();
+            });
+            
+            eventEditContext.addEventListener('textformatupdate', (e) => {
+                const formats = e.getTextFormats();
+                addEventLogEntry('textformatupdate', `formats: ${formats.length}`);
+            });
+            
+            eventEditContext.addEventListener('compositionstart', (e) => {
+                addEventLogEntry('compositionstart', 'IME 组合开始');
+                updateEventSelectionInfo();
+            });
+            
+            eventEditContext.addEventListener('compositionend', (e) => {
+                addEventLogEntry('compositionend', 'IME 组合结束');
+                updateEventSelectionInfo();
+            });
+            
+            eventEditContext.addEventListener('characterboundsupdate', (e) => {
+                addEventLogEntry('characterboundsupdate', `range: ${e.rangeStart}-${e.rangeEnd}`);
+            });
+            
+            showToast(t('editor_initialized'), 'success');
+        }
+
+        function updateEventSelectionInfo() {
+            if (!eventEditContext) return;
+            
+            document.getElementById('eventTextLength').textContent = eventEditContext.text.length;
+            document.getElementById('eventSelStart').textContent = eventEditContext.selectionStart;
+            document.getElementById('eventSelEnd').textContent = eventEditContext.selectionEnd;
+            document.getElementById('eventImeStatus').textContent = eventEditContext.isInComposition ? '是' : '否';
+        }
+
+        function addEventLogEntry(type, message) {
+            const log = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            
+            // Remove placeholder
+            if (log.children.length === 1 && log.children[0].querySelector('.event-time')?.textContent === '--:--:--') {
+                log.innerHTML = '';
+            }
+            
+            const entry = document.createElement('div');
+            entry.className = 'event-entry';
+            entry.innerHTML = `
+                <span class="event-time">${time}</span>
+                <span class="event-type ${type}">${type}</span>
+                <span>${message}</span>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Limit entries
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function clearEventLog() {
+            const log = document.getElementById('eventLog');
+            log.innerHTML = `
+                <div class="event-entry">
+                    <span class="event-time">--:--:--</span>
+                    <span>${t('waiting_event')}</span>
+                </div>
+            `;
+        }
+
+        // ==================== Rich Editor ====================
+        let richEditContext = null;
+
+        function initRichEditor() {
+            if (!isEditContextSupported()) {
+                showToast('EditContext API 不支持', 'error');
+                return;
+            }
+            
+            const editor = document.getElementById('richEditor');
+            
+            richEditContext = new EditContext();
+            
+            if (editor.attachEditContext) {
+                editor.attachEditContext(richEditContext);
+            }
+            
+            richEditContext.addEventListener('textupdate', () => {
+                updateRichEditorStats();
+            });
+            
+            updateRichEditorStats();
+            showToast(t('editor_initialized'), 'success');
+        }
+
+        function updateRichEditorStats() {
+            const editor = document.getElementById('richEditor');
+            const text = editor.innerText || '';
+            
+            document.getElementById('richCharCount').textContent = text.length;
+            document.getElementById('richWordCount').textContent = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('richLineCount').textContent = text ? text.split('\n').length : 0;
+        }
+
+        function editorAction(action) {
+            document.execCommand(action, false, null);
+            updateRichEditorStats();
+        }
+
+        function getEditorContent() {
+            const editor = document.getElementById('richEditor');
+            const result = document.getElementById('editorResult');
+            
+            result.innerHTML = `<pre>编辑器内容:
+
+纯文本:
+${editor.innerText}
+
+HTML:
+${editor.innerHTML}</pre>`;
+        }
+
+        function clearEditor() {
+            const editor = document.getElementById('richEditor');
+            editor.innerHTML = '';
+            updateRichEditorStats();
+            document.getElementById('editorResult').innerHTML = '<pre>编辑器已清空</pre>';
+        }
+
+        // ==================== IME Demo ====================
+        let imeEditContext = null;
+
+        function initImeDemo() {
+            if (!isEditContextSupported()) {
+                showToast('EditContext API 不支持', 'error');
+                return;
+            }
+            
+            const editor = document.getElementById('imeEditor');
+            
+            imeEditContext = new EditContext();
+            
+            if (editor.attachEditContext) {
+                editor.attachEditContext(imeEditContext);
+            }
+            
+            imeEditContext.addEventListener('compositionstart', () => {
+                updateImeStatus();
+                addImeLogEntry('compositionstart', 'IME 组合开始');
+            });
+            
+            imeEditContext.addEventListener('compositionend', () => {
+                updateImeStatus();
+                addImeLogEntry('compositionend', 'IME 组合结束');
+            });
+            
+            imeEditContext.addEventListener('textupdate', (e) => {
+                updateImeStatus();
+                addImeLogEntry('textupdate', `text: "${e.text}"`);
+            });
+            
+            showToast(t('ime_initialized'), 'success');
+        }
+
+        function updateImeStatus() {
+            if (!imeEditContext) return;
+            
+            document.getElementById('imeCompositionStatus').textContent = imeEditContext.isInComposition ? '是' : '否';
+            document.getElementById('imeCompositionStart').textContent = imeEditContext.compositionRangeStart ?? '-';
+            document.getElementById('imeCompositionEnd').textContent = imeEditContext.compositionRangeEnd ?? '-';
+            
+            if (imeEditContext.isInComposition && imeEditContext.compositionRangeStart !== null) {
+                const text = imeEditContext.text;
+                const compText = text.substring(imeEditContext.compositionRangeStart, imeEditContext.compositionRangeEnd);
+                document.getElementById('imeCompositionText').textContent = compText || '-';
+            } else {
+                document.getElementById('imeCompositionText').textContent = '-';
+            }
+        }
+
+        function addImeLogEntry(type, message) {
+            const log = document.getElementById('imeEventLog');
+            const time = new Date().toLocaleTimeString();
+            
+            if (log.children.length === 1 && log.children[0].querySelector('.event-time')?.textContent === '--:--:--') {
+                log.innerHTML = '';
+            }
+            
+            const entry = document.createElement('div');
+            entry.className = 'event-entry';
+            entry.innerHTML = `
+                <span class="event-time">${time}</span>
+                <span class="event-type ${type}">${type}</span>
+                <span>${message}</span>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            while (log.children.length > 30) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize theme
+            initTheme();
+            
+            // Initialize tabs
+            initTabs();
+            
+            // Initialize mobile menu
+            initMobileMenu();
+            
+            // Initialize language
+            document.getElementById('langSelect').value = currentLang;
+            document.getElementById('langSelect').addEventListener('change', (e) => {
+                updateLanguage(e.target.value);
+            });
+            
+            // Theme toggle
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            
+            // Check API support
+            checkSupport();
+            
+            console.log('EditContext API Explorer initialized successfully!');
+        });
+    </script>
+</body>
+</html>
