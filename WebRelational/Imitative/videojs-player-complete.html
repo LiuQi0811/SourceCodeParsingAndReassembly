@@ -1,0 +1,2323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="description" content="Enterprise Video Player - 1:1 Video.js Compatible Implementation">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Enterprise Video Player - Video.js Compatible</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRW50ZXJwcmlzZSBWaWRlbyBQbGF5ZXIiLCJzaG9ydF9uYW1lIjoiVmlkZW8gUGxheWVyIiwiZGVzY3JpcHRpb24iOiIxOjEgVmlkZW8uanMgQ29tcGF0aWJsZSBQbGF5ZXIiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzFhMWEyZSIsInRoZW1lX2NvbG9yIjoiIzFhMWEyZSIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWwsJTNDc3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMjQgMTAyNCclM0UlM0NjaXJjbGUgY3g9JzUxMicgY3k9JzUxMicgcj0nNDUwJyBmaWxsPSclMjM0YTkwZTInLyUzRSUzQ3BvbHlnb24gcG9pbnRzPSczODQgMzAwIDcwMCA1MTIgMzg0IDcyNCcgZmlsbD0nd2hpdGUnLyUzRSUzQy9zdmclM0UiLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    
+    <style>
+        /* ==================== CSS Variables & Themes ==================== */
+        :root {
+            --primary-color: #4a90e2;
+            --primary-hover: #357abd;
+            --secondary-color: #6c5ce7;
+            --accent-color: #00cec9;
+            --success-color: #00b894;
+            --warning-color: #fdcb6e;
+            --error-color: #e74c3c;
+            
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --bg-card: #1e2a4a;
+            --bg-hover: #2a3f5f;
+            
+            --text-primary: #ffffff;
+            --text-secondary: #a0aec0;
+            --text-muted: #718096;
+            
+            --border-color: #2d3748;
+            --border-radius: 12px;
+            --border-radius-sm: 8px;
+            --border-radius-lg: 16px;
+            
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+            
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.3s ease;
+            --transition-slow: 0.5s ease;
+            
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e2e8f0;
+            --bg-card: #ffffff;
+            --bg-hover: #edf2f7;
+            
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #a0aec0;
+            
+            --border-color: #e2e8f0;
+            
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* ==================== Reset & Base Styles ==================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background var(--transition-normal), color var(--transition-normal);
+        }
+        
+        /* ==================== Layout ==================== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--spacing-md, 16px);
+            gap: var(--spacing-md, 16px);
+        }
+        
+        /* Header */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md, 16px) var(--spacing-lg, 24px);
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm, 8px);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md, 16px);
+        }
+        
+        /* Main Content */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: var(--spacing-md, 16px);
+            flex: 1;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* ==================== Video Player Container ==================== */
+        .player-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md, 16px);
+        }
+        
+        .video-wrapper {
+            position: relative;
+            background: #000;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            aspect-ratio: 16 / 9;
+        }
+        
+        /* Video.js Player Styles */
+        .video-js {
+            width: 100%;
+            height: 100%;
+            font-size: 10px;
+            color: #fff;
+        }
+        
+        .video-js .vjs-tech {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .video-js .vjs-poster {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: 50% 50%;
+            cursor: pointer;
+        }
+        
+        .video-js .vjs-big-play-button {
+            font-size: 3em;
+            line-height: 1.5em;
+            height: 1.5em;
+            width: 3em;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -0.75em;
+            margin-left: -1.5em;
+            padding: 0;
+            cursor: pointer;
+            opacity: 1;
+            border: 0.06666em solid #fff;
+            background-color: rgba(43, 51, 63, 0.7);
+            border-radius: 0.3em;
+            transition: all 0.4s;
+        }
+        
+        .video-js .vjs-big-play-button:hover {
+            background-color: rgba(115, 133, 159, 0.5);
+        }
+        
+        .video-js .vjs-big-play-button .vjs-icon-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .video-js .vjs-big-play-button .vjs-icon-placeholder::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0.5em 0 0.5em 0.866em;
+            border-color: transparent transparent transparent #fff;
+        }
+        
+        .video-js.vjs-playing .vjs-big-play-button {
+            display: none;
+        }
+        
+        .video-js.vjs-ended .vjs-big-play-button {
+            display: block;
+        }
+        
+        /* Loading Spinner */
+        .video-js .vjs-loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin: -25px 0 0 -25px;
+            opacity: 0.85;
+            width: 50px;
+            height: 50px;
+            border: 6px solid rgba(43, 51, 63, 0.7);
+            border-radius: 25px;
+        }
+        
+        .video-js .vjs-loading-spinner .vjs-spinner-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            margin: -15px 0 0 -15px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            animation: vjs-spinner-spin 1s linear infinite;
+        }
+        
+        @keyframes vjs-spinner-spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .video-js.vjs-waiting .vjs-loading-spinner {
+            display: block;
+        }
+        
+        /* Control Bar */
+        .video-js .vjs-control-bar {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3.0em;
+            background-color: rgba(43, 51, 63, 0.7);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .video-js:hover .vjs-control-bar,
+        .video-js.vjs-has-started .vjs-control-bar {
+            opacity: 1;
+        }
+        
+        .video-js .vjs-control {
+            outline: none;
+            position: relative;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 4em;
+            flex: none;
+        }
+        
+        .video-js .vjs-control button {
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: 1.8em;
+        }
+        
+        .video-js .vjs-control button:hover {
+            color: var(--primary-color);
+        }
+        
+        /* Play Button */
+        .video-js .vjs-play-control button::before {
+            content: '▶';
+            font-size: 0.8em;
+        }
+        
+        .video-js .vjs-play-control.vjs-playing button::before {
+            content: '⏸';
+        }
+        
+        .video-js .vjs-play-control.vjs-ended button::before {
+            content: '↻';
+        }
+        
+        /* Volume */
+        .video-js .vjs-volume-panel {
+            display: flex;
+            align-items: center;
+            width: auto;
+        }
+        
+        .video-js .vjs-mute-control button::before {
+            content: '🔊';
+            font-size: 0.7em;
+        }
+        
+        .video-js .vjs-mute-control.vjs-vol-0 button::before,
+        .video-js .vjs-mute-control.vjs-muted button::before {
+            content: '🔇';
+        }
+        
+        .video-js .vjs-mute-control.vjs-vol-1 button::before {
+            content: '🔈';
+        }
+        
+        .video-js .vjs-mute-control.vjs-vol-2 button::before {
+            content: '🔉';
+        }
+        
+        .video-js .vjs-volume-bar {
+            width: 0;
+            overflow: hidden;
+            height: 3em;
+            transition: width 0.3s;
+        }
+        
+        .video-js .vjs-volume-panel:hover .vjs-volume-bar {
+            width: 5em;
+        }
+        
+        .video-js .vjs-volume-level {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 0.3em;
+            margin-top: -0.15em;
+            background: #fff;
+            border-radius: 0.15em;
+        }
+        
+        /* Time Display */
+        .video-js .vjs-time-control {
+            font-size: 1em;
+            line-height: 3em;
+            min-width: 2em;
+            padding: 0 0.5em;
+            flex: none;
+        }
+        
+        .video-js .vjs-time-divider {
+            min-width: 1em;
+            text-align: center;
+        }
+        
+        /* Progress Bar */
+        .video-js .vjs-progress-control {
+            flex: auto;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .video-js .vjs-progress-holder {
+            flex: auto;
+            height: 0.3em;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 0.15em;
+            margin: 0 0.5em;
+            position: relative;
+        }
+        
+        .video-js .vjs-progress-holder:hover {
+            height: 0.5em;
+        }
+        
+        .video-js .vjs-load-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 0.15em;
+        }
+        
+        .video-js .vjs-play-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 0.15em;
+        }
+        
+        .video-js .vjs-play-progress::before {
+            content: '';
+            position: absolute;
+            right: -0.5em;
+            top: 50%;
+            width: 1em;
+            height: 1em;
+            background: #fff;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .video-js .vjs-progress-holder:hover .vjs-play-progress::before {
+            opacity: 1;
+        }
+        
+        /* Fullscreen */
+        .video-js .vjs-fullscreen-control button::before {
+            content: '⛶';
+            font-size: 0.8em;
+        }
+        
+        .video-js.vjs-fullscreen .vjs-fullscreen-control button::before {
+            content: '⛶';
+        }
+        
+        /* Picture-in-Picture */
+        .video-js .vjs-picture-in-picture-control button::before {
+            content: '⧉';
+            font-size: 0.7em;
+        }
+        
+        /* Playback Rate */
+        .video-js .vjs-playback-rate {
+            position: relative;
+        }
+        
+        .video-js .vjs-playback-rate .vjs-playback-rate-value {
+            font-size: 1.2em;
+            line-height: 3em;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .video-js .vjs-playback-rate .vjs-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: rgba(43, 51, 63, 0.9);
+            border-radius: 0.3em;
+            display: none;
+            min-width: 4em;
+        }
+        
+        .video-js .vjs-playback-rate:hover .vjs-menu {
+            display: block;
+        }
+        
+        .video-js .vjs-playback-rate .vjs-menu-item {
+            padding: 0.5em 1em;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .video-js .vjs-playback-rate .vjs-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .video-js .vjs-playback-rate .vjs-menu-item.vjs-selected {
+            color: var(--primary-color);
+        }
+        
+        /* Subtitles */
+        .video-js .vjs-subs-caps-button button::before {
+            content: 'CC';
+            font-size: 0.6em;
+            font-weight: bold;
+        }
+        
+        /* Chapters */
+        .video-js .vjs-chapters-button button::before {
+            content: '☰';
+            font-size: 0.7em;
+        }
+        
+        /* Audio Track */
+        .video-js .vjs-audio-button button::before {
+            content: '♪';
+            font-size: 0.8em;
+        }
+        
+        /* Menu */
+        .video-js .vjs-menu-button-popup .vjs-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: rgba(43, 51, 63, 0.9);
+            border-radius: 0.3em;
+            display: none;
+            min-width: 8em;
+            max-height: 10em;
+            overflow-y: auto;
+        }
+        
+        .video-js .vjs-menu-button-popup:hover .vjs-menu {
+            display: block;
+        }
+        
+        .video-js .vjs-menu-item {
+            padding: 0.5em 1em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .video-js .vjs-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .video-js .vjs-menu-item.vjs-selected {
+            color: var(--primary-color);
+        }
+        
+        /* Error Display */
+        .video-js .vjs-error-display {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 2em;
+        }
+        
+        .video-js .vjs-error-display.vjs-visible {
+            display: flex;
+        }
+        
+        .video-js .vjs-error-display h3 {
+            color: var(--error-color);
+            margin-bottom: 0.5em;
+        }
+        
+        /* Text Track Display */
+        .video-js .vjs-text-track-display {
+            position: absolute;
+            bottom: 4em;
+            left: 0;
+            right: 0;
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        .video-js .vjs-text-track-cue {
+            display: inline-block;
+            padding: 0.2em 0.5em;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font-size: 1.2em;
+            border-radius: 0.2em;
+        }
+        
+        /* Stats Panel */
+        .video-js .vjs-stats-panel {
+            position: absolute;
+            top: 1em;
+            left: 1em;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1em;
+            border-radius: 0.5em;
+            font-size: 1em;
+            font-family: var(--font-mono);
+            display: none;
+        }
+        
+        .video-js .vjs-stats-panel.vjs-visible {
+            display: block;
+        }
+        
+        .video-js .vjs-stats-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1em;
+            margin-bottom: 0.3em;
+        }
+        
+        .video-js .vjs-stats-label {
+            color: var(--text-muted);
+        }
+        
+        .video-js .vjs-stats-value {
+            color: var(--accent-color);
+        }
+        
+        /* Fullscreen */
+        .video-js.vjs-fullscreen {
+            width: 100% !important;
+            height: 100% !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
+        
+        /* ==================== Settings Panel ==================== */
+        .settings-panel {
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 200px);
+        }
+        
+        /* Tabs */
+        .tabs-header {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: var(--spacing-md, 16px);
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color var(--transition-fast), background var(--transition-fast);
+            white-space: nowrap;
+            position: relative;
+        }
+        
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+        
+        .tab-btn.active {
+            color: var(--primary-color);
+        }
+        
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-color);
+        }
+        
+        .tabs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-md, 16px);
+        }
+        
+        .tab-panel {
+            display: none;
+        }
+        
+        .tab-panel.active {
+            display: block;
+        }
+        
+        /* Settings Items */
+        .settings-group {
+            margin-bottom: var(--spacing-lg, 24px);
+        }
+        
+        .settings-group-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-sm, 8px);
+            padding-bottom: var(--spacing-xs, 4px);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm, 8px) 0;
+        }
+        
+        .settings-label {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        
+        .settings-value {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm, 8px);
+        }
+        
+        /* Select Dropdown */
+        .custom-select {
+            padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color var(--transition-fast);
+        }
+        
+        .custom-select:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .custom-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+        }
+        
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-tertiary);
+            border-radius: 26px;
+            transition: background var(--transition-fast);
+        }
+        
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform var(--transition-fast);
+        }
+        
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--primary-color);
+        }
+        
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+        
+        /* Input Range */
+        .custom-range {
+            width: 120px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        
+        .custom-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform var(--transition-fast);
+        }
+        
+        .custom-range::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        /* ==================== API Demo Panel ==================== */
+        .api-demo {
+            background: var(--bg-tertiary);
+            border-radius: var(--border-radius-sm);
+            padding: var(--spacing-md, 16px);
+            margin-top: var(--spacing-md, 16px);
+        }
+        
+        .api-demo-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm, 8px);
+            color: var(--primary-color);
+        }
+        
+        .api-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm, 8px);
+        }
+        
+        .api-btn {
+            padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .api-btn:hover {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .api-output {
+            margin-top: var(--spacing-md, 16px);
+            padding: var(--spacing-sm, 8px);
+            background: var(--bg-primary);
+            border-radius: var(--border-radius-sm);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--accent-color);
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        /* ==================== Toast Notifications ==================== */
+        .toast-container {
+            position: fixed;
+            top: var(--spacing-lg, 24px);
+            right: var(--spacing-lg, 24px);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm, 8px);
+        }
+        
+        .toast {
+            padding: var(--spacing-md, 16px) var(--spacing-lg, 24px);
+            background: var(--bg-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm, 8px);
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+        }
+        
+        .toast.success {
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .toast.error {
+            border-left: 4px solid var(--error-color);
+        }
+        
+        .toast.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+        
+        .toast.info {
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* ==================== Keyboard Shortcuts ==================== */
+        .shortcuts-grid {
+            display: grid;
+            gap: var(--spacing-sm, 8px);
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm, 8px);
+            background: var(--bg-tertiary);
+            border-radius: var(--border-radius-sm);
+        }
+        
+        .shortcut-key {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs, 4px);
+        }
+        
+        .key {
+            display: inline-block;
+            padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            min-width: 28px;
+            text-align: center;
+        }
+        
+        .shortcut-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* ==================== Responsive Design ==================== */
+        @media (max-width: 768px) {
+            .app-container {
+                padding: var(--spacing-sm, 8px);
+            }
+            
+            .app-header {
+                flex-direction: column;
+                gap: var(--spacing-sm, 8px);
+                text-align: center;
+            }
+            
+            .header-actions {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .tabs-header {
+                overflow-x: auto;
+            }
+            
+            .tab-btn {
+                min-width: 70px;
+                padding: var(--spacing-sm, 8px);
+                font-size: 12px;
+            }
+        }
+        
+        /* ==================== Accessibility ==================== */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        *:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+                        <polygon points="8,5 19,12 8,19"/>
+                    </svg>
+                </div>
+                <span>Enterprise Video Player</span>
+                <span style="font-size: 0.6em; color: var(--text-muted);">Video.js Compatible</span>
+            </div>
+            <div class="header-actions">
+                <select id="languageSelect" class="custom-select" aria-label="Select Language">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                </select>
+                <button class="api-btn" id="themeToggle" aria-label="Toggle Theme">
+                    🌙
+                </button>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Player Section -->
+            <section class="player-section">
+                <div class="video-wrapper" id="videoWrapper">
+                    <video id="my-video" class="video-js vjs-default-skin" preload="auto" poster="" data-setup='{}'>
+                        <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                        <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that supports HTML5 video</p>
+                    </video>
+                </div>
+                
+                <!-- API Demo Panel -->
+                <div class="api-demo">
+                    <div class="api-demo-title">🎮 Video.js API Demo</div>
+                    <div class="api-buttons">
+                        <button class="api-btn" onclick="demoAPI('play')">play()</button>
+                        <button class="api-btn" onclick="demoAPI('pause')">pause()</button>
+                        <button class="api-btn" onclick="demoAPI('paused')">paused()</button>
+                        <button class="api-btn" onclick="demoAPI('currentTime')">currentTime()</button>
+                        <button class="api-btn" onclick="demoAPI('currentTime', 60)">currentTime(60)</button>
+                        <button class="api-btn" onclick="demoAPI('duration')">duration()</button>
+                        <button class="api-btn" onclick="demoAPI('volume')">volume()</button>
+                        <button class="api-btn" onclick="demoAPI('volume', 0.5)">volume(0.5)</button>
+                        <button class="api-btn" onclick="demoAPI('muted')">muted()</button>
+                        <button class="api-btn" onclick="demoAPI('muted', true)">muted(true)</button>
+                        <button class="api-btn" onclick="demoAPI('playbackRate')">playbackRate()</button>
+                        <button class="api-btn" onclick="demoAPI('playbackRate', 2)">playbackRate(2)</button>
+                        <button class="api-btn" onclick="demoAPI('requestFullscreen')">requestFullscreen()</button>
+                        <button class="api-btn" onclick="demoAPI('exitFullscreen')">exitFullscreen()</button>
+                        <button class="api-btn" onclick="demoAPI('isFullscreen')">isFullscreen()</button>
+                        <button class="api-btn" onclick="demoAPI('requestPictureInPicture')">requestPiP()</button>
+                        <button class="api-btn" onclick="demoAPI('buffered')">buffered()</button>
+                        <button class="api-btn" onclick="demoAPI('bufferedPercent')">bufferedPercent()</button>
+                        <button class="api-btn" onclick="demoAPI('remainingTime')">remainingTime()</button>
+                        <button class="api-btn" onclick="demoAPI('videoWidth')">videoWidth()</button>
+                        <button class="api-btn" onclick="demoAPI('videoHeight')">videoHeight()</button>
+                        <button class="api-btn" onclick="demoAPI('readyState')">readyState()</button>
+                        <button class="api-btn" onclick="demoAPI('networkState')">networkState()</button>
+                        <button class="api-btn" onclick="demoAPI('getStats')">getStats()</button>
+                        <button class="api-btn" onclick="demoAPI('reset')">reset()</button>
+                        <button class="api-btn" onclick="demoAPI('load')">load()</button>
+                        <button class="api-btn" onclick="demoAPI('dispose')">dispose()</button>
+                    </div>
+                    <div class="api-output" id="apiOutput">Click buttons to see API output...</div>
+                </div>
+            </section>
+            
+            <!-- Settings Panel -->
+            <aside class="settings-panel">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="settings">设置</button>
+                    <button class="tab-btn" data-tab="api">API</button>
+                    <button class="tab-btn" data-tab="events">事件</button>
+                    <button class="tab-btn" data-tab="shortcuts">快捷键</button>
+                </div>
+                
+                <div class="tabs-content">
+                    <!-- Settings Tab -->
+                    <div class="tab-panel active" id="settings-panel">
+                        <div class="settings-group">
+                            <div class="settings-group-title">播放设置</div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">自动播放</span>
+                                <div class="settings-value">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoplayToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">循环播放</span>
+                                <div class="settings-value">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="loopToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">播放速度</span>
+                                <div class="settings-value">
+                                    <select class="custom-select" id="playbackSpeedSelect">
+                                        <option value="0.25">0.25x</option>
+                                        <option value="0.5">0.5x</option>
+                                        <option value="0.75">0.75x</option>
+                                        <option value="1" selected>1x</option>
+                                        <option value="1.25">1.25x</option>
+                                        <option value="1.5">1.5x</option>
+                                        <option value="1.75">1.75x</option>
+                                        <option value="2">2x</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">音频设置</div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">音量</span>
+                                <div class="settings-value">
+                                    <input type="range" class="custom-range" id="volumeRange" min="0" max="100" value="100">
+                                    <span id="volumeValue">100%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">静音</span>
+                                <div class="settings-value">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="muteToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">视频设置</div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">画质</span>
+                                <div class="settings-value">
+                                    <select class="custom-select" id="qualitySelect">
+                                        <option value="auto">自动</option>
+                                        <option value="1080p">1080p</option>
+                                        <option value="720p">720p</option>
+                                        <option value="480p">480p</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-item">
+                                <span class="settings-label">纵横比</span>
+                                <div class="settings-value">
+                                    <select class="custom-select" id="aspectRatioSelect">
+                                        <option value="auto">自动</option>
+                                        <option value="16:9">16:9</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="21:9">21:9</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- API Tab -->
+                    <div class="tab-panel" id="api-panel">
+                        <div class="settings-group">
+                            <div class="settings-group-title">播放控制 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.play()</code> - 播放视频</div>
+                                <div><code>player.pause()</code> - 暂停视频</div>
+                                <div><code>player.paused()</code> - 是否暂停</div>
+                                <div><code>player.ended()</code> - 是否结束</div>
+                                <div><code>player.seeking()</code> - 是否跳转中</div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">时间控制 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.currentTime()</code> - 获取当前时间</div>
+                                <div><code>player.currentTime(60)</code> - 设置时间</div>
+                                <div><code>player.duration()</code> - 获取总时长</div>
+                                <div><code>player.remainingTime()</code> - 剩余时间</div>
+                                <div><code>player.buffered()</code> - 缓冲区间</div>
+                                <div><code>player.bufferedPercent()</code> - 缓冲百分比</div>
+                                <div><code>player.seekable()</code> - 可跳转区间</div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">音量控制 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.volume()</code> - 获取音量</div>
+                                <div><code>player.volume(0.5)</code> - 设置音量</div>
+                                <div><code>player.muted()</code> - 是否静音</div>
+                                <div><code>player.muted(true)</code> - 设置静音</div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">全屏/画中画 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.requestFullscreen()</code> - 进入全屏</div>
+                                <div><code>player.exitFullscreen()</code> - 退出全屏</div>
+                                <div><code>player.isFullscreen()</code> - 是否全屏</div>
+                                <div><code>player.requestPictureInPicture()</code> - 画中画</div>
+                                <div><code>player.exitPictureInPicture()</code> - 退出画中画</div>
+                                <div><code>player.isInPictureInPicture()</code> - 是否画中画</div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">轨道 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.textTracks()</code> - 字幕轨道</div>
+                                <div><code>player.audioTracks()</code> - 音频轨道</div>
+                                <div><code>player.videoTracks()</code> - 视频轨道</div>
+                                <div><code>player.addTextTrack(kind, label, lang)</code></div>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">事件 API</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div><code>player.on('play', fn)</code> - 绑定事件</div>
+                                <div><code>player.one('ended', fn)</code> - 绑定一次</div>
+                                <div><code>player.off('play', fn)</code> - 解绑事件</div>
+                                <div><code>player.trigger('custom')</code> - 触发事件</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Events Tab -->
+                    <div class="tab-panel" id="events-panel">
+                        <div class="settings-group">
+                            <div class="settings-group-title">事件日志</div>
+                            <div id="eventLog" style="font-size: 11px; font-family: var(--font-mono); background: var(--bg-primary); padding: 8px; border-radius: 4px; max-height: 300px; overflow-y: auto; color: var(--accent-color);">
+                                等待事件...
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group">
+                            <div class="settings-group-title">可用事件</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                                <div>loadstart, progress, suspend, abort, error</div>
+                                <div>loadedmetadata, loadeddata, canplay, canplaythrough</div>
+                                <div>play, pause, playing, waiting, seeking, seeked</div>
+                                <div>ended, durationchange, timeupdate, ratechange</div>
+                                <div>volumechange, resize, fullscreenchange</div>
+                                <div>enterpictureinpicture, leavepictureinpicture</div>
+                                <div>texttrackchange, audiotrackchange</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Shortcuts Tab -->
+                    <div class="tab-panel" id="shortcuts-panel">
+                        <div class="shortcuts-grid" id="shortcutsGrid">
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">Space</span> / <span class="key">K</span></span>
+                                <span class="shortcut-desc">播放/暂停</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">←</span> / <span class="key">J</span></span>
+                                <span class="shortcut-desc">快退10秒</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">→</span> / <span class="key">L</span></span>
+                                <span class="shortcut-desc">快进10秒</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">↑</span></span>
+                                <span class="shortcut-desc">音量增加</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">↓</span></span>
+                                <span class="shortcut-desc">音量减少</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">M</span></span>
+                                <span class="shortcut-desc">静音切换</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">F</span></span>
+                                <span class="shortcut-desc">全屏切换</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">P</span></span>
+                                <span class="shortcut-desc">画中画</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">0-9</span></span>
+                                <span class="shortcut-desc">跳转到百分比</span>
+                            </div>
+                            <div class="shortcut-item">
+                                <span class="shortcut-key"><span class="key">&lt;</span> / <span class="key">&gt;</span></span>
+                                <span class="shortcut-desc">调整播放速度</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Video.js Compatible Implementation ====================
+        
+        // Load the video.js core
+        // In production, this would be loaded from videojs-core.js
+        
+        // Simplified Video.js compatible player for demo
+        (function(global) {
+            'use strict';
+            
+            // Utility functions
+            const formatTime = (seconds) => {
+                if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
+                if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            };
+            
+            const mergeOptions = (...args) => {
+                const result = {};
+                args.forEach(obj => {
+                    if (obj) Object.keys(obj).forEach(key => {
+                        result[key] = obj[key];
+                    });
+                });
+                return result;
+            };
+            
+            // EventTarget class
+            class EventTarget {
+                constructor() {
+                    this.eventHandlers_ = {};
+                }
+                
+                on(types, fn) {
+                    if (!fn) return this;
+                    types.split(/\s+/).forEach(type => {
+                        if (!this.eventHandlers_[type]) this.eventHandlers_[type] = [];
+                        this.eventHandlers_[type].push(fn);
+                    });
+                    return this;
+                }
+                
+                one(types, fn) {
+                    const wrapper = (e) => {
+                        this.off(types, wrapper);
+                        fn.call(this, e);
+                    };
+                    return this.on(types, wrapper);
+                }
+                
+                off(types, fn) {
+                    if (!types) {
+                        this.eventHandlers_ = {};
+                        return this;
+                    }
+                    types.split(/\s+/).forEach(type => {
+                        if (!fn) {
+                            this.eventHandlers_[type] = [];
+                        } else if (this.eventHandlers_[type]) {
+                            this.eventHandlers_[type] = this.eventHandlers_[type].filter(h => h !== fn);
+                        }
+                    });
+                    return this;
+                }
+                
+                trigger(event, data = {}) {
+                    if (typeof event === 'string') {
+                        event = { type: event, target: this, data };
+                    }
+                    event.target = event.target || this;
+                    
+                    const handlers = this.eventHandlers_[event.type] || [];
+                    handlers.forEach(handler => {
+                        try {
+                            handler.call(this, event);
+                        } catch (e) {
+                            console.error('Error in event handler:', e);
+                        }
+                    });
+                    
+                    return this;
+                }
+            }
+            
+            // Player class
+            class Player extends EventTarget {
+                constructor(tag, options = {}, ready) {
+                    super();
+                    
+                    this.tag_ = typeof tag === 'string' ? document.getElementById(tag) : tag;
+                    this.options_ = mergeOptions(videojs.options, options);
+                    this.id_ = this.options_.id || `vjs_player_${Player.guid_++}`;
+                    this.isFullscreen_ = false;
+                    this.isInPictureInPicture_ = false;
+                    this.cache_ = {
+                        volume: 1,
+                        muted: false,
+                        playbackRate: 1,
+                        lastVolume: 1
+                    };
+                    
+                    this.initPlayer();
+                    
+                    if (ready) {
+                        ready.call(this);
+                    }
+                }
+                
+                initPlayer() {
+                    const video = this.tag_;
+                    
+                    // Create wrapper
+                    this.el_ = document.createElement('div');
+                    this.el_.className = 'video-js vjs-default-skin';
+                    this.el_.id = this.id_;
+                    
+                    if (video.parentNode) {
+                        video.parentNode.insertBefore(this.el_, video);
+                    }
+                    
+                    // Move video inside wrapper
+                    video.className = 'vjs-tech';
+                    this.el_.appendChild(video);
+                    
+                    // Create UI elements
+                    this.createUI();
+                    
+                    // Bind events
+                    this.bindEvents();
+                    
+                    // Store reference
+                    this.el_.player = this;
+                    video.player = this;
+                }
+                
+                createUI() {
+                    // Big play button
+                    this.bigPlayButton_ = document.createElement('button');
+                    this.bigPlayButton_.className = 'vjs-big-play-button';
+                    this.bigPlayButton_.innerHTML = '<span class="vjs-icon-placeholder"></span>';
+                    this.bigPlayButton_.onclick = () => this.play();
+                    this.el_.appendChild(this.bigPlayButton_);
+                    
+                    // Loading spinner
+                    this.loadingSpinner_ = document.createElement('div');
+                    this.loadingSpinner_.className = 'vjs-loading-spinner';
+                    this.loadingSpinner_.innerHTML = '<div class="vjs-spinner-inner"></div>';
+                    this.el_.appendChild(this.loadingSpinner_);
+                    
+                    // Control bar
+                    this.controlBar_ = document.createElement('div');
+                    this.controlBar_.className = 'vjs-control-bar';
+                    this.controlBar_.innerHTML = `
+                        <div class="vjs-play-control vjs-control" tabindex="0"><button type="button"></button></div>
+                        <div class="vjs-volume-panel vjs-control">
+                            <div class="vjs-mute-control vjs-control" tabindex="0"><button type="button"></button></div>
+                            <div class="vjs-volume-bar vjs-slider">
+                                <div class="vjs-volume-level" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="vjs-time-control vjs-current-time"><span class="vjs-current-time-display">0:00</span></div>
+                        <div class="vjs-time-control vjs-time-divider"><span>/</span></div>
+                        <div class="vjs-time-control vjs-duration"><span class="vjs-duration-display">0:00</span></div>
+                        <div class="vjs-progress-control vjs-control">
+                            <div class="vjs-progress-holder vjs-slider">
+                                <div class="vjs-load-progress" style="width: 0%"></div>
+                                <div class="vjs-play-progress" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="vjs-playback-rate vjs-control">
+                            <div class="vjs-playback-rate-value">1x</div>
+                            <div class="vjs-menu">
+                                <div class="vjs-menu-item vjs-selected" data-rate="1">1x</div>
+                                <div class="vjs-menu-item" data-rate="1.5">1.5x</div>
+                                <div class="vjs-menu-item" data-rate="2">2x</div>
+                                <div class="vjs-menu-item" data-rate="0.5">0.5x</div>
+                            </div>
+                        </div>
+                        <div class="vjs-subs-caps-button vjs-control vjs-menu-button-popup" tabindex="0">
+                            <button type="button"></button>
+                            <div class="vjs-menu">
+                                <div class="vjs-menu-item vjs-selected" data-track="-1">Off</div>
+                            </div>
+                        </div>
+                        <div class="vjs-picture-in-picture-control vjs-control" tabindex="0"><button type="button"></button></div>
+                        <div class="vjs-fullscreen-control vjs-control" tabindex="0"><button type="button"></button></div>
+                    `;
+                    this.el_.appendChild(this.controlBar_);
+                    
+                    // Stats panel
+                    this.statsPanel_ = document.createElement('div');
+                    this.statsPanel_.className = 'vjs-stats-panel';
+                    this.statsPanel_.innerHTML = `
+                        <div class="vjs-stats-row"><span class="vjs-stats-label">Resolution:</span><span class="vjs-stats-value" id="statsRes">-</span></div>
+                        <div class="vjs-stats-row"><span class="vjs-stats-label">Buffer:</span><span class="vjs-stats-value" id="statsBuffer">-</span></div>
+                        <div class="vjs-stats-row"><span class="vjs-stats-label">Dropped:</span><span class="vjs-stats-value" id="statsDropped">-</span></div>
+                    `;
+                    this.el_.appendChild(this.statsPanel_);
+                    
+                    // Error display
+                    this.errorDisplay_ = document.createElement('div');
+                    this.errorDisplay_.className = 'vjs-error-display';
+                    this.errorDisplay_.innerHTML = '<h3>Error</h3><p class="vjs-error-text"></p><button class="api-btn" onclick="this.parentElement.classList.remove(\'vjs-visible\')">Close</button>';
+                    this.el_.appendChild(this.errorDisplay_);
+                    
+                    // Bind control events
+                    this.bindControlEvents();
+                }
+                
+                bindEvents() {
+                    const video = this.tag_;
+                    
+                    const events = [
+                        'loadstart', 'progress', 'suspend', 'abort', 'error', 'emptied', 'stalled',
+                        'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing',
+                        'waiting', 'seeking', 'seeked', 'ended', 'durationchange', 'timeupdate',
+                        'play', 'pause', 'ratechange', 'resize', 'volumechange'
+                    ];
+                    
+                    events.forEach(event => {
+                        video.addEventListener(event, (e) => {
+                            this.trigger(event, { originalEvent: e });
+                            this.updateUI();
+                            logEvent(event);
+                        });
+                    });
+                    
+                    video.addEventListener('play', () => {
+                        this.el_.classList.add('vjs-playing', 'vjs-has-started');
+                        this.el_.classList.remove('vjs-paused', 'vjs-ended');
+                        this.bigPlayButton_.style.display = 'none';
+                    });
+                    
+                    video.addEventListener('pause', () => {
+                        this.el_.classList.add('vjs-paused');
+                        this.el_.classList.remove('vjs-playing');
+                    });
+                    
+                    video.addEventListener('ended', () => {
+                        this.el_.classList.add('vjs-ended');
+                        this.el_.classList.remove('vjs-playing');
+                        this.bigPlayButton_.style.display = 'block';
+                    });
+                    
+                    video.addEventListener('waiting', () => {
+                        this.el_.classList.add('vjs-waiting');
+                    });
+                    
+                    video.addEventListener('canplay', () => {
+                        this.el_.classList.remove('vjs-waiting');
+                    });
+                    
+                    video.addEventListener('error', () => {
+                        const error = video.error;
+                        if (error) {
+                            this.showError(`Error ${error.code}: ${error.message || 'Unknown error'}`);
+                        }
+                    });
+                    
+                    // Fullscreen change
+                    document.addEventListener('fullscreenchange', () => {
+                        this.isFullscreen_ = !!document.fullscreenElement;
+                        if (this.isFullscreen_) {
+                            this.el_.classList.add('vjs-fullscreen');
+                        } else {
+                            this.el_.classList.remove('vjs-fullscreen');
+                        }
+                        this.trigger('fullscreenchange', { isFullscreen: this.isFullscreen_ });
+                    });
+                    
+                    // Picture-in-Picture
+                    video.addEventListener('enterpictureinpicture', () => {
+                        this.isInPictureInPicture_ = true;
+                        this.trigger('enterpictureinpicture');
+                    });
+                    
+                    video.addEventListener('leavepictureinpicture', () => {
+                        this.isInPictureInPicture_ = false;
+                        this.trigger('leavepictureinpicture');
+                    });
+                }
+                
+                bindControlEvents() {
+                    // Play button
+                    const playBtn = this.controlBar_.querySelector('.vjs-play-control');
+                    playBtn.onclick = () => this.togglePlay();
+                    
+                    // Mute button
+                    const muteBtn = this.controlBar_.querySelector('.vjs-mute-control');
+                    muteBtn.onclick = () => this.muted(!this.muted());
+                    
+                    // Volume bar
+                    const volumeBar = this.controlBar_.querySelector('.vjs-volume-bar');
+                    volumeBar.onclick = (e) => {
+                        const rect = volumeBar.getBoundingClientRect();
+                        const percent = (e.clientX - rect.left) / rect.width;
+                        this.volume(percent);
+                    };
+                    
+                    // Progress bar
+                    const progressHolder = this.controlBar_.querySelector('.vjs-progress-holder');
+                    progressHolder.onclick = (e) => {
+                        const rect = progressHolder.getBoundingClientRect();
+                        const percent = (e.clientX - rect.left) / rect.width;
+                        this.currentTime(percent * this.duration());
+                    };
+                    
+                    // Playback rate
+                    const rateItems = this.controlBar_.querySelectorAll('.vjs-playback-rate .vjs-menu-item');
+                    rateItems.forEach(item => {
+                        item.onclick = () => {
+                            const rate = parseFloat(item.dataset.rate);
+                            this.playbackRate(rate);
+                            rateItems.forEach(i => i.classList.remove('vjs-selected'));
+                            item.classList.add('vjs-selected');
+                            this.controlBar_.querySelector('.vjs-playback-rate-value').textContent = rate + 'x';
+                        };
+                    });
+                    
+                    // Picture-in-Picture
+                    const pipBtn = this.controlBar_.querySelector('.vjs-picture-in-picture-control');
+                    pipBtn.onclick = () => {
+                        if (!this.isInPictureInPicture()) {
+                            this.requestPictureInPicture();
+                        } else {
+                            this.exitPictureInPicture();
+                        }
+                    };
+                    
+                    // Fullscreen
+                    const fsBtn = this.controlBar_.querySelector('.vjs-fullscreen-control');
+                    fsBtn.onclick = () => this.toggleFullscreen();
+                }
+                
+                updateUI() {
+                    const video = this.tag_;
+                    
+                    // Time display
+                    const currentTimeDisplay = this.controlBar_.querySelector('.vjs-current-time-display');
+                    const durationDisplay = this.controlBar_.querySelector('.vjs-duration-display');
+                    if (currentTimeDisplay) currentTimeDisplay.textContent = formatTime(video.currentTime);
+                    if (durationDisplay) durationDisplay.textContent = formatTime(video.duration);
+                    
+                    // Progress bar
+                    const playProgress = this.controlBar_.querySelector('.vjs-play-progress');
+                    const loadProgress = this.controlBar_.querySelector('.vjs-load-progress');
+                    if (playProgress && video.duration) {
+                        playProgress.style.width = (video.currentTime / video.duration * 100) + '%';
+                    }
+                    if (loadProgress && video.buffered.length > 0 && video.duration) {
+                        loadProgress.style.width = (video.buffered.end(video.buffered.length - 1) / video.duration * 100) + '%';
+                    }
+                    
+                    // Volume
+                    const volumeLevel = this.controlBar_.querySelector('.vjs-volume-level');
+                    if (volumeLevel) {
+                        volumeLevel.style.width = (this.muted() ? 0 : this.volume() * 100) + '%';
+                    }
+                    
+                    // Mute button state
+                    const muteBtn = this.controlBar_.querySelector('.vjs-mute-control');
+                    if (muteBtn) {
+                        muteBtn.classList.remove('vjs-vol-0', 'vjs-vol-1', 'vjs-vol-2', 'vjs-vol-3', 'vjs-muted');
+                        if (this.muted() || this.volume() === 0) {
+                            muteBtn.classList.add('vjs-vol-0', 'vjs-muted');
+                        } else if (this.volume() < 0.33) {
+                            muteBtn.classList.add('vjs-vol-1');
+                        } else if (this.volume() < 0.67) {
+                            muteBtn.classList.add('vjs-vol-2');
+                        } else {
+                            muteBtn.classList.add('vjs-vol-3');
+                        }
+                    }
+                    
+                    // Play button state
+                    const playBtn = this.controlBar_.querySelector('.vjs-play-control');
+                    if (playBtn) {
+                        playBtn.classList.remove('vjs-playing', 'vjs-paused', 'vjs-ended');
+                        if (video.ended) {
+                            playBtn.classList.add('vjs-ended');
+                        } else if (video.paused) {
+                            playBtn.classList.add('vjs-paused');
+                        } else {
+                            playBtn.classList.add('vjs-playing');
+                        }
+                    }
+                }
+                
+                // ==================== Playback Methods ====================
+                play() {
+                    return this.tag_.play();
+                }
+                
+                pause() {
+                    this.tag_.pause();
+                    return this;
+                }
+                
+                paused() {
+                    return this.tag_.paused;
+                }
+                
+                ended() {
+                    return this.tag_.ended;
+                }
+                
+                seeking() {
+                    return this.tag_.seeking;
+                }
+                
+                seekable() {
+                    return this.tag_.seekable;
+                }
+                
+                played() {
+                    return this.tag_.played;
+                }
+                
+                togglePlay() {
+                    if (this.paused()) {
+                        this.play();
+                    } else {
+                        this.pause();
+                    }
+                    return this;
+                }
+                
+                // ==================== Time Methods ====================
+                currentTime(seconds) {
+                    if (seconds !== undefined) {
+                        this.tag_.currentTime = Math.max(0, Math.min(seconds, this.duration() || 0));
+                        return this;
+                    }
+                    return this.tag_.currentTime;
+                }
+                
+                duration() {
+                    return this.tag_.duration || 0;
+                }
+                
+                remainingTime() {
+                    return this.duration() - this.currentTime();
+                }
+                
+                buffered() {
+                    return this.tag_.buffered;
+                }
+                
+                bufferedEnd() {
+                    const buffered = this.buffered();
+                    const duration = this.duration();
+                    if (buffered && buffered.length > 0) {
+                        return Math.min(buffered.end(buffered.length - 1), duration);
+                    }
+                    return 0;
+                }
+                
+                bufferedPercent() {
+                    const duration = this.duration();
+                    if (!duration) return 0;
+                    return this.bufferedEnd() / duration;
+                }
+                
+                // ==================== Volume Methods ====================
+                volume(percentAsDecimal) {
+                    if (percentAsDecimal !== undefined) {
+                        percentAsDecimal = Math.max(0, Math.min(1, percentAsDecimal));
+                        this.tag_.volume = percentAsDecimal;
+                        this.cache_.volume = percentAsDecimal;
+                        if (percentAsDecimal > 0) {
+                            this.cache_.lastVolume = percentAsDecimal;
+                        }
+                        return this;
+                    }
+                    return this.tag_.volume;
+                }
+                
+                muted(muted) {
+                    if (muted !== undefined) {
+                        this.tag_.muted = muted;
+                        this.cache_.muted = muted;
+                        return this;
+                    }
+                    return this.tag_.muted;
+                }
+                
+                defaultMuted(defaultMuted) {
+                    if (defaultMuted !== undefined) {
+                        this.tag_.defaultMuted = defaultMuted;
+                        return this;
+                    }
+                    return this.tag_.defaultMuted;
+                }
+                
+                lastVolume() {
+                    return this.cache_.lastVolume;
+                }
+                
+                // ==================== Playback Rate Methods ====================
+                playbackRate(rate) {
+                    if (rate !== undefined) {
+                        this.tag_.playbackRate = rate;
+                        this.cache_.playbackRate = rate;
+                        return this;
+                    }
+                    return this.tag_.playbackRate;
+                }
+                
+                defaultPlaybackRate(rate) {
+                    if (rate !== undefined) {
+                        this.tag_.defaultPlaybackRate = rate;
+                        return this;
+                    }
+                    return this.tag_.defaultPlaybackRate;
+                }
+                
+                playbackRates() {
+                    return [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+                }
+                
+                // ==================== Fullscreen Methods ====================
+                isFullscreen() {
+                    return this.isFullscreen_;
+                }
+                
+                requestFullscreen() {
+                    if (this.el_.requestFullscreen) {
+                        this.el_.requestFullscreen();
+                    } else if (this.el_.webkitRequestFullscreen) {
+                        this.el_.webkitRequestFullscreen();
+                    } else if (this.el_.msRequestFullscreen) {
+                        this.el_.msRequestFullscreen();
+                    }
+                    return this;
+                }
+                
+                exitFullscreen() {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                    return this;
+                }
+                
+                toggleFullscreen() {
+                    if (this.isFullscreen()) {
+                        this.exitFullscreen();
+                    } else {
+                        this.requestFullscreen();
+                    }
+                    return this;
+                }
+                
+                // ==================== Picture-in-Picture Methods ====================
+                isInPictureInPicture() {
+                    return this.isInPictureInPicture_;
+                }
+                
+                requestPictureInPicture() {
+                    if (document.pictureInPictureEnabled && this.tag_.requestPictureInPicture) {
+                        return this.tag_.requestPictureInPicture();
+                    }
+                    return Promise.reject(new Error('Picture-in-Picture not supported'));
+                }
+                
+                exitPictureInPicture() {
+                    if (document.exitPictureInPicture) {
+                        return document.exitPictureInPicture();
+                    }
+                    return Promise.reject(new Error('Picture-in-Picture not supported'));
+                }
+                
+                // ==================== Source Methods ====================
+                src(source) {
+                    if (source === undefined) {
+                        return this.tag_.currentSrc;
+                    }
+                    if (typeof source === 'string') {
+                        this.tag_.src = source;
+                    } else if (source && source.src) {
+                        this.tag_.src = source.src;
+                    }
+                    return this;
+                }
+                
+                currentSrc() {
+                    return this.tag_.currentSrc;
+                }
+                
+                // ==================== Load/Reset Methods ====================
+                load() {
+                    this.tag_.load();
+                    return this;
+                }
+                
+                reset() {
+                    this.currentTime(0);
+                    this.pause();
+                    this.trigger('reset');
+                    return this;
+                }
+                
+                // ==================== Tracks Methods ====================
+                textTracks() {
+                    return this.tag_.textTracks || { length: 0 };
+                }
+                
+                audioTracks() {
+                    return this.tag_.audioTracks || { length: 0 };
+                }
+                
+                videoTracks() {
+                    return this.tag_.videoTracks || { length: 0 };
+                }
+                
+                addTextTrack(kind, label, language) {
+                    return this.tag_.addTextTrack(kind, label, language);
+                }
+                
+                // ==================== Dimensions Methods ====================
+                videoWidth() {
+                    return this.tag_.videoWidth;
+                }
+                
+                videoHeight() {
+                    return this.tag_.videoHeight;
+                }
+                
+                // ==================== State Methods ====================
+                networkState() {
+                    return this.tag_.networkState;
+                }
+                
+                readyState() {
+                    return this.tag_.readyState;
+                }
+                
+                // ==================== Error Methods ====================
+                error() {
+                    return this.tag_.error;
+                }
+                
+                showError(message) {
+                    const errorText = this.errorDisplay_.querySelector('.vjs-error-text');
+                    if (errorText) errorText.textContent = message;
+                    this.errorDisplay_.classList.add('vjs-visible');
+                }
+                
+                // ==================== Stats Methods ====================
+                getStats() {
+                    return {
+                        currentTime: this.currentTime(),
+                        duration: this.duration(),
+                        paused: this.paused(),
+                        ended: this.ended(),
+                        seeking: this.seeking(),
+                        volume: this.volume(),
+                        muted: this.muted(),
+                        playbackRate: this.playbackRate(),
+                        buffered: this.bufferedPercent(),
+                        videoWidth: this.videoWidth(),
+                        videoHeight: this.videoHeight(),
+                        networkState: this.networkState(),
+                        readyState: this.readyState()
+                    };
+                }
+                
+                // ==================== Controls Methods ====================
+                controls(enabled) {
+                    if (enabled !== undefined) {
+                        this.tag_.controls = enabled;
+                        return this;
+                    }
+                    return this.tag_.controls;
+                }
+                
+                // ==================== Autoplay/Loop Methods ====================
+                autoplay(value) {
+                    if (value !== undefined) {
+                        this.tag_.autoplay = value;
+                        return this;
+                    }
+                    return this.tag_.autoplay;
+                }
+                
+                loop(value) {
+                    if (value !== undefined) {
+                        this.tag_.loop = value;
+                        return this;
+                    }
+                    return this.tag_.loop;
+                }
+                
+                // ==================== Poster Methods ====================
+                poster(src) {
+                    if (src !== undefined) {
+                        this.tag_.poster = src;
+                        return this;
+                    }
+                    return this.tag_.poster;
+                }
+                
+                // ==================== Dispose ====================
+                dispose() {
+                    this.trigger('dispose');
+                    this.off();
+                    if (this.el_ && this.el_.parentNode) {
+                        this.el_.parentNode.removeChild(this.el_);
+                    }
+                }
+            }
+            
+            Player.guid_ = 0;
+            
+            // Video.js factory function
+            function videojs(id, options, ready) {
+                let tag;
+                if (typeof id === 'string') {
+                    tag = document.getElementById(id);
+                } else if (id && id.nodeType === 1) {
+                    tag = id;
+                }
+                
+                if (!tag) {
+                    throw new Error('Element not found');
+                }
+                
+                if (tag.player) {
+                    return tag.player;
+                }
+                
+                return new Player(tag, options, ready);
+            }
+            
+            // Static properties
+            videojs.options = {
+                techOrder: ['html5'],
+                html5: {},
+                flash: {},
+                inactivityTimeout: 3000,
+                playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                children: {
+                    mediaLoader: {},
+                    posterImage: {},
+                    loadingSpinner: {},
+                    bigPlayButton: {},
+                    controlBar: {},
+                    errorDisplay: {}
+                },
+                language: 'en',
+                languages: {}
+            };
+            
+            videojs.players = {};
+            videojs.formatTime = formatTime;
+            videojs.mergeOptions = mergeOptions;
+            videojs.EventTarget = EventTarget;
+            videojs.Player = Player;
+            videojs.VERSION = '8.0.0-enterprise';
+            
+            // Expose globally
+            global.videojs = videojs;
+            global.videojs.log = {
+                level: 'warn',
+                error: (...args) => console.error('[Video.js]', ...args),
+                warn: (...args) => console.warn('[Video.js]', ...args),
+                info: (...args) => console.info('[Video.js]', ...args),
+                debug: (...args) => console.debug('[Video.js]', ...args)
+            };
+            
+        })(window);
+        
+        // ==================== Initialize Player ====================
+        
+        let player;
+        const eventLog = [];
+        
+        function logEvent(event) {
+            const time = new Date().toLocaleTimeString();
+            eventLog.unshift(`[${time}] ${event}`);
+            if (eventLog.length > 50) eventLog.pop();
+            
+            const logEl = document.getElementById('eventLog');
+            if (logEl) {
+                logEl.innerHTML = eventLog.map(e => `<div>${e}</div>`).join('');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            player = videojs('my-video', {
+                controls: true,
+                autoplay: false,
+                preload: 'auto',
+                fluid: true
+            });
+            
+            window.player = player;
+            
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                    
+                    this.classList.add('active');
+                    document.getElementById(tabId + '-panel').classList.add('active');
+                });
+            });
+            
+            // Settings bindings
+            document.getElementById('autoplayToggle').addEventListener('change', function() {
+                player.autoplay(this.checked);
+            });
+            
+            document.getElementById('loopToggle').addEventListener('change', function() {
+                player.loop(this.checked);
+            });
+            
+            document.getElementById('playbackSpeedSelect').addEventListener('change', function() {
+                player.playbackRate(parseFloat(this.value));
+            });
+            
+            document.getElementById('volumeRange').addEventListener('input', function() {
+                const vol = parseInt(this.value) / 100;
+                player.volume(vol);
+                document.getElementById('volumeValue').textContent = this.value + '%';
+            });
+            
+            document.getElementById('muteToggle').addEventListener('change', function() {
+                player.muted(this.checked);
+            });
+            
+            // Theme toggle
+            document.getElementById('themeToggle').addEventListener('click', function() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme === 'dark' ? '' : 'light');
+                this.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+            });
+            
+            // Language select
+            document.getElementById('languageSelect').addEventListener('change', function() {
+                // Language change logic
+                console.log('Language changed to:', this.value);
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                    return;
+                }
+                
+                switch (e.key.toLowerCase()) {
+                    case ' ':
+                    case 'k':
+                        e.preventDefault();
+                        player.togglePlay();
+                        break;
+                    case 'arrowleft':
+                    case 'j':
+                        e.preventDefault();
+                        player.currentTime(player.currentTime() - 10);
+                        break;
+                    case 'arrowright':
+                    case 'l':
+                        e.preventDefault();
+                        player.currentTime(player.currentTime() + 10);
+                        break;
+                    case 'arrowup':
+                        e.preventDefault();
+                        player.volume(player.volume() + 0.1);
+                        break;
+                    case 'arrowdown':
+                        e.preventDefault();
+                        player.volume(player.volume() - 0.1);
+                        break;
+                    case 'm':
+                        player.muted(!player.muted());
+                        break;
+                    case 'f':
+                        player.toggleFullscreen();
+                        break;
+                    case 'p':
+                        if (document.pictureInPictureEnabled) {
+                            if (!player.isInPictureInPicture()) {
+                                player.requestPictureInPicture();
+                            } else {
+                                player.exitPictureInPicture();
+                            }
+                        }
+                        break;
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        e.preventDefault();
+                        const percent = parseInt(e.key) * 10;
+                        player.currentTime((percent / 100) * player.duration());
+                        break;
+                }
+            });
+        });
+        
+        // ==================== API Demo ====================
+        
+        function demoAPI(method, value) {
+            if (!player) return;
+            
+            let result;
+            
+            try {
+                if (value !== undefined) {
+                    result = player[method](value);
+                    result = `player.${method}(${JSON.stringify(value)}) → OK`;
+                } else {
+                    result = player[method]();
+                    if (typeof result === 'object') {
+                        if (result && result.length !== undefined) {
+                            result = `player.${method}() → [${Array.from(result).map((_, i) => `${result.start(i)?.toFixed(1)}-${result.end(i)?.toFixed(1)}`).join(', ')}]`;
+                        } else {
+                            result = `player.${method}() → ${JSON.stringify(result, null, 2)}`;
+                        }
+                    } else {
+                        result = `player.${method}() → ${result}`;
+                    }
+                }
+            } catch (e) {
+                result = `Error: ${e.message}`;
+            }
+            
+            document.getElementById('apiOutput').textContent = result;
+        }
+        
+        // Toast notification
+        function showToast(type, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                const CACHE_NAME = 'video-player-v1';
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+                self.addEventListener('fetch', e => {
+                    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                });
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+        }
+    </script>
+</body>
+</html>
