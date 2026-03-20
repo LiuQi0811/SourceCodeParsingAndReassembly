@@ -1,0 +1,2311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Document Object Model (DOM) Enterprise Application">
+    <meta name="theme-color" content="#0ea5e9">
+    <title>DOM API - Enterprise Application</title>
+    
+    <style>
+        :root {
+            --primary-color: #0ea5e9;
+            --primary-hover: #0284c7;
+            --primary-light: #e0f2fe;
+            --primary-dark: #0369a1;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --info-color: #3b82f6;
+            --background-color: #f8fafc;
+            --surface-color: #ffffff;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-full: 9999px;
+            --code-background: #f1f5f9;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #38bdf8;
+            --primary-hover: #7dd3fc;
+            --primary-light: #0c4a6e;
+            --primary-dark: #0ea5e9;
+            --secondary-color: #94a3b8;
+            --success-color: #34d399;
+            --warning-color: #fbbf24;
+            --error-color: #f87171;
+            --info-color: #60a5fa;
+            --background-color: #0f172a;
+            --surface-color: #1e293b;
+            --card-background: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            --code-background: #1e293b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--surface-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--secondary-color); }
+
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; }
+
+        .header {
+            background: var(--card-background);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.875rem 1.5rem;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 1400px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 1rem;
+        }
+
+        .logo-section { display: flex; align-items: center; gap: 0.875rem; }
+        .logo-icon {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-md);
+        }
+        .logo-icon svg { width: 24px; height: 24px; fill: white; }
+        .logo-text h1 { font-size: 1.375rem; font-weight: 700; color: var(--text-primary); }
+        .logo-text span { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
+        .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 0.5rem; padding: 0.625rem 1.25rem;
+            border: none; border-radius: var(--radius-md);
+            font-size: 0.875rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease; white-space: nowrap;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white; box-shadow: var(--shadow-md);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: var(--surface-color); color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-success { background: linear-gradient(135deg, var(--success-color), #059669); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--error-color), #dc2626); color: white; }
+        .btn-icon { padding: 0.625rem; }
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.8125rem; }
+        .btn svg { width: 18px; height: 18px; }
+
+        .main-content {
+            flex: 1; display: flex; flex-direction: column;
+            max-width: 1400px; margin: 0 auto; padding: 1.5rem; width: 100%;
+        }
+
+        .status-bar {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 1rem; box-shadow: var(--shadow-sm);
+        }
+        .status-item { display: flex; align-items: center; gap: 0.625rem; }
+        .status-indicator {
+            width: 12px; height: 12px; border-radius: var(--radius-full);
+            background: var(--success-color);
+            box-shadow: 0 0 12px var(--success-color);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .status-label { font-size: 0.875rem; color: var(--text-secondary); }
+        .status-value { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); font-family: monospace; }
+
+        .tabs-container {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg); overflow: hidden;
+            flex: 1; display: flex; flex-direction: column;
+            box-shadow: var(--shadow-md);
+        }
+        .tabs-header {
+            display: flex; background: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto; padding: 0 0.5rem;
+        }
+        .tab-btn {
+            padding: 1rem 1.5rem; background: transparent; border: none;
+            color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;
+            cursor: pointer; border-bottom: 2px solid transparent;
+            transition: all 0.2s; white-space: nowrap;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .tab-btn:hover { color: var(--text-primary); background: var(--border-color); }
+        .tab-btn.active { color: var(--primary-color); border-bottom-color: var(--primary-color); background: var(--card-background); }
+        .tab-btn svg { width: 18px; height: 18px; }
+        .tab-content { flex: 1; padding: 1.5rem; overflow-y: auto; display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.5rem; margin-bottom: 1.25rem;
+            transition: all 0.2s;
+        }
+        .card:hover { box-shadow: var(--shadow-md); }
+        .card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.25rem; padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-title {
+            font-size: 1.125rem; font-weight: 700; color: var(--text-primary);
+            display: flex; align-items: center; gap: 0.625rem;
+        }
+        .card-title svg { width: 22px; height: 22px; color: var(--primary-color); }
+
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label {
+            display: block; font-size: 0.875rem; font-weight: 600;
+            color: var(--text-primary); margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%; padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); font-size: 0.875rem;
+            background: var(--card-background); color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-light); }
+        textarea.form-input { min-height: 80px; resize: vertical; font-family: monospace; }
+        select.form-input { cursor: pointer; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* DOM Playground */
+        .dom-playground {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            min-height: 200px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Node Tree */
+        .node-tree {
+            font-family: monospace;
+            font-size: 0.8125rem;
+            line-height: 1.8;
+        }
+        .node-item {
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .node-item:hover { background: var(--border-color); }
+        .node-item.selected { background: var(--primary-light); color: var(--primary-color); }
+        .node-type { color: var(--text-muted); font-size: 0.6875rem; }
+        .node-name { color: var(--primary-color); font-weight: 600; }
+        .node-value { color: var(--success-color); }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-family: monospace;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .code-block {
+            background: var(--code-background);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8125rem;
+            overflow-x: auto; line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .result-display {
+            background: var(--code-background);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8125rem;
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .api-section { margin-bottom: 1.5rem; }
+        .api-title {
+            font-size: 1rem; font-weight: 700; color: var(--text-primary);
+            margin-bottom: 0.875rem; padding-bottom: 0.625rem;
+            border-bottom: 2px solid var(--primary-color); display: inline-block;
+        }
+        .api-method {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem; margin-bottom: 0.75rem;
+        }
+        .api-method-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .api-method-name { font-family: monospace; font-size: 0.8125rem; font-weight: 600; color: var(--primary-color); }
+        .api-method-type {
+            font-size: 0.6875rem; padding: 0.125rem 0.5rem;
+            background: var(--primary-light); color: var(--primary-color);
+            border-radius: var(--radius-full);
+        }
+        .api-method-desc { font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5; }
+
+        .badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.25rem 0.75rem; border-radius: var(--radius-full);
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-primary { background: var(--primary-light); color: var(--primary-color); }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success-color); }
+
+        .toast-container {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000;
+            display: flex; flex-direction: column; gap: 0.625rem;
+        }
+        .toast {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); padding: 1rem 1.25rem;
+            box-shadow: var(--shadow-lg);
+            display: flex; align-items: center; gap: 0.875rem;
+            animation: slideInRight 0.3s ease; max-width: 380px;
+        }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--error-color); }
+        .toast.info { border-left: 4px solid var(--info-color); }
+        .toast-message { font-size: 0.875rem; color: var(--text-primary); }
+
+        /* Event Log */
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.5rem;
+            font-size: 0.8125rem;
+        }
+        .event-type {
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--radius-full);
+            font-size: 0.6875rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            background: var(--primary-light);
+            color: var(--primary-color);
+        }
+        .event-content { flex: 1; }
+        .event-time { font-size: 0.6875rem; color: var(--text-muted); }
+
+        /* Mutation Record */
+        .mutation-record {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8125rem;
+        }
+        .mutation-type {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--radius-full);
+            font-size: 0.6875rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+        .mutation-type.attributes { background: rgba(59, 130, 246, 0.15); color: var(--info-color); }
+        .mutation-type.childList { background: rgba(16, 185, 129, 0.15); color: var(--success-color); }
+        .mutation-type.characterData { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); }
+
+        @media (max-width: 768px) {
+            .header-content { flex-direction: column; align-items: stretch; }
+            .header-actions { justify-content: flex-end; }
+            .status-bar { flex-direction: column; align-items: stretch; }
+            .main-content { padding: 1rem; }
+            .tab-content { padding: 1rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .tabs-header { flex-wrap: nowrap; }
+            .tab-btn { padding: 0.875rem 1.25rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-wrap { flex-wrap: wrap; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 0.75rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mt-3 { margin-top: 0.75rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 0.75rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-muted { color: var(--text-muted); }
+        .w-full { width: 100%; }
+        .text-center { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                    </div>
+                    <div class="logo-text">
+                        <h1 data-i18n="appTitle">Document Object Model (DOM)</h1>
+                        <span data-i18n="appSubtitle">Enterprise Application</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary btn-icon" id="themeToggle" title="Toggle Theme">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+                    </button>
+                    <select class="form-input" id="languageSelect" style="width: auto; padding: 0.5rem 0.75rem;">
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-indicator"></div>
+                    <div>
+                        <span class="status-label" data-i18n="documentReady">Document Ready:</span>
+                        <span class="status-value" id="docReadyState">-</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2z"/></svg>
+                    <div>
+                        <span class="status-label" data-i18n="totalNodes">Total Nodes:</span>
+                        <span class="status-value" id="totalNodes">0</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                    <div>
+                        <span class="status-label" data-i18n="elements">Elements:</span>
+                        <span class="status-value" id="totalElements">0</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                    <div>
+                        <span class="status-label" data-i18n="eventListeners">Event Listeners:</span>
+                        <span class="status-value" id="eventListenerCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs-container">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="node">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                        <span data-i18n="tabNode">Node</span>
+                    </button>
+                    <button class="tab-btn" data-tab="element">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                        <span data-i18n="tabElement">Element</span>
+                    </button>
+                    <button class="tab-btn" data-tab="document">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        <span data-i18n="tabDocument">Document</span>
+                    </button>
+                    <button class="tab-btn" data-tab="events">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+                        <span data-i18n="tabEvents">Events</span>
+                    </button>
+                    <button class="tab-btn" data-tab="mutation">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                        <span data-i18n="tabMutation">MutationObserver</span>
+                    </button>
+                    <button class="tab-btn" data-tab="selection">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2V3c-1.1 0-2 .9-2 2zm0 8h2v-2H3v2zm4 8h2v-2H7v2zM3 9h2V7H3v2zm10-6h-2v2h2V3zm6 0v2h2c0-1.1-.9-2-2-2zM5 21v-2H3c0 1.1.9 2 2 2zm-2-4h2v-2H3v2zM9 3H7v2h2V3zm2 18h2v-2h-2v2zm8-8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2zm0-12h2V7h-2v2zm0 8h2v-2h-2v2zm-4 4h2v-2h-2v2zm0-16h2V3h-2v2zM7 17h10V7H7v10zm2-8h6v6H9V9z"/></svg>
+                        <span data-i18n="tabSelection">Selection</span>
+                    </button>
+                    <button class="tab-btn" data-tab="parser">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                        <span data-i18n="tabParser">Parser</span>
+                    </button>
+                    <button class="tab-btn" data-tab="api">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        <span data-i18n="tabApi">API Reference</span>
+                    </button>
+                </div>
+
+                <!-- Node Tab -->
+                <div class="tab-content active" id="tab-node">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="nodeProperties">Node Properties</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="selectNode">Select Node</label>
+                            <select class="form-input" id="nodeSelect">
+                                <option value="document">document</option>
+                                <option value="documentElement">document.documentElement</option>
+                                <option value="head">document.head</option>
+                                <option value="body">document.body</option>
+                                <option value="title">document.title</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary mb-3" id="inspectNodeBtn">Inspect Node</button>
+
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="nodeType">-</div>
+                                <div class="stat-label">nodeType</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="nodeName">-</div>
+                                <div class="stat-label">nodeName</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="nodeValue">-</div>
+                                <div class="stat-label">nodeValue</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="nodeChildCount">0</div>
+                                <div class="stat-label">childNodes.length</div>
+                            </div>
+                        </div>
+
+                        <div class="result-display" id="nodeResult">// Node properties will appear here</div>
+                    </div>
+
+                    <!-- Node Methods -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                <span data-i18n="nodeMethods">Node Methods</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="nodeMethod">Method</label>
+                            <select class="form-input" id="nodeMethodSelect">
+                                <option value="appendChild">appendChild(child)</option>
+                                <option value="insertBefore">insertBefore(newNode, refNode)</option>
+                                <option value="removeChild">removeChild(child)</option>
+                                <option value="replaceChild">replaceChild(newChild, oldChild)</option>
+                                <option value="cloneNode">cloneNode(deep)</option>
+                                <option value="hasChildNodes">hasChildNodes()</option>
+                                <option value="contains">contains(otherNode)</option>
+                                <option value="isSameNode">isSameNode(otherNode)</option>
+                                <option value="isEqualNode">isEqualNode(otherNode)</option>
+                                <option value="normalize">normalize()</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="executeNodeMethodBtn">Execute Method</button>
+                        </div>
+
+                        <div class="result-display" id="nodeMethodResult">// Method execution result</div>
+                    </div>
+
+                    <!-- Node Tree -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 11V3h-7v3H9V3H2v8h7V8h2v10h4v3h7v-8h-7v3h-2V8h2v3h7z"/></svg>
+                                <span data-i18n="nodeTree">Node Tree</span>
+                            </div>
+                            <button class="btn btn-secondary" id="refreshTreeBtn">Refresh</button>
+                        </div>
+
+                        <div class="node-tree" id="nodeTreeContainer">
+                            <!-- Node tree will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Element Tab -->
+                <div class="tab-content" id="tab-element">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="elementSelector">Element Selector</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="selectorMethod">Selector Method</label>
+                                <select class="form-input" id="selectorMethod">
+                                    <option value="getElementById">getElementById()</option>
+                                    <option value="getElementsByClassName">getElementsByClassName()</option>
+                                    <option value="getElementsByTagName">getElementsByTagName()</option>
+                                    <option value="querySelector">querySelector()</option>
+                                    <option value="querySelectorAll">querySelectorAll()</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="selectorValue">Selector</label>
+                                <input type="text" class="form-input" id="selectorValue" value="header" placeholder="CSS selector or ID">
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary mb-3" id="selectElementBtn">Select Element</button>
+
+                        <div class="result-display" id="selectorResult">// Selected element(s) will appear here</div>
+                    </div>
+
+                    <!-- Element Attributes -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                                <span data-i18n="attributes">Attributes</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="attributeName">Attribute Name</label>
+                                <input type="text" class="form-input" id="attrName" value="class" placeholder="Attribute name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="attributeValue">Attribute Value</label>
+                                <input type="text" class="form-input" id="attrValue" placeholder="Attribute value (for setAttribute)">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="getAttributeBtn">getAttribute()</button>
+                            <button class="btn btn-secondary" id="setAttributeBtn">setAttribute()</button>
+                            <button class="btn btn-secondary" id="hasAttributeBtn">hasAttribute()</button>
+                            <button class="btn btn-danger" id="removeAttributeBtn">removeAttribute()</button>
+                        </div>
+
+                        <div class="result-display" id="attrResult">// Attribute operation result</div>
+                    </div>
+
+                    <!-- Element Classes -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                                <span data-i18n="classList">classList (DOMTokenList)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="className">Class Name</label>
+                            <input type="text" class="form-input" id="className" value="active" placeholder="Class name">
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="classAddBtn">add()</button>
+                            <button class="btn btn-secondary" id="classRemoveBtn">remove()</button>
+                            <button class="btn btn-secondary" id="classToggleBtn">toggle()</button>
+                            <button class="btn btn-secondary" id="classContainsBtn">contains()</button>
+                            <button class="btn btn-secondary" id="classReplaceBtn">replace()</button>
+                        </div>
+
+                        <div class="result-display" id="classResult">// classList operation result</div>
+                    </div>
+
+                    <!-- Element Styles -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                                <span data-i18n="styles">Styles</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="styleProperty">CSS Property</label>
+                                <input type="text" class="form-input" id="styleProp" value="color" placeholder="e.g., color, background">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="styleValue">CSS Value</label>
+                                <input type="text" class="form-input" id="styleValue" value="red" placeholder="e.g., red, #fff">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="setStyleBtn">style[property] = value</button>
+                            <button class="btn btn-secondary" id="getStyleBtn">getComputedStyle()</button>
+                            <button class="btn btn-secondary" id="removeStyleBtn">Remove Property</button>
+                        </div>
+
+                        <div class="result-display" id="styleResult">// Style operation result</div>
+                    </div>
+
+                    <!-- DOM Playground -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="domPlayground">DOM Playground</span>
+                            </div>
+                        </div>
+
+                        <div class="dom-playground" id="domPlayground">
+                            <div id="playgroundContainer">
+                                <h3>Sample Content</h3>
+                                <p>This is a paragraph with <strong>bold text</strong> and <em>italic text</em>.</p>
+                                <ul>
+                                    <li>Item 1</li>
+                                    <li>Item 2</li>
+                                    <li>Item 3</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="createElement">Create Element</label>
+                                <input type="text" class="form-input" id="createElementTag" value="div" placeholder="Tag name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="elementContent">Content</label>
+                                <input type="text" class="form-input" id="createElementContent" value="New Element" placeholder="Text content">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="createElementBtn">createElement()</button>
+                            <button class="btn btn-secondary" id="createTextNodeBtn">createTextNode()</button>
+                            <button class="btn btn-secondary" id="createFragmentBtn">createDocumentFragment()</button>
+                            <button class="btn btn-success" id="appendToPlaygroundBtn">Append to Playground</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Tab -->
+                <div class="tab-content" id="tab-document">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                                <span data-i18n="documentProperties">Document Properties</span>
+                            </div>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="docTitle">-</div>
+                                <div class="stat-label">title</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="docURL">-</div>
+                                <div class="stat-label">URL</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="docDomain">-</div>
+                                <div class="stat-label">domain</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="docReadyStateVal">-</div>
+                                <div class="stat-label">readyState</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="docCharset">-</div>
+                                <div class="stat-label">characterSet</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="docDoctype">-</div>
+                                <div class="stat-label">doctype</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" id="refreshDocPropsBtn">Refresh Properties</button>
+                    </div>
+
+                    <!-- Document Methods -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                <span data-i18n="documentMethods">Document Methods</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="docMethod">Method</label>
+                            <select class="form-input" id="docMethodSelect">
+                                <option value="createElement">createElement(tagName)</option>
+                                <option value="createTextNode">createTextNode(data)</option>
+                                <option value="createComment">createComment(data)</option>
+                                <option value="createDocumentFragment">createDocumentFragment()</option>
+                                <option value="createAttribute">createAttribute(name)</option>
+                                <option value="importNode">importNode(node, deep)</option>
+                                <option value="adoptNode">adoptNode(node)</option>
+                                <option value="hasFocus">hasFocus()</option>
+                                <option value="execCommand">execCommand(cmd)</option>
+                                <option value="queryCommandSupported">queryCommandSupported(cmd)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="docMethodParam">Parameter</label>
+                            <input type="text" class="form-input" id="docMethodParam" value="div" placeholder="Method parameter">
+                        </div>
+
+                        <button class="btn btn-primary" id="executeDocMethodBtn">Execute Method</button>
+
+                        <div class="result-display" id="docMethodResult">// Document method result</div>
+                    </div>
+
+                    <!-- Document Collections -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2z"/></svg>
+                                <span data-i18n="documentCollections">Document Collections</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap mb-3">
+                            <button class="btn btn-secondary" id="getLinksBtn">document.links</button>
+                            <button class="btn btn-secondary" id="getImagesBtn">document.images</button>
+                            <button class="btn btn-secondary" id="getFormsBtn">document.forms</button>
+                            <button class="btn btn-secondary" id="getScriptsBtn">document.scripts</button>
+                            <button class="btn btn-secondary" id="getAnchorsBtn">document.anchors</button>
+                        </div>
+
+                        <div class="result-display" id="collectionsResult">// Collection will appear here</div>
+                    </div>
+                </div>
+
+                <!-- Events Tab -->
+                <div class="tab-content" id="tab-events">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="eventTarget">EventTarget</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="eventType">Event Type</label>
+                                <select class="form-input" id="eventType">
+                                    <option value="click">click</option>
+                                    <option value="dblclick">dblclick</option>
+                                    <option value="mouseover">mouseover</option>
+                                    <option value="mouseout">mouseout</option>
+                                    <option value="keydown">keydown</option>
+                                    <option value="keyup">keyup</option>
+                                    <option value="focus">focus</option>
+                                    <option value="blur">blur</option>
+                                    <option value="submit">submit</option>
+                                    <option value="change">change</option>
+                                    <option value="input">input</option>
+                                    <option value="custom">custom event</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="eventTargetSelect">Target</label>
+                                <select class="form-input" id="eventTargetSelect">
+                                    <option value="document">document</option>
+                                    <option value="window">window</option>
+                                    <option value="body">document.body</option>
+                                    <option value="playground">#playgroundContainer</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="addEventListenerBtn">addEventListener()</button>
+                            <button class="btn btn-secondary" id="removeEventListenerBtn">removeEventListener()</button>
+                            <button class="btn btn-success" id="dispatchEventBtn">dispatchEvent()</button>
+                        </div>
+
+                        <div class="result-display" id="eventResult">// Event operation result</div>
+                    </div>
+
+                    <!-- Event Log -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="eventLog">Event Log</span>
+                            </div>
+                            <button class="btn btn-secondary" id="clearEventLogBtn">Clear</button>
+                        </div>
+
+                        <div id="eventLogContainer">
+                            <p class="text-sm text-muted">No events logged yet. Add event listeners and interact with the page.</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Object -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                                <span data-i18n="eventObject">Event Object Properties</span>
+                            </div>
+                        </div>
+
+                        <div class="code-block">// Event Object Properties:
+// event.type - Event type
+// event.target - Target element
+// event.currentTarget - Current target
+// event.bubbles - Whether event bubbles
+// event.cancelable - Whether event is cancelable
+// event.defaultPrevented - Whether preventDefault() was called
+// event.timeStamp - Event timestamp
+// event.isTrusted - Whether event was user-generated
+// event.eventPhase - Current phase (1=capturing, 2=at target, 3=bubbling)
+
+// Event Methods:
+// event.preventDefault() - Cancel default action
+// event.stopPropagation() - Stop bubbling
+// event.stopImmediatePropagation() - Stop all handlers
+// event.composedPath() - Get event path</div>
+                    </div>
+                </div>
+
+                <!-- MutationObserver Tab -->
+                <div class="tab-content" id="tab-mutation">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8z"/></svg>
+                                <span data-i18n="mutationObserver">MutationObserver</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="observeTarget">Target Element</label>
+                            <select class="form-input" id="mutationTarget">
+                                <option value="playgroundContainer">#playgroundContainer</option>
+                                <option value="domPlayground">#domPlayground</option>
+                                <option value="body">document.body</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="observeOptions">Observe Options</label>
+                            <div class="flex gap-2 flex-wrap">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="observeChildList" checked> childList
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="observeAttributes" checked> attributes
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="observeCharacterData"> characterData
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="observeSubtree" checked> subtree
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn btn-primary" id="startObserverBtn">observe()</button>
+                            <button class="btn btn-secondary" id="disconnectObserverBtn">disconnect()</button>
+                            <button class="btn btn-secondary" id="takeRecordsBtn">takeRecords()</button>
+                        </div>
+
+                        <div class="result-display" id="mutationResult">// MutationObserver status</div>
+                    </div>
+
+                    <!-- Mutation Records -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="mutationRecords">Mutation Records</span>
+                            </div>
+                            <button class="btn btn-secondary" id="clearMutationRecordsBtn">Clear</button>
+                        </div>
+
+                        <div id="mutationRecordsContainer">
+                            <p class="text-sm text-muted">No mutation records. Start observing and modify the DOM.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selection Tab -->
+                <div class="tab-content" id="tab-selection">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2V3c-1.1 0-2 .9-2 2z"/></svg>
+                                <span data-i18n="selectionAPI">Selection API</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap mb-3">
+                            <button class="btn btn-primary" id="getSelectionBtn">window.getSelection()</button>
+                            <button class="btn btn-secondary" id="selectAllBtn">selectAllChildren()</button>
+                            <button class="btn btn-secondary" id="collapseBtn">collapse()</button>
+                            <button class="btn btn-secondary" id="collapseToEndBtn">collapseToEnd()</button>
+                            <button class="btn btn-secondary" id="collapseToStartBtn">collapseToStart()</button>
+                            <button class="btn btn-secondary" id="emptySelectionBtn">empty()</button>
+                        </div>
+
+                        <div class="result-display" id="selectionResult">// Selection info will appear here</div>
+                    </div>
+
+                    <!-- Range API -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2V3c-1.1 0-2 .9-2 2z"/></svg>
+                                <span data-i18n="rangeAPI">Range API</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 flex-wrap mb-3">
+                            <button class="btn btn-primary" id="createRangeBtn">document.createRange()</button>
+                            <button class="btn btn-secondary" id="rangeSelectNodeBtn">selectNode()</button>
+                            <button class="btn btn-secondary" id="rangeSelectContentsBtn">selectNodeContents()</button>
+                            <button class="btn btn-secondary" id="rangeCloneContentsBtn">cloneContents()</button>
+                            <button class="btn btn-secondary" id="rangeExtractContentsBtn">extractContents()</button>
+                            <button class="btn btn-secondary" id="rangeDeleteContentsBtn">deleteContents()</button>
+                        </div>
+
+                        <div class="result-display" id="rangeResult">// Range operation result</div>
+                    </div>
+
+                    <!-- Selection Playground -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                <span data-i18n="selectionPlayground">Selection Playground</span>
+                            </div>
+                        </div>
+
+                        <div class="dom-playground" id="selectionPlayground">
+                            <p>Select some text in this area to test the Selection API. You can use the buttons above to manipulate the selection.</p>
+                            <p>This is another paragraph. Try selecting across multiple paragraphs to see how ranges work.</p>
+                            <ul>
+                                <li>List item one</li>
+                                <li>List item two</li>
+                                <li>List item three</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parser Tab -->
+                <div class="tab-content" id="tab-parser">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4z"/></svg>
+                                <span data-i18n="domParser">DOMParser</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="htmlInput">HTML/XML Input</label>
+                            <textarea class="form-input" id="parserInput" rows="6"><div class="container">
+    <h1>Hello World</h1>
+    <p>This is parsed HTML content.</p>
+    <ul>
+        <li>Item 1</li>
+        <li>Item 2</li>
+    </ul>
+</div></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="parserMimeType">MIME Type</label>
+                            <select class="form-input" id="parserMimeType">
+                                <option value="text/html">text/html</option>
+                                <option value="text/xml">text/xml</option>
+                                <option value="application/xml">application/xml</option>
+                                <option value="application/xhtml+xml">application/xhtml+xml</option>
+                                <option value="image/svg+xml">image/svg+xml</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary" id="parseBtn">parser.parseFromString()</button>
+
+                        <div class="result-display" id="parserResult">// Parsed document will appear here</div>
+                    </div>
+
+                    <!-- XMLSerializer -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+                                <span data-i18n="xmlSerializer">XMLSerializer</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="serializeTarget">Target Element</label>
+                            <select class="form-input" id="serializeTarget">
+                                <option value="playgroundContainer">#playgroundContainer</option>
+                                <option value="domPlayground">#domPlayground</option>
+                                <option value="documentElement">document.documentElement</option>
+                                <option value="head">document.head</option>
+                                <option value="body">document.body</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-primary" id="serializeBtn">serializer.serializeToString()</button>
+
+                        <div class="result-display" id="serializeResult">// Serialized output will appear here</div>
+                    </div>
+                </div>
+
+                <!-- API Reference Tab -->
+                <div class="tab-content" id="tab-api">
+                    <div class="api-section">
+                        <h3 class="api-title">Node Interface</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.nodeType</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns an unsigned short representing the type of the node (1=Element, 3=Text, 8=Comment, 9=Document, etc.)</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.nodeName</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns a string containing the name of the node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.parentNode</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns the parent node of the node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.childNodes</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns a NodeList of child nodes.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.appendChild(child)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Adds a child node as the last child of the node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.removeChild(child)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Removes a child node from the node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">node.cloneNode(deep)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns a clone of the node.</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-title">Element Interface</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.id</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns/sets the element's id attribute.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.className</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns/sets the element's class attribute.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.classList</span>
+                                <span class="api-method-type">Property</span>
+                            </div>
+                            <p class="api-method-desc">Returns a DOMTokenList of the element's classes.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.getAttribute(name)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns the value of the named attribute.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.setAttribute(name, value)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Sets the value of the named attribute.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.querySelector(selectors)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns the first matching descendant element.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">element.querySelectorAll(selectors)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns all matching descendant elements.</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-title">Document Interface</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.getElementById(id)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns an Element by its ID.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.querySelector(selectors)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns the first matching element in the document.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.createElement(tagName)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Creates a new element with the given tag name.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.createTextNode(data)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Creates a new text node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.createDocumentFragment()</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Creates a new document fragment.</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-title">EventTarget Interface</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">target.addEventListener(type, listener, options)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Registers an event listener.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">target.removeEventListener(type, listener)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Removes an event listener.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">target.dispatchEvent(event)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Dispatches an event to the target.</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-title">MutationObserver Interface</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">new MutationObserver(callback)</span>
+                                <span class="api-method-type">Constructor</span>
+                            </div>
+                            <p class="api-method-desc">Creates a new MutationObserver.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">observer.observe(target, options)</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Starts observing the target node.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">observer.disconnect()</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Stops observing all nodes.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">observer.takeRecords()</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns pending mutation records.</p>
+                        </div>
+                    </div>
+
+                    <div class="api-section">
+                        <h3 class="api-title">Selection & Range</h3>
+                        
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">window.getSelection()</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Returns the current Selection object.</p>
+                        </div>
+
+                        <div class="api-method">
+                            <div class="api-method-header">
+                                <span class="api-method-name">document.createRange()</span>
+                                <span class="api-method-type">Method</span>
+                            </div>
+                            <p class="api-method-desc">Creates a new Range object.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // =====================================================
+        // DOM API Enterprise Application
+        // Complete Implementation with All Interfaces
+        // =====================================================
+
+        const i18n = {
+            zh: {
+                appTitle: '文档对象模型 (DOM)',
+                appSubtitle: '企业级应用',
+                documentReady: '文档状态:',
+                totalNodes: '节点总数:',
+                elements: '元素数:',
+                eventListeners: '事件监听:',
+                tabNode: '节点',
+                tabElement: '元素',
+                tabDocument: '文档',
+                tabEvents: '事件',
+                tabMutation: 'MutationObserver',
+                tabSelection: '选择',
+                tabParser: '解析器',
+                tabApi: 'API 参考',
+                nodeProperties: '节点属性',
+                selectNode: '选择节点',
+                nodeMethods: '节点方法',
+                nodeTree: '节点树',
+                elementSelector: '元素选择器',
+                attributes: '属性',
+                classList: 'classList',
+                styles: '样式',
+                domPlayground: 'DOM 演练场',
+                documentProperties: '文档属性',
+                documentMethods: '文档方法',
+                documentCollections: '文档集合',
+                eventTarget: '事件目标',
+                eventLog: '事件日志',
+                eventObject: '事件对象属性',
+                mutationObserver: 'MutationObserver',
+                mutationRecords: '变更记录',
+                selectionAPI: 'Selection API',
+                rangeAPI: 'Range API',
+                selectionPlayground: '选择演练场',
+                domParser: 'DOMParser',
+                xmlSerializer: 'XMLSerializer'
+            },
+            en: {
+                appTitle: 'Document Object Model (DOM)',
+                appSubtitle: 'Enterprise Application',
+                documentReady: 'Document Ready:',
+                totalNodes: 'Total Nodes:',
+                elements: 'Elements:',
+                eventListeners: 'Event Listeners:',
+                tabNode: 'Node',
+                tabElement: 'Element',
+                tabDocument: 'Document',
+                tabEvents: 'Events',
+                tabMutation: 'MutationObserver',
+                tabSelection: 'Selection',
+                tabParser: 'Parser',
+                tabApi: 'API Reference',
+                nodeProperties: 'Node Properties',
+                selectNode: 'Select Node',
+                nodeMethods: 'Node Methods',
+                nodeTree: 'Node Tree',
+                elementSelector: 'Element Selector',
+                attributes: 'Attributes',
+                classList: 'classList',
+                styles: 'Styles',
+                domPlayground: 'DOM Playground',
+                documentProperties: 'Document Properties',
+                documentMethods: 'Document Methods',
+                documentCollections: 'Document Collections',
+                eventTarget: 'EventTarget',
+                eventLog: 'Event Log',
+                eventObject: 'Event Object Properties',
+                mutationObserver: 'MutationObserver',
+                mutationRecords: 'Mutation Records',
+                selectionAPI: 'Selection API',
+                rangeAPI: 'Range API',
+                selectionPlayground: 'Selection Playground',
+                domParser: 'DOMParser',
+                xmlSerializer: 'XMLSerializer'
+            }
+        };
+
+        const state = {
+            currentLanguage: 'zh',
+            currentTheme: 'light',
+            selectedElement: null,
+            mutationObserver: null,
+            isObserving: false,
+            mutationRecords: [],
+            eventLog: [],
+            eventListenerCount: 0,
+            registeredListeners: new Map()
+        };
+
+        const nodeTypes = {
+            1: 'Element',
+            2: 'Attribute',
+            3: 'Text',
+            4: 'CDATASection',
+            5: 'EntityReference',
+            6: 'Entity',
+            7: 'ProcessingInstruction',
+            8: 'Comment',
+            9: 'Document',
+            10: 'DocumentType',
+            11: 'DocumentFragment',
+            12: 'Notation'
+        };
+
+        function t(key) { return i18n[state.currentLanguage][key] || key; }
+
+        function updateLanguage(lang) {
+            state.currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+        }
+
+        function formatTime() { return new Date().toLocaleTimeString('en-US', { hour12: false }); }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span class="toast-message">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideInRight 0.3s ease reverse'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function toggleTheme() {
+            state.currentTheme = state.currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', state.currentTheme);
+            localStorage.setItem('theme', state.currentTheme);
+            const themeBtn = document.getElementById('themeToggle');
+            themeBtn.innerHTML = state.currentTheme === 'dark' ? 
+                '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"/></svg>' :
+                '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function countNodes(node) {
+            let count = 1;
+            if (node.childNodes) {
+                for (const child of node.childNodes) {
+                    count += countNodes(child);
+                }
+            }
+            return count;
+        }
+
+        function countElements(node) {
+            let count = node.nodeType === 1 ? 1 : 0;
+            if (node.childNodes) {
+                for (const child of node.childNodes) {
+                    count += countElements(child);
+                }
+            }
+            return count;
+        }
+
+        function updateStats() {
+            document.getElementById('docReadyState').textContent = document.readyState;
+            document.getElementById('totalNodes').textContent = countNodes(document);
+            document.getElementById('totalElements').textContent = countElements(document);
+            document.getElementById('eventListenerCount').textContent = state.eventListenerCount;
+        }
+
+        function renderNodeTree(node, container, depth = 0) {
+            if (depth > 5) return; // Limit depth
+
+            const item = document.createElement('div');
+            item.className = 'node-item';
+            item.style.paddingLeft = `${depth * 1.5}rem`;
+
+            const typeName = nodeTypes[node.nodeType] || 'Unknown';
+            const name = node.nodeName || '#text';
+
+            item.innerHTML = `<span class="node-type">[${typeName}]</span> <span class="node-name">${escapeHtml(name)}</span>`;
+
+            if (node.nodeValue) {
+                const value = node.nodeValue.trim().substring(0, 50);
+                if (value) {
+                    item.innerHTML += ` <span class="node-value">"${escapeHtml(value)}${node.nodeValue.length > 50 ? '...' : ''}"</span>`;
+                }
+            }
+
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.node-item.selected').forEach(el => el.classList.remove('selected'));
+                item.classList.add('selected');
+                inspectNode(node);
+            });
+
+            container.appendChild(item);
+
+            if (node.childNodes) {
+                for (const child of node.childNodes) {
+                    renderNodeTree(child, container, depth + 1);
+                }
+            }
+        }
+
+        function inspectNode(node) {
+            document.getElementById('nodeType').textContent = node.nodeType;
+            document.getElementById('nodeName').textContent = node.nodeName;
+            document.getElementById('nodeValue').textContent = node.nodeValue ? 
+                (node.nodeValue.length > 20 ? node.nodeValue.substring(0, 20) + '...' : node.nodeValue) : 'null';
+            document.getElementById('nodeChildCount').textContent = node.childNodes ? node.childNodes.length : 0;
+
+            const result = document.getElementById('nodeResult');
+            result.textContent = `// Node Properties
+{
+    nodeType: ${node.nodeType} (${nodeTypes[node.nodeType] || 'Unknown'}),
+    nodeName: "${node.nodeName}",
+    nodeValue: ${node.nodeValue ? `"${escapeHtml(node.nodeValue.substring(0, 100))}"` : 'null'},
+    childNodes.length: ${node.childNodes ? node.childNodes.length : 0},
+    parentNode: ${node.parentNode ? `"${node.parentNode.nodeName}"` : 'null'},
+    firstChild: ${node.firstChild ? `"${node.firstChild.nodeName}"` : 'null'},
+    lastChild: ${node.lastChild ? `"${node.lastChild.nodeName}"` : 'null'},
+    previousSibling: ${node.previousSibling ? `"${node.previousSibling.nodeName}"` : 'null'},
+    nextSibling: ${node.nextSibling ? `"${node.nextSibling.nodeName}"` : 'null'},
+    ownerDocument: ${node.ownerDocument ? 'document' : 'null'},
+    isConnected: ${node.isConnected}
+}`;
+        }
+
+        function addEventLog(type, data) {
+            state.eventLog.push({ time: formatTime(), type, data });
+            const container = document.getElementById('eventLogContainer');
+            
+            if (state.eventLog.length === 1) {
+                container.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'event-item';
+            item.innerHTML = `
+                <span class="event-type">${type}</span>
+                <div class="event-content">${data}</div>
+                <span class="event-time">${formatTime()}</span>
+            `;
+            container.insertBefore(item, container.firstChild);
+
+            // Keep only last 50 events
+            while (state.eventLog.length > 50) {
+                state.eventLog.shift();
+                if (container.lastChild) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+        }
+
+        function addMutationRecord(record) {
+            state.mutationRecords.push(record);
+            const container = document.getElementById('mutationRecordsContainer');
+            
+            if (state.mutationRecords.length === 1) {
+                container.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'mutation-record';
+            item.innerHTML = `
+                <span class="mutation-type ${record.type}">${record.type}</span>
+                <strong>Target:</strong> ${record.target.nodeName}
+                ${record.attributeName ? `<br><strong>Attribute:</strong> ${record.attributeName}` : ''}
+                ${record.addedNodes.length > 0 ? `<br><strong>Added:</strong> ${record.addedNodes.length} node(s)` : ''}
+                ${record.removedNodes.length > 0 ? `<br><strong>Removed:</strong> ${record.removedNodes.length} node(s)` : ''}
+                <span class="event-time" style="float: right;">${formatTime()}</span>
+            `;
+            container.insertBefore(item, container.firstChild);
+
+            // Keep only last 50 records
+            while (state.mutationRecords.length > 50) {
+                state.mutationRecords.shift();
+                if (container.lastChild) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+        }
+
+        function initTabs() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+                });
+            });
+        }
+
+        function initEventListeners() {
+            // Theme & Language
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            document.getElementById('languageSelect').addEventListener('change', e => updateLanguage(e.target.value));
+
+            // Node Tab
+            document.getElementById('inspectNodeBtn').addEventListener('click', () => {
+                const select = document.getElementById('nodeSelect');
+                let node;
+                switch (select.value) {
+                    case 'document': node = document; break;
+                    case 'documentElement': node = document.documentElement; break;
+                    case 'head': node = document.head; break;
+                    case 'body': node = document.body; break;
+                    case 'title': node = document.title; break;
+                    default: node = document;
+                }
+                inspectNode(node);
+            });
+
+            document.getElementById('executeNodeMethodBtn').addEventListener('click', () => {
+                const method = document.getElementById('nodeMethodSelect').value;
+                const result = document.getElementById('nodeMethodResult');
+                
+                try {
+                    let output;
+                    switch (method) {
+                        case 'hasChildNodes':
+                            output = `document.body.hasChildNodes() = ${document.body.hasChildNodes()}`;
+                            break;
+                        case 'cloneNode':
+                            const clone = document.body.cloneNode(false);
+                            output = `document.body.cloneNode(false)\n// Cloned node: ${clone.nodeName}`;
+                            break;
+                        case 'contains':
+                            output = `document.documentElement.contains(document.body) = ${document.documentElement.contains(document.body)}`;
+                            break;
+                        case 'isSameNode':
+                            output = `document.body.isSameNode(document.body) = ${document.body.isSameNode(document.body)}`;
+                            break;
+                        case 'isEqualNode':
+                            const div1 = document.createElement('div');
+                            const div2 = document.createElement('div');
+                            output = `Two new div elements are equal: ${div1.isEqualNode(div2)}`;
+                            break;
+                        case 'normalize':
+                            document.body.normalize();
+                            output = `document.body.normalize() executed`;
+                            break;
+                        default:
+                            output = `Method ${method} requires specific parameters. See console for examples.`;
+                    }
+                    result.textContent = `// ${method} result\n${output}`;
+                    addEventLog('nodeMethod', `${method} executed`);
+                } catch (e) {
+                    result.textContent = `// Error: ${e.message}`;
+                }
+            });
+
+            document.getElementById('refreshTreeBtn').addEventListener('click', () => {
+                const container = document.getElementById('nodeTreeContainer');
+                container.innerHTML = '';
+                renderNodeTree(document, container);
+            });
+
+            // Element Tab
+            document.getElementById('selectElementBtn').addEventListener('click', () => {
+                const method = document.getElementById('selectorMethod').value;
+                const selector = document.getElementById('selectorValue').value;
+                const result = document.getElementById('selectorResult');
+
+                try {
+                    let elements;
+                    switch (method) {
+                        case 'getElementById':
+                            const el = document.getElementById(selector);
+                            elements = el ? [el] : [];
+                            break;
+                        case 'getElementsByClassName':
+                            elements = Array.from(document.getElementsByClassName(selector));
+                            break;
+                        case 'getElementsByTagName':
+                            elements = Array.from(document.getElementsByTagName(selector));
+                            break;
+                        case 'querySelector':
+                            const qel = document.querySelector(selector);
+                            elements = qel ? [qel] : [];
+                            break;
+                        case 'querySelectorAll':
+                            elements = Array.from(document.querySelectorAll(selector));
+                            break;
+                    }
+
+                    if (elements.length > 0) {
+                        state.selectedElement = elements[0];
+                        result.textContent = `// Found ${elements.length} element(s)
+${elements.slice(0, 5).map((el, i) => `// [${i}] <${el.nodeName.toLowerCase()}${el.id ? ' id="' + el.id + '"' : ''}${el.className ? ' class="' + el.className + '"' : ''}>`).join('\n')}
+${elements.length > 5 ? `// ... and ${elements.length - 5} more` : ''}`;
+                    } else {
+                        result.textContent = `// No elements found for: ${selector}`;
+                    }
+                } catch (e) {
+                    result.textContent = `// Error: ${e.message}`;
+                }
+            });
+
+            // Attributes
+            document.getElementById('getAttributeBtn').addEventListener('click', () => {
+                if (!state.selectedElement) {
+                    showToast('Select an element first', 'error');
+                    return;
+                }
+                const name = document.getElementById('attrName').value;
+                const value = state.selectedElement.getAttribute(name);
+                document.getElementById('attrResult').textContent = `// getAttribute("${name}")
+// Result: ${value !== null ? `"${value}"` : 'null'}`;
+            });
+
+            document.getElementById('setAttributeBtn').addEventListener('click', () => {
+                if (!state.selectedElement) {
+                    showToast('Select an element first', 'error');
+                    return;
+                }
+                const name = document.getElementById('attrName').value;
+                const value = document.getElementById('attrValue').value;
+                state.selectedElement.setAttribute(name, value);
+                document.getElementById('attrResult').textContent = `// setAttribute("${name}", "${value}")
+// Attribute set successfully`;
+            });
+
+            document.getElementById('hasAttributeBtn').addEventListener('click', () => {
+                if (!state.selectedElement) {
+                    showToast('Select an element first', 'error');
+                    return;
+                }
+                const name = document.getElementById('attrName').value;
+                const has = state.selectedElement.hasAttribute(name);
+                document.getElementById('attrResult').textContent = `// hasAttribute("${name}")
+// Result: ${has}`;
+            });
+
+            document.getElementById('removeAttributeBtn').addEventListener('click', () => {
+                if (!state.selectedElement) {
+                    showToast('Select an element first', 'error');
+                    return;
+                }
+                const name = document.getElementById('attrName').value;
+                state.selectedElement.removeAttribute(name);
+                document.getElementById('attrResult').textContent = `// removeAttribute("${name}")
+// Attribute removed`;
+            });
+
+            // ClassList
+            const getClassTarget = () => state.selectedElement || document.body;
+
+            document.getElementById('classAddBtn').addEventListener('click', () => {
+                const className = document.getElementById('className').value;
+                getClassTarget().classList.add(className);
+                document.getElementById('classResult').textContent = `// classList.add("${className}")
+// Current classes: ${getClassTarget().className}`;
+            });
+
+            document.getElementById('classRemoveBtn').addEventListener('click', () => {
+                const className = document.getElementById('className').value;
+                getClassTarget().classList.remove(className);
+                document.getElementById('classResult').textContent = `// classList.remove("${className}")
+// Current classes: ${getClassTarget().className}`;
+            });
+
+            document.getElementById('classToggleBtn').addEventListener('click', () => {
+                const className = document.getElementById('className').value;
+                const result = getClassTarget().classList.toggle(className);
+                document.getElementById('classResult').textContent = `// classList.toggle("${className}")
+// Result: ${result}
+// Current classes: ${getClassTarget().className}`;
+            });
+
+            document.getElementById('classContainsBtn').addEventListener('click', () => {
+                const className = document.getElementById('className').value;
+                const result = getClassTarget().classList.contains(className);
+                document.getElementById('classResult').textContent = `// classList.contains("${className}")
+// Result: ${result}`;
+            });
+
+            document.getElementById('classReplaceBtn').addEventListener('click', () => {
+                const className = document.getElementById('className').value;
+                const newClass = prompt('Enter new class name:');
+                if (newClass) {
+                    getClassTarget().classList.replace(className, newClass);
+                    document.getElementById('classResult').textContent = `// classList.replace("${className}", "${newClass}")
+// Current classes: ${getClassTarget().className}`;
+                }
+            });
+
+            // Styles
+            document.getElementById('setStyleBtn').addEventListener('click', () => {
+                const prop = document.getElementById('styleProp').value;
+                const value = document.getElementById('styleValue').value;
+                const target = state.selectedElement || document.body;
+                target.style[prop] = value;
+                document.getElementById('styleResult').textContent = `// style.${prop} = "${value}"
+// Applied to: <${target.nodeName.toLowerCase()}>`;
+            });
+
+            document.getElementById('getStyleBtn').addEventListener('click', () => {
+                const prop = document.getElementById('styleProp').value;
+                const target = state.selectedElement || document.body;
+                const computed = window.getComputedStyle(target)[prop];
+                document.getElementById('styleResult').textContent = `// getComputedStyle(element)["${prop}"]
+// Result: "${computed}"`;
+            });
+
+            document.getElementById('removeStyleBtn').addEventListener('click', () => {
+                const prop = document.getElementById('styleProp').value;
+                const target = state.selectedElement || document.body;
+                target.style.removeProperty(prop);
+                document.getElementById('styleResult').textContent = `// style.removeProperty("${prop}")
+// Property removed`;
+            });
+
+            // Create Elements
+            document.getElementById('createElementBtn').addEventListener('click', () => {
+                const tag = document.getElementById('createElementTag').value;
+                const content = document.getElementById('createElementContent').value;
+                const el = document.createElement(tag);
+                el.textContent = content;
+                state.createdElement = el;
+                showToast(`Created <${tag}> element`, 'success');
+            });
+
+            document.getElementById('createTextNodeBtn').addEventListener('click', () => {
+                const content = document.getElementById('createElementContent').value;
+                const text = document.createTextNode(content);
+                state.createdElement = text;
+                showToast('Created text node', 'success');
+            });
+
+            document.getElementById('createFragmentBtn').addEventListener('click', () => {
+                const fragment = document.createDocumentFragment();
+                state.createdElement = fragment;
+                showToast('Created document fragment', 'success');
+            });
+
+            document.getElementById('appendToPlaygroundBtn').addEventListener('click', () => {
+                if (state.createdElement) {
+                    document.getElementById('playgroundContainer').appendChild(state.createdElement);
+                    showToast('Element appended to playground', 'success');
+                } else {
+                    showToast('Create an element first', 'error');
+                }
+            });
+
+            // Document Tab
+            document.getElementById('refreshDocPropsBtn').addEventListener('click', () => {
+                document.getElementById('docTitle').textContent = document.title.substring(0, 15);
+                document.getElementById('docURL').textContent = document.URL.substring(0, 20) + '...';
+                document.getElementById('docDomain').textContent = document.domain || 'N/A';
+                document.getElementById('docReadyStateVal').textContent = document.readyState;
+                document.getElementById('docCharset').textContent = document.characterSet;
+                document.getElementById('docDoctype').textContent = document.doctype ? document.doctype.name : 'none';
+            });
+
+            document.getElementById('executeDocMethodBtn').addEventListener('click', () => {
+                const method = document.getElementById('docMethodSelect').value;
+                const param = document.getElementById('docMethodParam').value;
+                const result = document.getElementById('docMethodResult');
+
+                try {
+                    let output;
+                    switch (method) {
+                        case 'createElement':
+                            output = `document.createElement("${param}")\n// Created: <${param}>`;
+                            break;
+                        case 'createTextNode':
+                            output = `document.createTextNode("${param}")\n// Created text node`;
+                            break;
+                        case 'createComment':
+                            output = `document.createComment("${param}")\n// Created comment node`;
+                            break;
+                        case 'createDocumentFragment':
+                            output = `document.createDocumentFragment()\n// Created fragment`;
+                            break;
+                        case 'createAttribute':
+                            output = `document.createAttribute("${param}")\n// Created attribute`;
+                            break;
+                        case 'hasFocus':
+                            output = `document.hasFocus() = ${document.hasFocus()}`;
+                            break;
+                        case 'execCommand':
+                            document.execCommand(param);
+                            output = `document.execCommand("${param}")`;
+                            break;
+                        case 'queryCommandSupported':
+                            output = `document.queryCommandSupported("${param}") = ${document.queryCommandSupported(param)}`;
+                            break;
+                        default:
+                            output = `Method ${method} executed`;
+                    }
+                    result.textContent = `// ${output}`;
+                } catch (e) {
+                    result.textContent = `// Error: ${e.message}`;
+                }
+            });
+
+            // Document Collections
+            document.getElementById('getLinksBtn').addEventListener('click', () => {
+                const links = document.links;
+                document.getElementById('collectionsResult').textContent = `// document.links
+// Length: ${links.length}`;
+            });
+
+            document.getElementById('getImagesBtn').addEventListener('click', () => {
+                const images = document.images;
+                document.getElementById('collectionsResult').textContent = `// document.images
+// Length: ${images.length}`;
+            });
+
+            document.getElementById('getFormsBtn').addEventListener('click', () => {
+                const forms = document.forms;
+                document.getElementById('collectionsResult').textContent = `// document.forms
+// Length: ${forms.length}`;
+            });
+
+            document.getElementById('getScriptsBtn').addEventListener('click', () => {
+                const scripts = document.scripts;
+                document.getElementById('collectionsResult').textContent = `// document.scripts
+// Length: ${scripts.length}`;
+            });
+
+            document.getElementById('getAnchorsBtn').addEventListener('click', () => {
+                const anchors = document.anchors;
+                document.getElementById('collectionsResult').textContent = `// document.anchors
+// Length: ${anchors.length}`;
+            });
+
+            // Events Tab
+            document.getElementById('addEventListenerBtn').addEventListener('click', () => {
+                const type = document.getElementById('eventType').value;
+                const targetSelect = document.getElementById('eventTargetSelect').value;
+                const target = targetSelect === 'document' ? document : 
+                              targetSelect === 'window' ? window :
+                              targetSelect === 'body' ? document.body :
+                              document.getElementById('playgroundContainer');
+
+                const handler = (e) => {
+                    addEventLog(type, `Target: ${e.target.nodeName}, Type: ${e.type}`);
+                };
+
+                target.addEventListener(type, handler);
+                state.registeredListeners.set(`${targetSelect}-${type}`, { target, handler, type });
+                state.eventListenerCount++;
+                updateStats();
+
+                document.getElementById('eventResult').textContent = `// addEventListener("${type}", handler)
+// Added to: ${targetSelect}
+// Total listeners: ${state.eventListenerCount}`;
+            });
+
+            document.getElementById('removeEventListenerBtn').addEventListener('click', () => {
+                const type = document.getElementById('eventType').value;
+                const targetSelect = document.getElementById('eventTargetSelect').value;
+                const key = `${targetSelect}-${type}`;
+
+                if (state.registeredListeners.has(key)) {
+                    const { target, handler } = state.registeredListeners.get(key);
+                    target.removeEventListener(type, handler);
+                    state.registeredListeners.delete(key);
+                    state.eventListenerCount--;
+                    updateStats();
+                    document.getElementById('eventResult').textContent = `// removeEventListener("${type}", handler)
+// Removed from: ${targetSelect}`;
+                } else {
+                    showToast('No matching listener found', 'error');
+                }
+            });
+
+            document.getElementById('dispatchEventBtn').addEventListener('click', () => {
+                const type = document.getElementById('eventType').value;
+                const targetSelect = document.getElementById('eventTargetSelect').value;
+                const target = targetSelect === 'document' ? document : 
+                              targetSelect === 'window' ? window :
+                              targetSelect === 'body' ? document.body :
+                              document.getElementById('playgroundContainer');
+
+                const event = new Event(type, { bubbles: true, cancelable: true });
+                target.dispatchEvent(event);
+
+                document.getElementById('eventResult').textContent = `// dispatchEvent(new Event("${type}"))
+// Dispatched to: ${targetSelect}`;
+            });
+
+            document.getElementById('clearEventLogBtn').addEventListener('click', () => {
+                state.eventLog = [];
+                document.getElementById('eventLogContainer').innerHTML = '<p class="text-sm text-muted">No events logged yet.</p>';
+            });
+
+            // MutationObserver Tab
+            document.getElementById('startObserverBtn').addEventListener('click', () => {
+                if (state.isObserving) {
+                    showToast('Already observing', 'error');
+                    return;
+                }
+
+                const targetId = document.getElementById('mutationTarget').value;
+                const target = document.getElementById(targetId);
+
+                const config = {
+                    childList: document.getElementById('observeChildList').checked,
+                    attributes: document.getElementById('observeAttributes').checked,
+                    characterData: document.getElementById('observeCharacterData').checked,
+                    subtree: document.getElementById('observeSubtree').checked
+                };
+
+                state.mutationObserver = new MutationObserver((mutations) => {
+                    mutations.forEach(mutation => addMutationRecord(mutation));
+                });
+
+                state.mutationObserver.observe(target, config);
+                state.isObserving = true;
+
+                document.getElementById('mutationResult').textContent = `// MutationObserver started
+// Target: #${targetId}
+// Config: ${JSON.stringify(config, null, 2)}`;
+            });
+
+            document.getElementById('disconnectObserverBtn').addEventListener('click', () => {
+                if (state.mutationObserver) {
+                    state.mutationObserver.disconnect();
+                    state.isObserving = false;
+                    document.getElementById('mutationResult').textContent = `// MutationObserver disconnected`;
+                }
+            });
+
+            document.getElementById('takeRecordsBtn').addEventListener('click', () => {
+                if (state.mutationObserver) {
+                    const records = state.mutationObserver.takeRecords();
+                    document.getElementById('mutationResult').textContent = `// takeRecords()
+// Returned ${records.length} pending records`;
+                }
+            });
+
+            document.getElementById('clearMutationRecordsBtn').addEventListener('click', () => {
+                state.mutationRecords = [];
+                document.getElementById('mutationRecordsContainer').innerHTML = '<p class="text-sm text-muted">No mutation records.</p>';
+            });
+
+            // Selection Tab
+            document.getElementById('getSelectionBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                const result = document.getElementById('selectionResult');
+                
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    result.textContent = `// window.getSelection()
+{
+    anchorNode: "${selection.anchorNode ? selection.anchorNode.nodeName : 'null'}",
+    anchorOffset: ${selection.anchorOffset},
+    focusNode: "${selection.focusNode ? selection.focusNode.nodeName : 'null'}",
+    focusOffset: ${selection.focusOffset},
+    rangeCount: ${selection.rangeCount},
+    isCollapsed: ${selection.isCollapsed},
+    type: "${selection.type}",
+    toString(): "${selection.toString().substring(0, 50)}${selection.toString().length > 50 ? '...' : ''}"
+}`;
+                } else {
+                    result.textContent = `// window.getSelection()
+// No selection`;
+                }
+            });
+
+            document.getElementById('selectAllBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                const target = document.getElementById('selectionPlayground');
+                selection.selectAllChildren(target);
+                document.getElementById('selectionResult').textContent = `// selectAllChildren(#selectionPlayground)
+// All children selected`;
+            });
+
+            document.getElementById('collapseBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                selection.collapse(document.body, 0);
+                document.getElementById('selectionResult').textContent = `// collapse()
+// Selection collapsed`;
+            });
+
+            document.getElementById('collapseToEndBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                selection.collapseToEnd();
+                document.getElementById('selectionResult').textContent = `// collapseToEnd()
+// Selection collapsed to end`;
+            });
+
+            document.getElementById('collapseToStartBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                selection.collapseToStart();
+                document.getElementById('selectionResult').textContent = `// collapseToStart()
+// Selection collapsed to start`;
+            });
+
+            document.getElementById('emptySelectionBtn').addEventListener('click', () => {
+                const selection = window.getSelection();
+                selection.empty();
+                document.getElementById('selectionResult').textContent = `// empty()
+// Selection cleared`;
+            });
+
+            // Range
+            let currentRange = null;
+
+            document.getElementById('createRangeBtn').addEventListener('click', () => {
+                currentRange = document.createRange();
+                document.getElementById('rangeResult').textContent = `// document.createRange()
+// Range created`;
+            });
+
+            document.getElementById('rangeSelectNodeBtn').addEventListener('click', () => {
+                if (!currentRange) currentRange = document.createRange();
+                const target = document.getElementById('playgroundContainer');
+                currentRange.selectNode(target);
+                document.getElementById('rangeResult').textContent = `// range.selectNode(#playgroundContainer)
+// Range set to contain element`;
+            });
+
+            document.getElementById('rangeSelectContentsBtn').addEventListener('click', () => {
+                if (!currentRange) currentRange = document.createRange();
+                const target = document.getElementById('playgroundContainer');
+                currentRange.selectNodeContents(target);
+                document.getElementById('rangeResult').textContent = `// range.selectNodeContents(#playgroundContainer)
+// Range set to contain contents`;
+            });
+
+            document.getElementById('rangeCloneContentsBtn').addEventListener('click', () => {
+                if (!currentRange) {
+                    showToast('Create a range first', 'error');
+                    return;
+                }
+                const fragment = currentRange.cloneContents();
+                document.getElementById('rangeResult').textContent = `// range.cloneContents()
+// Cloned ${fragment.childNodes.length} nodes`;
+            });
+
+            document.getElementById('rangeExtractContentsBtn').addEventListener('click', () => {
+                if (!currentRange) {
+                    showToast('Create a range first', 'error');
+                    return;
+                }
+                const fragment = currentRange.extractContents();
+                document.getElementById('rangeResult').textContent = `// range.extractContents()
+// Extracted ${fragment.childNodes.length} nodes`;
+            });
+
+            document.getElementById('rangeDeleteContentsBtn').addEventListener('click', () => {
+                if (!currentRange) {
+                    showToast('Create a range first', 'error');
+                    return;
+                }
+                currentRange.deleteContents();
+                document.getElementById('rangeResult').textContent = `// range.deleteContents()
+// Contents deleted`;
+            });
+
+            // Parser Tab
+            document.getElementById('parseBtn').addEventListener('click', () => {
+                const input = document.getElementById('parserInput').value;
+                const mimeType = document.getElementById('parserMimeType').value;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(input, mimeType);
+
+                const result = document.getElementById('parserResult');
+                result.textContent = `// DOMParser.parseFromString(input, "${mimeType}")
+// Parsed document:
+// Document title: ${doc.title || 'N/A'}
+// Root element: ${doc.documentElement ? doc.documentElement.nodeName : 'none'}
+// Body content: ${doc.body ? doc.body.innerHTML.substring(0, 200) + '...' : 'N/A'}`;
+            });
+
+            document.getElementById('serializeBtn').addEventListener('click', () => {
+                const targetId = document.getElementById('serializeTarget').value;
+                const target = targetId === 'documentElement' ? document.documentElement :
+                              targetId === 'head' ? document.head :
+                              targetId === 'body' ? document.body :
+                              document.getElementById(targetId);
+
+                const serializer = new XMLSerializer();
+                const xml = serializer.serializeToString(target);
+
+                const result = document.getElementById('serializeResult');
+                result.textContent = `// XMLSerializer.serializeToString(${targetId})
+${xml.substring(0, 500)}${xml.length > 500 ? '\n...(truncated)' : ''}`;
+            });
+        }
+
+        function init() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                state.currentTheme = savedTheme;
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+            const savedLang = localStorage.getItem('language');
+            if (savedLang) {
+                state.currentLanguage = savedLang;
+                document.getElementById('languageSelect').value = savedLang;
+            }
+
+            initTabs();
+            initEventListeners();
+            updateLanguage(state.currentLanguage);
+            updateStats();
+
+            // Initial node tree
+            const container = document.getElementById('nodeTreeContainer');
+            renderNodeTree(document, container);
+
+            // Initial document properties
+            document.getElementById('refreshDocPropsBtn').click();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

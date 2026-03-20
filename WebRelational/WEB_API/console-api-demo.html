@@ -1,0 +1,2670 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Console API 企业级演示应用">
+    <meta name="theme-color" content="#6366f1">
+    <title>Console API Explorer</title>
+    
+    <style>
+        /* ==================== CSS Variables & Theme ==================== */
+        :root {
+            --primary-50: #eef2ff;
+            --primary-100: #e0e7ff;
+            --primary-200: #c7d2fe;
+            --primary-300: #a5b4fc;
+            --primary-400: #818cf8;
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --primary-700: #4338ca;
+            --primary-800: #3730a3;
+            --primary-900: #312e81;
+            
+            --log-color: #6b7280;
+            --info-color: #3b82f6;
+            --warn-color: #f59e0b;
+            --error-color: #ef4444;
+            --debug-color: #8b5cf6;
+            
+            --accent-500: #8b5cf6;
+            --success-500: #22c55e;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #3b82f6;
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+            --transition-slow: 350ms ease;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-console: #1e293b;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-tertiary: #94a3b8;
+            --border-color: #e2e8f0;
+            --border-light: #f1f5f9;
+            --accent-bg: rgba(99, 102, 241, 0.1);
+            --accent-border: rgba(99, 102, 241, 0.2);
+            --hover-bg: rgba(0, 0, 0, 0.02);
+            --scrollbar-track: #f1f5f9;
+            --scrollbar-thumb: #cbd5e1;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --bg-card: #1e293b;
+            --bg-console: #0f172a;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #64748b;
+            --border-color: #334155;
+            --border-light: #1e293b;
+            --accent-bg: rgba(99, 102, 241, 0.15);
+            --accent-border: rgba(99, 102, 241, 0.3);
+            --hover-bg: rgba(255, 255, 255, 0.05);
+            --scrollbar-track: #1e293b;
+            --scrollbar-thumb: #475569;
+        }
+        
+        /* ==================== Base Styles ==================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            transition: background-color var(--transition-normal), color var(--transition-normal);
+        }
+        
+        /* ==================== Scrollbar ==================== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-400);
+        }
+        
+        /* ==================== Layout ==================== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* ==================== Sidebar ==================== */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 100;
+            transition: transform var(--transition-normal);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .logo-version {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 12px;
+        }
+        
+        .nav-section {
+            margin-bottom: 24px;
+        }
+        
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-tertiary);
+            padding: 0 12px;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        
+        .nav-item:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+        
+        .nav-item.active {
+            background: var(--accent-bg);
+            color: var(--primary-600);
+            font-weight: 500;
+        }
+        
+        .nav-item-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .nav-item-badge {
+            margin-left: auto;
+            background: var(--primary-500);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* ==================== Main Content ==================== */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ==================== Header ==================== */
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: var(--radius-md);
+            transition: background var(--transition-fast);
+        }
+        
+        .menu-toggle:hover {
+            background: var(--hover-bg);
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all var(--transition-fast);
+        }
+        
+        .header-btn:hover {
+            border-color: var(--primary-300);
+            color: var(--primary-600);
+        }
+        
+        .lang-select {
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        /* ==================== Content Area ==================== */
+        .content-area {
+            flex: 1;
+            padding: 24px;
+        }
+        
+        /* ==================== Tab Panel ==================== */
+        .tab-panel {
+            display: none;
+        }
+        
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ==================== Cards ==================== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-500);
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        /* ==================== Buttons ==================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: none;
+            outline: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary-500);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-600);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--primary-300);
+            color: var(--primary-600);
+        }
+        
+        .btn-info {
+            background: var(--info-500);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success-500);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning-500);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--error-500);
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        /* ==================== Console Panel ==================== */
+        .console-panel {
+            background: var(--bg-console);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-top: 16px;
+        }
+        
+        .console-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .console-title {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .console-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .console-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #94a3b8;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .console-body {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+        }
+        
+        .console-entry {
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            animation: slideIn 0.2s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .console-entry.log {
+            border-left-color: var(--log-color);
+            color: #e2e8f0;
+        }
+        
+        .console-entry.info {
+            border-left-color: var(--info-color);
+            color: #93c5fd;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .console-entry.warn {
+            border-left-color: var(--warn-color);
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .console-entry.error {
+            border-left-color: var(--error-color);
+            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .console-entry.debug {
+            border-left-color: var(--debug-color);
+            color: #c4b5fd;
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .console-entry .prefix {
+            color: #64748b;
+            margin-right: 8px;
+        }
+        
+        .console-entry .timestamp {
+            color: #475569;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+        
+        /* ==================== Table Display ==================== */
+        .table-display {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+        
+        .table-display table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .table-display th,
+        .table-display td {
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+        
+        .table-display th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+        
+        /* ==================== Object Display ==================== */
+        .object-display {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+        
+        .object-key {
+            color: var(--primary-500);
+        }
+        
+        .object-string {
+            color: var(--success-500);
+        }
+        
+        .object-number {
+            color: var(--warning-500);
+        }
+        
+        .object-boolean {
+            color: var(--info-500);
+        }
+        
+        .object-null {
+            color: var(--text-tertiary);
+        }
+        
+        /* ==================== Code Block ==================== */
+        .code-block {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .code-keyword { color: #c678dd; }
+        .code-string { color: #98c379; }
+        .code-number { color: #d19a66; }
+        .code-comment { color: var(--text-tertiary); }
+        .code-function { color: #61afef; }
+        
+        /* ==================== Data Grid ==================== */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        
+        .data-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            transition: all var(--transition-fast);
+        }
+        
+        .data-item:hover {
+            border-color: var(--primary-300);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .data-item-label {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-bottom: 6px;
+        }
+        
+        .data-item-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        }
+        
+        /* ==================== Feature Grid ==================== */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: all var(--transition-fast);
+        }
+        
+        .feature-card:hover {
+            border-color: var(--primary-300);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+        
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        /* ==================== Section Header ==================== */
+        .section-header {
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+        
+        /* ==================== Info Box ==================== */
+        .info-box {
+            background: var(--accent-bg);
+            border: 1px solid var(--accent-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .info-box-icon {
+            color: var(--primary-500);
+            font-size: 20px;
+            margin-top: 2px;
+        }
+        
+        .info-box-content {
+            flex: 1;
+        }
+        
+        .info-box-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .info-box-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* ==================== Textarea ==================== */
+        .textarea-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color var(--transition-fast);
+        }
+        
+        .textarea-input:focus {
+            outline: none;
+            border-color: var(--primary-400);
+        }
+        
+        /* ==================== Status Badge ==================== */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-supported {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-500);
+        }
+        
+        .status-unsupported {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-500);
+        }
+        
+        /* ==================== Table ==================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .data-table td {
+            font-size: 14px;
+        }
+        
+        .data-table tr:hover td {
+            background: var(--hover-bg);
+        }
+        
+        /* ==================== Timer Display ==================== */
+        .timer-display {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+        }
+        
+        .timer-name {
+            font-weight: 600;
+            min-width: 120px;
+        }
+        
+        .timer-value {
+            font-family: monospace;
+            font-size: 18px;
+            color: var(--primary-500);
+        }
+        
+        .timer-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .timer-status.running {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-500);
+        }
+        
+        .timer-status.stopped {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-500);
+        }
+        
+        /* ==================== Counter Display ==================== */
+        .counter-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+        }
+        
+        .counter-name {
+            font-weight: 500;
+        }
+        
+        .counter-value {
+            font-family: monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-500);
+        }
+        
+        /* ==================== Responsive ==================== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: flex;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 99;
+            }
+            
+            .overlay.active {
+                display: block;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .header {
+                padding: 12px 16px;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+            
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-btn span {
+                display: none;
+            }
+        }
+        
+        /* ==================== Toast Notification ==================== */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px 20px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+        }
+        
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast-success { border-left: 4px solid var(--success-500); }
+        .toast-error { border-left: 4px solid var(--error-500); }
+        .toast-info { border-left: 4px solid var(--info-500); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">&gt;_</div>
+                    <span class="logo-text">Console API</span>
+                    <span class="logo-version" data-i18n="version">v1.0</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_overview">概览</div>
+                    <div class="nav-item active" data-tab="overview">
+                        <span class="nav-item-icon">🏠</span>
+                        <span data-i18n="nav_dashboard">仪表盘</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_output">输出方法</div>
+                    <div class="nav-item" data-tab="log">
+                        <span class="nav-item-icon">📝</span>
+                        <span>log/info/warn/error</span>
+                        <span class="nav-item-badge">4</span>
+                    </div>
+                    <div class="nav-item" data-tab="table">
+                        <span class="nav-item-icon">📊</span>
+                        <span>table/dir/dirxml</span>
+                        <span class="nav-item-badge">3</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_group">分组方法</div>
+                    <div class="nav-item" data-tab="group">
+                        <span class="nav-item-icon">📁</span>
+                        <span>group/groupCollapsed</span>
+                        <span class="nav-item-badge">3</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_timing">计时方法</div>
+                    <div class="nav-item" data-tab="timing">
+                        <span class="nav-item-icon">⏱️</span>
+                        <span>time/timeEnd/timeLog</span>
+                        <span class="nav-item-badge">3</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_counter">计数方法</div>
+                    <div class="nav-item" data-tab="counter">
+                        <span class="nav-item-icon">🔢</span>
+                        <span>count/countReset</span>
+                        <span class="nav-item-badge">2</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_debug">调试方法</div>
+                    <div class="nav-item" data-tab="assert">
+                        <span class="nav-item-icon">🔍</span>
+                        <span>assert/trace/clear</span>
+                        <span class="nav-item-badge">3</span>
+                    </div>
+                    <div class="nav-item" data-tab="profile">
+                        <span class="nav-item-icon">📈</span>
+                        <span>profile/profileEnd</span>
+                        <span class="nav-item-badge">2</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="nav_tools">工具</div>
+                    <div class="nav-item" data-tab="playground">
+                        <span class="nav-item-icon">🎮</span>
+                        <span data-i18n="nav_playground">交互演示</span>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="info-box" style="margin: 0;">
+                    <span class="info-box-icon">💡</span>
+                    <div class="info-box-content">
+                        <div class="info-box-title" data-i18n="tip_title">提示</div>
+                        <div class="info-box-text" data-i18n="tip_content">打开浏览器开发者工具查看完整输出</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay"></div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <h1 class="header-title" data-i18n="header_title">Console API Explorer</h1>
+                </div>
+                <div class="header-right">
+                    <select class="lang-select" id="langSelect">
+                        <option value="zh">中文</option>
+                        <option value="en">English</option>
+                    </select>
+                    <button class="header-btn" id="themeToggle">
+                        <span id="themeIcon">🌙</span>
+                        <span data-i18n="theme_toggle">切换主题</span>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="content-area">
+                <!-- Overview Tab -->
+                <div class="tab-panel active" id="tab-overview">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="overview_title">Console API 概览</h2>
+                        <p class="section-desc" data-i18n="overview_desc">Console API 提供了在浏览器控制台输出调试信息的能力</p>
+                    </div>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📝</div>
+                            <h3 class="feature-title" data-i18n="feature_output_title">日志输出</h3>
+                            <p class="feature-desc" data-i18n="feature_output_desc">log、info、warn、error、debug 等输出方法</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📊</div>
+                            <h3 class="feature-title" data-i18n="feature_table_title">表格显示</h3>
+                            <p class="feature-desc" data-i18n="feature_table_desc">table、dir、dirxml 结构化显示</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📁</div>
+                            <h3 class="feature-title" data-i18n="feature_group_title">分组输出</h3>
+                            <p class="feature-desc" data-i18n="feature_group_desc">group、groupCollapsed 组织输出</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">⏱️</div>
+                            <h3 class="feature-title" data-i18n="feature_timing_title">计时功能</h3>
+                            <p class="feature-desc" data-i18n="feature_timing_desc">time、timeEnd、timeLog 性能计时</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔢</div>
+                            <h3 class="feature-title" data-i18n="feature_counter_title">计数功能</h3>
+                            <p class="feature-desc" data-i18n="feature_counter_desc">count、countReset 执行计数</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔍</div>
+                            <h3 class="feature-title" data-i18n="feature_debug_title">调试工具</h3>
+                            <p class="feature-desc" data-i18n="feature_debug_desc">assert、trace、clear 调试辅助</p>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📊</span>
+                                <span data-i18n="api_support">API 支持检测</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table_api">API</th>
+                                        <th data-i18n="table_status">状态</th>
+                                        <th data-i18n="table_note">说明</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="supportTable">
+                                    <!-- 动态填充 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">⚡</span>
+                                <span data-i18n="quick_start">快速开始</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// 基本输出</span>
+console.<span class="code-function">log</span>(<span class="code-string">'Hello World!'</span>);
+console.<span class="code-function">info</span>(<span class="code-string">'信息消息'</span>);
+console.<span class="code-function">warn</span>(<span class="code-string">'警告消息'</span>);
+console.<span class="code-function">error</span>(<span class="code-string">'错误消息'</span>);
+
+<span class="code-comment">// 格式化输出</span>
+console.<span class="code-function">log</span>(<span class="code-string">'%c样式文本'</span>, <span class="code-string">'color: red; font-size: 20px;'</span>);
+
+<span class="code-comment">// 表格输出</span>
+console.<span class="code-function">table</span>([{name: <span class="code-string">'Alice'</span>, age: 25}, {name: <span class="code-string">'Bob'</span>, age: 30}]);
+
+<span class="code-comment">// 计时</span>
+console.<span class="code-function">time</span>(<span class="code-string">'timer'</span>);
+<span class="code-comment">// ... 代码执行</span>
+console.<span class="code-function">timeEnd</span>(<span class="code-string">'timer'</span>);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Log Tab -->
+                <div class="tab-panel" id="tab-log">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="log_title">日志输出方法</h2>
+                        <p class="section-desc" data-i18n="log_desc">使用不同的日志级别输出信息</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📝</span>
+                                <span data-i18n="basic_output">基本输出</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-secondary" onclick="demoLog()">console.log()</button>
+                                <button class="btn btn-info" onclick="demoInfo()">console.info()</button>
+                                <button class="btn btn-warning" onclick="demoWarn()">console.warn()</button>
+                                <button class="btn btn-danger" onclick="demoError()">console.error()</button>
+                                <button class="btn btn-secondary" onclick="demoDebug()">console.debug()</button>
+                            </div>
+                            
+                            <div class="info-box" style="margin-bottom: 16px;">
+                                <span class="info-box-icon">ℹ️</span>
+                                <div class="info-box-content">
+                                    <div class="info-box-title" data-i18n="format_tip_title">格式化提示</div>
+                                    <div class="info-box-text" data-i18n="format_tip_desc">支持 %s(字符串)、%d(数字)、%f(浮点数)、%o(对象)、%c(样式) 等格式化占位符</div>
+                                </div>
+                            </div>
+                            
+                            <div class="console-panel">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearConsolePanel()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="logConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🎨</span>
+                                <span data-i18n="format_output">格式化输出</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-secondary" onclick="demoFormatString()">%s 字符串</button>
+                                <button class="btn btn-secondary" onclick="demoFormatNumber()">%d 数字</button>
+                                <button class="btn btn-secondary" onclick="demoFormatObject()">%o 对象</button>
+                                <button class="btn btn-secondary" onclick="demoFormatStyle()">%c 样式</button>
+                            </div>
+                            
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// 字符串格式化</span>
+console.<span class="code-function">log</span>(<span class="code-string">'Hello, %s!'</span>, <span class="code-string">'World'</span>);
+
+<span class="code-comment">// 数字格式化</span>
+console.<span class="code-function">log</span>(<span class="code-string">'数字: %d, 浮点: %f'</span>, <span class="code-number">42</span>, <span class="code-number">3.14159</span>);
+
+<span class="code-comment">// 对象格式化</span>
+console.<span class="code-function">log</span>(<span class="code-string">'对象: %o'</span>, {name: <span class="code-string">'Alice'</span>});
+
+<span class="code-comment">// 样式格式化</span>
+console.<span class="code-function">log</span>(<span class="code-string">'%c彩色文本'</span>, <span class="code-string">'color: red; font-size: 20px; font-weight: bold;'</span>);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📋</span>
+                                <span data-i18n="multi_args">多参数输出</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-secondary" onclick="demoMultiArgs()">多参数输出</button>
+                                <button class="btn btn-secondary" onclick="demoMixedTypes()">混合类型</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table Tab -->
+                <div class="tab-panel" id="tab-table">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="table_title">表格与对象显示</h2>
+                        <p class="section-desc" data-i18n="table_desc">使用 table、dir、dirxml 结构化显示数据</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📊</span>
+                                <span>console.table()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoTableArray()">数组表格</button>
+                                <button class="btn btn-secondary" onclick="demoTableObject()">对象表格</button>
+                                <button class="btn btn-secondary" onclick="demoTableColumns()">指定列</button>
+                            </div>
+                            
+                            <div class="table-display" id="tableDisplay">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="index">索引</th>
+                                            <th>name</th>
+                                            <th>age</th>
+                                            <th>city</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>0</td><td>Alice</td><td>25</td><td>Beijing</td></tr>
+                                        <tr><td>1</td><td>Bob</td><td>30</td><td>Shanghai</td></tr>
+                                        <tr><td>2</td><td>Charlie</td><td>28</td><td>Guangzhou</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="code-block" style="margin-top: 16px;">
+                                <code>
+<span class="code-comment">// 数组表格</span>
+console.<span class="code-function">table</span>([
+    {name: <span class="code-string">'Alice'</span>, age: <span class="code-number">25</span>},
+    {name: <span class="code-string">'Bob'</span>, age: <span class="code-number">30</span>}
+]);
+
+<span class="code-comment">// 指定显示列</span>
+console.<span class="code-function">table</span>(data, [<span class="code-string">'name'</span>, <span class="code-string">'age'</span>]);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📂</span>
+                                <span>console.dir()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoDirObject()">显示对象</button>
+                                <button class="btn btn-secondary" onclick="demoDirElement()">显示元素</button>
+                                <button class="btn btn-secondary" onclick="demoDirDepth()">指定深度</button>
+                            </div>
+                            
+                            <div class="object-display" id="dirDisplay">
+                                <pre>Object { name: "Alice", age: 25, address: Object { city: "Beijing", zip: "100000" } }</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🌳</span>
+                                <span>console.dirxml()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoDirxml()">显示 XML 树</button>
+                            </div>
+                            
+                            <div class="object-display" id="dirxmlDisplay">
+                                <pre>&lt;div id="demo"&gt;
+  &lt;h1&gt;Title&lt;/h1&gt;
+  &lt;p&gt;Content&lt;/p&gt;
+&lt;/div&gt;</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Group Tab -->
+                <div class="tab-panel" id="tab-group">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="group_title">分组输出</h2>
+                        <p class="section-desc" data-i18n="group_desc">使用分组组织控制台输出</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📁</span>
+                                <span>console.group() / groupCollapsed()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoGroup()">展开分组</button>
+                                <button class="btn btn-secondary" onclick="demoGroupCollapsed()">折叠分组</button>
+                                <button class="btn btn-secondary" onclick="demoNestedGroup()">嵌套分组</button>
+                            </div>
+                            
+                            <div class="console-panel">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearGroupConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="groupConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="code-block" style="margin-top: 16px;">
+                                <code>
+<span class="code-comment">// 展开分组</span>
+console.<span class="code-function">group</span>(<span class="code-string">'用户信息'</span>);
+console.<span class="code-function">log</span>(<span class="code-string">'姓名: Alice'</span>);
+console.<span class="code-function">log</span>(<span class="code-string">'年龄: 25'</span>);
+console.<span class="code-function">groupEnd</span>();
+
+<span class="code-comment">// 折叠分组</span>
+console.<span class="code-function">groupCollapsed</span>(<span class="code-string">'详细信息'</span>);
+console.<span class="code-function">log</span>(<span class="code-string">'默认折叠'</span>);
+console.<span class="code-function">groupEnd</span>();
+
+<span class="code-comment">// 嵌套分组</span>
+console.<span class="code-function">group</span>(<span class="code-string">'外层'</span>);
+console.<span class="code-function">group</span>(<span class="code-string">'内层'</span>);
+console.<span class="code-function">log</span>(<span class="code-string">'嵌套内容'</span>);
+console.<span class="code-function">groupEnd</span>();
+console.<span class="code-function">groupEnd</span>();
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Timing Tab -->
+                <div class="tab-panel" id="tab-timing">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="timing_title">计时方法</h2>
+                        <p class="section-desc" data-i18n="timing_desc">测量代码执行时间</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">⏱️</span>
+                                <span>console.time() / timeEnd() / timeLog()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="startTimeDemo()">开始计时</button>
+                                <button class="btn btn-secondary" onclick="timeLogDemo()">记录时间</button>
+                                <button class="btn btn-danger" onclick="endTimeDemo()">结束计时</button>
+                            </div>
+                            
+                            <div id="timerDisplay">
+                                <div class="timer-display">
+                                    <span class="timer-name">timer</span>
+                                    <span class="timer-value" id="timerValue">--</span>
+                                    <span class="timer-status stopped" id="timerStatus">未开始</span>
+                                </div>
+                            </div>
+                            
+                            <div class="console-panel" style="margin-top: 16px;">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearTimingConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="timingConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🔄</span>
+                                <span data-i18n="multi_timer">多计时器演示</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoMultiTimers()">运行多计时器演示</button>
+                            </div>
+                            
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// 多个计时器</span>
+console.<span class="code-function">time</span>(<span class="code-string">'计时器A'</span>);
+console.<span class="code-function">time</span>(<span class="code-string">'计时器B'</span>);
+
+<span class="code-comment">// 中间记录</span>
+console.<span class="code-function">timeLog</span>(<span class="code-string">'计时器A'</span>, <span class="code-string">'检查点1'</span>);
+
+<span class="code-comment">// 结束计时</span>
+console.<span class="code-function">timeEnd</span>(<span class="code-string">'计时器A'</span>);
+console.<span class="code-function">timeEnd</span>(<span class="code-string">'计时器B'</span>);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Counter Tab -->
+                <div class="tab-panel" id="tab-counter">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="counter_title">计数方法</h2>
+                        <p class="section-desc" data-i18n="counter_desc">统计代码执行次数</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🔢</span>
+                                <span>console.count() / countReset()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="incrementCounter()">count('default')</button>
+                                <button class="btn btn-secondary" onclick="incrementCounterA()">count('A')</button>
+                                <button class="btn btn-secondary" onclick="incrementCounterB()">count('B')</button>
+                                <button class="btn btn-danger" onclick="resetCounter()">countReset()</button>
+                            </div>
+                            
+                            <div id="counterDisplay">
+                                <div class="counter-display">
+                                    <span class="counter-name">default</span>
+                                    <span class="counter-value" id="counterDefault">0</span>
+                                </div>
+                                <div class="counter-display">
+                                    <span class="counter-name">A</span>
+                                    <span class="counter-value" id="counterA">0</span>
+                                </div>
+                                <div class="counter-display">
+                                    <span class="counter-name">B</span>
+                                    <span class="counter-value" id="counterB">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="console-panel" style="margin-top: 16px;">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearCounterConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="counterConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📝</span>
+                                <span data-i18n="counter_code">代码示例</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="code-block">
+                                <code>
+<span class="code-keyword">function</span> <span class="code-function">processItem</span>(item) {
+    console.<span class="code-function">count</span>(<span class="code-string">'处理项目'</span>);
+    <span class="code-comment">// 处理逻辑</span>
+}
+
+<span class="code-comment">// 调用5次</span>
+<span class="code-keyword">for</span> (<span class="code-keyword">let</span> i = <span class="code-number">0</span>; i < <span class="code-number">5</span>; i++) {
+    <span class="code-function">processItem</span>(i);
+}
+<span class="code-comment">// 输出: 处理项目: 1, 处理项目: 2, ... 处理项目: 5</span>
+
+<span class="code-comment">// 重置计数</span>
+console.<span class="code-function">countReset</span>(<span class="code-string">'处理项目'</span>);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assert Tab -->
+                <div class="tab-panel" id="tab-assert">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="assert_title">断言与追踪</h2>
+                        <p class="section-desc" data-i18n="assert_desc">使用断言和堆栈追踪进行调试</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🔍</span>
+                                <span>console.assert()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-box" style="margin-bottom: 16px;">
+                                <span class="info-box-icon">ℹ️</span>
+                                <div class="info-box-content">
+                                    <div class="info-box-title" data-i18n="assert_info_title">断言说明</div>
+                                    <div class="info-box-text" data-i18n="assert_info_desc">当断言条件为 false 时，输出错误信息；为 true 时不输出任何内容</div>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-success" onclick="demoAssertTrue()">断言通过 (true)</button>
+                                <button class="btn btn-danger" onclick="demoAssertFalse()">断言失败 (false)</button>
+                            </div>
+                            
+                            <div class="console-panel">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearAssertConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="assertConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📍</span>
+                                <span>console.trace()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="demoTrace()">输出堆栈追踪</button>
+                            </div>
+                            
+                            <div class="console-panel">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearTraceConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="traceConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🧹</span>
+                                <span>console.clear()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group">
+                                <button class="btn btn-danger" onclick="demoClear()">清空控制台</button>
+                            </div>
+                            
+                            <div class="code-block" style="margin-top: 16px;">
+                                <code>
+<span class="code-comment">// 清空控制台</span>
+console.<span class="code-function">clear</span>();
+
+<span class="code-comment">// 清空并显示消息</span>
+console.<span class="code-function">clear</span>();
+console.<span class="code-function">log</span>(<span class="code-string">'控制台已清空'</span>);
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Profile Tab -->
+                <div class="tab-panel" id="tab-profile">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="profile_title">性能分析</h2>
+                        <p class="section-desc" data-i18n="profile_desc">使用 profile 分析代码性能</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📈</span>
+                                <span>console.profile() / profileEnd()</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-box" style="margin-bottom: 16px;">
+                                <span class="info-box-icon">⚠️</span>
+                                <div class="info-box-content">
+                                    <div class="info-box-title" data-i18n="profile_note_title">注意</div>
+                                    <div class="info-box-text" data-i18n="profile_note_desc">profile 方法需要在浏览器开发者工具的 Performance 面板中查看结果</div>
+                                </div>
+                            </div>
+                            
+                            <div class="btn-group" style="margin-bottom: 16px;">
+                                <button class="btn btn-primary" onclick="startProfile()">开始分析</button>
+                                <button class="btn btn-danger" onclick="endProfile()">结束分析</button>
+                            </div>
+                            
+                            <div class="code-block">
+                                <code>
+<span class="code-comment">// 开始性能分析</span>
+console.<span class="code-function">profile</span>(<span class="code-string">'我的分析'</span>);
+
+<span class="code-comment">// 执行需要分析的代码</span>
+<span class="code-keyword">for</span> (<span class="code-keyword">let</span> i = <span class="code-number">0</span>; i < <span class="code-number">10000</span>; i++) {
+    Math.<span class="code-function">sqrt</span>(i);
+}
+
+<span class="code-comment">// 结束分析</span>
+console.<span class="code-function">profileEnd</span>(<span class="code-string">'我的分析'</span>);
+
+<span class="code-comment">// 在开发者工具 Performance 面板查看结果</span>
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Playground Tab -->
+                <div class="tab-panel" id="tab-playground">
+                    <div class="section-header">
+                        <h2 class="section-title" data-i18n="playground_title">交互演示</h2>
+                        <p class="section-desc" data-i18n="playground_desc">自由测试 Console API</p>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">🎮</span>
+                                <span data-i18n="code_editor">代码编辑器</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <textarea class="textarea-input" id="codeEditor" style="min-height: 150px; font-family: monospace;" placeholder="输入 JavaScript 代码...">// 示例代码
+console.log('Hello, Console API!');
+console.table([{name: 'Alice', age: 25}, {name: 'Bob', age: 30}]);
+console.time('test');
+for (let i = 0; i < 1000; i++) {}
+console.timeEnd('test');</textarea>
+                            
+                            <div class="btn-group" style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="runCode()">▶️ 运行代码</button>
+                                <button class="btn btn-secondary" onclick="loadExample('log')">日志示例</button>
+                                <button class="btn btn-secondary" onclick="loadExample('table')">表格示例</button>
+                                <button class="btn btn-secondary" onclick="loadExample('timing')">计时示例</button>
+                            </div>
+                            
+                            <div class="console-panel" style="margin-top: 16px;">
+                                <div class="console-header">
+                                    <span class="console-title">📺 Console Output</span>
+                                    <div class="console-actions">
+                                        <button class="console-btn" onclick="clearPlaygroundConsole()">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="console-body" id="playgroundConsole">
+                                    <div class="console-entry log">
+                                        <span class="timestamp">[--:--:--]</span>
+                                        <span class="prefix">›</span>
+                                        <span data-i18n="waiting_output">等待输出...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <span class="card-title-icon">📊</span>
+                                <span data-i18n="statistics">统计信息</span>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="data-grid">
+                                <div class="data-item">
+                                    <div class="data-item-label" data-i18n="total_outputs">总输出次数</div>
+                                    <div class="data-item-value" id="totalOutputs">0</div>
+                                </div>
+                                <div class="data-item">
+                                    <div class="data-item-label">log</div>
+                                    <div class="data-item-value" id="logCount">0</div>
+                                </div>
+                                <div class="data-item">
+                                    <div class="data-item-label">info</div>
+                                    <div class="data-item-value" id="infoCount">0</div>
+                                </div>
+                                <div class="data-item">
+                                    <div class="data-item-label">warn</div>
+                                    <div class="data-item-value" id="warnCount">0</div>
+                                </div>
+                                <div class="data-item">
+                                    <div class="data-item-label">error</div>
+                                    <div class="data-item-value" id="errorCount">0</div>
+                                </div>
+                                <div class="data-item">
+                                    <div class="data-item-label">debug</div>
+                                    <div class="data-item-value" id="debugCount">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== Internationalization ====================
+        const i18n = {
+            zh: {
+                version: 'v1.0',
+                nav_overview: '概览',
+                nav_dashboard: '仪表盘',
+                nav_output: '输出方法',
+                nav_group: '分组方法',
+                nav_timing: '计时方法',
+                nav_counter: '计数方法',
+                nav_debug: '调试方法',
+                nav_tools: '工具',
+                nav_playground: '交互演示',
+                tip_title: '提示',
+                tip_content: '打开浏览器开发者工具查看完整输出',
+                header_title: 'Console API Explorer',
+                theme_toggle: '切换主题',
+                overview_title: 'Console API 概览',
+                overview_desc: 'Console API 提供了在浏览器控制台输出调试信息的能力',
+                feature_output_title: '日志输出',
+                feature_output_desc: 'log、info、warn、error、debug 等输出方法',
+                feature_table_title: '表格显示',
+                feature_table_desc: 'table、dir、dirxml 结构化显示',
+                feature_group_title: '分组输出',
+                feature_group_desc: 'group、groupCollapsed 组织输出',
+                feature_timing_title: '计时功能',
+                feature_timing_desc: 'time、timeEnd、timeLog 性能计时',
+                feature_counter_title: '计数功能',
+                feature_counter_desc: 'count、countReset 执行计数',
+                feature_debug_title: '调试工具',
+                feature_debug_desc: 'assert、trace、clear 调试辅助',
+                api_support: 'API 支持检测',
+                table_api: 'API',
+                table_status: '状态',
+                table_note: '说明',
+                quick_start: '快速开始',
+                log_title: '日志输出方法',
+                log_desc: '使用不同的日志级别输出信息',
+                basic_output: '基本输出',
+                format_tip_title: '格式化提示',
+                format_tip_desc: '支持 %s(字符串)、%d(数字)、%f(浮点数)、%o(对象)、%c(样式) 等格式化占位符',
+                format_output: '格式化输出',
+                multi_args: '多参数输出',
+                table_title: '表格与对象显示',
+                table_desc: '使用 table、dir、dirxml 结构化显示数据',
+                group_title: '分组输出',
+                group_desc: '使用分组组织控制台输出',
+                timing_title: '计时方法',
+                timing_desc: '测量代码执行时间',
+                multi_timer: '多计时器演示',
+                counter_title: '计数方法',
+                counter_desc: '统计代码执行次数',
+                counter_code: '代码示例',
+                assert_title: '断言与追踪',
+                assert_desc: '使用断言和堆栈追踪进行调试',
+                assert_info_title: '断言说明',
+                assert_info_desc: '当断言条件为 false 时，输出错误信息；为 true 时不输出任何内容',
+                profile_title: '性能分析',
+                profile_desc: '使用 profile 分析代码性能',
+                profile_note_title: '注意',
+                profile_note_desc: 'profile 方法需要在浏览器开发者工具的 Performance 面板中查看结果',
+                playground_title: '交互演示',
+                playground_desc: '自由测试 Console API',
+                code_editor: '代码编辑器',
+                statistics: '统计信息',
+                total_outputs: '总输出次数',
+                waiting_output: '等待输出...',
+                index: '索引',
+                status_supported: '支持',
+                status_unsupported: '不支持'
+            },
+            en: {
+                version: 'v1.0',
+                nav_overview: 'Overview',
+                nav_dashboard: 'Dashboard',
+                nav_output: 'Output Methods',
+                nav_group: 'Group Methods',
+                nav_timing: 'Timing Methods',
+                nav_counter: 'Counter Methods',
+                nav_debug: 'Debug Methods',
+                nav_tools: 'Tools',
+                nav_playground: 'Playground',
+                tip_title: 'Tip',
+                tip_content: 'Open browser DevTools to see full output',
+                header_title: 'Console API Explorer',
+                theme_toggle: 'Toggle Theme',
+                overview_title: 'Console API Overview',
+                overview_desc: 'Console API provides the ability to output debug information to the browser console',
+                feature_output_title: 'Log Output',
+                feature_output_desc: 'log, info, warn, error, debug output methods',
+                feature_table_title: 'Table Display',
+                feature_table_desc: 'table, dir, dirxml structured display',
+                feature_group_title: 'Group Output',
+                feature_group_desc: 'group, groupCollapsed organize output',
+                feature_timing_title: 'Timing',
+                feature_timing_desc: 'time, timeEnd, timeLog performance timing',
+                feature_counter_title: 'Counter',
+                feature_counter_desc: 'count, countReset execution counting',
+                feature_debug_title: 'Debug Tools',
+                feature_debug_desc: 'assert, trace, clear debug helpers',
+                api_support: 'API Support Detection',
+                table_api: 'API',
+                table_status: 'Status',
+                table_note: 'Note',
+                quick_start: 'Quick Start',
+                log_title: 'Log Output Methods',
+                log_desc: 'Output information using different log levels',
+                basic_output: 'Basic Output',
+                format_tip_title: 'Format Tip',
+                format_tip_desc: 'Supports %s(string), %d(number), %f(float), %o(object), %c(style) placeholders',
+                format_output: 'Format Output',
+                multi_args: 'Multi-args Output',
+                table_title: 'Table & Object Display',
+                table_desc: 'Use table, dir, dirxml for structured display',
+                group_title: 'Group Output',
+                group_desc: 'Use groups to organize console output',
+                timing_title: 'Timing Methods',
+                timing_desc: 'Measure code execution time',
+                multi_timer: 'Multi-timer Demo',
+                counter_title: 'Counter Methods',
+                counter_desc: 'Count code execution times',
+                counter_code: 'Code Example',
+                assert_title: 'Assert & Trace',
+                assert_desc: 'Use assertions and stack traces for debugging',
+                assert_info_title: 'Assert Info',
+                assert_info_desc: 'When assertion is false, outputs error message; when true, outputs nothing',
+                profile_title: 'Performance Profiling',
+                profile_desc: 'Use profile to analyze code performance',
+                profile_note_title: 'Note',
+                profile_note_desc: 'profile results need to be viewed in browser DevTools Performance panel',
+                playground_title: 'Interactive Playground',
+                playground_desc: 'Test Console API freely',
+                code_editor: 'Code Editor',
+                statistics: 'Statistics',
+                total_outputs: 'Total Outputs',
+                waiting_output: 'Waiting for output...',
+                index: 'Index',
+                status_supported: 'Supported',
+                status_unsupported: 'Unsupported'
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function t(key) {
+            return i18n[currentLang][key] || key;
+        }
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+        }
+
+        // ==================== Theme Management ====================
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            icon.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+
+        // ==================== Tab Navigation ====================
+        function initTabs() {
+            document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+                item.addEventListener('click', () => {
+                    const tabId = item.getAttribute('data-tab');
+                    switchTab(tabId);
+                    
+                    if (window.innerWidth <= 1024) {
+                        document.getElementById('sidebar').classList.remove('open');
+                        document.getElementById('overlay').classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-tab') === tabId) {
+                    item.classList.add('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // ==================== Mobile Menu ====================
+        function initMobileMenu() {
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            });
+            
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            });
+        }
+
+        // ==================== Toast Notifications ====================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toastIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ==================== Support Detection ====================
+        function checkSupport() {
+            const supportTable = document.getElementById('supportTable');
+            const apis = [
+                { name: 'console.log()', check: typeof console.log === 'function', note: '基本日志输出' },
+                { name: 'console.info()', check: typeof console.info === 'function', note: '信息输出' },
+                { name: 'console.warn()', check: typeof console.warn === 'function', note: '警告输出' },
+                { name: 'console.error()', check: typeof console.error === 'function', note: '错误输出' },
+                { name: 'console.debug()', check: typeof console.debug === 'function', note: '调试输出' },
+                { name: 'console.table()', check: typeof console.table === 'function', note: '表格输出' },
+                { name: 'console.dir()', check: typeof console.dir === 'function', note: '对象显示' },
+                { name: 'console.dirxml()', check: typeof console.dirxml === 'function', note: 'XML树显示' },
+                { name: 'console.group()', check: typeof console.group === 'function', note: '分组开始' },
+                { name: 'console.groupCollapsed()', check: typeof console.groupCollapsed === 'function', note: '折叠分组' },
+                { name: 'console.groupEnd()', check: typeof console.groupEnd === 'function', note: '分组结束' },
+                { name: 'console.time()', check: typeof console.time === 'function', note: '开始计时' },
+                { name: 'console.timeEnd()', check: typeof console.timeEnd === 'function', note: '结束计时' },
+                { name: 'console.timeLog()', check: typeof console.timeLog === 'function', note: '记录时间' },
+                { name: 'console.count()', check: typeof console.count === 'function', note: '计数' },
+                { name: 'console.countReset()', check: typeof console.countReset === 'function', note: '重置计数' },
+                { name: 'console.assert()', check: typeof console.assert === 'function', note: '断言' },
+                { name: 'console.trace()', check: typeof console.trace === 'function', note: '堆栈追踪' },
+                { name: 'console.clear()', check: typeof console.clear === 'function', note: '清空控制台' },
+                { name: 'console.profile()', check: typeof console.profile === 'function', note: '性能分析' },
+                { name: 'console.profileEnd()', check: typeof console.profileEnd === 'function', note: '结束分析' }
+            ];
+            
+            supportTable.innerHTML = apis.map(api => `
+                <tr>
+                    <td><code style="color: var(--primary-600);">${api.name}</code></td>
+                    <td><span class="status-badge ${api.check ? 'status-supported' : 'status-unsupported'}">${api.check ? '✓ ' + t('status_supported') : '✗ ' + t('status_unsupported')}</span></td>
+                    <td style="color: var(--text-secondary);">${api.note}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== Console Output Helpers ====================
+        let stats = {
+            total: 0,
+            log: 0,
+            info: 0,
+            warn: 0,
+            error: 0,
+            debug: 0
+        };
+
+        function addConsoleEntry(containerId, type, message) {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = `console-entry ${type}`;
+            entry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span class="prefix">${type}:</span>
+                <span>${message}</span>
+            `;
+            
+            // Remove placeholder
+            if (container.children.length === 1 && container.children[0].querySelector('.timestamp')?.textContent === '[--:--:--]') {
+                container.innerHTML = '';
+            }
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            
+            // Update stats
+            stats.total++;
+            stats[type] = (stats[type] || 0) + 1;
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('totalOutputs').textContent = stats.total;
+            document.getElementById('logCount').textContent = stats.log || 0;
+            document.getElementById('infoCount').textContent = stats.info || 0;
+            document.getElementById('warnCount').textContent = stats.warn || 0;
+            document.getElementById('errorCount').textContent = stats.error || 0;
+            document.getElementById('debugCount').textContent = stats.debug || 0;
+        }
+
+        function clearConsole(containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div class="console-entry log">
+                    <span class="timestamp">[--:--:--]</span>
+                    <span class="prefix">›</span>
+                    <span>${t('waiting_output')}</span>
+                </div>
+            `;
+        }
+
+        // ==================== Log Methods ====================
+        function demoLog() {
+            console.log('这是一条普通日志消息');
+            addConsoleEntry('logConsole', 'log', '这是一条普通日志消息');
+        }
+
+        function demoInfo() {
+            console.info('这是一条信息消息');
+            addConsoleEntry('logConsole', 'info', '这是一条信息消息 ℹ️');
+        }
+
+        function demoWarn() {
+            console.warn('这是一条警告消息');
+            addConsoleEntry('logConsole', 'warn', '这是一条警告消息 ⚠️');
+        }
+
+        function demoError() {
+            console.error('这是一条错误消息');
+            addConsoleEntry('logConsole', 'error', '这是一条错误消息 ❌');
+        }
+
+        function demoDebug() {
+            console.debug('这是一条调试消息');
+            addConsoleEntry('logConsole', 'debug', '这是一条调试消息 🐛');
+        }
+
+        function demoFormatString() {
+            const name = 'World';
+            console.log('Hello, %s!', name);
+            addConsoleEntry('logConsole', 'log', `Hello, ${name}!`);
+        }
+
+        function demoFormatNumber() {
+            console.log('整数: %d, 浮点数: %f', 42, 3.14159);
+            addConsoleEntry('logConsole', 'log', '整数: 42, 浮点数: 3.14159');
+        }
+
+        function demoFormatObject() {
+            const obj = { name: 'Alice', age: 25 };
+            console.log('对象: %o', obj);
+            addConsoleEntry('logConsole', 'log', `对象: ${JSON.stringify(obj)}`);
+        }
+
+        function demoFormatStyle() {
+            console.log('%c彩色样式文本', 'color: #6366f1; font-size: 16px; font-weight: bold; background: #eef2ff; padding: 4px 8px; border-radius: 4px;');
+            addConsoleEntry('logConsole', 'log', '彩色样式文本 (查看浏览器控制台)');
+        }
+
+        function demoMultiArgs() {
+            console.log('多个', '参数', 123, { key: 'value' });
+            addConsoleEntry('logConsole', 'log', "多个 参数 123 {key: 'value'}");
+        }
+
+        function demoMixedTypes() {
+            console.log('字符串:', 'text', '数字:', 42, '布尔:', true, '对象:', { a: 1 });
+            addConsoleEntry('logConsole', 'log', "字符串: text 数字: 42 布尔: true 对象: {a: 1}");
+        }
+
+        function clearConsolePanel() {
+            clearConsole('logConsole');
+        }
+
+        // ==================== Table Methods ====================
+        function demoTableArray() {
+            const data = [
+                { name: 'Alice', age: 25, city: 'Beijing' },
+                { name: 'Bob', age: 30, city: 'Shanghai' },
+                { name: 'Charlie', age: 28, city: 'Guangzhou' }
+            ];
+            console.table(data);
+            showToast('表格已输出到浏览器控制台', 'success');
+        }
+
+        function demoTableObject() {
+            const data = {
+                user1: { name: 'Alice', age: 25 },
+                user2: { name: 'Bob', age: 30 }
+            };
+            console.table(data);
+            showToast('对象表格已输出到浏览器控制台', 'success');
+        }
+
+        function demoTableColumns() {
+            const data = [
+                { name: 'Alice', age: 25, city: 'Beijing', email: 'alice@example.com' },
+                { name: 'Bob', age: 30, city: 'Shanghai', email: 'bob@example.com' }
+            ];
+            console.table(data, ['name', 'age']);
+            showToast('指定列表格已输出到浏览器控制台', 'success');
+        }
+
+        function demoDirObject() {
+            const obj = {
+                name: 'Alice',
+                age: 25,
+                address: {
+                    city: 'Beijing',
+                    zip: '100000'
+                }
+            };
+            console.dir(obj);
+            document.getElementById('dirDisplay').innerHTML = `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+            showToast('对象已输出到浏览器控制台', 'success');
+        }
+
+        function demoDirElement() {
+            const element = document.body;
+            console.dir(element);
+            showToast('元素已输出到浏览器控制台', 'success');
+        }
+
+        function demoDirDepth() {
+            const obj = { a: { b: { c: { d: { e: 'deep' } } } } };
+            console.dir(obj, { depth: null });
+            showToast('深度对象已输出到浏览器控制台', 'success');
+        }
+
+        function demoDirxml() {
+            const element = document.createElement('div');
+            element.id = 'demo';
+            element.innerHTML = '<h1>Title</h1><p>Content</p>';
+            console.dirxml(element);
+            document.getElementById('dirxmlDisplay').innerHTML = `<pre>&lt;div id="demo"&gt;\n  &lt;h1&gt;Title&lt;/h1&gt;\n  &lt;p&gt;Content&lt;/p&gt;\n&lt;/div&gt;</pre>`;
+            showToast('XML树已输出到浏览器控制台', 'success');
+        }
+
+        // ==================== Group Methods ====================
+        function demoGroup() {
+            console.group('用户信息');
+            console.log('姓名: Alice');
+            console.log('年龄: 25');
+            console.log('城市: Beijing');
+            console.groupEnd();
+            
+            addConsoleEntry('groupConsole', 'log', '▼ 用户信息');
+            addConsoleEntry('groupConsole', 'log', '  姓名: Alice');
+            addConsoleEntry('groupConsole', 'log', '  年龄: 25');
+            addConsoleEntry('groupConsole', 'log', '  城市: Beijing');
+        }
+
+        function demoGroupCollapsed() {
+            console.groupCollapsed('详细信息 (默认折叠)');
+            console.log('这是一些详细信息');
+            console.log('默认情况下是折叠的');
+            console.groupEnd();
+            
+            addConsoleEntry('groupConsole', 'log', '▶ 详细信息 (默认折叠)');
+            addConsoleEntry('groupConsole', 'log', '  (点击展开查看)');
+        }
+
+        function demoNestedGroup() {
+            console.group('外层分组');
+            console.log('外层内容');
+            console.group('内层分组');
+            console.log('内层内容');
+            console.groupEnd();
+            console.groupEnd();
+            
+            addConsoleEntry('groupConsole', 'log', '▼ 外层分组');
+            addConsoleEntry('groupConsole', 'log', '  外层内容');
+            addConsoleEntry('groupConsole', 'log', '  ▼ 内层分组');
+            addConsoleEntry('groupConsole', 'log', '    内层内容');
+        }
+
+        function clearGroupConsole() {
+            clearConsole('groupConsole');
+        }
+
+        // ==================== Timing Methods ====================
+        let timerRunning = false;
+        let timerStartTime = null;
+        let timerInterval = null;
+
+        function startTimeDemo() {
+            if (timerRunning) {
+                showToast('计时器已在运行', 'error');
+                return;
+            }
+            
+            console.time('timer');
+            timerRunning = true;
+            timerStartTime = Date.now();
+            
+            document.getElementById('timerStatus').textContent = '运行中';
+            document.getElementById('timerStatus').className = 'timer-status running';
+            
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - timerStartTime;
+                document.getElementById('timerValue').textContent = elapsed + 'ms';
+            }, 10);
+            
+            addConsoleEntry('timingConsole', 'log', '计时器 "timer" 已启动');
+            showToast('计时器已启动', 'success');
+        }
+
+        function timeLogDemo() {
+            if (!timerRunning) {
+                showToast('请先启动计时器', 'error');
+                return;
+            }
+            
+            const elapsed = Date.now() - timerStartTime;
+            console.timeLog('timer', '检查点');
+            addConsoleEntry('timingConsole', 'log', `timer: ${elapsed}ms - 检查点`);
+        }
+
+        function endTimeDemo() {
+            if (!timerRunning) {
+                showToast('计时器未运行', 'error');
+                return;
+            }
+            
+            clearInterval(timerInterval);
+            const elapsed = Date.now() - timerStartTime;
+            console.timeEnd('timer');
+            
+            timerRunning = false;
+            document.getElementById('timerStatus').textContent = '已停止';
+            document.getElementById('timerStatus').className = 'timer-status stopped';
+            
+            addConsoleEntry('timingConsole', 'log', `timer: ${elapsed}ms - 计时结束`);
+            showToast(`计时结束: ${elapsed}ms`, 'success');
+        }
+
+        function demoMultiTimers() {
+            console.time('计时器A');
+            console.time('计时器B');
+            
+            setTimeout(() => {
+                console.timeLog('计时器A', '检查点1');
+            }, 100);
+            
+            setTimeout(() => {
+                console.timeLog('计时器A', '检查点2');
+            }, 200);
+            
+            setTimeout(() => {
+                console.timeEnd('计时器A');
+            }, 300);
+            
+            setTimeout(() => {
+                console.timeEnd('计时器B');
+            }, 400);
+            
+            showToast('多计时器演示已启动', 'success');
+        }
+
+        function clearTimingConsole() {
+            clearConsole('timingConsole');
+        }
+
+        // ==================== Counter Methods ====================
+        let counters = { default: 0, A: 0, B: 0 };
+
+        function incrementCounter() {
+            console.count('default');
+            counters.default++;
+            document.getElementById('counterDefault').textContent = counters.default;
+            addConsoleEntry('counterConsole', 'log', `default: ${counters.default}`);
+        }
+
+        function incrementCounterA() {
+            console.count('A');
+            counters.A++;
+            document.getElementById('counterA').textContent = counters.A;
+            addConsoleEntry('counterConsole', 'log', `A: ${counters.A}`);
+        }
+
+        function incrementCounterB() {
+            console.count('B');
+            counters.B++;
+            document.getElementById('counterB').textContent = counters.B;
+            addConsoleEntry('counterConsole', 'log', `B: ${counters.B}`);
+        }
+
+        function resetCounter() {
+            console.countReset('default');
+            console.countReset('A');
+            console.countReset('B');
+            counters = { default: 0, A: 0, B: 0 };
+            document.getElementById('counterDefault').textContent = '0';
+            document.getElementById('counterA').textContent = '0';
+            document.getElementById('counterB').textContent = '0';
+            addConsoleEntry('counterConsole', 'log', '所有计数器已重置');
+            showToast('计数器已重置', 'success');
+        }
+
+        function clearCounterConsole() {
+            clearConsole('counterConsole');
+        }
+
+        // ==================== Assert Methods ====================
+        function demoAssertTrue() {
+            const value = 42;
+            console.assert(value === 42, '值应该等于42');
+            addConsoleEntry('assertConsole', 'log', `断言通过: value === 42 ✓`);
+            showToast('断言通过，无输出', 'success');
+        }
+
+        function demoAssertFalse() {
+            const value = 10;
+            console.assert(value === 42, '断言失败: 值应该等于42，实际为 %d', value);
+            addConsoleEntry('assertConsole', 'error', `Assertion failed: 值应该等于42，实际为 ${value}`);
+        }
+
+        function clearAssertConsole() {
+            clearConsole('assertConsole');
+        }
+
+        // ==================== Trace Methods ====================
+        function demoTrace() {
+            function level3() {
+                console.trace('堆栈追踪');
+            }
+            function level2() {
+                level3();
+            }
+            function level1() {
+                level2();
+            }
+            level1();
+            
+            addConsoleEntry('traceConsole', 'log', 'Stack trace:');
+            addConsoleEntry('traceConsole', 'log', '  at level3');
+            addConsoleEntry('traceConsole', 'log', '  at level2');
+            addConsoleEntry('traceConsole', 'log', '  at level1');
+            addConsoleEntry('traceConsole', 'log', '  at demoTrace');
+            showToast('堆栈追踪已输出', 'success');
+        }
+
+        function clearTraceConsole() {
+            clearConsole('traceConsole');
+        }
+
+        // ==================== Clear Method ====================
+        function demoClear() {
+            console.clear();
+            showToast('控制台已清空', 'success');
+        }
+
+        // ==================== Profile Methods ====================
+        function startProfile() {
+            console.profile('性能分析');
+            showToast('性能分析已开始，请在开发者工具中查看', 'success');
+        }
+
+        function endProfile() {
+            console.profileEnd('性能分析');
+            showToast('性能分析已结束', 'success');
+        }
+
+        // ==================== Playground ====================
+        function runCode() {
+            const code = document.getElementById('codeEditor').value;
+            try {
+                // Create a custom console for capturing output
+                const customConsole = {
+                    log: (...args) => {
+                        console.log(...args);
+                        addConsoleEntry('playgroundConsole', 'log', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+                    },
+                    info: (...args) => {
+                        console.info(...args);
+                        addConsoleEntry('playgroundConsole', 'info', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+                    },
+                    warn: (...args) => {
+                        console.warn(...args);
+                        addConsoleEntry('playgroundConsole', 'warn', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+                    },
+                    error: (...args) => {
+                        console.error(...args);
+                        addConsoleEntry('playgroundConsole', 'error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+                    },
+                    debug: (...args) => {
+                        console.debug(...args);
+                        addConsoleEntry('playgroundConsole', 'debug', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+                    },
+                    table: (data) => {
+                        console.table(data);
+                        addConsoleEntry('playgroundConsole', 'log', 'Table output (see browser console)');
+                    },
+                    time: (label) => {
+                        console.time(label);
+                        addConsoleEntry('playgroundConsole', 'log', `${label}: timer started`);
+                    },
+                    timeEnd: (label) => {
+                        console.timeEnd(label);
+                        addConsoleEntry('playgroundConsole', 'log', `${label}: timer ended`);
+                    },
+                    count: (label) => {
+                        console.count(label);
+                        addConsoleEntry('playgroundConsole', 'log', `${label}: counted`);
+                    },
+                    clear: () => {
+                        console.clear();
+                        clearConsole('playgroundConsole');
+                    }
+                };
+                
+                // Execute with custom console
+                const fn = new Function('console', code);
+                fn(customConsole);
+                
+                showToast('代码执行成功', 'success');
+            } catch (err) {
+                addConsoleEntry('playgroundConsole', 'error', `Error: ${err.message}`);
+                showToast('代码执行错误: ' + err.message, 'error');
+            }
+        }
+
+        function loadExample(type) {
+            const examples = {
+                log: `// 日志输出示例
+console.log('基本日志');
+console.info('信息消息');
+console.warn('警告消息');
+console.error('错误消息');
+console.log('格式化: %s, %d', 'test', 42);`,
+                table: `// 表格输出示例
+const users = [
+    { name: 'Alice', age: 25, city: 'Beijing' },
+    { name: 'Bob', age: 30, city: 'Shanghai' },
+    { name: 'Charlie', age: 28, city: 'Guangzhou' }
+];
+console.table(users);`,
+                timing: `// 计时示例
+console.time('loop');
+let sum = 0;
+for (let i = 0; i < 1000000; i++) {
+    sum += i;
+}
+console.timeLog('loop', '中间检查');
+for (let i = 0; i < 1000000; i++) {
+    sum -= i;
+}
+console.timeEnd('loop');`
+            };
+            
+            document.getElementById('codeEditor').value = examples[type] || '';
+        }
+
+        function clearPlaygroundConsole() {
+            clearConsole('playgroundConsole');
+        }
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize theme
+            initTheme();
+            
+            // Initialize tabs
+            initTabs();
+            
+            // Initialize mobile menu
+            initMobileMenu();
+            
+            // Initialize language
+            document.getElementById('langSelect').value = currentLang;
+            document.getElementById('langSelect').addEventListener('change', (e) => {
+                updateLanguage(e.target.value);
+            });
+            
+            // Theme toggle
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            
+            // Check API support
+            checkSupport();
+            
+            // Initialize stats
+            updateStats();
+            
+            console.log('Console API Explorer initialized successfully!');
+        });
+    </script>
+</body>
+</html>
