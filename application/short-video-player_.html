@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>短视频播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+            background: #000;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 视频容器 */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 视频滑动包装器 */
+        .video-wrapper {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease-out;
+        }
+
+        /* 单个视频项 */
+        .video-item {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        /* 视频信息覆盖层 */
+        .video-overlay {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 80px;
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .video-author {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .video-description {
+            font-size: 14px;
+            line-height: 1.5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 右侧操作按钮 */
+        .action-buttons {
+            position: absolute;
+            right: 15px;
+            bottom: 100px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            z-index: 10;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.9);
+        }
+
+        .action-btn .icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            backdrop-filter: blur(10px);
+        }
+
+        .action-btn .count {
+            font-size: 12px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.3);
+            z-index: 10;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #ff2d55;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* 暂停图标 */
+        .pause-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            backdrop-filter: blur(10px);
+        }
+
+        .pause-icon.show {
+            display: flex;
+        }
+
+        .pause-icon::after {
+            content: '▶';
+            color: white;
+            font-size: 36px;
+            margin-left: 5px;
+        }
+
+        /* 加载动画 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 15;
+        }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* 提示信息 */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* 视频索引指示器 */
+        .video-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 20;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="video-container" id="videoContainer">
+        <div class="video-wrapper" id="videoWrapper"></div>
+    </div>
+
+    <div class="video-indicator" id="videoIndicator">1 / 5</div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 数据层模块 ====================
+        const VideoDataManager = {
+            // 视频数据列表
+            videos: [
+                {
+                    id: 1,
+                    src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    author: '创作者小明',
+                    description: '这是一个精彩的短视频内容，展示了有趣的瞬间 #热门 #推荐',
+                    likes: 12500,
+                    comments: 890,
+                    shares: 456
+                },
+                {
+                    id: 2,
+                    src: 'https://www.w3schools.com/html/movie.mp4',
+                    author: '视频达人',
+                    description: '分享生活中的美好时刻，记录每一个精彩瞬间 #生活 #日常',
+                    likes: 8900,
+                    comments: 567,
+                    shares: 234
+                },
+                {
+                    id: 3,
+                    src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    author: '创意工坊',
+                    description: '创意无限，精彩不断！快来看看这个超酷的内容 #创意 #艺术',
+                    likes: 15600,
+                    comments: 1200,
+                    shares: 678
+                },
+                {
+                    id: 4,
+                    src: 'https://www.w3schools.com/html/movie.mp4',
+                    author: '生活记录者',
+                    description: '用镜头记录生活的点点滴滴，每一帧都是回忆 #记录 #生活',
+                    likes: 6700,
+                    comments: 345,
+                    shares: 123
+                },
+                {
+                    id: 5,
+                    src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    author: '才艺展示',
+                    description: '展示才艺，分享快乐！喜欢的朋友记得点赞哦 #才艺 #表演',
+                    likes: 23400,
+                    comments: 2100,
+                    shares: 890
+                }
+            ],
+
+            // 进度存储键名
+            STORAGE_KEY: 'short_video_progress',
+
+            // 获取视频列表
+            getVideos() {
+                return this.videos;
+            },
+
+            // 获取视频总数
+            getTotalCount() {
+                return this.videos.length;
+            },
+
+            // 获取指定索引的视频
+            getVideoByIndex(index) {
+                if (index >= 0 && index < this.videos.length) {
+                    return this.videos[index];
+                }
+                return null;
+            },
+
+            // 保存视频进度
+            saveProgress(videoId, currentTime, videoIndex) {
+                try {
+                    const progressData = this.getAllProgress();
+                    progressData[videoId] = {
+                        currentTime: currentTime,
+                        videoIndex: videoIndex,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(progressData));
+                    console.log(`进度已保存: 视频${videoId}, 时间${currentTime.toFixed(2)}s`);
+                } catch (error) {
+                    console.error('保存进度失败:', error);
+                }
+            },
+
+            // 获取视频进度
+            getProgress(videoId) {
+                try {
+                    const progressData = this.getAllProgress();
+                    return progressData[videoId] || null;
+                } catch (error) {
+                    console.error('获取进度失败:', error);
+                    return null;
+                }
+            },
+
+            // 获取所有进度数据
+            getAllProgress() {
+                try {
+                    const data = localStorage.getItem(this.STORAGE_KEY);
+                    return data ? JSON.parse(data) : {};
+                } catch (error) {
+                    console.error('读取进度数据失败:', error);
+                    return {};
+                }
+            },
+
+            // 获取上次观看位置
+            getLastWatchedIndex() {
+                try {
+                    const progressData = this.getAllProgress();
+                    let lastIndex = 0;
+                    let lastTimestamp = 0;
+
+                    for (const videoId in progressData) {
+                        const progress = progressData[videoId];
+                        if (progress.timestamp > lastTimestamp) {
+                            lastTimestamp = progress.timestamp;
+                            lastIndex = progress.videoIndex || 0;
+                        }
+                    }
+
+                    return lastIndex;
+                } catch (error) {
+                    console.error('获取上次观看位置失败:', error);
+                    return 0;
+                }
+            },
+
+            // 清除所有进度
+            clearAllProgress() {
+                try {
+                    localStorage.removeItem(this.STORAGE_KEY);
+                    console.log('所有进度已清除');
+                } catch (error) {
+                    console.error('清除进度失败:', error);
+                }
+            }
+        };
+
+        // ==================== 视频播放器模块 ====================
+        const VideoPlayer = {
+            currentVideoElement: null,
+            currentVideoId: null,
+            isPlaying: false,
+
+            // 创建视频元素
+            createVideoElement(videoData, index) {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.dataset.index = index;
+
+                // 创建视频元素
+                const video = document.createElement('video');
+                video.src = videoData.src;
+                video.loop = true;
+                video.playsInline = true;
+                video.preload = 'metadata';
+
+                // 创建覆盖层
+                const overlay = this.createOverlay(videoData);
+                const actionButtons = this.createActionButtons(videoData);
+                const progressBar = this.createProgressBar();
+                const pauseIcon = document.createElement('div');
+                pauseIcon.className = 'pause-icon';
+                const loading = document.createElement('div');
+                loading.className = 'loading';
+                loading.style.display = 'none';
+
+                videoItem.appendChild(video);
+                videoItem.appendChild(overlay);
+                videoItem.appendChild(actionButtons);
+                videoItem.appendChild(progressBar);
+                videoItem.appendChild(pauseIcon);
+                videoItem.appendChild(loading);
+
+                // 绑定视频事件
+                this.bindVideoEvents(video, progressBar, pauseIcon, loading, videoData.id);
+
+                return videoItem;
+            },
+
+            // 创建覆盖层
+            createOverlay(videoData) {
+                const overlay = document.createElement('div');
+                overlay.className = 'video-overlay';
+
+                const author = document.createElement('div');
+                author.className = 'video-author';
+                author.textContent = `@${videoData.author}`;
+
+                const description = document.createElement('div');
+                description.className = 'video-description';
+                description.textContent = videoData.description;
+
+                overlay.appendChild(author);
+                overlay.appendChild(description);
+
+                return overlay;
+            },
+
+            // 创建操作按钮
+            createActionButtons(videoData) {
+                const container = document.createElement('div');
+                container.className = 'action-buttons';
+
+                const buttons = [
+                    { icon: '❤️', count: this.formatCount(videoData.likes), action: 'like' },
+                    { icon: '💬', count: this.formatCount(videoData.comments), action: 'comment' },
+                    { icon: '↗️', count: this.formatCount(videoData.shares), action: 'share' }
+                ];
+
+                buttons.forEach(btn => {
+                    const button = document.createElement('div');
+                    button.className = 'action-btn';
+                    button.innerHTML = `
+                        <div class="icon">${btn.icon}</div>
+                        <div class="count">${btn.count}</div>
+                    `;
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.handleAction(btn.action, videoData.id);
+                    });
+                    container.appendChild(button);
+                });
+
+                return container;
+            },
+
+            // 创建进度条
+            createProgressBar() {
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+
+                const progressFill = document.createElement('div');
+                progressFill.className = 'progress-fill';
+
+                progressBar.appendChild(progressFill);
+
+                return progressBar;
+            },
+
+            // 绑定视频事件
+            bindVideoEvents(video, progressBar, pauseIcon, loading, videoId) {
+                // 更新进度条
+                video.addEventListener('timeupdate', () => {
+                    const progress = (video.currentTime / video.duration) * 100;
+                    progressBar.querySelector('.progress-fill').style.width = `${progress}%`;
+                });
+
+                // 加载状态
+                video.addEventListener('waiting', () => {
+                    loading.style.display = 'block';
+                });
+
+                video.addEventListener('canplay', () => {
+                    loading.style.display = 'none';
+                });
+
+                // 点击暂停/播放
+                video.addEventListener('click', () => {
+                    if (video.paused) {
+                        video.play();
+                        pauseIcon.classList.remove('show');
+                        this.isPlaying = true;
+                    } else {
+                        video.pause();
+                        pauseIcon.classList.add('show');
+                        this.isPlaying = false;
+                    }
+                });
+
+                // 保存进度
+                video.addEventListener('timeupdate', () => {
+                    if (this.isPlaying && video.currentTime > 0) {
+                        const currentIndex = VideoSwitchManager.getCurrentIndex();
+                        VideoDataManager.saveProgress(videoId, video.currentTime, currentIndex);
+                    }
+                });
+            },
+
+            // 格式化数字
+            formatCount(count) {
+                if (count >= 10000) {
+                    return (count / 10000).toFixed(1) + 'w';
+                } else if (count >= 1000) {
+                    return (count / 1000).toFixed(1) + 'k';
+                }
+                return count.toString();
+            },
+
+            // 处理操作按钮点击
+            handleAction(action, videoId) {
+                const messages = {
+                    like: '已点赞',
+                    comment: '打开评论',
+                    share: '已分享'
+                };
+                showToast(messages[action]);
+            },
+
+            // 播放视频
+            play(videoElement) {
+                if (videoElement) {
+                    videoElement.play().catch(error => {
+                        console.log('自动播放失败，需要用户交互:', error);
+                    });
+                    this.isPlaying = true;
+                    this.currentVideoElement = videoElement;
+                }
+            },
+
+            // 暂停视频
+            pause(videoElement) {
+                if (videoElement) {
+                    videoElement.pause();
+                    this.isPlaying = false;
+                }
+            },
+
+            // 恢复进度
+            resumeProgress(videoElement, videoId) {
+                const progress = VideoDataManager.getProgress(videoId);
+                if (progress && progress.currentTime > 0) {
+                    videoElement.currentTime = progress.currentTime;
+                    console.log(`恢复进度: 视频${videoId}, 时间${progress.currentTime.toFixed(2)}s`);
+                }
+            }
+        };
+
+        // ==================== 手势处理模块 ====================
+        const GestureHandler = {
+            startY: 0,
+            startX: 0,
+            isDragging: false,
+            threshold: 50,
+
+            // 初始化手势监听
+            init(container) {
+                container.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                container.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                container.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+
+                // 鼠标事件（用于PC端测试）
+                container.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                container.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                container.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                container.addEventListener('mouseleave', this.handleMouseUp.bind(this));
+
+                // 滚轮事件
+                container.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
+            },
+
+            handleTouchStart(e) {
+                this.startY = e.touches[0].clientY;
+                this.startX = e.touches[0].clientX;
+                this.isDragging = true;
+            },
+
+            handleTouchMove(e) {
+                if (!this.isDragging) return;
+                e.preventDefault();
+            },
+
+            handleTouchEnd(e) {
+                if (!this.isDragging) return;
+
+                const endY = e.changedTouches[0].clientY;
+                const deltaY = this.startY - endY;
+
+                if (Math.abs(deltaY) > this.threshold) {
+                    if (deltaY > 0) {
+                        VideoSwitchManager.nextVideo();
+                    } else {
+                        VideoSwitchManager.prevVideo();
+                    }
+                }
+
+                this.isDragging = false;
+            },
+
+            handleMouseDown(e) {
+                this.startY = e.clientY;
+                this.startX = e.clientX;
+                this.isDragging = true;
+            },
+
+            handleMouseMove(e) {
+                if (!this.isDragging) return;
+            },
+
+            handleMouseUp(e) {
+                if (!this.isDragging) return;
+
+                const deltaY = this.startY - e.clientY;
+
+                if (Math.abs(deltaY) > this.threshold) {
+                    if (deltaY > 0) {
+                        VideoSwitchManager.nextVideo();
+                    } else {
+                        VideoSwitchManager.prevVideo();
+                    }
+                }
+
+                this.isDragging = false;
+            },
+
+            handleWheel(e) {
+                e.preventDefault();
+                if (e.deltaY > 0) {
+                    VideoSwitchManager.nextVideo();
+                } else {
+                    VideoSwitchManager.prevVideo();
+                }
+            }
+        };
+
+        // ==================== 视频切换管理模块 ====================
+        const VideoSwitchManager = {
+            currentIndex: 0,
+            videoElements: [],
+            videoWrapper: null,
+            isTransitioning: false,
+
+            // 初始化
+            init() {
+                this.videoWrapper = document.getElementById('videoWrapper');
+                const videos = VideoDataManager.getVideos();
+
+                // 获取上次观看位置
+                this.currentIndex = VideoDataManager.getLastWatchedIndex();
+
+                // 创建所有视频元素
+                videos.forEach((video, index) => {
+                    const videoElement = VideoPlayer.createVideoElement(video, index);
+                    this.videoElements.push(videoElement);
+                    this.videoWrapper.appendChild(videoElement);
+                });
+
+                // 定位到当前视频
+                this.updateVideoPosition(false);
+                this.updateIndicator();
+
+                // 播放当前视频
+                const currentVideo = this.getCurrentVideoElement();
+                if (currentVideo) {
+                    const videoId = VideoDataManager.getVideoByIndex(this.currentIndex).id;
+                    VideoPlayer.resumeProgress(currentVideo, videoId);
+                    VideoPlayer.play(currentVideo);
+                }
+            },
+
+            // 切换到下一个视频
+            nextVideo() {
+                if (this.isTransitioning) return;
+
+                const totalCount = VideoDataManager.getTotalCount();
+                if (this.currentIndex < totalCount - 1) {
+                    this.switchTo(this.currentIndex + 1);
+                } else {
+                    showToast('已经是最后一个视频了');
+                }
+            },
+
+            // 切换到上一个视频
+            prevVideo() {
+                if (this.isTransitioning) return;
+
+                if (this.currentIndex > 0) {
+                    this.switchTo(this.currentIndex - 1);
+                } else {
+                    showToast('已经是第一个视频了');
+                }
+            },
+
+            // 切换到指定索引
+            switchTo(index) {
+                if (this.isTransitioning || index === this.currentIndex) return;
+
+                this.isTransitioning = true;
+
+                // 暂停当前视频
+                const currentVideo = this.getCurrentVideoElement();
+                VideoPlayer.pause(currentVideo);
+
+                // 切换到新视频
+                this.currentIndex = index;
+                this.updateVideoPosition(true);
+                this.updateIndicator();
+
+                // 播放新视频
+                setTimeout(() => {
+                    const newVideo = this.getCurrentVideoElement();
+                    if (newVideo) {
+                        const videoId = VideoDataManager.getVideoByIndex(this.currentIndex).id;
+                        VideoPlayer.resumeProgress(newVideo, videoId);
+                        VideoPlayer.play(newVideo);
+                    }
+                    this.isTransitioning = false;
+                }, 300);
+            },
+
+            // 更新视频位置
+            updateVideoPosition(animate) {
+                const offset = -this.currentIndex * 100;
+                this.videoWrapper.style.transition = animate ? 'transform 0.3s ease-out' : 'none';
+                this.videoWrapper.style.transform = `translateY(${offset}%)`;
+            },
+
+            // 更新指示器
+            updateIndicator() {
+                const indicator = document.getElementById('videoIndicator');
+                const total = VideoDataManager.getTotalCount();
+                indicator.textContent = `${this.currentIndex + 1} / ${total}`;
+            },
+
+            // 获取当前视频元素
+            getCurrentVideoElement() {
+                const videoItem = this.videoElements[this.currentIndex];
+                return videoItem ? videoItem.querySelector('video') : null;
+            },
+
+            // 获取当前索引
+            getCurrentIndex() {
+                return this.currentIndex;
+            }
+        };
+
+        // ==================== 工具函数 ====================
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // ==================== 应用初始化 ====================
+        const App = {
+            init() {
+                console.log('短视频播放器初始化...');
+
+                // 初始化视频切换管理器
+                VideoSwitchManager.init();
+
+                // 初始化手势处理
+                const container = document.getElementById('videoContainer');
+                GestureHandler.init(container);
+
+                console.log('短视频播放器初始化完成');
+                showToast('上下滑动切换视频');
+
+                // 添加键盘支持
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowDown' || e.key === 'j') {
+                        VideoSwitchManager.nextVideo();
+                    } else if (e.key === 'ArrowUp' || e.key === 'k') {
+                        VideoSwitchManager.prevVideo();
+                    } else if (e.key === ' ') {
+                        e.preventDefault();
+                        const video = VideoSwitchManager.getCurrentVideoElement();
+                        if (video) {
+                            if (video.paused) {
+                                video.play();
+                            } else {
+                                video.pause();
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+
+        // 页面卸载前保存进度
+        window.addEventListener('beforeunload', () => {
+            const currentVideo = VideoSwitchManager.getCurrentVideoElement();
+            if (currentVideo && currentVideo.currentTime > 0) {
+                const videoId = VideoDataManager.getVideoByIndex(VideoSwitchManager.getCurrentIndex()).id;
+                VideoDataManager.saveProgress(videoId, currentVideo.currentTime, VideoSwitchManager.getCurrentIndex());
+            }
+        });
+    </script>
+</body>
+</html>
