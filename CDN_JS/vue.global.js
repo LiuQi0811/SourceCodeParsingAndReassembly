@@ -1,1691 +1,1692 @@
-// Add your code here
-var Vue = (function(exports) {
-            'use strict';
+var Vue = (function (exports) {
+    'use strict';
 
-            function makeMap(str) {
-                const map = Object.create(null);
-                for (const key of str.split(",")) map[key] = 1;
-                return (val) => val in map;
-            }
+    function makeMap(str) {
+        const map = Object.create(null);
+        for (const key of str.split(",")) map[key] = 1;
+        return (val) => val in map;
+    }
 
-            const EMPTY_OBJ = Object.freeze({});
-            const EMPTY_ARR = Object.freeze([]);
-            const NOOP = () => {};
-            const NO = () => false;
-            const isOn = (key) => key.charCodeAt(0) === 111 && key.charCodeAt(1) === 110 && // uppercase letter
-                (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97);
-            const isModelListener = (key) => key.startsWith("onUpdate:");
-            const extend = Object.assign;
-            const remove = (arr, el) => {
-                const i = arr.indexOf(el);
-                if (i > -1) {
-                    arr.splice(i, 1);
-                }
-            };
-            const hasOwnProperty$1 = Object.prototype.hasOwnProperty;
-            const hasOwn = (val, key) => hasOwnProperty$1.call(val, key);
-            const isArray = Array.isArray;
-            const isMap = (val) => toTypeString(val) === "[object Map]";
-            const isSet = (val) => toTypeString(val) === "[object Set]";
-            const isDate = (val) => toTypeString(val) === "[object Date]";
-            const isRegExp = (val) => toTypeString(val) === "[object RegExp]";
-            const isFunction = (val) => typeof val === "function";
-            const isString = (val) => typeof val === "string";
-            const isSymbol = (val) => typeof val === "symbol";
-            const isObject = (val) => val !== null && typeof val === "object";
-            const isPromise = (val) => {
-                return (isObject(val) || isFunction(val)) && isFunction(val.then) && isFunction(val.catch);
-            };
-            const objectToString = Object.prototype.toString;
-            const toTypeString = (value) => objectToString.call(value);
-            const toRawType = (value) => {
-                return toTypeString(value).slice(8, -1);
-            };
-            const isPlainObject = (val) => toTypeString(val) === "[object Object]";
-            const isIntegerKey = (key) => isString(key) && key !== "NaN" && key[0] !== "-" && "" + parseInt(key, 10) === key;
-            const isReservedProp = makeMap(
+    const EMPTY_OBJ = Object.freeze({});
+    const EMPTY_ARR = Object.freeze([]);
+    const NOOP = () => {};
+    const NO = () => false;
+    const isOn = (key) => key.charCodeAt(0) === 111 && key.charCodeAt(1) === 110 && // uppercase letter
+        (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97);
+    const isModelListener = (key) => key.startsWith("onUpdate:");
+    const extend = Object.assign;
+    const remove = (arr, el) => {
+        const i = arr.indexOf(el);
+        if (i > -1) {
+            arr.splice(i, 1);
+        }
+    };
+    const hasOwnProperty$1 = Object.prototype.hasOwnProperty;
+    const hasOwn = (val, key) => hasOwnProperty$1.call(val, key);
+    const isArray = Array.isArray;
+    const isMap = (val) => toTypeString(val) === "[object Map]";
+    const isSet = (val) => toTypeString(val) === "[object Set]";
+    const isDate = (val) => toTypeString(val) === "[object Date]";
+    const isRegExp = (val) => toTypeString(val) === "[object RegExp]";
+    const isFunction = (val) => typeof val === "function";
+    const isString = (val) => typeof val === "string";
+    const isSymbol = (val) => typeof val === "symbol";
+    const isObject = (val) => val !== null && typeof val === "object";
+    const isPromise = (val) => {
+        return (isObject(val) || isFunction(val)) && isFunction(val.then) && isFunction(val.catch);
+    };
+    const objectToString = Object.prototype.toString;
+    const toTypeString = (value) => objectToString.call(value);
+    const toRawType = (value) => {
+        return toTypeString(value).slice(8, -1);
+    };
+    const isPlainObject = (val) => toTypeString(val) === "[object Object]";
+    const isIntegerKey = (key) => isString(key) && key !== "NaN" && key[0] !== "-" && "" + parseInt(key, 10) === key;
+    const isReservedProp = makeMap(
 
-                ",key,ref,ref_for,ref_key,onVnodeBeforeMount,onVnodeMounted,onVnodeBeforeUpdate,onVnodeUpdated,onVnodeBeforeUnmount,onVnodeUnmounted"
-            );
-            const isBuiltInDirective = makeMap(
-                "bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo"
-            );
-            const cacheStringFunction = (fn) => {
-                const cache = Object.create(null);
-                return ((str) => {
-                    const hit = cache[str];
-                    return hit || (cache[str] = fn(str));
-                });
-            };
-            const camelizeRE = /-\w/g;
-            const camelize = cacheStringFunction(
-                (str) => {
-                    return str.replace(camelizeRE, (c) => c.slice(1).toUpperCase());
-                }
-            );
-            const hyphenateRE = /\B([A-Z])/g;
-            const hyphenate = cacheStringFunction(
-                (str) => str.replace(hyphenateRE, "-$1").toLowerCase()
-            );
-            const capitalize = cacheStringFunction((str) => {
-                return str.charAt(0).toUpperCase() + str.slice(1);
-            });
-            const toHandlerKey = cacheStringFunction(
-                (str) => {
-                    const s = str ? `on${capitalize(str)}` : ``;
-                    return s;
-                }
-            );
-            const hasChanged = (value, oldValue) => !Object.is(value, oldValue);
-            const invokeArrayFns = (fns, ...arg) => {
-                for (let i = 0; i < fns.length; i++) {
-                    fns[i](...arg);
-                }
-            };
-            const def = (obj, key, value, writable = false) => {
-                Object.defineProperty(obj, key, {
-                    configurable: true,
-                    enumerable: false,
-                    writable,
-                    value
-                });
-            };
-            const looseToNumber = (val) => {
-                const n = parseFloat(val);
-                return isNaN(n) ? val : n;
-            };
-            const toNumber = (val) => {
-                const n = isString(val) ? Number(val) : NaN;
-                return isNaN(n) ? val : n;
-            };
-            let _globalThis;
-            const getGlobalThis = () => {
-                return _globalThis || (_globalThis = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {});
-            };
+        ",key,ref,ref_for,ref_key,onVnodeBeforeMount,onVnodeMounted,onVnodeBeforeUpdate,onVnodeUpdated,onVnodeBeforeUnmount,onVnodeUnmounted"
+    );
+    const isBuiltInDirective = makeMap(
+        "bind,cloak,else-if,else,for,html,if,model,on,once,pre,show,slot,text,memo"
+    );
+    const cacheStringFunction = (fn) => {
+        const cache = Object.create(null);
+        return ((str) => {
+            const hit = cache[str];
+            return hit || (cache[str] = fn(str));
+        });
+    };
+    const camelizeRE = /-\w/g;
+    const camelize = cacheStringFunction(
+        (str) => {
+            return str.replace(camelizeRE, (c) => c.slice(1).toUpperCase());
+        }
+    );
+    const hyphenateRE = /\B([A-Z])/g;
+    const hyphenate = cacheStringFunction(
+        (str) => str.replace(hyphenateRE, "-$1").toLowerCase()
+    );
+    const capitalize = cacheStringFunction((str) => {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    });
+    const toHandlerKey = cacheStringFunction(
+        (str) => {
+            const s = str ? `on${capitalize(str)}` : ``;
+            return s;
+        }
+    );
+    const hasChanged = (value, oldValue) => !Object.is(value, oldValue);
+    const invokeArrayFns = (fns, ...arg) => {
+        for (let i = 0; i < fns.length; i++) {
+            fns[i](...arg);
+        }
+    };
+    const def = (obj, key, value, writable = false) => {
+        Object.defineProperty(obj, key, {
+            configurable: true,
+            enumerable: false,
+            writable,
+            value
+        });
+    };
+    const looseToNumber = (val) => {
+        const n = parseFloat(val);
+        return isNaN(n) ? val : n;
+    };
+    const toNumber = (val) => {
+        const n = isString(val) ? Number(val) : NaN;
+        return isNaN(n) ? val : n;
+    };
+    let _globalThis;
+    const getGlobalThis = () => {
+        return _globalThis || (_globalThis = typeof globalThis !== "undefined" ? globalThis : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : {});
+    };
 
-            function genCacheKey(source, options) {
-                return source + JSON.stringify(
-                    options,
-                    (_, val) => typeof val === "function" ? val.toString() : val
-                );
-            }
+    function genCacheKey(source, options) {
+        return source + JSON.stringify(
+            options,
+            (_, val) => typeof val === "function" ? val.toString() : val
+        );
+    }
 
-            const PatchFlagNames = {
-                [1]: `TEXT`,
-                [2]: `CLASS`,
-                [4]: `STYLE`,
-                [8]: `PROPS`,
-                [16]: `FULL_PROPS`,
-                [32]: `NEED_HYDRATION`,
-                [64]: `STABLE_FRAGMENT`,
-                [128]: `KEYED_FRAGMENT`,
-                [256]: `UNKEYED_FRAGMENT`,
-                [512]: `NEED_PATCH`,
-                [1024]: `DYNAMIC_SLOTS`,
-                [2048]: `DEV_ROOT_FRAGMENT`,
-                [-1]: `CACHED`,
-                [-2]: `BAIL`
-            };
+    const PatchFlagNames = {
+        [1]: `TEXT`,
+        [2]: `CLASS`,
+        [4]: `STYLE`,
+        [8]: `PROPS`,
+        [16]: `FULL_PROPS`,
+        [32]: `NEED_HYDRATION`,
+        [64]: `STABLE_FRAGMENT`,
+        [128]: `KEYED_FRAGMENT`,
+        [256]: `UNKEYED_FRAGMENT`,
+        [512]: `NEED_PATCH`,
+        [1024]: `DYNAMIC_SLOTS`,
+        [2048]: `DEV_ROOT_FRAGMENT`,
+        [-1]: `CACHED`,
+        [-2]: `BAIL`
+    };
 
-            const slotFlagsText = {
-                [1]: "STABLE",
-                [2]: "DYNAMIC",
-                [3]: "FORWARDED"
-            };
+    const slotFlagsText = {
+        [1]: "STABLE",
+        [2]: "DYNAMIC",
+        [3]: "FORWARDED"
+    };
 
-            const GLOBALS_ALLOWED = "Infinity,undefined,NaN,isFinite,isNaN,parseFloat,parseInt,decodeURI,decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array,Object,Boolean,String,RegExp,Map,Set,JSON,Intl,BigInt,console,Error,Symbol";
-            const isGloballyAllowed = makeMap(GLOBALS_ALLOWED);
+    const GLOBALS_ALLOWED = "Infinity,undefined,NaN,isFinite,isNaN,parseFloat,parseInt,decodeURI,decodeURIComponent,encodeURI,encodeURIComponent,Math,Number,Date,Array,Object,Boolean,String,RegExp,Map,Set,JSON,Intl,BigInt,console,Error,Symbol";
+    const isGloballyAllowed = makeMap(GLOBALS_ALLOWED);
 
-            const range = 2;
+    const range = 2;
 
-            function generateCodeFrame(source, start = 0, end = source.length) {
-                start = Math.max(0, Math.min(start, source.length));
-                end = Math.max(0, Math.min(end, source.length));
-                if (start > end) return "";
-                let lines = source.split(/(\r?\n)/);
-                const newlineSequences = lines.filter((_, idx) => idx % 2 === 1);
-                lines = lines.filter((_, idx) => idx % 2 === 0);
-                let count = 0;
-                const res = [];
-                for (let i = 0; i < lines.length; i++) {
-                    count += lines[i].length + (newlineSequences[i] && newlineSequences[i].length || 0);
-                    if (count >= start) {
-                        for (let j = i - range; j <= i + range || end > count; j++) {
-                            if (j < 0 || j >= lines.length) continue;
-                            const line = j + 1;
-                            res.push(
-                                `${line}${" ".repeat(Math.max(3 - String(line).length, 0))}|  ${lines[j]}`
-                            );
-                            const lineLength = lines[j].length;
-                            const newLineSeqLength = newlineSequences[j] && newlineSequences[j].length || 0;
-                            if (j === i) {
-                                const pad = start - (count - (lineLength + newLineSeqLength));
-                                const length = Math.max(
-                                    1,
-                                    end > count ? lineLength - pad : end - start
-                                );
-                                res.push(`   |  ` + " ".repeat(pad) + "^".repeat(length));
-                            } else if (j > i) {
-                                if (end > count) {
-                                    const length = Math.max(Math.min(end - count, lineLength), 1);
-                                    res.push(`   |  ` + "^".repeat(length));
-                                }
-                                count += lineLength + newLineSeqLength;
-                            }
+    function generateCodeFrame(source, start = 0, end = source.length) {
+        start = Math.max(0, Math.min(start, source.length));
+        end = Math.max(0, Math.min(end, source.length));
+        if (start > end) return "";
+        let lines = source.split(/(\r?\n)/);
+        const newlineSequences = lines.filter((_, idx) => idx % 2 === 1);
+        lines = lines.filter((_, idx) => idx % 2 === 0);
+        let count = 0;
+        const res = [];
+        for (let i = 0; i < lines.length; i++) {
+            count += lines[i].length + (newlineSequences[i] && newlineSequences[i].length || 0);
+            if (count >= start) {
+                for (let j = i - range; j <= i + range || end > count; j++) {
+                    if (j < 0 || j >= lines.length) continue;
+                    const line = j + 1;
+                    res.push(
+                        `${line}${" ".repeat(Math.max(3 - String(line).length, 0))}|  ${lines[j]}`
+                    );
+                    const lineLength = lines[j].length;
+                    const newLineSeqLength = newlineSequences[j] && newlineSequences[j].length || 0;
+                    if (j === i) {
+                        const pad = start - (count - (lineLength + newLineSeqLength));
+                        const length = Math.max(
+                            1,
+                            end > count ? lineLength - pad : end - start
+                        );
+                        res.push(`   |  ` + " ".repeat(pad) + "^".repeat(length));
+                    } else if (j > i) {
+                        if (end > count) {
+                            const length = Math.max(Math.min(end - count, lineLength), 1);
+                            res.push(`   |  ` + "^".repeat(length));
                         }
-                        break;
+                        count += lineLength + newLineSeqLength;
                     }
                 }
-                return res.join("\n");
+                break;
             }
+        }
+        return res.join("\n");
+    }
 
-            function normalizeStyle(value) {
-                if (isArray(value)) {
-                    const res = {};
-                    for (let i = 0; i < value.length; i++) {
-                        const item = value[i];
-                        const normalized = isString(item) ? parseStringStyle(item) : normalizeStyle(item);
-                        if (normalized) {
-                            for (const key in normalized) {
-                                res[key] = normalized[key];
-                            }
-                        }
-                    }
-                    return res;
-                } else if (isString(value) || isObject(value)) {
-                    return value;
-                }
-            }
-            const listDelimiterRE = /;(?![^(]*\))/g;
-            const propertyDelimiterRE = /:([^]+)/;
-            const styleCommentRE = /\/\*[^]*?\*\//g;
-
-            function parseStringStyle(cssText) {
-                const ret = {};
-                cssText.replace(styleCommentRE, "").split(listDelimiterRE).forEach((item) => {
-                    if (item) {
-                        const tmp = item.split(propertyDelimiterRE);
-                        tmp.length > 1 && (ret[tmp[0].trim()] = tmp[1].trim());
-                    }
-                });
-                return ret;
-            }
-
-            function stringifyStyle(styles) {
-                if (!styles) return "";
-                if (isString(styles)) return styles;
-                let ret = "";
-                for (const key in styles) {
-                    const value = styles[key];
-                    if (isString(value) || typeof value === "number") {
-                        const normalizedKey = key.startsWith(`--`) ? key : hyphenate(key);
-                        ret += `${normalizedKey}:${value};`;
+    function normalizeStyle(value) {
+        if (isArray(value)) {
+            const res = {};
+            for (let i = 0; i < value.length; i++) {
+                const item = value[i];
+                const normalized = isString(item) ? parseStringStyle(item) : normalizeStyle(item);
+                if (normalized) {
+                    for (const key in normalized) {
+                        res[key] = normalized[key];
                     }
                 }
-                return ret;
             }
+            return res;
+        } else if (isString(value) || isObject(value)) {
+            return value;
+        }
+    }
+    const listDelimiterRE = /;(?![^(]*\))/g;
+    const propertyDelimiterRE = /:([^]+)/;
+    const styleCommentRE = /\/\*[^]*?\*\//g;
 
-            function normalizeClass(value) {
-                let res = "";
-                if (isString(value)) {
-                    res = value;
-                } else if (isArray(value)) {
-                    for (let i = 0; i < value.length; i++) {
-                        const normalized = normalizeClass(value[i]);
-                        if (normalized) {
-                            res += normalized + " ";
-                        }
-                    }
-                } else if (isObject(value)) {
-                    for (const name in value) {
-                        if (value[name]) {
-                            res += name + " ";
-                        }
-                    }
+    function parseStringStyle(cssText) {
+        const ret = {};
+        cssText.replace(styleCommentRE, "").split(listDelimiterRE).forEach((item) => {
+            if (item) {
+                const tmp = item.split(propertyDelimiterRE);
+                tmp.length > 1 && (ret[tmp[0].trim()] = tmp[1].trim());
+            }
+        });
+        return ret;
+    }
+
+    function stringifyStyle(styles) {
+        if (!styles) return "";
+        if (isString(styles)) return styles;
+        let ret = "";
+        for (const key in styles) {
+            const value = styles[key];
+            if (isString(value) || typeof value === "number") {
+                const normalizedKey = key.startsWith(`--`) ? key : hyphenate(key);
+                ret += `${normalizedKey}:${value};`;
+            }
+        }
+        return ret;
+    }
+
+    function normalizeClass(value) {
+        let res = "";
+        if (isString(value)) {
+            res = value;
+        } else if (isArray(value)) {
+            for (let i = 0; i < value.length; i++) {
+                const normalized = normalizeClass(value[i]);
+                if (normalized) {
+                    res += normalized + " ";
                 }
-                return res.trim();
             }
-
-            function normalizeProps(props) {
-                if (!props) return null;
-                let {
-                    class: klass,
-                    style
-                } = props;
-                if (klass && !isString(klass)) {
-                    props.class = normalizeClass(klass);
+        } else if (isObject(value)) {
+            for (const name in value) {
+                if (value[name]) {
+                    res += name + " ";
                 }
-                if (style) {
-                    props.style = normalizeStyle(style);
-                }
-                return props;
             }
+        }
+        return res.trim();
+    }
 
-            const HTML_TAGS = "html,body,base,head,link,meta,style,title,address,article,aside,footer,header,hgroup,h1,h2,h3,h4,h5,h6,nav,section,div,dd,dl,dt,figcaption,figure,picture,hr,img,li,main,ol,p,pre,ul,a,b,abbr,bdi,bdo,br,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,ruby,s,samp,small,span,strong,sub,sup,time,u,var,wbr,area,audio,map,track,video,embed,object,param,source,canvas,script,noscript,del,ins,caption,col,colgroup,table,thead,tbody,td,th,tr,button,datalist,fieldset,form,input,label,legend,meter,optgroup,option,output,progress,select,textarea,details,dialog,menu,summary,template,blockquote,iframe,tfoot";
-            const SVG_TAGS = "svg,animate,animateMotion,animateTransform,circle,clipPath,color-profile,defs,desc,discard,ellipse,feBlend,feColorMatrix,feComponentTransfer,feComposite,feConvolveMatrix,feDiffuseLighting,feDisplacementMap,feDistantLight,feDropShadow,feFlood,feFuncA,feFuncB,feFuncG,feFuncR,feGaussianBlur,feImage,feMerge,feMergeNode,feMorphology,feOffset,fePointLight,feSpecularLighting,feSpotLight,feTile,feTurbulence,filter,foreignObject,g,hatch,hatchpath,image,line,linearGradient,marker,mask,mesh,meshgradient,meshpatch,meshrow,metadata,mpath,path,pattern,polygon,polyline,radialGradient,rect,set,solidcolor,stop,switch,symbol,text,textPath,title,tspan,unknown,use,view";
-            const MATH_TAGS = "annotation,annotation-xml,maction,maligngroup,malignmark,math,menclose,merror,mfenced,mfrac,mfraction,mglyph,mi,mlabeledtr,mlongdiv,mmultiscripts,mn,mo,mover,mpadded,mphantom,mprescripts,mroot,mrow,ms,mscarries,mscarry,msgroup,msline,mspace,msqrt,msrow,mstack,mstyle,msub,msubsup,msup,mtable,mtd,mtext,mtr,munder,munderover,none,semantics";
-            const VOID_TAGS = "area,base,br,col,embed,hr,img,input,link,meta,param,source,track,wbr";
-            const isHTMLTag = makeMap(HTML_TAGS);
-            const isSVGTag = makeMap(SVG_TAGS);
-            const isMathMLTag = makeMap(MATH_TAGS);
-            const isVoidTag = makeMap(VOID_TAGS);
+    function normalizeProps(props) {
+        if (!props) return null;
+        let {
+            class: klass,
+            style
+        } = props;
+        if (klass && !isString(klass)) {
+            props.class = normalizeClass(klass);
+        }
+        if (style) {
+            props.style = normalizeStyle(style);
+        }
+        return props;
+    }
 
-            const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly`;
-            const isSpecialBooleanAttr = makeMap(specialBooleanAttrs);
-            const isBooleanAttr = makeMap(
-                specialBooleanAttrs + `,async,autofocus,autoplay,controls,default,defer,disabled,hidden,inert,loop,open,required,reversed,scoped,seamless,checked,muted,multiple,selected`
-            );
+    const HTML_TAGS = "html,body,base,head,link,meta,style,title,address,article,aside,footer,header,hgroup,h1,h2,h3,h4,h5,h6,nav,section,div,dd,dl,dt,figcaption,figure,picture,hr,img,li,main,ol,p,pre,ul,a,b,abbr,bdi,bdo,br,cite,code,data,dfn,em,i,kbd,mark,q,rp,rt,ruby,s,samp,small,span,strong,sub,sup,time,u,var,wbr,area,audio,map,track,video,embed,object,param,source,canvas,script,noscript,del,ins,caption,col,colgroup,table,thead,tbody,td,th,tr,button,datalist,fieldset,form,input,label,legend,meter,optgroup,option,output,progress,select,textarea,details,dialog,menu,summary,template,blockquote,iframe,tfoot";
+    const SVG_TAGS = "svg,animate,animateMotion,animateTransform,circle,clipPath,color-profile,defs,desc,discard,ellipse,feBlend,feColorMatrix,feComponentTransfer,feComposite,feConvolveMatrix,feDiffuseLighting,feDisplacementMap,feDistantLight,feDropShadow,feFlood,feFuncA,feFuncB,feFuncG,feFuncR,feGaussianBlur,feImage,feMerge,feMergeNode,feMorphology,feOffset,fePointLight,feSpecularLighting,feSpotLight,feTile,feTurbulence,filter,foreignObject,g,hatch,hatchpath,image,line,linearGradient,marker,mask,mesh,meshgradient,meshpatch,meshrow,metadata,mpath,path,pattern,polygon,polyline,radialGradient,rect,set,solidcolor,stop,switch,symbol,text,textPath,title,tspan,unknown,use,view";
+    const MATH_TAGS = "annotation,annotation-xml,maction,maligngroup,malignmark,math,menclose,merror,mfenced,mfrac,mfraction,mglyph,mi,mlabeledtr,mlongdiv,mmultiscripts,mn,mo,mover,mpadded,mphantom,mprescripts,mroot,mrow,ms,mscarries,mscarry,msgroup,msline,mspace,msqrt,msrow,mstack,mstyle,msub,msubsup,msup,mtable,mtd,mtext,mtr,munder,munderover,none,semantics";
+    const VOID_TAGS = "area,base,br,col,embed,hr,img,input,link,meta,param,source,track,wbr";
+    const isHTMLTag = makeMap(HTML_TAGS);
+    const isSVGTag = makeMap(SVG_TAGS);
+    const isMathMLTag = makeMap(MATH_TAGS);
+    const isVoidTag = makeMap(VOID_TAGS);
 
-            function includeBooleanAttr(value) {
-                return !!value || value === "";
+    const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly`;
+    const isSpecialBooleanAttr = makeMap(specialBooleanAttrs);
+    const isBooleanAttr = makeMap(
+        specialBooleanAttrs + `,async,autofocus,autoplay,controls,default,defer,disabled,hidden,inert,loop,open,required,reversed,scoped,seamless,checked,muted,multiple,selected`
+    );
+
+    function includeBooleanAttr(value) {
+        return !!value || value === "";
+    }
+    const isKnownHtmlAttr = makeMap(
+        `accept,accept-charset,accesskey,action,align,allow,alt,async,autocapitalize,autocomplete,autofocus,autoplay,background,bgcolor,border,buffered,capture,challenge,charset,checked,cite,class,code,codebase,color,cols,colspan,content,contenteditable,contextmenu,controls,coords,crossorigin,csp,data,datetime,decoding,default,defer,dir,dirname,disabled,download,draggable,dropzone,enctype,enterkeyhint,for,form,formaction,formenctype,formmethod,formnovalidate,formtarget,headers,height,hidden,high,href,hreflang,http-equiv,icon,id,importance,inert,integrity,ismap,itemprop,keytype,kind,label,lang,language,loading,list,loop,low,manifest,max,maxlength,minlength,media,min,multiple,muted,name,novalidate,open,optimum,pattern,ping,placeholder,poster,preload,radiogroup,readonly,referrerpolicy,rel,required,reversed,rows,rowspan,sandbox,scope,scoped,selected,shape,size,sizes,slot,span,spellcheck,src,srcdoc,srclang,srcset,start,step,style,summary,tabindex,target,title,translate,type,usemap,value,width,wrap`
+    );
+    const isKnownSvgAttr = makeMap(
+        `xmlns,accent-height,accumulate,additive,alignment-baseline,alphabetic,amplitude,arabic-form,ascent,attributeName,attributeType,azimuth,baseFrequency,baseline-shift,baseProfile,bbox,begin,bias,by,calcMode,cap-height,class,clip,clipPathUnits,clip-path,clip-rule,color,color-interpolation,color-interpolation-filters,color-profile,color-rendering,contentScriptType,contentStyleType,crossorigin,cursor,cx,cy,d,decelerate,descent,diffuseConstant,direction,display,divisor,dominant-baseline,dur,dx,dy,edgeMode,elevation,enable-background,end,exponent,fill,fill-opacity,fill-rule,filter,filterRes,filterUnits,flood-color,flood-opacity,font-family,font-size,font-size-adjust,font-stretch,font-style,font-variant,font-weight,format,from,fr,fx,fy,g1,g2,glyph-name,glyph-orientation-horizontal,glyph-orientation-vertical,glyphRef,gradientTransform,gradientUnits,hanging,height,href,hreflang,horiz-adv-x,horiz-origin-x,id,ideographic,image-rendering,in,in2,intercept,k,k1,k2,k3,k4,kernelMatrix,kernelUnitLength,kerning,keyPoints,keySplines,keyTimes,lang,lengthAdjust,letter-spacing,lighting-color,limitingConeAngle,local,marker-end,marker-mid,marker-start,markerHeight,markerUnits,markerWidth,mask,maskContentUnits,maskUnits,mathematical,max,media,method,min,mode,name,numOctaves,offset,opacity,operator,order,orient,orientation,origin,overflow,overline-position,overline-thickness,panose-1,paint-order,path,pathLength,patternContentUnits,patternTransform,patternUnits,ping,pointer-events,points,pointsAtX,pointsAtY,pointsAtZ,preserveAlpha,preserveAspectRatio,primitiveUnits,r,radius,referrerPolicy,refX,refY,rel,rendering-intent,repeatCount,repeatDur,requiredExtensions,requiredFeatures,restart,result,rotate,rx,ry,scale,seed,shape-rendering,slope,spacing,specularConstant,specularExponent,speed,spreadMethod,startOffset,stdDeviation,stemh,stemv,stitchTiles,stop-color,stop-opacity,strikethrough-position,strikethrough-thickness,string,stroke,stroke-dasharray,stroke-dashoffset,stroke-linecap,stroke-linejoin,stroke-miterlimit,stroke-opacity,stroke-width,style,surfaceScale,systemLanguage,tabindex,tableValues,target,targetX,targetY,text-anchor,text-decoration,text-rendering,textLength,to,transform,transform-origin,type,u1,u2,underline-position,underline-thickness,unicode,unicode-bidi,unicode-range,units-per-em,v-alphabetic,v-hanging,v-ideographic,v-mathematical,values,vector-effect,version,vert-adv-y,vert-origin-x,vert-origin-y,viewBox,viewTarget,visibility,width,widths,word-spacing,writing-mode,x,x-height,x1,x2,xChannelSelector,xlink:actuate,xlink:arcrole,xlink:href,xlink:role,xlink:show,xlink:title,xlink:type,xmlns:xlink,xml:base,xml:lang,xml:space,y,y1,y2,yChannelSelector,z,zoomAndPan`
+    );
+
+    function isRenderableAttrValue(value) {
+        if (value == null) {
+            return false;
+        }
+        const type = typeof value;
+        return type === "string" || type === "number" || type === "boolean";
+    }
+
+    const cssVarNameEscapeSymbolsRE = /[ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g;
+
+    function getEscapedCssVarName(key, doubleEscape) {
+        return key.replace(
+            cssVarNameEscapeSymbolsRE,
+            (s) => `\\${s}`
+        );
+    }
+
+    function looseCompareArrays(a, b) {
+        if (a.length !== b.length) return false;
+        let equal = true;
+        for (let i = 0; equal && i < a.length; i++) {
+            equal = looseEqual(a[i], b[i]);
+        }
+        return equal;
+    }
+
+    function looseEqual(a, b) {
+        if (a === b) return true;
+        let aValidType = isDate(a);
+        let bValidType = isDate(b);
+        if (aValidType || bValidType) {
+            return aValidType && bValidType ? a.getTime() === b.getTime() : false;
+        }
+        aValidType = isSymbol(a);
+        bValidType = isSymbol(b);
+        if (aValidType || bValidType) {
+            return a === b;
+        }
+        aValidType = isArray(a);
+        bValidType = isArray(b);
+        if (aValidType || bValidType) {
+            return aValidType && bValidType ? looseCompareArrays(a, b) : false;
+        }
+        aValidType = isObject(a);
+        bValidType = isObject(b);
+        if (aValidType || bValidType) {
+            if (!aValidType || !bValidType) {
+                return false;
             }
-            const isKnownHtmlAttr = makeMap(
-                `accept,accept-charset,accesskey,action,align,allow,alt,async,autocapitalize,autocomplete,autofocus,autoplay,background,bgcolor,border,buffered,capture,challenge,charset,checked,cite,class,code,codebase,color,cols,colspan,content,contenteditable,contextmenu,controls,coords,crossorigin,csp,data,datetime,decoding,default,defer,dir,dirname,disabled,download,draggable,dropzone,enctype,enterkeyhint,for,form,formaction,formenctype,formmethod,formnovalidate,formtarget,headers,height,hidden,high,href,hreflang,http-equiv,icon,id,importance,inert,integrity,ismap,itemprop,keytype,kind,label,lang,language,loading,list,loop,low,manifest,max,maxlength,minlength,media,min,multiple,muted,name,novalidate,open,optimum,pattern,ping,placeholder,poster,preload,radiogroup,readonly,referrerpolicy,rel,required,reversed,rows,rowspan,sandbox,scope,scoped,selected,shape,size,sizes,slot,span,spellcheck,src,srcdoc,srclang,srcset,start,step,style,summary,tabindex,target,title,translate,type,usemap,value,width,wrap`
-            );
-            const isKnownSvgAttr = makeMap(
-                `xmlns,accent-height,accumulate,additive,alignment-baseline,alphabetic,amplitude,arabic-form,ascent,attributeName,attributeType,azimuth,baseFrequency,baseline-shift,baseProfile,bbox,begin,bias,by,calcMode,cap-height,class,clip,clipPathUnits,clip-path,clip-rule,color,color-interpolation,color-interpolation-filters,color-profile,color-rendering,contentScriptType,contentStyleType,crossorigin,cursor,cx,cy,d,decelerate,descent,diffuseConstant,direction,display,divisor,dominant-baseline,dur,dx,dy,edgeMode,elevation,enable-background,end,exponent,fill,fill-opacity,fill-rule,filter,filterRes,filterUnits,flood-color,flood-opacity,font-family,font-size,font-size-adjust,font-stretch,font-style,font-variant,font-weight,format,from,fr,fx,fy,g1,g2,glyph-name,glyph-orientation-horizontal,glyph-orientation-vertical,glyphRef,gradientTransform,gradientUnits,hanging,height,href,hreflang,horiz-adv-x,horiz-origin-x,id,ideographic,image-rendering,in,in2,intercept,k,k1,k2,k3,k4,kernelMatrix,kernelUnitLength,kerning,keyPoints,keySplines,keyTimes,lang,lengthAdjust,letter-spacing,lighting-color,limitingConeAngle,local,marker-end,marker-mid,marker-start,markerHeight,markerUnits,markerWidth,mask,maskContentUnits,maskUnits,mathematical,max,media,method,min,mode,name,numOctaves,offset,opacity,operator,order,orient,orientation,origin,overflow,overline-position,overline-thickness,panose-1,paint-order,path,pathLength,patternContentUnits,patternTransform,patternUnits,ping,pointer-events,points,pointsAtX,pointsAtY,pointsAtZ,preserveAlpha,preserveAspectRatio,primitiveUnits,r,radius,referrerPolicy,refX,refY,rel,rendering-intent,repeatCount,repeatDur,requiredExtensions,requiredFeatures,restart,result,rotate,rx,ry,scale,seed,shape-rendering,slope,spacing,specularConstant,specularExponent,speed,spreadMethod,startOffset,stdDeviation,stemh,stemv,stitchTiles,stop-color,stop-opacity,strikethrough-position,strikethrough-thickness,string,stroke,stroke-dasharray,stroke-dashoffset,stroke-linecap,stroke-linejoin,stroke-miterlimit,stroke-opacity,stroke-width,style,surfaceScale,systemLanguage,tabindex,tableValues,target,targetX,targetY,text-anchor,text-decoration,text-rendering,textLength,to,transform,transform-origin,type,u1,u2,underline-position,underline-thickness,unicode,unicode-bidi,unicode-range,units-per-em,v-alphabetic,v-hanging,v-ideographic,v-mathematical,values,vector-effect,version,vert-adv-y,vert-origin-x,vert-origin-y,viewBox,viewTarget,visibility,width,widths,word-spacing,writing-mode,x,x-height,x1,x2,xChannelSelector,xlink:actuate,xlink:arcrole,xlink:href,xlink:role,xlink:show,xlink:title,xlink:type,xmlns:xlink,xml:base,xml:lang,xml:space,y,y1,y2,yChannelSelector,z,zoomAndPan`
-            );
-
-            function isRenderableAttrValue(value) {
-                if (value == null) {
+            const aKeysCount = Object.keys(a).length;
+            const bKeysCount = Object.keys(b).length;
+            if (aKeysCount !== bKeysCount) {
+                return false;
+            }
+            for (const key in a) {
+                const aHasKey = a.hasOwnProperty(key);
+                const bHasKey = b.hasOwnProperty(key);
+                if (aHasKey && !bHasKey || !aHasKey && bHasKey || !looseEqual(a[key], b[key])) {
                     return false;
                 }
-                const type = typeof value;
-                return type === "string" || type === "number" || type === "boolean";
             }
+        }
+        return String(a) === String(b);
+    }
 
-            const cssVarNameEscapeSymbolsRE = /[ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g;
+    function looseIndexOf(arr, val) {
+        return arr.findIndex((item) => looseEqual(item, val));
+    }
 
-            function getEscapedCssVarName(key, doubleEscape) {
-                return key.replace(
-                    cssVarNameEscapeSymbolsRE,
-                    (s) => `\\${s}`
+    const isRef$1 = (val) => {
+        return !!(val && val["__v_isRef"] === true);
+    };
+    const toDisplayString = (val) => {
+        return isString(val) ? val : val == null ? "" : isArray(val) || isObject(val) && (val.toString === objectToString || !isFunction(val.toString)) ? isRef$1(val) ? toDisplayString(val.value) : JSON.stringify(val, replacer, 2) : String(val);
+    };
+    const replacer = (_key, val) => {
+        if (isRef$1(val)) {
+            return replacer(_key, val.value);
+        } else if (isMap(val)) {
+            return {
+                [`Map(${val.size})`]: [...val.entries()].reduce(
+                    (entries, [key, val2], i) => {
+                        entries[stringifySymbol(key, i) + " =>"] = val2;
+                        return entries;
+                    }, {}
+                )
+            };
+        } else if (isSet(val)) {
+            return {
+                [`Set(${val.size})`]: [...val.values()].map((v) => stringifySymbol(v))
+            };
+        } else if (isSymbol(val)) {
+            return stringifySymbol(val);
+        } else if (isObject(val) && !isArray(val) && !isPlainObject(val)) {
+            return String(val);
+        }
+        return val;
+    };
+    const stringifySymbol = (v, i = "") => {
+        var _a;
+        return (
+
+
+            isSymbol(v) ? `Symbol(${(_a = v.description) != null ? _a : i})` : v
+        );
+    };
+
+    function normalizeCssVarValue(value) {
+        if (value == null) {
+            return "initial";
+        }
+        if (typeof value === "string") {
+            return value === "" ? " " : value;
+        }
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+            {
+                console.warn(
+                    "[Vue warn] Invalid value used for CSS binding. Expected a string or a finite number but received:",
+                    value
                 );
             }
+        }
+        return String(value);
+    }
 
-            function looseCompareArrays(a, b) {
-                if (a.length !== b.length) return false;
-                let equal = true;
-                for (let i = 0; equal && i < a.length; i++) {
-                    equal = looseEqual(a[i], b[i]);
-                }
-                return equal;
+    function warn$2(msg, ...args) {
+        console.warn(`[Vue warn] ${msg}`, ...args);
+    }
+
+    let activeEffectScope;
+    class EffectScope {
+        constructor(detached = false) {
+            this.detached = detached;
+
+            this._active = true;
+
+            this._on = 0;
+
+            this.effects = [];
+
+            this.cleanups = [];
+            this._isPaused = false;
+            this.parent = activeEffectScope;
+            if (!detached && activeEffectScope) {
+                this.index = (activeEffectScope.scopes || (activeEffectScope.scopes = [])).push(
+                    this
+                ) - 1;
             }
-
-            function looseEqual(a, b) {
-                if (a === b) return true;
-                let aValidType = isDate(a);
-                let bValidType = isDate(b);
-                if (aValidType || bValidType) {
-                    return aValidType && bValidType ? a.getTime() === b.getTime() : false;
-                }
-                aValidType = isSymbol(a);
-                bValidType = isSymbol(b);
-                if (aValidType || bValidType) {
-                    return a === b;
-                }
-                aValidType = isArray(a);
-                bValidType = isArray(b);
-                if (aValidType || bValidType) {
-                    return aValidType && bValidType ? looseCompareArrays(a, b) : false;
-                }
-                aValidType = isObject(a);
-                bValidType = isObject(b);
-                if (aValidType || bValidType) {
-                    if (!aValidType || !bValidType) {
-                        return false;
-                    }
-                    const aKeysCount = Object.keys(a).length;
-                    const bKeysCount = Object.keys(b).length;
-                    if (aKeysCount !== bKeysCount) {
-                        return false;
-                    }
-                    for (const key in a) {
-                        const aHasKey = a.hasOwnProperty(key);
-                        const bHasKey = b.hasOwnProperty(key);
-                        if (aHasKey && !bHasKey || !aHasKey && bHasKey || !looseEqual(a[key], b[key])) {
-                            return false;
-                        }
+        }
+        get active() {
+            return this._active;
+        }
+        pause() {
+            if (this._active) {
+                this._isPaused = true;
+                let i, l;
+                if (this.scopes) {
+                    for (i = 0, l = this.scopes.length; i < l; i++) {
+                        this.scopes[i].pause();
                     }
                 }
-                return String(a) === String(b);
-            }
-
-            function looseIndexOf(arr, val) {
-                return arr.findIndex((item) => looseEqual(item, val));
-            }
-
-            const isRef$1 = (val) => {
-                return !!(val && val["__v_isRef"] === true);
-            };
-            const toDisplayString = (val) => {
-                return isString(val) ? val : val == null ? "" : isArray(val) || isObject(val) && (val.toString === objectToString || !isFunction(val.toString)) ? isRef$1(val) ? toDisplayString(val.value) : JSON.stringify(val, replacer, 2) : String(val);
-            };
-            const replacer = (_key, val) => {
-                if (isRef$1(val)) {
-                    return replacer(_key, val.value);
-                } else if (isMap(val)) {
-                    return {
-                        [`Map(${val.size})`]: [...val.entries()].reduce(
-                            (entries, [key, val2], i) => {
-                                entries[stringifySymbol(key, i) + " =>"] = val2;
-                                return entries;
-                            }, {}
-                        )
-                    };
-                } else if (isSet(val)) {
-                    return {
-                        [`Set(${val.size})`]: [...val.values()].map((v) => stringifySymbol(v))
-                    };
-                } else if (isSymbol(val)) {
-                    return stringifySymbol(val);
-                } else if (isObject(val) && !isArray(val) && !isPlainObject(val)) {
-                    return String(val);
+                for (i = 0, l = this.effects.length; i < l; i++) {
+                    this.effects[i].pause();
                 }
-                return val;
-            };
-            const stringifySymbol = (v, i = "") => {
-                var _a;
-                return (
-
-
-                    isSymbol(v) ? `Symbol(${(_a = v.description) != null ? _a : i})` : v
-                );
-            };
-
-            function normalizeCssVarValue(value) {
-                if (value == null) {
-                    return "initial";
-                }
-                if (typeof value === "string") {
-                    return value === "" ? " " : value;
-                }
-                if (typeof value !== "number" || !Number.isFinite(value)) {
-                    {
-                        console.warn(
-                            "[Vue warn] Invalid value used for CSS binding. Expected a string or a finite number but received:",
-                            value
-                        );
-                    }
-                }
-                return String(value);
             }
+        }
 
-            function warn$2(msg, ...args) {
-                console.warn(`[Vue warn] ${msg}`, ...args);
-            }
-
-            let activeEffectScope;
-            class EffectScope {
-                constructor(detached = false) {
-                    this.detached = detached;
-
-                    this._active = true;
-
-                    this._on = 0;
-
-                    this.effects = [];
-
-                    this.cleanups = [];
+        resume() {
+            if (this._active) {
+                if (this._isPaused) {
                     this._isPaused = false;
-                    this.parent = activeEffectScope;
-                    if (!detached && activeEffectScope) {
-                        this.index = (activeEffectScope.scopes || (activeEffectScope.scopes = [])).push(
-                            this
-                        ) - 1;
-                    }
-                }
-                get active() {
-                    return this._active;
-                }
-                pause() {
-                    if (this._active) {
-                        this._isPaused = true;
-                        let i, l;
-                        if (this.scopes) {
-                            for (i = 0, l = this.scopes.length; i < l; i++) {
-                                this.scopes[i].pause();
-                            }
-                        }
-                        for (i = 0, l = this.effects.length; i < l; i++) {
-                            this.effects[i].pause();
+                    let i, l;
+                    if (this.scopes) {
+                        for (i = 0, l = this.scopes.length; i < l; i++) {
+                            this.scopes[i].resume();
                         }
                     }
-                }
-
-                resume() {
-                    if (this._active) {
-                        if (this._isPaused) {
-                            this._isPaused = false;
-                            let i, l;
-                            if (this.scopes) {
-                                for (i = 0, l = this.scopes.length; i < l; i++) {
-                                    this.scopes[i].resume();
-                                }
-                            }
-                            for (i = 0, l = this.effects.length; i < l; i++) {
-                                this.effects[i].resume();
-                            }
-                        }
-                    }
-                }
-                run(fn) {
-                    if (this._active) {
-                        const currentEffectScope = activeEffectScope;
-                        try {
-                            activeEffectScope = this;
-                            return fn();
-                        } finally {
-                            activeEffectScope = currentEffectScope;
-                        }
-                    } else {
-                        warn$2(`cannot run an inactive effect scope.`);
-                    }
-                }
-
-                on() {
-                    if (++this._on === 1) {
-                        this.prevScope = activeEffectScope;
-                        activeEffectScope = this;
-                    }
-                }
-
-                off() {
-                    if (this._on > 0 && --this._on === 0) {
-                        activeEffectScope = this.prevScope;
-                        this.prevScope = void 0;
-                    }
-                }
-                stop(fromParent) {
-                    if (this._active) {
-                        this._active = false;
-                        let i, l;
-                        for (i = 0, l = this.effects.length; i < l; i++) {
-                            this.effects[i].stop();
-                        }
-                        this.effects.length = 0;
-                        for (i = 0, l = this.cleanups.length; i < l; i++) {
-                            this.cleanups[i]();
-                        }
-                        this.cleanups.length = 0;
-                        if (this.scopes) {
-                            for (i = 0, l = this.scopes.length; i < l; i++) {
-                                this.scopes[i].stop(true);
-                            }
-                            this.scopes.length = 0;
-                        }
-                        if (!this.detached && this.parent && !fromParent) {
-                            const last = this.parent.scopes.pop();
-                            if (last && last !== this) {
-                                this.parent.scopes[this.index] = last;
-                                last.index = this.index;
-                            }
-                        }
-                        this.parent = void 0;
+                    for (i = 0, l = this.effects.length; i < l; i++) {
+                        this.effects[i].resume();
                     }
                 }
             }
-
-            function effectScope(detached) {
-                return new EffectScope(detached);
+        }
+        run(fn) {
+            if (this._active) {
+                const currentEffectScope = activeEffectScope;
+                try {
+                    activeEffectScope = this;
+                    return fn();
+                } finally {
+                    activeEffectScope = currentEffectScope;
+                }
+            } else {
+                warn$2(`cannot run an inactive effect scope.`);
             }
+        }
 
-            function getCurrentScope() {
-                return activeEffectScope;
+        on() {
+            if (++this._on === 1) {
+                this.prevScope = activeEffectScope;
+                activeEffectScope = this;
             }
+        }
 
-            function onScopeDispose(fn, failSilently = false) {
-                if (activeEffectScope) {
-                    activeEffectScope.cleanups.push(fn);
-                } else if (!failSilently) {
+        off() {
+            if (this._on > 0 && --this._on === 0) {
+                activeEffectScope = this.prevScope;
+                this.prevScope = void 0;
+            }
+        }
+        stop(fromParent) {
+            if (this._active) {
+                this._active = false;
+                let i, l;
+                for (i = 0, l = this.effects.length; i < l; i++) {
+                    this.effects[i].stop();
+                }
+                this.effects.length = 0;
+                for (i = 0, l = this.cleanups.length; i < l; i++) {
+                    this.cleanups[i]();
+                }
+                this.cleanups.length = 0;
+                if (this.scopes) {
+                    for (i = 0, l = this.scopes.length; i < l; i++) {
+                        this.scopes[i].stop(true);
+                    }
+                    this.scopes.length = 0;
+                }
+                if (!this.detached && this.parent && !fromParent) {
+                    const last = this.parent.scopes.pop();
+                    if (last && last !== this) {
+                        this.parent.scopes[this.index] = last;
+                        last.index = this.index;
+                    }
+                }
+                this.parent = void 0;
+            }
+        }
+    }
+
+    function effectScope(detached) {
+        return new EffectScope(detached);
+    }
+
+    function getCurrentScope() {
+        return activeEffectScope;
+    }
+
+    function onScopeDispose(fn, failSilently = false) {
+        if (activeEffectScope) {
+            activeEffectScope.cleanups.push(fn);
+        } else if (!failSilently) {
+            warn$2(
+                `onScopeDispose() is called when there is no active effect scope to be associated with.`
+            );
+        }
+    }
+
+    let activeSub;
+    const pausedQueueEffects = new WeakSet();
+    class ReactiveEffect {
+        constructor(fn) {
+            this.fn = fn;
+
+            this.deps = void 0;
+
+            this.depsTail = void 0;
+
+            this.flags = 1 | 4;
+
+            this.next = void 0;
+
+            this.cleanup = void 0;
+            this.scheduler = void 0;
+            if (activeEffectScope && activeEffectScope.active) {
+                activeEffectScope.effects.push(this);
+            }
+        }
+        pause() {
+            this.flags |= 64;
+        }
+        resume() {
+            if (this.flags & 64) {
+                this.flags &= -65;
+                if (pausedQueueEffects.has(this)) {
+                    pausedQueueEffects.delete(this);
+                    this.trigger();
+                }
+            }
+        }
+
+        notify() {
+            if (this.flags & 2 && !(this.flags & 32)) {
+                return;
+            }
+            if (!(this.flags & 8)) {
+                batch(this);
+            }
+        }
+        run() {
+            if (!(this.flags & 1)) {
+                return this.fn();
+            }
+            this.flags |= 2;
+            cleanupEffect(this);
+            prepareDeps(this);
+            const prevEffect = activeSub;
+            const prevShouldTrack = shouldTrack;
+            activeSub = this;
+            shouldTrack = true;
+            try {
+                return this.fn();
+            } finally {
+                if (activeSub !== this) {
                     warn$2(
-                        `onScopeDispose() is called when there is no active effect scope to be associated with.`
+                        "Active effect was not restored correctly - this is likely a Vue internal bug."
                     );
                 }
+                cleanupDeps(this);
+                activeSub = prevEffect;
+                shouldTrack = prevShouldTrack;
+                this.flags &= -3;
             }
-
-            let activeSub;
-            const pausedQueueEffects = new WeakSet();
-            class ReactiveEffect {
-                constructor(fn) {
-                    this.fn = fn;
-
-                    this.deps = void 0;
-
-                    this.depsTail = void 0;
-
-                    this.flags = 1 | 4;
-
-                    this.next = void 0;
-
-                    this.cleanup = void 0;
-                    this.scheduler = void 0;
-                    if (activeEffectScope && activeEffectScope.active) {
-                        activeEffectScope.effects.push(this);
-                    }
+        }
+        stop() {
+            if (this.flags & 1) {
+                for (let link = this.deps; link; link = link.nextDep) {
+                    removeSub(link);
                 }
-                pause() {
-                    this.flags |= 64;
-                }
-                resume() {
-                    if (this.flags & 64) {
-                        this.flags &= -65;
-                        if (pausedQueueEffects.has(this)) {
-                            pausedQueueEffects.delete(this);
-                            this.trigger();
-                        }
-                    }
-                }
+                this.deps = this.depsTail = void 0;
+                cleanupEffect(this);
+                this.onStop && this.onStop();
+                this.flags &= -2;
+            }
+        }
+        trigger() {
+            if (this.flags & 64) {
+                pausedQueueEffects.add(this);
+            } else if (this.scheduler) {
+                this.scheduler();
+            } else {
+                this.runIfDirty();
+            }
+        }
 
-                notify() {
-                    if (this.flags & 2 && !(this.flags & 32)) {
-                        return;
-                    }
-                    if (!(this.flags & 8)) {
-                        batch(this);
-                    }
-                }
-                run() {
-                    if (!(this.flags & 1)) {
-                        return this.fn();
-                    }
-                    this.flags |= 2;
-                    cleanupEffect(this);
-                    prepareDeps(this);
-                    const prevEffect = activeSub;
-                    const prevShouldTrack = shouldTrack;
-                    activeSub = this;
-                    shouldTrack = true;
+        runIfDirty() {
+            if (isDirty(this)) {
+                this.run();
+            }
+        }
+        get dirty() {
+            return isDirty(this);
+        }
+    }
+    let batchDepth = 0;
+    let batchedSub;
+    let batchedComputed;
+
+    function batch(sub, isComputed = false) {
+        sub.flags |= 8;
+        if (isComputed) {
+            sub.next = batchedComputed;
+            batchedComputed = sub;
+            return;
+        }
+        sub.next = batchedSub;
+        batchedSub = sub;
+    }
+
+    function startBatch() {
+        batchDepth++;
+    }
+
+    function endBatch() {
+        if (--batchDepth > 0) {
+            return;
+        }
+        if (batchedComputed) {
+            let e = batchedComputed;
+            batchedComputed = void 0;
+            while (e) {
+                const next = e.next;
+                e.next = void 0;
+                e.flags &= -9;
+                e = next;
+            }
+        }
+        let error;
+        while (batchedSub) {
+            let e = batchedSub;
+            batchedSub = void 0;
+            while (e) {
+                const next = e.next;
+                e.next = void 0;
+                e.flags &= -9;
+                if (e.flags & 1) {
                     try {
-                        return this.fn();
-                    } finally {
-                        if (activeSub !== this) {
-                            warn$2(
-                                "Active effect was not restored correctly - this is likely a Vue internal bug."
+                        ;
+                        e.trigger();
+                    } catch (err) {
+                        if (!error) error = err;
+                    }
+                }
+                e = next;
+            }
+        }
+        if (error) throw error;
+    }
+
+    function prepareDeps(sub) {
+        for (let link = sub.deps; link; link = link.nextDep) {
+            link.version = -1;
+            link.prevActiveLink = link.dep.activeLink;
+            link.dep.activeLink = link;
+        }
+    }
+
+    function cleanupDeps(sub) {
+        let head;
+        let tail = sub.depsTail;
+        let link = tail;
+        while (link) {
+            const prev = link.prevDep;
+            if (link.version === -1) {
+                if (link === tail) tail = prev;
+                removeSub(link);
+                removeDep(link);
+            } else {
+                head = link;
+            }
+            link.dep.activeLink = link.prevActiveLink;
+            link.prevActiveLink = void 0;
+            link = prev;
+        }
+        sub.deps = head;
+        sub.depsTail = tail;
+    }
+
+    function isDirty(sub) {
+        for (let link = sub.deps; link; link = link.nextDep) {
+            if (link.dep.version !== link.version || link.dep.computed && (refreshComputed(link.dep.computed) || link.dep.version !== link.version)) {
+                return true;
+            }
+        }
+        if (sub._dirty) {
+            return true;
+        }
+        return false;
+    }
+
+    function refreshComputed(computed) {
+        if (computed.flags & 4 && !(computed.flags & 16)) {
+            return;
+        }
+        computed.flags &= -17;
+        if (computed.globalVersion === globalVersion) {
+            return;
+        }
+        computed.globalVersion = globalVersion;
+        if (!computed.isSSR && computed.flags & 128 && (!computed.deps && !computed._dirty || !isDirty(computed))) {
+            return;
+        }
+        computed.flags |= 2;
+        const dep = computed.dep;
+        const prevSub = activeSub;
+        const prevShouldTrack = shouldTrack;
+        activeSub = computed;
+        shouldTrack = true;
+        try {
+            prepareDeps(computed);
+            const value = computed.fn(computed._value);
+            if (dep.version === 0 || hasChanged(value, computed._value)) {
+                computed.flags |= 128;
+                computed._value = value;
+                dep.version++;
+            }
+        } catch (err) {
+            dep.version++;
+            throw err;
+        } finally {
+            activeSub = prevSub;
+            shouldTrack = prevShouldTrack;
+            cleanupDeps(computed);
+            computed.flags &= -3;
+        }
+    }
+
+    function removeSub(link, soft = false) {
+        const {
+            dep,
+            prevSub,
+            nextSub
+        } = link;
+        if (prevSub) {
+            prevSub.nextSub = nextSub;
+            link.prevSub = void 0;
+        }
+        if (nextSub) {
+            nextSub.prevSub = prevSub;
+            link.nextSub = void 0;
+        }
+        if (dep.subsHead === link) {
+            dep.subsHead = nextSub;
+        }
+        if (dep.subs === link) {
+            dep.subs = prevSub;
+            if (!prevSub && dep.computed) {
+                dep.computed.flags &= -5;
+                for (let l = dep.computed.deps; l; l = l.nextDep) {
+                    removeSub(l, true);
+                }
+            }
+        }
+        if (!soft && !--dep.sc && dep.map) {
+            dep.map.delete(dep.key);
+        }
+    }
+
+    function removeDep(link) {
+        const {
+            prevDep,
+            nextDep
+        } = link;
+        if (prevDep) {
+            prevDep.nextDep = nextDep;
+            link.prevDep = void 0;
+        }
+        if (nextDep) {
+            nextDep.prevDep = prevDep;
+            link.nextDep = void 0;
+        }
+    }
+
+    function effect(fn, options) {
+        if (fn.effect instanceof ReactiveEffect) {
+            fn = fn.effect.fn;
+        }
+        const e = new ReactiveEffect(fn);
+        if (options) {
+            extend(e, options);
+        }
+        try {
+            e.run();
+        } catch (err) {
+            e.stop();
+            throw err;
+        }
+        const runner = e.run.bind(e);
+        runner.effect = e;
+        return runner;
+    }
+
+    function stop(runner) {
+        runner.effect.stop();
+    }
+    let shouldTrack = true;
+    const trackStack = [];
+
+    function pauseTracking() {
+        trackStack.push(shouldTrack);
+        shouldTrack = false;
+    }
+
+    function resetTracking() {
+        const last = trackStack.pop();
+        shouldTrack = last === void 0 ? true : last;
+    }
+
+    function cleanupEffect(e) {
+        const {
+            cleanup
+        } = e;
+        e.cleanup = void 0;
+        if (cleanup) {
+            const prevSub = activeSub;
+            activeSub = void 0;
+            try {
+                cleanup();
+            } finally {
+                activeSub = prevSub;
+            }
+        }
+    }
+
+    let globalVersion = 0;
+    class Link {
+        constructor(sub, dep) {
+            this.sub = sub;
+            this.dep = dep;
+            this.version = dep.version;
+            this.nextDep = this.prevDep = this.nextSub = this.prevSub = this.prevActiveLink = void 0;
+        }
+    }
+    class Dep {
+
+        constructor(computed) {
+            this.computed = computed;
+            this.version = 0;
+
+            this.activeLink = void 0;
+
+            this.subs = void 0;
+
+            this.map = void 0;
+            this.key = void 0;
+
+            this.sc = 0;
+
+            this.__v_skip = true; {
+                this.subsHead = void 0;
+            }
+        }
+        track(debugInfo) {
+            if (!activeSub || !shouldTrack || activeSub === this.computed) {
+                return;
+            }
+            let link = this.activeLink;
+            if (link === void 0 || link.sub !== activeSub) {
+                link = this.activeLink = new Link(activeSub, this);
+                if (!activeSub.deps) {
+                    activeSub.deps = activeSub.depsTail = link;
+                } else {
+                    link.prevDep = activeSub.depsTail;
+                    activeSub.depsTail.nextDep = link;
+                    activeSub.depsTail = link;
+                }
+                addSub(link);
+            } else if (link.version === -1) {
+                link.version = this.version;
+                if (link.nextDep) {
+                    const next = link.nextDep;
+                    next.prevDep = link.prevDep;
+                    if (link.prevDep) {
+                        link.prevDep.nextDep = next;
+                    }
+                    link.prevDep = activeSub.depsTail;
+                    link.nextDep = void 0;
+                    activeSub.depsTail.nextDep = link;
+                    activeSub.depsTail = link;
+                    if (activeSub.deps === link) {
+                        activeSub.deps = next;
+                    }
+                }
+            }
+            if (activeSub.onTrack) {
+                activeSub.onTrack(
+                    extend({
+                            effect: activeSub
+                        },
+                        debugInfo
+                    )
+                );
+            }
+            return link;
+        }
+        trigger(debugInfo) {
+            this.version++;
+            globalVersion++;
+            this.notify(debugInfo);
+        }
+        notify(debugInfo) {
+            startBatch();
+            try {
+                if (true) {
+                    for (let head = this.subsHead; head; head = head.nextSub) {
+                        if (head.sub.onTrigger && !(head.sub.flags & 8)) {
+                            head.sub.onTrigger(
+                                extend({
+                                        effect: head.sub
+                                    },
+                                    debugInfo
+                                )
                             );
                         }
-                        cleanupDeps(this);
-                        activeSub = prevEffect;
-                        shouldTrack = prevShouldTrack;
-                        this.flags &= -3;
                     }
                 }
-                stop() {
-                    if (this.flags & 1) {
-                        for (let link = this.deps; link; link = link.nextDep) {
-                            removeSub(link);
+                for (let link = this.subs; link; link = link.prevSub) {
+                    if (link.sub.notify()) {
+                        ;
+                        link.sub.dep.notify();
+                    }
+                }
+            } finally {
+                endBatch();
+            }
+        }
+    }
+
+    function addSub(link) {
+        link.dep.sc++;
+        if (link.sub.flags & 4) {
+            const computed = link.dep.computed;
+            if (computed && !link.dep.subs) {
+                computed.flags |= 4 | 16;
+                for (let l = computed.deps; l; l = l.nextDep) {
+                    addSub(l);
+                }
+            }
+            const currentTail = link.dep.subs;
+            if (currentTail !== link) {
+                link.prevSub = currentTail;
+                if (currentTail) currentTail.nextSub = link;
+            }
+            if (link.dep.subsHead === void 0) {
+                link.dep.subsHead = link;
+            }
+            link.dep.subs = link;
+        }
+    }
+    const targetMap = new WeakMap();
+    const ITERATE_KEY = Symbol(
+        "Object iterate"
+    );
+    const MAP_KEY_ITERATE_KEY = Symbol(
+        "Map keys iterate"
+    );
+    const ARRAY_ITERATE_KEY = Symbol(
+        "Array iterate"
+    );
+
+    function track(target, type, key) {
+        if (shouldTrack && activeSub) {
+            let depsMap = targetMap.get(target);
+            if (!depsMap) {
+                targetMap.set(target, depsMap = new Map());
+            }
+            let dep = depsMap.get(key);
+            if (!dep) {
+                depsMap.set(key, dep = new Dep());
+                dep.map = depsMap;
+                dep.key = key;
+            } {
+                dep.track({
+                    target,
+                    type,
+                    key
+                });
+            }
+        }
+    }
+
+    function trigger(target, type, key, newValue, oldValue, oldTarget) {
+        const depsMap = targetMap.get(target);
+        if (!depsMap) {
+            globalVersion++;
+            return;
+        }
+        const run = (dep) => {
+            if (dep) {
+                {
+                    dep.trigger({
+                        target,
+                        type,
+                        key,
+                        newValue,
+                        oldValue,
+                        oldTarget
+                    });
+                }
+            }
+        };
+        startBatch();
+        if (type === "clear") {
+            depsMap.forEach(run);
+        } else {
+            const targetIsArray = isArray(target);
+            const isArrayIndex = targetIsArray && isIntegerKey(key);
+            if (targetIsArray && key === "length") {
+                const newLength = Number(newValue);
+                depsMap.forEach((dep, key2) => {
+                    if (key2 === "length" || key2 === ARRAY_ITERATE_KEY || !isSymbol(key2) && key2 >= newLength) {
+                        run(dep);
+                    }
+                });
+            } else {
+                if (key !== void 0 || depsMap.has(void 0)) {
+                    run(depsMap.get(key));
+                }
+                if (isArrayIndex) {
+                    run(depsMap.get(ARRAY_ITERATE_KEY));
+                }
+                switch (type) {
+                case "add":
+                    if (!targetIsArray) {
+                        run(depsMap.get(ITERATE_KEY));
+                        if (isMap(target)) {
+                            run(depsMap.get(MAP_KEY_ITERATE_KEY));
                         }
-                        this.deps = this.depsTail = void 0;
-                        cleanupEffect(this);
-                        this.onStop && this.onStop();
-                        this.flags &= -2;
+                    } else if (isArrayIndex) {
+                        run(depsMap.get("length"));
                     }
-                }
-                trigger() {
-                    if (this.flags & 64) {
-                        pausedQueueEffects.add(this);
-                    } else if (this.scheduler) {
-                        this.scheduler();
-                    } else {
-                        this.runIfDirty();
-                    }
-                }
-
-                runIfDirty() {
-                    if (isDirty(this)) {
-                        this.run();
-                    }
-                }
-                get dirty() {
-                    return isDirty(this);
-                }
-            }
-            let batchDepth = 0;
-            let batchedSub;
-            let batchedComputed;
-
-            function batch(sub, isComputed = false) {
-                sub.flags |= 8;
-                if (isComputed) {
-                    sub.next = batchedComputed;
-                    batchedComputed = sub;
-                    return;
-                }
-                sub.next = batchedSub;
-                batchedSub = sub;
-            }
-
-            function startBatch() {
-                batchDepth++;
-            }
-
-            function endBatch() {
-                if (--batchDepth > 0) {
-                    return;
-                }
-                if (batchedComputed) {
-                    let e = batchedComputed;
-                    batchedComputed = void 0;
-                    while (e) {
-                        const next = e.next;
-                        e.next = void 0;
-                        e.flags &= -9;
-                        e = next;
-                    }
-                }
-                let error;
-                while (batchedSub) {
-                    let e = batchedSub;
-                    batchedSub = void 0;
-                    while (e) {
-                        const next = e.next;
-                        e.next = void 0;
-                        e.flags &= -9;
-                        if (e.flags & 1) {
-                            try {;
-                                e.trigger();
-                            } catch (err) {
-                                if (!error) error = err;
-                            }
+                    break;
+                case "delete":
+                    if (!targetIsArray) {
+                        run(depsMap.get(ITERATE_KEY));
+                        if (isMap(target)) {
+                            run(depsMap.get(MAP_KEY_ITERATE_KEY));
                         }
-                        e = next;
                     }
-                }
-                if (error) throw error;
-            }
-
-            function prepareDeps(sub) {
-                for (let link = sub.deps; link; link = link.nextDep) {
-                    link.version = -1;
-                    link.prevActiveLink = link.dep.activeLink;
-                    link.dep.activeLink = link;
+                    break;
+                case "set":
+                    if (isMap(target)) {
+                        run(depsMap.get(ITERATE_KEY));
+                    }
+                    break;
                 }
             }
+        }
+        endBatch();
+    }
 
-            function cleanupDeps(sub) {
-                let head;
-                let tail = sub.depsTail;
-                let link = tail;
-                while (link) {
-                    const prev = link.prevDep;
-                    if (link.version === -1) {
-                        if (link === tail) tail = prev;
-                        removeSub(link);
-                        removeDep(link);
+    function getDepFromReactive(object, key) {
+        const depMap = targetMap.get(object);
+        return depMap && depMap.get(key);
+    }
+
+    function reactiveReadArray(array) {
+        const raw = toRaw(array);
+        if (raw === array) return raw;
+        track(raw, "iterate", ARRAY_ITERATE_KEY);
+        return isShallow(array) ? raw : raw.map(toReactive);
+    }
+
+    function shallowReadArray(arr) {
+        track(arr = toRaw(arr), "iterate", ARRAY_ITERATE_KEY);
+        return arr;
+    }
+    const arrayInstrumentations = {
+        __proto__: null,
+        [Symbol.iterator]() {
+            return iterator(this, Symbol.iterator, toReactive);
+        },
+        concat(...args) {
+            return reactiveReadArray(this).concat(
+                ...args.map((x) => isArray(x) ? reactiveReadArray(x) : x)
+            );
+        },
+        entries() {
+            return iterator(this, "entries", (value) => {
+                value[1] = toReactive(value[1]);
+                return value;
+            });
+        },
+        every(fn, thisArg) {
+            return apply(this, "every", fn, thisArg, void 0, arguments);
+        },
+        filter(fn, thisArg) {
+            return apply(this, "filter", fn, thisArg, (v) => v.map(toReactive), arguments);
+        },
+        find(fn, thisArg) {
+            return apply(this, "find", fn, thisArg, toReactive, arguments);
+        },
+        findIndex(fn, thisArg) {
+            return apply(this, "findIndex", fn, thisArg, void 0, arguments);
+        },
+        findLast(fn, thisArg) {
+            return apply(this, "findLast", fn, thisArg, toReactive, arguments);
+        },
+        findLastIndex(fn, thisArg) {
+            return apply(this, "findLastIndex", fn, thisArg, void 0, arguments);
+        },
+
+        forEach(fn, thisArg) {
+            return apply(this, "forEach", fn, thisArg, void 0, arguments);
+        },
+        includes(...args) {
+            return searchProxy(this, "includes", args);
+        },
+        indexOf(...args) {
+            return searchProxy(this, "indexOf", args);
+        },
+        join(separator) {
+            return reactiveReadArray(this).join(separator);
+        },
+
+        lastIndexOf(...args) {
+            return searchProxy(this, "lastIndexOf", args);
+        },
+        map(fn, thisArg) {
+            return apply(this, "map", fn, thisArg, void 0, arguments);
+        },
+        pop() {
+            return noTracking(this, "pop");
+        },
+        push(...args) {
+            return noTracking(this, "push", args);
+        },
+        reduce(fn, ...args) {
+            return reduce(this, "reduce", fn, args);
+        },
+        reduceRight(fn, ...args) {
+            return reduce(this, "reduceRight", fn, args);
+        },
+        shift() {
+            return noTracking(this, "shift");
+        },
+
+        some(fn, thisArg) {
+            return apply(this, "some", fn, thisArg, void 0, arguments);
+        },
+        splice(...args) {
+            return noTracking(this, "splice", args);
+        },
+        toReversed() {
+            return reactiveReadArray(this).toReversed();
+        },
+        toSorted(comparer) {
+            return reactiveReadArray(this).toSorted(comparer);
+        },
+        toSpliced(...args) {
+            return reactiveReadArray(this).toSpliced(...args);
+        },
+        unshift(...args) {
+            return noTracking(this, "unshift", args);
+        },
+        values() {
+            return iterator(this, "values", toReactive);
+        }
+    };
+
+    function iterator(self, method, wrapValue) {
+        const arr = shallowReadArray(self);
+        const iter = arr[method]();
+        if (arr !== self && !isShallow(self)) {
+            iter._next = iter.next;
+            iter.next = () => {
+                const result = iter._next();
+                if (!result.done) {
+                    result.value = wrapValue(result.value);
+                }
+                return result;
+            };
+        }
+        return iter;
+    }
+    const arrayProto = Array.prototype;
+
+    function apply(self, method, fn, thisArg, wrappedRetFn, args) {
+        const arr = shallowReadArray(self);
+        const needsWrap = arr !== self && !isShallow(self);
+        const methodFn = arr[method];
+        if (methodFn !== arrayProto[method]) {
+            const result2 = methodFn.apply(self, args);
+            return needsWrap ? toReactive(result2) : result2;
+        }
+        let wrappedFn = fn;
+        if (arr !== self) {
+            if (needsWrap) {
+                wrappedFn = function (item, index) {
+                    return fn.call(this, toReactive(item), index, self);
+                };
+            } else if (fn.length > 2) {
+                wrappedFn = function (item, index) {
+                    return fn.call(this, item, index, self);
+                };
+            }
+        }
+        const result = methodFn.call(arr, wrappedFn, thisArg);
+        return needsWrap && wrappedRetFn ? wrappedRetFn(result) : result;
+    }
+
+    function reduce(self, method, fn, args) {
+        const arr = shallowReadArray(self);
+        let wrappedFn = fn;
+        if (arr !== self) {
+            if (!isShallow(self)) {
+                wrappedFn = function (acc, item, index) {
+                    return fn.call(this, acc, toReactive(item), index, self);
+                };
+            } else if (fn.length > 3) {
+                wrappedFn = function (acc, item, index) {
+                    return fn.call(this, acc, item, index, self);
+                };
+            }
+        }
+        return arr[method](wrappedFn, ...args);
+    }
+
+    function searchProxy(self, method, args) {
+        const arr = toRaw(self);
+        track(arr, "iterate", ARRAY_ITERATE_KEY);
+        const res = arr[method](...args);
+        if ((res === -1 || res === false) && isProxy(args[0])) {
+            args[0] = toRaw(args[0]);
+            return arr[method](...args);
+        }
+        return res;
+    }
+
+    function noTracking(self, method, args = []) {
+        pauseTracking();
+        startBatch();
+        const res = toRaw(self)[method].apply(self, args);
+        endBatch();
+        resetTracking();
+        return res;
+    }
+
+    const isNonTrackableKeys = makeMap(`__proto__,__v_isRef,__isVue`);
+    const builtInSymbols = new Set(
+        Object.getOwnPropertyNames(Symbol).filter((key) => key !== "arguments" && key !== "caller").map((key) => Symbol[key]).filter(isSymbol)
+    );
+
+    function hasOwnProperty(key) {
+        if (!isSymbol(key)) key = String(key);
+        const obj = toRaw(this);
+        track(obj, "has", key);
+        return obj.hasOwnProperty(key);
+    }
+    class BaseReactiveHandler {
+        constructor(_isReadonly = false, _isShallow = false) {
+            this._isReadonly = _isReadonly;
+            this._isShallow = _isShallow;
+        }
+        get(target, key, receiver) {
+            if (key === "__v_skip") return target["__v_skip"];
+            const isReadonly2 = this._isReadonly,
+                isShallow2 = this._isShallow;
+            if (key === "__v_isReactive") {
+                return !isReadonly2;
+            } else if (key === "__v_isReadonly") {
+                return isReadonly2;
+            } else if (key === "__v_isShallow") {
+                return isShallow2;
+            } else if (key === "__v_raw") {
+                if (receiver === (isReadonly2 ? isShallow2 ? shallowReadonlyMap : readonlyMap : isShallow2 ? shallowReactiveMap : reactiveMap).get(target) || // receiver is not the reactive proxy, but has the same prototype
+
+                    Object.getPrototypeOf(target) === Object.getPrototypeOf(receiver)) {
+                    return target;
+                }
+                return;
+            }
+            const targetIsArray = isArray(target);
+            if (!isReadonly2) {
+                let fn;
+                if (targetIsArray && (fn = arrayInstrumentations[key])) {
+                    return fn;
+                }
+                if (key === "hasOwnProperty") {
+                    return hasOwnProperty;
+                }
+            }
+            const res = Reflect.get(
+                target,
+                key,
+
+
+
+                isRef(target) ? target : receiver
+            );
+            if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
+                return res;
+            }
+            if (!isReadonly2) {
+                track(target, "get", key);
+            }
+            if (isShallow2) {
+                return res;
+            }
+            if (isRef(res)) {
+                const value = targetIsArray && isIntegerKey(key) ? res : res.value;
+                return isReadonly2 && isObject(value) ? readonly(value) : value;
+            }
+            if (isObject(res)) {
+                return isReadonly2 ? readonly(res) : reactive(res);
+            }
+            return res;
+        }
+    }
+    class MutableReactiveHandler extends BaseReactiveHandler {
+        constructor(isShallow2 = false) {
+            super(false, isShallow2);
+        }
+        set(target, key, value, receiver) {
+            let oldValue = target[key];
+            if (!this._isShallow) {
+                const isOldValueReadonly = isReadonly(oldValue);
+                if (!isShallow(value) && !isReadonly(value)) {
+                    oldValue = toRaw(oldValue);
+                    value = toRaw(value);
+                }
+                if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
+                    if (isOldValueReadonly) {
+                        {
+                            warn$2(
+                                `Set operation on key "${String(key)}" failed: target is readonly.`,
+                                target[key]
+                            );
+                        }
+                        return true;
                     } else {
-                        head = link;
-                    }
-                    link.dep.activeLink = link.prevActiveLink;
-                    link.prevActiveLink = void 0;
-                    link = prev;
-                }
-                sub.deps = head;
-                sub.depsTail = tail;
-            }
-
-            function isDirty(sub) {
-                for (let link = sub.deps; link; link = link.nextDep) {
-                    if (link.dep.version !== link.version || link.dep.computed && (refreshComputed(link.dep.computed) || link.dep.version !== link.version)) {
+                        oldValue.value = value;
                         return true;
                     }
                 }
-                if (sub._dirty) {
-                    return true;
-                }
-                return false;
             }
-
-            function refreshComputed(computed) {
-                if (computed.flags & 4 && !(computed.flags & 16)) {
-                    return;
-                }
-                computed.flags &= -17;
-                if (computed.globalVersion === globalVersion) {
-                    return;
-                }
-                computed.globalVersion = globalVersion;
-                if (!computed.isSSR && computed.flags & 128 && (!computed.deps && !computed._dirty || !isDirty(computed))) {
-                    return;
-                }
-                computed.flags |= 2;
-                const dep = computed.dep;
-                const prevSub = activeSub;
-                const prevShouldTrack = shouldTrack;
-                activeSub = computed;
-                shouldTrack = true;
-                try {
-                    prepareDeps(computed);
-                    const value = computed.fn(computed._value);
-                    if (dep.version === 0 || hasChanged(value, computed._value)) {
-                        computed.flags |= 128;
-                        computed._value = value;
-                        dep.version++;
-                    }
-                } catch (err) {
-                    dep.version++;
-                    throw err;
-                } finally {
-                    activeSub = prevSub;
-                    shouldTrack = prevShouldTrack;
-                    cleanupDeps(computed);
-                    computed.flags &= -3;
-                }
-            }
-
-            function removeSub(link, soft = false) {
-                const {
-                    dep,
-                    prevSub,
-                    nextSub
-                } = link;
-                if (prevSub) {
-                    prevSub.nextSub = nextSub;
-                    link.prevSub = void 0;
-                }
-                if (nextSub) {
-                    nextSub.prevSub = prevSub;
-                    link.nextSub = void 0;
-                }
-                if (dep.subsHead === link) {
-                    dep.subsHead = nextSub;
-                }
-                if (dep.subs === link) {
-                    dep.subs = prevSub;
-                    if (!prevSub && dep.computed) {
-                        dep.computed.flags &= -5;
-                        for (let l = dep.computed.deps; l; l = l.nextDep) {
-                            removeSub(l, true);
-                        }
-                    }
-                }
-                if (!soft && !--dep.sc && dep.map) {
-                    dep.map.delete(dep.key);
-                }
-            }
-
-            function removeDep(link) {
-                const {
-                    prevDep,
-                    nextDep
-                } = link;
-                if (prevDep) {
-                    prevDep.nextDep = nextDep;
-                    link.prevDep = void 0;
-                }
-                if (nextDep) {
-                    nextDep.prevDep = prevDep;
-                    link.nextDep = void 0;
-                }
-            }
-
-            function effect(fn, options) {
-                if (fn.effect instanceof ReactiveEffect) {
-                    fn = fn.effect.fn;
-                }
-                const e = new ReactiveEffect(fn);
-                if (options) {
-                    extend(e, options);
-                }
-                try {
-                    e.run();
-                } catch (err) {
-                    e.stop();
-                    throw err;
-                }
-                const runner = e.run.bind(e);
-                runner.effect = e;
-                return runner;
-            }
-
-            function stop(runner) {
-                runner.effect.stop();
-            }
-            let shouldTrack = true;
-            const trackStack = [];
-
-            function pauseTracking() {
-                trackStack.push(shouldTrack);
-                shouldTrack = false;
-            }
-
-            function resetTracking() {
-                const last = trackStack.pop();
-                shouldTrack = last === void 0 ? true : last;
-            }
-
-            function cleanupEffect(e) {
-                const {
-                    cleanup
-                } = e;
-                e.cleanup = void 0;
-                if (cleanup) {
-                    const prevSub = activeSub;
-                    activeSub = void 0;
-                    try {
-                        cleanup();
-                    } finally {
-                        activeSub = prevSub;
-                    }
-                }
-            }
-
-            let globalVersion = 0;
-            class Link {
-                constructor(sub, dep) {
-                    this.sub = sub;
-                    this.dep = dep;
-                    this.version = dep.version;
-                    this.nextDep = this.prevDep = this.nextSub = this.prevSub = this.prevActiveLink = void 0;
-                }
-            }
-            class Dep {
-
-                constructor(computed) {
-                    this.computed = computed;
-                    this.version = 0;
-
-                    this.activeLink = void 0;
-
-                    this.subs = void 0;
-
-                    this.map = void 0;
-                    this.key = void 0;
-
-                    this.sc = 0;
-
-                    this.__v_skip = true; {
-                        this.subsHead = void 0;
-                    }
-                }
-                track(debugInfo) {
-                    if (!activeSub || !shouldTrack || activeSub === this.computed) {
-                        return;
-                    }
-                    let link = this.activeLink;
-                    if (link === void 0 || link.sub !== activeSub) {
-                        link = this.activeLink = new Link(activeSub, this);
-                        if (!activeSub.deps) {
-                            activeSub.deps = activeSub.depsTail = link;
-                        } else {
-                            link.prevDep = activeSub.depsTail;
-                            activeSub.depsTail.nextDep = link;
-                            activeSub.depsTail = link;
-                        }
-                        addSub(link);
-                    } else if (link.version === -1) {
-                        link.version = this.version;
-                        if (link.nextDep) {
-                            const next = link.nextDep;
-                            next.prevDep = link.prevDep;
-                            if (link.prevDep) {
-                                link.prevDep.nextDep = next;
-                            }
-                            link.prevDep = activeSub.depsTail;
-                            link.nextDep = void 0;
-                            activeSub.depsTail.nextDep = link;
-                            activeSub.depsTail = link;
-                            if (activeSub.deps === link) {
-                                activeSub.deps = next;
-                            }
-                        }
-                    }
-                    if (activeSub.onTrack) {
-                        activeSub.onTrack(
-                            extend({
-                                    effect: activeSub
-                                },
-                                debugInfo
-                            )
-                        );
-                    }
-                    return link;
-                }
-                trigger(debugInfo) {
-                    this.version++;
-                    globalVersion++;
-                    this.notify(debugInfo);
-                }
-                notify(debugInfo) {
-                    startBatch();
-                    try {
-                        if (true) {
-                            for (let head = this.subsHead; head; head = head.nextSub) {
-                                if (head.sub.onTrigger && !(head.sub.flags & 8)) {
-                                    head.sub.onTrigger(
-                                        extend({
-                                                effect: head.sub
-                                            },
-                                            debugInfo
-                                        )
-                                    );
-                                }
-                            }
-                        }
-                        for (let link = this.subs; link; link = link.prevSub) {
-                            if (link.sub.notify()) {;
-                                link.sub.dep.notify();
-                            }
-                        }
-                    } finally {
-                        endBatch();
-                    }
-                }
-            }
-
-            function addSub(link) {
-                link.dep.sc++;
-                if (link.sub.flags & 4) {
-                    const computed = link.dep.computed;
-                    if (computed && !link.dep.subs) {
-                        computed.flags |= 4 | 16;
-                        for (let l = computed.deps; l; l = l.nextDep) {
-                            addSub(l);
-                        }
-                    }
-                    const currentTail = link.dep.subs;
-                    if (currentTail !== link) {
-                        link.prevSub = currentTail;
-                        if (currentTail) currentTail.nextSub = link;
-                    }
-                    if (link.dep.subsHead === void 0) {
-                        link.dep.subsHead = link;
-                    }
-                    link.dep.subs = link;
-                }
-            }
-            const targetMap = new WeakMap();
-            const ITERATE_KEY = Symbol(
-                "Object iterate"
+            const hadKey = isArray(target) && isIntegerKey(key) ? Number(key) < target.length : hasOwn(target, key);
+            const result = Reflect.set(
+                target,
+                key,
+                value,
+                isRef(target) ? target : receiver
             );
-            const MAP_KEY_ITERATE_KEY = Symbol(
-                "Map keys iterate"
+            if (target === toRaw(receiver)) {
+                if (!hadKey) {
+                    trigger(target, "add", key, value);
+                } else if (hasChanged(value, oldValue)) {
+                    trigger(target, "set", key, value, oldValue);
+                }
+            }
+            return result;
+        }
+        deleteProperty(target, key) {
+            const hadKey = hasOwn(target, key);
+            const oldValue = target[key];
+            const result = Reflect.deleteProperty(target, key);
+            if (result && hadKey) {
+                trigger(target, "delete", key, void 0, oldValue);
+            }
+            return result;
+        }
+        has(target, key) {
+            const result = Reflect.has(target, key);
+            if (!isSymbol(key) || !builtInSymbols.has(key)) {
+                track(target, "has", key);
+            }
+            return result;
+        }
+        ownKeys(target) {
+            track(
+                target,
+                "iterate",
+                isArray(target) ? "length" : ITERATE_KEY
             );
-            const ARRAY_ITERATE_KEY = Symbol(
-                "Array iterate"
+            return Reflect.ownKeys(target);
+        }
+    }
+    class ReadonlyReactiveHandler extends BaseReactiveHandler {
+        constructor(isShallow2 = false) {
+            super(true, isShallow2);
+        }
+        set(target, key) {
+            {
+                warn$2(
+                    `Set operation on key "${String(key)}" failed: target is readonly.`,
+                    target
+                );
+            }
+            return true;
+        }
+        deleteProperty(target, key) {
+            {
+                warn$2(
+                    `Delete operation on key "${String(key)}" failed: target is readonly.`,
+                    target
+                );
+            }
+            return true;
+        }
+    }
+    const mutableHandlers = new MutableReactiveHandler();
+    const readonlyHandlers = new ReadonlyReactiveHandler();
+    const shallowReactiveHandlers = new MutableReactiveHandler(true);
+    const shallowReadonlyHandlers = new ReadonlyReactiveHandler(true);
+
+    const toShallow = (value) => value;
+    const getProto = (v) => Reflect.getPrototypeOf(v);
+
+    function createIterableMethod(method, isReadonly2, isShallow2) {
+        return function (...args) {
+            const target = this["__v_raw"];
+            const rawTarget = toRaw(target);
+            const targetIsMap = isMap(rawTarget);
+            const isPair = method === "entries" || method === Symbol.iterator && targetIsMap;
+            const isKeyOnly = method === "keys" && targetIsMap;
+            const innerIterator = target[method](...args);
+            const wrap = isShallow2 ? toShallow : isReadonly2 ? toReadonly : toReactive;
+            !isReadonly2 && track(
+                rawTarget,
+                "iterate",
+                isKeyOnly ? MAP_KEY_ITERATE_KEY : ITERATE_KEY
             );
+            return {
 
-            function track(target, type, key) {
-                if (shouldTrack && activeSub) {
-                    let depsMap = targetMap.get(target);
-                    if (!depsMap) {
-                        targetMap.set(target, depsMap = new Map());
-                    }
-                    let dep = depsMap.get(key);
-                    if (!dep) {
-                        depsMap.set(key, dep = new Dep());
-                        dep.map = depsMap;
-                        dep.key = key;
-                    } {
-                        dep.track({
-                            target,
-                            type,
-                            key
-                        });
-                    }
-                }
-            }
+                next() {
+                    const {
+                        value,
+                        done
+                    } = innerIterator.next();
+                    return done ? {
+                        value,
+                        done
+                    } : {
+                        value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
+                        done
+                    };
+                },
 
-            function trigger(target, type, key, newValue, oldValue, oldTarget) {
-                const depsMap = targetMap.get(target);
-                if (!depsMap) {
-                    globalVersion++;
-                    return;
-                }
-                const run = (dep) => {
-                    if (dep) {
-                        {
-                            dep.trigger({
-                                target,
-                                type,
-                                key,
-                                newValue,
-                                oldValue,
-                                oldTarget
-                            });
-                        }
-                    }
-                };
-                startBatch();
-                if (type === "clear") {
-                    depsMap.forEach(run);
-                } else {
-                    const targetIsArray = isArray(target);
-                    const isArrayIndex = targetIsArray && isIntegerKey(key);
-                    if (targetIsArray && key === "length") {
-                        const newLength = Number(newValue);
-                        depsMap.forEach((dep, key2) => {
-                            if (key2 === "length" || key2 === ARRAY_ITERATE_KEY || !isSymbol(key2) && key2 >= newLength) {
-                                run(dep);
-                            }
-                        });
-                    } else {
-                        if (key !== void 0 || depsMap.has(void 0)) {
-                            run(depsMap.get(key));
-                        }
-                        if (isArrayIndex) {
-                            run(depsMap.get(ARRAY_ITERATE_KEY));
-                        }
-                        switch (type) {
-                            case "add":
-                                if (!targetIsArray) {
-                                    run(depsMap.get(ITERATE_KEY));
-                                    if (isMap(target)) {
-                                        run(depsMap.get(MAP_KEY_ITERATE_KEY));
-                                    }
-                                } else if (isArrayIndex) {
-                                    run(depsMap.get("length"));
-                                }
-                                break;
-                            case "delete":
-                                if (!targetIsArray) {
-                                    run(depsMap.get(ITERATE_KEY));
-                                    if (isMap(target)) {
-                                        run(depsMap.get(MAP_KEY_ITERATE_KEY));
-                                    }
-                                }
-                                break;
-                            case "set":
-                                if (isMap(target)) {
-                                    run(depsMap.get(ITERATE_KEY));
-                                }
-                                break;
-                        }
-                    }
-                }
-                endBatch();
-            }
-
-            function getDepFromReactive(object, key) {
-                const depMap = targetMap.get(object);
-                return depMap && depMap.get(key);
-            }
-
-            function reactiveReadArray(array) {
-                const raw = toRaw(array);
-                if (raw === array) return raw;
-                track(raw, "iterate", ARRAY_ITERATE_KEY);
-                return isShallow(array) ? raw : raw.map(toReactive);
-            }
-
-            function shallowReadArray(arr) {
-                track(arr = toRaw(arr), "iterate", ARRAY_ITERATE_KEY);
-                return arr;
-            }
-            const arrayInstrumentations = {
-                __proto__: null,
                 [Symbol.iterator]() {
-                    return iterator(this, Symbol.iterator, toReactive);
-                },
-                concat(...args) {
-                    return reactiveReadArray(this).concat(
-                        ...args.map((x) => isArray(x) ? reactiveReadArray(x) : x)
-                    );
-                },
-                entries() {
-                    return iterator(this, "entries", (value) => {
-                        value[1] = toReactive(value[1]);
-                        return value;
-                    });
-                },
-                every(fn, thisArg) {
-                    return apply(this, "every", fn, thisArg, void 0, arguments);
-                },
-                filter(fn, thisArg) {
-                    return apply(this, "filter", fn, thisArg, (v) => v.map(toReactive), arguments);
-                },
-                find(fn, thisArg) {
-                    return apply(this, "find", fn, thisArg, toReactive, arguments);
-                },
-                findIndex(fn, thisArg) {
-                    return apply(this, "findIndex", fn, thisArg, void 0, arguments);
-                },
-                findLast(fn, thisArg) {
-                    return apply(this, "findLast", fn, thisArg, toReactive, arguments);
-                },
-                findLastIndex(fn, thisArg) {
-                    return apply(this, "findLastIndex", fn, thisArg, void 0, arguments);
-                },
-
-                forEach(fn, thisArg) {
-                    return apply(this, "forEach", fn, thisArg, void 0, arguments);
-                },
-                includes(...args) {
-                    return searchProxy(this, "includes", args);
-                },
-                indexOf(...args) {
-                    return searchProxy(this, "indexOf", args);
-                },
-                join(separator) {
-                    return reactiveReadArray(this).join(separator);
-                },
-
-                lastIndexOf(...args) {
-                    return searchProxy(this, "lastIndexOf", args);
-                },
-                map(fn, thisArg) {
-                    return apply(this, "map", fn, thisArg, void 0, arguments);
-                },
-                pop() {
-                    return noTracking(this, "pop");
-                },
-                push(...args) {
-                    return noTracking(this, "push", args);
-                },
-                reduce(fn, ...args) {
-                    return reduce(this, "reduce", fn, args);
-                },
-                reduceRight(fn, ...args) {
-                    return reduce(this, "reduceRight", fn, args);
-                },
-                shift() {
-                    return noTracking(this, "shift");
-                },
-
-                some(fn, thisArg) {
-                    return apply(this, "some", fn, thisArg, void 0, arguments);
-                },
-                splice(...args) {
-                    return noTracking(this, "splice", args);
-                },
-                toReversed() {
-                    return reactiveReadArray(this).toReversed();
-                },
-                toSorted(comparer) {
-                    return reactiveReadArray(this).toSorted(comparer);
-                },
-                toSpliced(...args) {
-                    return reactiveReadArray(this).toSpliced(...args);
-                },
-                unshift(...args) {
-                    return noTracking(this, "unshift", args);
-                },
-                values() {
-                    return iterator(this, "values", toReactive);
+                    return this;
                 }
             };
+        };
+    }
 
-            function iterator(self, method, wrapValue) {
-                const arr = shallowReadArray(self);
-                const iter = arr[method]();
-                if (arr !== self && !isShallow(self)) {
-                    iter._next = iter.next;
-                    iter.next = () => {
-                        const result = iter._next();
-                        if (!result.done) {
-                            result.value = wrapValue(result.value);
-                        }
-                        return result;
-                    };
-                }
-                return iter;
+    function createReadonlyMethod(type) {
+        return function (...args) {
+            {
+                const key = args[0] ? `on key "${args[0]}" ` : ``;
+                warn$2(
+                    `${capitalize(type)} operation ${key}failed: target is readonly.`,
+                    toRaw(this)
+                );
             }
-            const arrayProto = Array.prototype;
+            return type === "delete" ? false : type === "clear" ? void 0 : this;
+        };
+    }
 
-            function apply(self, method, fn, thisArg, wrappedRetFn, args) {
-                const arr = shallowReadArray(self);
-                const needsWrap = arr !== self && !isShallow(self);
-                const methodFn = arr[method];
-                if (methodFn !== arrayProto[method]) {
-                    const result2 = methodFn.apply(self, args);
-                    return needsWrap ? toReactive(result2) : result2;
-                }
-                let wrappedFn = fn;
-                if (arr !== self) {
-                    if (needsWrap) {
-                        wrappedFn = function(item, index) {
-                            return fn.call(this, toReactive(item), index, self);
-                        };
-                    } else if (fn.length > 2) {
-                        wrappedFn = function(item, index) {
-                            return fn.call(this, item, index, self);
-                        };
+    function createInstrumentations(readonly, shallow) {
+        const instrumentations = {
+            get(key) {
+                const target = this["__v_raw"];
+                const rawTarget = toRaw(target);
+                const rawKey = toRaw(key);
+                if (!readonly) {
+                    if (hasChanged(key, rawKey)) {
+                        track(rawTarget, "get", key);
                     }
+                    track(rawTarget, "get", rawKey);
                 }
-                const result = methodFn.call(arr, wrappedFn, thisArg);
-                return needsWrap && wrappedRetFn ? wrappedRetFn(result) : result;
+                const {
+                    has
+                } = getProto(rawTarget);
+                const wrap = shallow ? toShallow : readonly ? toReadonly : toReactive;
+                if (has.call(rawTarget, key)) {
+                    return wrap(target.get(key));
+                } else if (has.call(rawTarget, rawKey)) {
+                    return wrap(target.get(rawKey));
+                } else if (target !== rawTarget) {
+                    target.get(key);
+                }
+            },
+            get size() {
+                const target = this["__v_raw"];
+                !readonly && track(toRaw(target), "iterate", ITERATE_KEY);
+                return target.size;
+            },
+            has(key) {
+                const target = this["__v_raw"];
+                const rawTarget = toRaw(target);
+                const rawKey = toRaw(key);
+                if (!readonly) {
+                    if (hasChanged(key, rawKey)) {
+                        track(rawTarget, "has", key);
+                    }
+                    track(rawTarget, "has", rawKey);
+                }
+                return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey);
+            },
+            forEach(callback, thisArg) {
+                const observed = this;
+                const target = observed["__v_raw"];
+                const rawTarget = toRaw(target);
+                const wrap = shallow ? toShallow : readonly ? toReadonly : toReactive;
+                !readonly && track(rawTarget, "iterate", ITERATE_KEY);
+                return target.forEach((value, key) => {
+                    return callback.call(thisArg, wrap(value), wrap(key), observed);
+                });
             }
-
-            function reduce(self, method, fn, args) {
-                const arr = shallowReadArray(self);
-                let wrappedFn = fn;
-                if (arr !== self) {
-                    if (!isShallow(self)) {
-                        wrappedFn = function(acc, item, index) {
-                            return fn.call(this, acc, toReactive(item), index, self);
-                        };
-                    } else if (fn.length > 3) {
-                        wrappedFn = function(acc, item, index) {
-                            return fn.call(this, acc, item, index, self);
-                        };
+        };
+        extend(
+            instrumentations,
+            readonly ? {
+                add: createReadonlyMethod("add"),
+                set: createReadonlyMethod("set"),
+                delete: createReadonlyMethod("delete"),
+                clear: createReadonlyMethod("clear")
+            } : {
+                add(value) {
+                    if (!shallow && !isShallow(value) && !isReadonly(value)) {
+                        value = toRaw(value);
                     }
-                }
-                return arr[method](wrappedFn, ...args);
-            }
-
-            function searchProxy(self, method, args) {
-                const arr = toRaw(self);
-                track(arr, "iterate", ARRAY_ITERATE_KEY);
-                const res = arr[method](...args);
-                if ((res === -1 || res === false) && isProxy(args[0])) {
-                    args[0] = toRaw(args[0]);
-                    return arr[method](...args);
-                }
-                return res;
-            }
-
-            function noTracking(self, method, args = []) {
-                pauseTracking();
-                startBatch();
-                const res = toRaw(self)[method].apply(self, args);
-                endBatch();
-                resetTracking();
-                return res;
-            }
-
-            const isNonTrackableKeys = makeMap(`__proto__,__v_isRef,__isVue`);
-            const builtInSymbols = new Set(
-                Object.getOwnPropertyNames(Symbol).filter((key) => key !== "arguments" && key !== "caller").map((key) => Symbol[key]).filter(isSymbol)
-            );
-
-            function hasOwnProperty(key) {
-                if (!isSymbol(key)) key = String(key);
-                const obj = toRaw(this);
-                track(obj, "has", key);
-                return obj.hasOwnProperty(key);
-            }
-            class BaseReactiveHandler {
-                constructor(_isReadonly = false, _isShallow = false) {
-                    this._isReadonly = _isReadonly;
-                    this._isShallow = _isShallow;
-                }
-                get(target, key, receiver) {
-                    if (key === "__v_skip") return target["__v_skip"];
-                    const isReadonly2 = this._isReadonly,
-                        isShallow2 = this._isShallow;
-                    if (key === "__v_isReactive") {
-                        return !isReadonly2;
-                    } else if (key === "__v_isReadonly") {
-                        return isReadonly2;
-                    } else if (key === "__v_isShallow") {
-                        return isShallow2;
-                    } else if (key === "__v_raw") {
-                        if (receiver === (isReadonly2 ? isShallow2 ? shallowReadonlyMap : readonlyMap : isShallow2 ? shallowReactiveMap : reactiveMap).get(target) || // receiver is not the reactive proxy, but has the same prototype
-
-                            Object.getPrototypeOf(target) === Object.getPrototypeOf(receiver)) {
-                            return target;
-                        }
-                        return;
+                    const target = toRaw(this);
+                    const proto = getProto(target);
+                    const hadKey = proto.has.call(target, value);
+                    if (!hadKey) {
+                        target.add(value);
+                        trigger(target, "add", value, value);
                     }
-                    const targetIsArray = isArray(target);
-                    if (!isReadonly2) {
-                        let fn;
-                        if (targetIsArray && (fn = arrayInstrumentations[key])) {
-                            return fn;
-                        }
-                        if (key === "hasOwnProperty") {
-                            return hasOwnProperty;
-                        }
+                    return this;
+                },
+                set(key, value) {
+                    if (!shallow && !isShallow(value) && !isReadonly(value)) {
+                        value = toRaw(value);
                     }
-                    const res = Reflect.get(
-                        target,
-                        key,
-
-
-
-                        isRef(target) ? target : receiver
-                    );
-                    if (isSymbol(key) ? builtInSymbols.has(key) : isNonTrackableKeys(key)) {
-                        return res;
+                    const target = toRaw(this);
+                    const {
+                        has,
+                        get
+                    } = getProto(target);
+                    let hadKey = has.call(target, key);
+                    if (!hadKey) {
+                        key = toRaw(key);
+                        hadKey = has.call(target, key);
+                    } else {
+                        checkIdentityKeys(target, has, key);
                     }
-                    if (!isReadonly2) {
-                        track(target, "get", key);
+                    const oldValue = get.call(target, key);
+                    target.set(key, value);
+                    if (!hadKey) {
+                        trigger(target, "add", key, value);
+                    } else if (hasChanged(value, oldValue)) {
+                        trigger(target, "set", key, value, oldValue);
                     }
-                    if (isShallow2) {
-                        return res;
+                    return this;
+                },
+                delete(key) {
+                    const target = toRaw(this);
+                    const {
+                        has,
+                        get
+                    } = getProto(target);
+                    let hadKey = has.call(target, key);
+                    if (!hadKey) {
+                        key = toRaw(key);
+                        hadKey = has.call(target, key);
+                    } else {
+                        checkIdentityKeys(target, has, key);
                     }
-                    if (isRef(res)) {
-                        const value = targetIsArray && isIntegerKey(key) ? res : res.value;
-                        return isReadonly2 && isObject(value) ? readonly(value) : value;
-                    }
-                    if (isObject(res)) {
-                        return isReadonly2 ? readonly(res) : reactive(res);
-                    }
-                    return res;
-                }
-            }
-            class MutableReactiveHandler extends BaseReactiveHandler {
-                constructor(isShallow2 = false) {
-                    super(false, isShallow2);
-                }
-                set(target, key, value, receiver) {
-                    let oldValue = target[key];
-                    if (!this._isShallow) {
-                        const isOldValueReadonly = isReadonly(oldValue);
-                        if (!isShallow(value) && !isReadonly(value)) {
-                            oldValue = toRaw(oldValue);
-                            value = toRaw(value);
-                        }
-                        if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
-                            if (isOldValueReadonly) {
-                                {
-                                    warn$2(
-                                        `Set operation on key "${String(key)}" failed: target is readonly.`,
-                                        target[key]
-                                    );
-                                }
-                                return true;
-                            } else {
-                                oldValue.value = value;
-                                return true;
-                            }
-                        }
-                    }
-                    const hadKey = isArray(target) && isIntegerKey(key) ? Number(key) < target.length : hasOwn(target, key);
-                    const result = Reflect.set(
-                        target,
-                        key,
-                        value,
-                        isRef(target) ? target : receiver
-                    );
-                    if (target === toRaw(receiver)) {
-                        if (!hadKey) {
-                            trigger(target, "add", key, value);
-                        } else if (hasChanged(value, oldValue)) {
-                            trigger(target, "set", key, value, oldValue);
-                        }
-                    }
-                    return result;
-                }
-                deleteProperty(target, key) {
-                    const hadKey = hasOwn(target, key);
-                    const oldValue = target[key];
-                    const result = Reflect.deleteProperty(target, key);
-                    if (result && hadKey) {
+                    const oldValue = get ? get.call(target, key) : void 0;
+                    const result = target.delete(key);
+                    if (hadKey) {
                         trigger(target, "delete", key, void 0, oldValue);
                     }
                     return result;
-                }
-                has(target, key) {
-                    const result = Reflect.has(target, key);
-                    if (!isSymbol(key) || !builtInSymbols.has(key)) {
-                        track(target, "has", key);
+                },
+                clear() {
+                    const target = toRaw(this);
+                    const hadItems = target.size !== 0;
+                    const oldTarget = isMap(target) ? new Map(target) : new Set(target);
+                    const result = target.clear();
+                    if (hadItems) {
+                        trigger(
+                            target,
+                            "clear",
+                            void 0,
+                            void 0,
+                            oldTarget
+                        );
                     }
                     return result;
                 }
-                ownKeys(target) {
-                    track(
-                        target,
-                        "iterate",
-                        isArray(target) ? "length" : ITERATE_KEY
-                    );
-                    return Reflect.ownKeys(target);
-                }
             }
-            class ReadonlyReactiveHandler extends BaseReactiveHandler {
-                constructor(isShallow2 = false) {
-                    super(true, isShallow2);
-                }
-                set(target, key) {
-                    {
-                        warn$2(
-                            `Set operation on key "${String(key)}" failed: target is readonly.`,
-                            target
-                        );
-                    }
-                    return true;
-                }
-                deleteProperty(target, key) {
-                    {
-                        warn$2(
-                            `Delete operation on key "${String(key)}" failed: target is readonly.`,
-                            target
-                        );
-                    }
-                    return true;
-                }
+        );
+        const iteratorMethods = [
+            "keys",
+            "values",
+            "entries",
+            Symbol.iterator
+        ];
+        iteratorMethods.forEach((method) => {
+            instrumentations[method] = createIterableMethod(method, readonly, shallow);
+        });
+        return instrumentations;
+    }
+
+    function createInstrumentationGetter(isReadonly2, shallow) {
+        const instrumentations = createInstrumentations(isReadonly2, shallow);
+        return (target, key, receiver) => {
+            if (key === "__v_isReactive") {
+                return !isReadonly2;
+            } else if (key === "__v_isReadonly") {
+                return isReadonly2;
+            } else if (key === "__v_raw") {
+                return target;
             }
-            const mutableHandlers = new MutableReactiveHandler();
-            const readonlyHandlers = new ReadonlyReactiveHandler();
-            const shallowReactiveHandlers = new MutableReactiveHandler(true);
-            const shallowReadonlyHandlers = new ReadonlyReactiveHandler(true);
+            return Reflect.get(
+                hasOwn(instrumentations, key) && key in target ? instrumentations : target,
+                key,
+                receiver
+            );
+        };
+    }
+    const mutableCollectionHandlers = {
+        get: createInstrumentationGetter(false, false)
+    };
+    const shallowCollectionHandlers = {
+        get: createInstrumentationGetter(false, true)
+    };
+    const readonlyCollectionHandlers = {
+        get: createInstrumentationGetter(true, false)
+    };
+    const shallowReadonlyCollectionHandlers = {
+        get: createInstrumentationGetter(true, true)
+    };
 
-            const toShallow = (value) => value;
-            const getProto = (v) => Reflect.getPrototypeOf(v);
-
-            function createIterableMethod(method, isReadonly2, isShallow2) {
-                return function(...args) {
-                    const target = this["__v_raw"];
-                    const rawTarget = toRaw(target);
-                    const targetIsMap = isMap(rawTarget);
-                    const isPair = method === "entries" || method === Symbol.iterator && targetIsMap;
-                    const isKeyOnly = method === "keys" && targetIsMap;
-                    const innerIterator = target[method](...args);
-                    const wrap = isShallow2 ? toShallow : isReadonly2 ? toReadonly : toReactive;
-                    !isReadonly2 && track(
-                        rawTarget,
-                        "iterate",
-                        isKeyOnly ? MAP_KEY_ITERATE_KEY : ITERATE_KEY
-                    );
-                    return {
-
-                        next() {
-                            const {
-                                value,
-                                done
-                            } = innerIterator.next();
-                            return done ? {
-                                value,
-                                done
-                            } : {
-                                value: isPair ? [wrap(value[0]), wrap(value[1])] : wrap(value),
-                                done
-                            };
-                        },
-
-                        [Symbol.iterator]() {
-                            return this;
-                        }
-                    };
-                };
-            }
-
-            function createReadonlyMethod(type) {
-                return function(...args) {
-                    {
-                        const key = args[0] ? `on key "${args[0]}" ` : ``;
-                        warn$2(
-                            `${capitalize(type)} operation ${key}failed: target is readonly.`,
-                            toRaw(this)
-                        );
-                    }
-                    return type === "delete" ? false : type === "clear" ? void 0 : this;
-                };
-            }
-
-            function createInstrumentations(readonly, shallow) {
-                const instrumentations = {
-                    get(key) {
-                        const target = this["__v_raw"];
-                        const rawTarget = toRaw(target);
-                        const rawKey = toRaw(key);
-                        if (!readonly) {
-                            if (hasChanged(key, rawKey)) {
-                                track(rawTarget, "get", key);
-                            }
-                            track(rawTarget, "get", rawKey);
-                        }
-                        const {
-                            has
-                        } = getProto(rawTarget);
-                        const wrap = shallow ? toShallow : readonly ? toReadonly : toReactive;
-                        if (has.call(rawTarget, key)) {
-                            return wrap(target.get(key));
-                        } else if (has.call(rawTarget, rawKey)) {
-                            return wrap(target.get(rawKey));
-                        } else if (target !== rawTarget) {
-                            target.get(key);
-                        }
-                    },
-                    get size() {
-                        const target = this["__v_raw"];
-                        !readonly && track(toRaw(target), "iterate", ITERATE_KEY);
-                        return target.size;
-                    },
-                    has(key) {
-                        const target = this["__v_raw"];
-                        const rawTarget = toRaw(target);
-                        const rawKey = toRaw(key);
-                        if (!readonly) {
-                            if (hasChanged(key, rawKey)) {
-                                track(rawTarget, "has", key);
-                            }
-                            track(rawTarget, "has", rawKey);
-                        }
-                        return key === rawKey ? target.has(key) : target.has(key) || target.has(rawKey);
-                    },
-                    forEach(callback, thisArg) {
-                        const observed = this;
-                        const target = observed["__v_raw"];
-                        const rawTarget = toRaw(target);
-                        const wrap = shallow ? toShallow : readonly ? toReadonly : toReactive;
-                        !readonly && track(rawTarget, "iterate", ITERATE_KEY);
-                        return target.forEach((value, key) => {
-                            return callback.call(thisArg, wrap(value), wrap(key), observed);
-                        });
-                    }
-                };
-                extend(
-                    instrumentations,
-                    readonly ? {
-                        add: createReadonlyMethod("add"),
-                        set: createReadonlyMethod("set"),
-                        delete: createReadonlyMethod("delete"),
-                        clear: createReadonlyMethod("clear")
-                    } : {
-                        add(value) {
-                            if (!shallow && !isShallow(value) && !isReadonly(value)) {
-                                value = toRaw(value);
-                            }
-                            const target = toRaw(this);
-                            const proto = getProto(target);
-                            const hadKey = proto.has.call(target, value);
-                            if (!hadKey) {
-                                target.add(value);
-                                trigger(target, "add", value, value);
-                            }
-                            return this;
-                        },
-                        set(key, value) {
-                            if (!shallow && !isShallow(value) && !isReadonly(value)) {
-                                value = toRaw(value);
-                            }
-                            const target = toRaw(this);
-                            const {
-                                has,
-                                get
-                            } = getProto(target);
-                            let hadKey = has.call(target, key);
-                            if (!hadKey) {
-                                key = toRaw(key);
-                                hadKey = has.call(target, key);
-                            } else {
-                                checkIdentityKeys(target, has, key);
-                            }
-                            const oldValue = get.call(target, key);
-                            target.set(key, value);
-                            if (!hadKey) {
-                                trigger(target, "add", key, value);
-                            } else if (hasChanged(value, oldValue)) {
-                                trigger(target, "set", key, value, oldValue);
-                            }
-                            return this;
-                        },
-                        delete(key) {
-                            const target = toRaw(this);
-                            const {
-                                has,
-                                get
-                            } = getProto(target);
-                            let hadKey = has.call(target, key);
-                            if (!hadKey) {
-                                key = toRaw(key);
-                                hadKey = has.call(target, key);
-                            } else {
-                                checkIdentityKeys(target, has, key);
-                            }
-                            const oldValue = get ? get.call(target, key) : void 0;
-                            const result = target.delete(key);
-                            if (hadKey) {
-                                trigger(target, "delete", key, void 0, oldValue);
-                            }
-                            return result;
-                        },
-                        clear() {
-                            const target = toRaw(this);
-                            const hadItems = target.size !== 0;
-                            const oldTarget = isMap(target) ? new Map(target) : new Set(target);
-                            const result = target.clear();
-                            if (hadItems) {
-                                trigger(
-                                    target,
-                                    "clear",
-                                    void 0,
-                                    void 0,
-                                    oldTarget
-                                );
-                            }
-                            return result;
-                        }
-                    }
-                );
-                const iteratorMethods = [
-                    "keys",
-                    "values",
-                    "entries",
-                    Symbol.iterator
-                ];
-                iteratorMethods.forEach((method) => {
-                    instrumentations[method] = createIterableMethod(method, readonly, shallow);
-                });
-                return instrumentations;
-            }
-
-            function createInstrumentationGetter(isReadonly2, shallow) {
-                const instrumentations = createInstrumentations(isReadonly2, shallow);
-                return (target, key, receiver) => {
-                    if (key === "__v_isReactive") {
-                        return !isReadonly2;
-                    } else if (key === "__v_isReadonly") {
-                        return isReadonly2;
-                    } else if (key === "__v_raw") {
-                        return target;
-                    }
-                    return Reflect.get(
-                        hasOwn(instrumentations, key) && key in target ? instrumentations : target,
-                        key,
-                        receiver
-                    );
-                };
-            }
-            const mutableCollectionHandlers = {
-                get: createInstrumentationGetter(false, false)
-            };
-            const shallowCollectionHandlers = {
-                get: createInstrumentationGetter(false, true)
-            };
-            const readonlyCollectionHandlers = {
-                get: createInstrumentationGetter(true, false)
-            };
-            const shallowReadonlyCollectionHandlers = {
-                get: createInstrumentationGetter(true, true)
-            };
-
-            function checkIdentityKeys(target, has, key) {
-                const rawKey = toRaw(key);
-                if (rawKey !== key && has.call(target, rawKey)) {
-                    const type = toRawType(target);
-                    warn$2(
-                            `Reactive ${type} contains both the raw and reactive versions of the same object${type === `Map` ? ` as keys` : ``}, which can lead to inconsistencies. Avoid differentiating between the raw and reactive versions of an object and only use the reactive version if possible.`
+    function checkIdentityKeys(target, has, key) {
+        const rawKey = toRaw(key);
+        if (rawKey !== key && has.call(target, rawKey)) {
+            const type = toRawType(target);
+            warn$2(
+                `Reactive ${type} contains both the raw and reactive versions of the same object${type === `Map` ? ` as keys` : ``}, which can lead to inconsistencies. Avoid differentiating between the raw and reactive versions of an object and only use the reactive version if possible.`
             );
         }
     }
