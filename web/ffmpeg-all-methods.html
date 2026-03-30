@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg 完整方法示例</title>
+    <style>
+        * {
+            margin: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a90e2;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section h2 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a90e2;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .button-group button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .button-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+        }
+        
+        .button-group button:active {
+            transform: translateY(0);
+        }
+        
+        .output {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #00cec9;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0aec0;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: rgba(74, 144, 226, 0.1);
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #e74c3c;
+        }
+        
+        .status-indicator.ready {
+            background: #27ae60;
+        }
+        
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-item {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-time {
+            color: #6c5ce7;
+            margin-right: 10px;
+        }
+        
+        .log-type {
+            color: #00cec9;
+            margin-right: 10px;
+        }
+        
+        .log-message {
+            color: #e0e0e0;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a90e2, #00cec9);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .file-item {
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-name {
+            color: #00cec9;
+        }
+        
+        .file-size {
+            color: #a0aec0;
+            font-size: 12px;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .file-actions button {
+            padding: 3px 8px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎬 FFmpeg 完整方法示例</h1>
+
+        <!-- 状态栏 -->
+        <div class="section">
+            <h2>状态栏</h2>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-indicator" id="status-indicator"></div>
+                    <span id="status-text">未加载</span>
+                </div>
+                <div class="status-item">
+                    <span>版本:</span>
+                    <span id="version-text">FFmpeg WASM Core</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载控制 -->
+        <div class="section">
+            <h2>1. 加载控制</h2>
+            <div class="button-group">
+                <button onclick="demoLoad()">加载 FFmpeg</button>
+                <button onclick="demoReset()">重置</button>
+            </div>
+            <div class="output" id="load-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 文件系统操作 -->
+        <div class="section">
+            <h2>2. 文件系统操作</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoWriteFile()">写入文件</button>
+                        <button onclick="demoReadFile()">读取文件</button>
+                        <button onclick="demoDeleteFile()">删除文件</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoListDir()">列出目录</button>
+                        <button onclick="demoCreateDir()">创建目录</button>
+                    </div>
+                </div>
+            </div>
+            <div class="output" id="filesystem-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- FFmpeg 命令 -->
+        <div class="section">
+            <h2>3. FFmpeg 命令</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoExecVersion()">版本信息</button>
+                        <button onclick="demoExecListFormats()">格式列表</button>
+                        <button onclick="demoExecListCodecs()">编解码器列表</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoExecHelp()">帮助信息</button>
+                        <button onclick="demoExecBuildConf()">编译配置</button>
+                    </div>
+                </div>
+            </div>
+            <div class="output" id="ffmpeg-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- FFprobe 命令 -->
+        <div class="section">
+            <h2>4. FFprobe 命令</h2>
+            <div class="button-group">
+                <button onclick="demoFfprobeVersion()">版本信息</button>
+                <button onclick="demoFfprobeHelp()">帮助信息</button>
+            </div>
+            <div class="output" id="ffprobe-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 高级设置 -->
+        <div class="section">
+            <h2>5. 高级设置</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>设置超时时间（毫秒）:</label>
+                        <input type="number" id="timeout-input" value="30000" min="0">
+                        <button onclick="demoSetTimeout()">设置</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>自定义 FFmpeg 命令:</label>
+                        <input type="text" id="custom-ffmpeg" placeholder="-version">
+                        <button onclick="demoCustomFfmpeg()">执行</button>
+                    </div>
+                </div>
+            </div>
+            <div class="output" id="settings-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 日志 -->
+        <div class="section">
+            <h2>6. 日志</h2>
+            <div class="button-group">
+                <button onclick="demoClearLog()">清空日志</button>
+            </div>
+
+            <div class="log-container" id="log-output">
+                <div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">info</span><span class="log-message">等待操作...</span></div>
+            </div>
+        </div>
+
+        <!-- 文件管理 -->
+        <div class="section">
+            <h2>7. 文件管理</h2>
+            <div class="button-group">
+                <button onclick="demoCreateTestFile()">创建测试文件</button>
+                <button onclick="demoRefreshFileList()">刷新文件列表</button>
+            </div>
+
+            <div class="file-list" id="file-list">
+                <div style="padding: 10px; color: #a0aec0; text-align: center;">暂无文件</div>
+            </div>
+
+            <div class="output" id="file-management-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 视频转码 -->
+        <div class="section">
+            <h2>8. 视频格式转码</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="form-group">
+                        <label>上传视频文件:</label>
+                        <input type="file" id="video-input" accept="video/*">
+                        <button onclick="demoUploadVideo()">上传</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>输出格式:</label>
+                        <select id="output-format">
+                            <option value="mp4">MP4 (H.264)</option>
+                            <option value="webm">WebM (VP9)</option>
+                            <option value="avi">AVI</option>
+                            <option value="mov">MOV</option>
+                            <option value="mkv">MKV</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>视频质量:</label>
+                <select id="video-quality">
+                    <option value="low">低质量 (快速)</option>
+                    <option value="medium" selected>中等质量</option>
+                    <option value="high">高质量 (慢速)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>输出文件名:</label>
+                <input type="text" id="output-filename" value="output">
+            </div>
+            <div class="button-group">
+                <button onclick="demoTranscodeVideo()">开始转码</button>
+                <button onclick="demoCancelTranscode()">取消转码</button>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="transcode-progress"></div>
+            </div>
+            <div class="output" id="transcode-output">等待上传视频...</div>
+        </div>
+    </div>
+
+    <script src="ffmpeg-core.js"></script>
+    <script>
+        let ffmpeg = null;
+        let uploadedVideoFile = null;
+        let transcodingInProgress = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus(false, '未加载');
+        });
+
+        function updateStatus(ready, text) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+
+            if (ready) {
+                indicator.classList.add('ready');
+                statusText.textContent = text || '已就绪';
+            } else {
+                indicator.classList.remove('ready');
+                statusText.textContent = text || '未加载';
+            }
+        }
+
+        function logToOutput(outputId, message) {
+            const output = document.getElementById(outputId);
+            if (output) {
+                output.innerHTML = message;
+            }
+        }
+
+        function appendToLog(logId, message, type = 'info') {
+            const logContainer = document.getElementById(logId);
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.innerHTML = `<span class="log-time">[${timeStr}]</span><span class="log-type">${type}</span><span class="log-message">${message}</span>`;
+
+            logContainer.insertBefore(logItem, logContainer.firstChild);
+
+            if (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        // 加载控制
+        async function demoLoad() {
+            if (ffmpeg) {
+                logToOutput('load-output', '✅ FFmpeg 已经加载！');
+                return;
+            }
+
+            try {
+                logToOutput('load-output', '正在加载 FFmpeg...');
+                appendToLog('log-output', '正在加载 FFmpeg...', 'info');
+
+                ffmpeg = await createFFmpegCore({
+                    locateFile: (file) => {
+                        if (file.endsWith('.wasm')) {
+                            return 'ffmpeg-core.wasm';
+                        }
+                        return file;
+                    }
+                });
+
+                updateStatus(true, '已就绪');
+                logToOutput('load-output', '✅ FFmpeg 加载成功！');
+                appendToLog('log-output', 'FFmpeg 加载成功', 'success');
+
+                ffmpeg.setLogger((msg) => {
+                    appendToLog('log-output', msg.message, msg.type);
+                });
+
+                ffmpeg.setProgress((progress) => {
+                    appendToLog('log-output', `进度: ${(progress.progress).toFixed(2)}`, 'progress');
+                });
+
+            } catch (error) {
+                logToOutput('load-output', `❌ 加载失败: ${error.message}`);
+                appendToLog('log-output', `加载失败: ${error.message}`, 'error');
+            }
+        }
+
+        function demoReset() {
+            if (!ffmpeg) {
+                logToOutput('load-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            ffmpeg.reset();
+            logToOutput('load-output', '✅ FFmpeg 已重置');
+            appendToLog('log-output', 'FFmpeg 已重置', 'info');
+        }
+
+        // 文件系统操作
+        async function demoWriteFile() {
+            if (!ffmpeg) {
+                logToOutput('filesystem-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const content = new Uint8Array([72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100]);
+                ffmpeg.FS.writeFile('/test.txt', content);
+                logToOutput('filesystem-output', '✅ 文件写入成功: /test.txt');
+                appendToLog('log-output', '文件写入成功: /test.txt', 'success');
+                await demoRefreshFileList();
+            } catch (error) {
+                logToOutput('filesystem-output', `❌ 写入失败: ${error.message}`);
+                appendToLog('log-output', `写入失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoReadFile() {
+            if (!ffmpeg) {
+                logToOutput('filesystem-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const content = ffmpeg.FS.readFile('/test.txt');
+                const text = new TextDecoder().decode(content);
+                logToOutput('filesystem-output', `✅ 文件读取成功:\n${text}`);
+                appendToLog('log-output', `文件读取成功: ${text}`, 'success');
+            } catch (error) {
+                logToOutput('filesystem-output', `❌ 读取失败: ${error.message}`);
+                appendToLog('log-output', `读取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoDeleteFile() {
+            if (!ffmpeg) {
+                logToOutput('filesystem-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                ffmpeg.FS.unlink('/test.txt');
+                logToOutput('filesystem-output', '✅ 文件删除成功: /test.txt');
+                appendToLog('log-output', '文件删除成功: /test.txt', 'success');
+                await demoRefreshFileList();
+            } catch (error) {
+                logToOutput('filesystem-output', `❌ 删除失败: ${error.message}`);
+                appendToLog('log-output', `删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoListDir() {
+            if (!ffmpeg) {
+                logToOutput('filesystem-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const files = ffmpeg.FS.readdir('/');
+                let result = '✅ 目录内容:\n';
+                for (const file of files) {
+                    result += `  ${file}\n`;
+                }
+                logToOutput('filesystem-output', result);
+                appendToLog('log-output', '目录列出成功', 'success');
+            } catch (error) {
+                logToOutput('filesystem-output', `❌ 列出失败: ${error.message}`);
+                appendToLog('log-output', `列出失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoCreateDir() {
+            if (!ffmpeg) {
+                logToOutput('filesystem-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                ffmpeg.FS.mkdir('/testdir');
+                logToOutput('filesystem-output', '✅ 目录创建成功: /testdir');
+                appendToLog('log-output', '目录创建成功: /testdir', 'success');
+                await demoRefreshFileList();
+            } catch (error) {
+                logToOutput('filesystem-output', `❌ 创建失败: ${error.message}`);
+                appendToLog('log-output', `创建失败: ${error.message}`, 'error');
+            }
+        }
+
+        // FFmpeg 命令
+        async function demoExecVersion() {
+            if (!ffmpeg) {
+                logToOutput('ffmpeg-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.exec('-version');
+                logToOutput('ffmpeg-output', `✅ 版本信息获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', '版本信息获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffmpeg-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoExecListFormats() {
+            if (!ffmpeg) {
+                logToOutput('ffmpeg-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.exec('-formats');
+                logToOutput('ffmpeg-output', `✅ 格式列表获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', '格式列表获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffmpeg-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoExecListCodecs() {
+            if (!ffmpeg) {
+                logToOutput('ffmpeg-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.exec('-codecs');
+                logToOutput('ffmpeg-output', `✅ 编解码器列表获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', '编解码器列表获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffmpeg-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoExecHelp() {
+            if (!ffmpeg) {
+                logToOutput('ffmpeg-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.exec('-help');
+                logToOutput('ffmpeg-output', `✅ 帮助信息获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', '帮助信息获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffmpeg-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoExecBuildConf() {
+            if (!ffmpeg) {
+                logToOutput('ffmpeg-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.exec('-buildconf');
+                logToOutput('ffmpeg-output', `✅ 编译配置获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', '编译配置获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffmpeg-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        // FFprobe 命令
+        async function demoFfprobeVersion() {
+            if (!ffmpeg) {
+                logToOutput('ffprobe-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.ffprobe('-version');
+                logToOutput('ffprobe-output', `✅ FFprobe 版本信息获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', 'FFprobe 版本信息获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffprobe-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoFfprobeHelp() {
+            if (!ffmpeg) {
+                logToOutput('ffprobe-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const ret = ffmpeg.ffprobe('-help');
+                logToOutput('ffprobe-output', `✅ FFprobe 帮助信息获取成功 (返回码: ${ret})`);
+                appendToLog('log-output', 'FFprobe 帮助信息获取成功', 'success');
+            } catch (error) {
+                logToOutput('ffprobe-output', `❌ 获取失败: ${error.message}`);
+                appendToLog('log-output', `获取失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 高级设置
+        function demoSetTimeout() {
+            if (!ffmpeg) {
+                logToOutput('settings-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            const timeout = parseInt(document.getElementById('timeout-input').value);
+            ffmpeg.setTimeout(timeout);
+            logToOutput('settings-output', `✅ 超时时间设置为: ${timeout}ms`);
+            appendToLog('log-output', `超时时间设置为: ${timeout}ms`, 'success');
+        }
+
+        async function demoCustomFfmpeg() {
+            if (!ffmpeg) {
+                logToOutput('settings-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            const cmd = document.getElementById('custom-ffmpeg').value;
+            const args = cmd.split(' ').filter(arg => arg);
+
+            try {
+                const ret = ffmpeg.exec(...args);
+                logToOutput('settings-output', `✅ 自定义命令执行成功 (返回码: ${ret})`);
+                appendToLog('log-output', `自定义命令执行成功`, 'success');
+            } catch (error) {
+                logToOutput('settings-output', `❌ 执行失败: ${error.message}`);
+                appendToLog('log-output', `执行失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 日志
+        function demoClearLog() {
+            const logContainer = document.getElementById('log-output');
+            logContainer.innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-type">info</span><span class="log-message">日志已清空</span></div>';
+            appendToLog('log-output', '日志已清空', 'info');
+        }
+
+        // 文件管理
+        async function demoCreateTestFile() {
+            if (!ffmpeg) {
+                logToOutput('file-management-output', '❌ FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const content = new Uint8Array([74, 85, 83, 84, 32, 116, 101, 115, 116, 32, 102, 105, 108, 101]);
+                ffmpeg.FS.writeFile('/demo_file.txt', content);
+                logToOutput('file-management-output', '✅ 测试文件创建成功: demo_file.txt');
+                appendToLog('log-output', '测试文件创建成功', 'success');
+                await demoRefreshFileList();
+            } catch (error) {
+                logToOutput('file-management-output', `❌ 创建失败: ${error.message}`);
+                appendToLog('log-output', `创建失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoRefreshFileList() {
+            if (!ffmpeg) {
+                return;
+            }
+
+            try {
+                const fileList = document.getElementById('file-list');
+                const files = ffmpeg.FS.readdir('/');
+
+                if (files.length === 0) {
+                    fileList.innerHTML = '<div style="padding: 10px; color: #a0aec0; text-align: center;">暂无文件</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const file of files) {
+                    try {
+                        const stat = ffmpeg.FS.stat('/' + file);
+                        html += `
+                            <div class="file-item">
+                                <div>
+                                    <span class="file-name">${file}</span>
+                                    <span class="file-size">${stat.size} bytes</span>
+                                </div>
+                                <div class="file-actions">
+                                    <button onclick="window.demoDownloadFile('${file}')">下载</button>
+                                    <button onclick="window.demoRemoveFile('${file}')">删除</button>
+                                </div>
+                            </div>
+                        `;
+                    } catch (e) {
+                        html += `
+                            <div class="file-item">
+                                <div>
+                                    <span class="file-name">${file}</span>
+                                    <span class="file-size">目录</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                fileList.innerHTML = html;
+            } catch (error) {
+                console.error('刷新文件列表失败:', error);
+            }
+        }
+
+        window.demoDownloadFile = function(filename) {
+            if (!ffmpeg) {
+                alert('FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                const content = ffmpeg.FS.readFile('/' + filename);
+                const blob = new Blob([content], {
+                    type: 'application/octet-stream'
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                appendToLog('log-output', `文件下载成功: ${filename}`, 'success');
+            } catch (error) {
+                appendToLog('log-output', `下载失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.demoRemoveFile = function(filename) {
+            if (!ffmpeg) {
+                alert('FFmpeg 未加载');
+                return;
+            }
+
+            try {
+                ffmpeg.FS.unlink('/' + filename);
+                appendToLog('log-output', `文件删除成功: ${filename}`, 'success');
+                demoRefreshFileList();
+            } catch (error) {
+                appendToLog('log-output', `删除失败: ${error.message}`, 'error');
+            }
+        };
+
+        // 视频转码功能
+        async function demoUploadVideo() {
+            if (!ffmpeg) {
+                logToOutput('transcode-output', '❌ 请先加载 FFmpeg！');
+                return;
+            }
+
+            const input = document.getElementById('video-input');
+            const file = input.files[0];
+
+            if (!file) {
+                logToOutput('transcode-output', '❌ 请选择一个视频文件！');
+                return;
+            }
+
+            try {
+                logToOutput('transcode-output', `正在上传: ${file.name}...`);
+                appendToLog('log-output', `正在上传视频: ${file.name}`, 'info');
+
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const arrayBuffer = e.target.result;
+                    const uint8Array = new Uint8Array(arrayBuffer);
+
+                    uploadedVideoFile = file.name;
+                    ffmpeg.FS.writeFile('/' + file.name, uint8Array);
+
+                    logToOutput('transcode-output', `✅ 视频上传成功: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    appendToLog('log-output', `视频上传成功: ${file.name}`, 'success');
+                    await demoRefreshFileList();
+                };
+
+                reader.onerror = function() {
+                    logToOutput('transcode-output', '❌ 文件读取失败！');
+                    appendToLog('log-output', '文件读取失败', 'error');
+                };
+
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                logToOutput('transcode-output', `❌ 上传失败: ${error.message}`);
+                appendToLog('log-output', `上传失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoTranscodeVideo() {
+            if (!ffmpeg) {
+                logToOutput('transcode-output', '❌ 请先加载 FFmpeg！');
+                return;
+            }
+
+            if (!uploadedVideoFile) {
+                logToOutput('transcode-output', '❌ 请先上传视频文件！');
+                return;
+            }
+
+            if (transcodingInProgress) {
+                logToOutput('transcode-output', '❌ 转码正在进行中...');
+                return;
+            }
+
+            const outputFormat = document.getElementById('output-format').value;
+            const quality = document.getElementById('video-quality').value;
+            const outputFilename = document.getElementById('output-filename').value || 'output';
+            const fullOutputFilename = `${outputFilename}.${outputFormat}`;
+
+            try {
+                transcodingInProgress = true;
+                logToOutput('transcode-output', `开始转码: ${uploadedVideoFile} -> ${fullOutputFilename}`);
+                appendToLog('log-output', `开始转码: ${uploadedVideoFile} -> ${fullOutputFilename}`, 'info');
+                updateTranscodeProgress(0);
+
+                // 根据质量选择参数
+                let crf = '23'; // 默认中等质量
+                let preset = 'medium';
+
+                if (quality === 'low') {
+                    crf = '28';
+                    preset = 'fast';
+                } else if (quality === 'high') {
+                    crf = '18';
+                    preset = 'slow';
+                }
+
+                // 根据输出格式选择编码器
+                let videoCodec = 'libx264';
+                let audioCodec = 'aac';
+
+                if (outputFormat === 'webm') {
+                    videoCodec = 'libvpx-vp9';
+                    audioCodec = 'libvorbis';
+                }
+
+                // 构建 FFmpeg 命令
+                const args = [
+                    '-i', uploadedVideoFile,
+                    '-c:v', videoCodec,
+                    '-crf', crf,
+                    '-preset', preset,
+                    '-c:a', audioCodec,
+                    '-y',
+                    fullOutputFilename
+                ];
+
+                logToOutput('transcode-output', `执行命令: ffmpeg ${args.join(' ')}`);
+                appendToLog('log-output', `执行命令: ffmpeg ${args.join(' ')}`, 'info');
+
+                const startTime = Date.now();
+                const ret = ffmpeg.exec(...args);
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (ret === 0) {
+                    updateTranscodeProgress(100);
+                    logToOutput('transcode-output', `✅ 转码成功！耗时: ${duration} 秒\n输出文件: ${fullOutputFilename}`);
+                    appendToLog('log-output', `转码成功！耗时: ${duration} 秒`, 'success');
+
+                    await demoRefreshFileList();
+
+                    // 提供下载链接
+                    setTimeout(() => {
+                        if (confirm('转码完成！是否下载输出文件？')) {
+                            window.demoDownloadFile(fullOutputFilename);
+                        }
+                    }, 500);
+                } else {
+                    logToOutput('transcode-output', `❌ 转码失败！返回码: ${ret}`);
+                    appendToLog('log-output', `转码失败！返回码: ${ret}`, 'error');
+                }
+            } catch (error) {
+                logToOutput('transcode-output', `❌ 转码出错: ${error.message}`);
+                appendToLog('log-output', `转码出错: ${error.message}`, 'error');
+            } finally {
+                transcodingInProgress = false;
+            }
+        }
+
+        function demoCancelTranscode() {
+            if (!transcodingInProgress) {
+                logToOutput('transcode-output', '当前没有正在进行的转码任务');
+                return;
+            }
+
+            logToOutput('transcode-output', '⚠️ 注意: ffmpeg-core.js 不支持中途取消转码');
+            appendToLog('log-output', '注意: ffmpeg-core.js 不支持中途取消转码', 'warning');
+        }
+
+        function updateTranscodeProgress(progress) {
+            const progressBar = document.getElementById('transcode-progress');
+            progressBar.style.width = `${progress}%`;
+        }
+    </script>
+</body>
+
+</html>

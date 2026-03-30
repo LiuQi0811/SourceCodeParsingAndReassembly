@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video.js 完整方法示例</title>
+    <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a90e2;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section h2 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a90e2;
+        }
+        
+        .video-wrapper {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 25px;
+        }
+        
+        .video-js {
+            width: 100%;
+            height: auto;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .button-group button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .button-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+        }
+        
+        .button-group button:active {
+            transform: translateY(0);
+        }
+        
+        .output {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #00cec9;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0aec0;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #e0e0e0;
+        }
+        
+        .event-log {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .event-item {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .event-time {
+            color: #6c5ce7;
+            margin-right: 10px;
+        }
+        
+        .event-name {
+            color: #00cec9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎬 Video.js 完整方法示例</h1>
+
+        <!-- 视频播放器 -->
+        <div class="section">
+            <h2>视频播放器</h2>
+            <div class="video-wrapper">
+                <video id="my-player" class="video-js vjs-big-play-centered" controls preload="auto" width="960" height="540" data-setup='{"controls": true, "autoplay": false, "preload": "auto"}'>
+                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                    <p class="vjs-no-js">请启用 JavaScript 以使用 Video.js 视频播放器</p>
+                </video>
+            </div>
+        </div>
+
+        <!-- 播放控制 -->
+        <div class="section">
+            <h2>1. 播放控制</h2>
+            <div class="button-group">
+                <button onclick="demoPlay()">play()</button>
+                <button onclick="demoPause()">pause()</button>
+                <button onclick="demoPaused()">paused()</button>
+                <button onclick="demoEnded()">ended()</button>
+            </div>
+            <div class="output" id="playback-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 时间控制 -->
+        <div class="section">
+            <h2>2. 时间控制</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoCurrentTime()">currentTime()</button>
+                        <button onclick="demoCurrentTimeSet()">currentTime(60)</button>
+                        <button onclick="demoDuration()">duration()</button>
+                        <button onclick="demoRemainingTime()">remainingTime()</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>跳转到指定时间（秒）:</label>
+                    <input type="number" id="seek-time" value="30" min="0">
+                    <button onclick="demoSeekTo()">跳转</button>
+                </div>
+            </div>
+            <div class="output" id="time-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 音量控制 -->
+        <div class="section">
+            <h2>3. 音量控制</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoVolume()">volume()</button>
+                        <button onclick="demoVolumeSet()">volume(0.5)</button>
+                        <button onclick="demoMuted()">muted()</button>
+                        <button onclick="demoMutedToggle()">muted(true/false)</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>设置音量 (0-1):</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+                    <span id="volume-value">1.0</span>
+                </div>
+            </div>
+            <div class="output" id="volume-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 播放速度 -->
+        <div class="section">
+            <h2>4. 播放速度</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoPlaybackRate()">playbackRate()</button>
+                        <button onclick="demoPlaybackRateSet(0.5)">0.5x</button>
+                        <button onclick="demoPlaybackRateSet(1)">1x</button>
+                        <button onclick="demoPlaybackRateSet(1.5)">1.5x</button>
+                        <button onclick="demoPlaybackRateSet(2)">2x</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>选择播放速度:</label>
+                    <select id="playback-rate-select" onchange="demoPlaybackRateSelect(this.value)">
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="1.75">1.75x</option>
+                        <option value="2">2x</option>
+                    </select>
+                </div>
+            </div>
+            <div class="output" id="rate-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 全屏和画中画 -->
+        <div class="section">
+            <h2>5. 全屏和画中画</h2>
+            <div class="button-group">
+                <button onclick="demoRequestFullscreen()">requestFullscreen()</button>
+                <button onclick="demoExitFullscreen()">exitFullscreen()</button>
+                <button onclick="demoIsFullscreen()">isFullscreen()</button>
+                <button onclick="demoRequestPictureInPicture()">requestPictureInPicture()</button>
+                <button onclick="demoExitPictureInPicture()">exitPictureInPicture()</button>
+            </div>
+            <div class="output" id="fullscreen-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 缓冲信息 -->
+        <div class="section">
+            <h2>6. 缓冲信息</h2>
+            <div class="button-group">
+                <button onclick="demoBuffered()">buffered()</button>
+                <button onclick="demoBufferedPercent()">bufferedPercent()</button>
+                <button onclick="demoSeekable()">seekable()</button>
+                <button onclick="demoReadyState()">readyState()</button>
+                <button onclick="demoNetworkState()">networkState()</button>
+            </div>
+            <div class="output" id="buffer-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 视频尺寸 -->
+        <div class="section">
+            <h2>7. 视频尺寸信息</h2>
+            <div class="button-group">
+                <button onclick="demoVideoWidth()">videoWidth()</button>
+                <button onclick="demoVideoHeight()">videoHeight()</button>
+                <button onclick="demoCurrentDimensions()">currentDimensions()</button>
+                <button onclick="demoWidth()">width()</button>
+                <button onclick="demoHeight()">height()</button>
+            </div>
+            <div class="output" id="size-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 源和海报 -->
+        <div class="section">
+            <div class="grid-2">
+                <div>
+                    <h2>8. 源和海报</h2>
+                    <div class="button-group">
+                        <button onclick="demoSrc()">src()</button>
+                        <button onclick="demoPoster()">poster()</button>
+                        <button onclick="demoLoad()">load()</button>
+                        <button onclick="demoReset()">reset()</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>更换视频源:</label>
+                    <select id="source-select" onchange="demoChangeSource(this.value)">
+                        <option value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">Big Buck Bunny</option>
+                        <option value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4">Elephants Dream</option>
+                        <option value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4">Sintel</option>
+                    </select>
+                </div>
+            </div>
+            <div class="output" id="source-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 轨道 -->
+        <div class="section">
+            <h2>9. 轨道</h2>
+            <div class="button-group">
+                <button onclick="demoTextTracks()">textTracks()</button>
+                <button onclick="demoAudioTracks()">audioTracks()</button>
+                <button onclick="demoVideoTracks()">videoTracks()</button>
+                <button onclick="demoAddTextTrack()">addTextTrack()</button>
+            </div>
+            <div class="output" id="tracks-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 组件 -->
+        <div class="section">
+            <h2>10. 组件</h2>
+            <div class="button-group">
+                <button onclick="demoGetChild()">getChild()</button>
+                <button onclick="demoControlBar()">controlBar()</button>
+                <button onclick="demoToggleControl()">controlBar.toggle()</button>
+                <button onclick="demoBigPlayButton()">bigPlayButton()</button>
+            </div>
+            <div class="output" id="component-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 选项 -->
+        <div class="section">
+            <h2>11. 选项</h2>
+            <div class="grid-2">
+                <div>
+                    <div class="button-group">
+                        <button onclick="demoOptions()">options()</button>
+                        <button onclick="demoAutoplay()">autoplay()</button>
+                        <button onclick="demoLoop()">loop()</button>
+                        <button onclick="demoControls()">controls()</button>
+                        <button onclick="demoPreload()">preload()</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>设置自动播放:</label>
+                    <select id="autoplay-select" onchange="demoSetAutoplay(this.value)">
+                        <option value="false">关闭</option>
+                        <option value="true">开启</option>
+                    </select>
+                    <label>循环播放:</label>
+                    <select id="loop-select" onchange="demoSetLoop(this.value)">
+                        <option value="false">关闭</option>
+                        <option value="true">开启</option>
+                    </select>
+                </div>
+            </div>
+            <div class="output" id="options-output">点击按钮查看结果...</div>
+        </div>
+
+        <!-- 事件 -->
+        <div class="section">
+            <h2>12. 事件日志</h2>
+            <div class="button-group">
+                <button onclick="demoOn()">绑定事件 (on)</button>
+                <button onclick="demoOne()">绑定一次 (one)</button>
+                <button onclick="demoOff()">解绑事件 (off)</button>
+                <button onclick="demoTrigger()">触发事件 (trigger)</button>
+                <button onclick="demoClearEventLog()">清空日志</button>
+            </div>
+            <div class="output event-log" id="event-log-output">等待事件...</div>
+        </div>
+
+        <!-- 其他方法 -->
+        <div class="section">
+            <h2>13. 其他方法</h2>
+            <div class="button-group">
+                <button onclick="demoEl()">el()</button>
+                <button onclick="demoId()">id()</button>
+                <button onclick="demoHasClass()">hasClass()</button>
+                <button onclick="demoAddClass()">addClass()</button>
+                <button onclick="demoRemoveClass()">removeClass()</button>
+                <button onclick="demoDispose()">dispose()</button>
+            </div>
+            <div class="output" id="other-output">点击按钮查看结果...</div>
+        </div>
+    </div>
+
+    <script src="video.js"></script>
+    <script>
+        let player;
+        let eventLog = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            player = videojs('my-player');
+
+            player.ready(function() {
+                logToOutput('event-log-output', '播放器已准备就绪！');
+            });
+
+            player.on('play', function() {
+                logEvent('play');
+            });
+            player.on('pause', function() {
+                logEvent('pause');
+            });
+            player.on('timeupdate', function() {});
+            player.on('ended', function() {
+                logEvent('ended');
+            });
+            player.on('volumechange', function() {
+                logEvent('volumechange');
+            });
+            player.on('fullscreenchange', function() {
+                logEvent('fullscreenchange');
+            });
+            player.on('loadedmetadata', function() {
+                logEvent('loadedmetadata');
+            });
+
+            document.getElementById('volume-slider').addEventListener('input', function(e) {
+                player.volume(e.target.value);
+                document.getElementById('volume-value').textContent = e.target.value;
+            });
+        });
+
+        function logToOutput(outputId, message) {
+            const output = document.getElementById(outputId);
+            if (output) output.innerHTML = message;
+        }
+
+        function appendToOutput(outputId, message) {
+            const output = document.getElementById(outputId);
+            output.innerHTML += '\n' + message;
+        }
+
+        function logEvent(eventName) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            eventLog.unshift({
+                time: timeStr,
+                name: eventName
+            });
+            if (eventLog.length > 50) eventLog.pop();
+            updateEventLogDisplay();
+        }
+
+        function updateEventLogDisplay() {
+            const output = document.getElementById('event-log-output');
+            output.innerHTML = eventLog.map(item =>
+                `<div class="event-item"><span class="event-time">[${item.time}]</span><span class="event-name">${item.name}</span></div>`
+            ).join('');
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) {
+                return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function demoPlay() {
+            player.play();
+            logToOutput('playback-output', 'play() - 开始播放');
+        }
+
+        function demoPause() {
+            player.pause();
+            logToOutput('playback-output', 'pause() - 暂停播放');
+        }
+
+        function demoPaused() {
+            const result = player.paused();
+            logToOutput('playback-output', `paused() - 是否暂停: ${result}`);
+        }
+
+        function demoEnded() {
+            const result = player.ended();
+            logToOutput('playback-output', `ended() - 是否结束: ${result}`);
+        }
+
+        function demoCurrentTime() {
+            const result = player.currentTime();
+            logToOutput('time-output', `currentTime() - 当前时间: ${formatTime(result)} (${result}秒)`);
+        }
+
+        function demoCurrentTimeSet() {
+            player.currentTime(60);
+            logToOutput('time-output', 'currentTime(60) - 跳转到 60 秒');
+        }
+
+        function demoSeekTo() {
+            const time = parseFloat(document.getElementById('seek-time').value);
+            player.currentTime(time);
+            logToOutput('time-output', `currentTime(${time}) - 跳转到 ${time} 秒`);
+        }
+
+        function demoDuration() {
+            const result = player.duration();
+            logToOutput('time-output', `duration() - 总时长: ${formatTime(result)} (${result}秒)`);
+        }
+
+        function demoRemainingTime() {
+            const result = player.remainingTime();
+            logToOutput('time-output', `remainingTime() - 剩余时间: ${formatTime(result)} (${result}秒)`);
+        }
+
+        function demoVolume() {
+            const result = player.volume();
+            logToOutput('volume-output', `volume() - 当前音量: ${result}`);
+        }
+
+        function demoVolumeSet() {
+            player.volume(0.5);
+            logToOutput('volume-output', 'volume(0.5) - 设置音量为 0.5');
+            document.getElementById('volume-slider').value = 0.5;
+            document.getElementById('volume-value').textContent = '0.5';
+        }
+
+        function demoMuted() {
+            const result = player.muted();
+            logToOutput('volume-output', `muted() - 是否静音: ${result}`);
+        }
+
+        function demoMutedToggle() {
+            const current = player.muted();
+            player.muted(!current);
+            logToOutput('volume-output', `muted(${!current}) - ${!current ? '静音' : '取消静音'}`);
+        }
+
+        function demoPlaybackRate() {
+            const result = player.playbackRate();
+            logToOutput('rate-output', `playbackRate() - 当前播放速度: ${result}x`);
+        }
+
+        function demoPlaybackRateSet(rate) {
+            player.playbackRate(rate);
+            logToOutput('rate-output', `playbackRate(${rate}) - 设置播放速度为 ${rate}x`);
+            document.getElementById('playback-rate-select').value = rate;
+        }
+
+        function demoPlaybackRateSelect(rate) {
+            player.playbackRate(parseFloat(rate));
+            logToOutput('rate-output', `playbackRate(${rate}) - 设置播放速度为 ${rate}x`);
+        }
+
+        function demoRequestFullscreen() {
+            player.requestFullscreen();
+            logToOutput('fullscreen-output', 'requestFullscreen() - 进入全屏');
+        }
+
+        function demoExitFullscreen() {
+            player.exitFullscreen();
+            logToOutput('fullscreen-output', 'exitFullscreen() - 退出全屏');
+        }
+
+        function demoIsFullscreen() {
+            const result = player.isFullscreen();
+            logToOutput('fullscreen-output', `isFullscreen() - 是否全屏: ${result}`);
+        }
+
+        function demoRequestPictureInPicture() {
+            player.requestPictureInPicture();
+            logToOutput('fullscreen-output', 'requestPictureInPicture() - 进入画中画');
+        }
+
+        function demoExitPictureInPicture() {
+            player.exitPictureInPicture();
+            logToOutput('fullscreen-output', 'exitPictureInPicture() - 退出画中画');
+        }
+
+        function demoBuffered() {
+            const buffered = player.buffered();
+            let result = 'buffered() - 缓冲区间:\n';
+            for (let i = 0; i < buffered.length; i++) {
+                result += `  区间 ${i}: ${formatTime(buffered.start(i))} - ${formatTime(buffered.end(i))}\n`;
+            }
+            logToOutput('buffer-output', result || 'buffered() - 暂无缓冲数据');
+        }
+
+        function demoBufferedPercent() {
+            const result = player.bufferedPercent();
+            logToOutput('buffer-output', `bufferedPercent() - 缓冲百分比: ${(result * 100).toFixed(2)}%`);
+        }
+
+        function demoSeekable() {
+            const seekable = player.seekable();
+            let result = 'seekable() - 可跳转区间:\n';
+            for (let i = 0; i < seekable.length; i++) {
+                result += `  区间 ${i}: ${formatTime(seekable.start(i))} - ${formatTime(seekable.end(i))}`;
+            }
+            logToOutput('buffer-output', result);
+        }
+
+        function demoReadyState() {
+            const states = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'];
+            const result = player.readyState();
+            logToOutput('buffer-output', `readyState() - 就绪状态: ${result} (${states[result]})`);
+        }
+
+        function demoNetworkState() {
+            const states = ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'];
+            const result = player.networkState();
+            logToOutput('buffer-output', `networkState() - 网络状态: ${result} (${states[result]})`);
+        }
+
+        function demoVideoWidth() {
+            const result = player.videoWidth();
+            logToOutput('size-output', `videoWidth() - 视频原始宽度: ${result}px`);
+        }
+
+        function demoVideoHeight() {
+            const result = player.videoHeight();
+            logToOutput('size-output', `videoHeight() - 视频原始高度: ${result}px`);
+        }
+
+        function demoCurrentDimensions() {
+            const result = player.currentDimensions();
+            logToOutput('size-output', `currentDimensions() - 当前尺寸: ${result.width}x${result.height}px`);
+        }
+
+        function demoWidth() {
+            const result = player.width();
+            logToOutput('size-output', `width() - 当前宽度: ${result}px`);
+        }
+
+        function demoHeight() {
+            const result = player.height();
+            logToOutput('size-output', `height() - 当前高度: ${result}px`);
+        }
+
+        function demoSrc() {
+            const result = player.src();
+            logToOutput('source-output', `src() - 当前源: ${result}`);
+        }
+
+        function demoPoster() {
+            const result = player.poster();
+            logToOutput('source-output', `poster() - 当前海报: ${result || '无'}`);
+        }
+
+        function demoLoad() {
+            player.load();
+            logToOutput('source-output', 'load() - 重新加载视频');
+        }
+
+        function demoReset() {
+            player.reset();
+            logToOutput('source-output', 'reset() - 重置播放器');
+        }
+
+        function demoChangeSource(src) {
+            player.src({
+                src: src,
+                type: 'video/mp4'
+            });
+            player.load();
+            logToOutput('source-output', `src() - 更换视频源: ${src}`);
+        }
+
+        function demoTextTracks() {
+            const tracks = player.textTracks();
+            let result = `textTracks() - 字幕轨道数量: ${tracks.length}\n`;
+            for (let i = 0; i < tracks.length; i++) {
+                result += `  轨道 ${i}: ${tracks[i].kind} - ${tracks[i].label} (${tracks[i].language})\n`;
+            }
+            logToOutput('tracks-output', result);
+        }
+
+        function demoAudioTracks() {
+            const tracks = player.audioTracks();
+            let result = `audioTracks() - 音频轨道数量: ${tracks.length}\n`;
+            for (let i = 0; i < tracks.length; i++) {
+                result += `  轨道 ${i}: ${tracks[i].label} (${tracks[i].language})\n`;
+            }
+            logToOutput('tracks-output', result);
+        }
+
+        function demoVideoTracks() {
+            const tracks = player.videoTracks();
+            let result = `videoTracks() - 视频轨道数量: ${tracks.length}\n`;
+            for (let i = 0; i < tracks.length; i++) {
+                result += `  轨道 ${i}: ${tracks[i].label}\n`;
+            }
+            logToOutput('tracks-output', result);
+        }
+
+        function demoAddTextTrack() {
+            const track = player.addTextTrack('subtitles', '示例字幕', 'zh');
+            logToOutput('tracks-output', `addTextTrack() - 添加字幕轨道成功: ${track.label}`);
+        }
+
+        function demoGetChild() {
+            const child = player.getChild('controlBar');
+            logToOutput('component-output', `getChild('controlBar') - 获取控制栏组件: ${child ? '成功' : '失败'}`);
+        }
+
+        function demoControlBar() {
+            const controlBar = player.controlBar;
+            logToOutput('component-output', `controlBar() - 控制栏组件可用`);
+        }
+
+        function demoToggleControl() {
+            const controlBar = player.controlBar;
+            if (controlBar) {
+                controlBar.toggleClass('vjs-hidden');
+                logToOutput('component-output', 'controlBar.toggleClass() - 切换控制栏显示/隐藏');
+            }
+        }
+
+        function demoBigPlayButton() {
+            const bigPlayButton = player.bigPlayButton;
+            logToOutput('component-output', `bigPlayButton() - 大播放按钮组件可用`);
+        }
+
+        function demoOptions() {
+            const options = player.options_;
+            logToOutput('options-output', `options() - 选项对象包含 ${Object.keys(options).length} 个配置项`);
+        }
+
+        function demoAutoplay() {
+            const result = player.autoplay();
+            logToOutput('options-output', `autoplay() - 自动播放: ${result}`);
+        }
+
+        function demoLoop() {
+            const result = player.loop();
+            logToOutput('options-output', `loop() - 循环播放: ${result}`);
+        }
+
+        function demoControls() {
+            const result = player.controls();
+            logToOutput('options-output', `controls() - 显示控制栏: ${result}`);
+        }
+
+        function demoPreload() {
+            const result = player.preload();
+            logToOutput('options-output', `preload() - 预加载: ${result}`);
+        }
+
+        function demoSetAutoplay(value) {
+            player.autoplay(value === 'true');
+            logToOutput('options-output', `autoplay(${value}) - 设置自动播放: ${value}`);
+        }
+
+        function demoSetLoop(value) {
+            player.loop(value === 'true');
+            logToOutput('options-output', `loop(${value}) - 设置循环播放: ${value}`);
+        }
+
+        function demoOn() {
+            player.on('play', customPlayHandler);
+            logToOutput('event-log-output', 'on("play") - 绑定 play 事件成功');
+        }
+
+        function customPlayHandler() {
+            console.log('自定义 play 事件触发');
+        }
+
+        function demoOne() {
+            player.one('pause', function() {
+                logToOutput('event-log-output', 'one("pause") - 触发一次后自动解绑');
+            });
+            logToOutput('event-log-output', 'one("pause") - 绑定一次 pause 事件');
+        }
+
+        function demoOff() {
+            player.off('play', customPlayHandler);
+            logToOutput('event-log-output', 'off("play") - 解绑 play 事件');
+        }
+
+        function demoTrigger() {
+            player.trigger('custom-event');
+            logEvent('custom-event (自定义)');
+            logToOutput('event-log-output', 'trigger("custom-event") - 触发自定义事件');
+        }
+
+        function demoClearEventLog() {
+            eventLog = [];
+            logToOutput('event-log-output', '事件日志已清空');
+        }
+
+        function demoEl() {
+            const el = player.el();
+            logToOutput('other-output', `el() - 播放器 DOM 元素: ${el.tagName}`);
+        }
+
+        function demoId() {
+            const result = player.id();
+            logToOutput('other-output', `id() - 播放器 ID: ${result}`);
+        }
+
+        function demoHasClass() {
+            const result = player.hasClass('video-js');
+            logToOutput('other-output', `hasClass('video-js') - ${result}`);
+        }
+
+        function demoAddClass() {
+            player.addClass('custom-class');
+            logToOutput('other-output', "addClass('custom-class') - 添加自定义类名");
+        }
+
+        function demoRemoveClass() {
+            player.removeClass('custom-class');
+            logToOutput('other-output', "removeClass('custom-class') - 移除自定义类名");
+        }
+
+        function demoDispose() {
+            if (confirm('确定要销毁播放器吗？刷新页面可恢复。')) {
+                player.dispose();
+                logToOutput('other-output', 'dispose() - 播放器已销毁');
+            }
+        }
+    </script>
+</body>
+
+</html>
