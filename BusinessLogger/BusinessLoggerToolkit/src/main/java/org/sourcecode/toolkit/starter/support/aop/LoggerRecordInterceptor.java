@@ -118,6 +118,11 @@ public class LoggerRecordInterceptor extends LoggerRecordValueParser implements 
             }
         }
 
+        // 失败日志已记录完毕，把业务方法抛出的异常重新抛给调用方
+        if (methodExecuteResult.getThrowable() != null) {
+            throw methodExecuteResult.getThrowable();
+        }
+
         return result;
     }
 
