@@ -78,7 +78,10 @@
     };
     // Qn
     // 监听 DOM 变化 → 触发全量构建
-    const domChangeObserver = new MutationObserver(() => scheduleBuild("full"));
+    const domChangeObserver = new MutationObserver(() => {
+        alert("DOM changes observed.");
+        scheduleBuild("full")
+    });
     // Fo
     const observeDOMChanges = (element) => {
         domChangeObserver.observe(element, {
