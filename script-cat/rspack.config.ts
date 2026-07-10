@@ -1,6 +1,10 @@
 import { type Configuration } from '@rspack/core';
 import * as path from 'path';
 import { readFileSync } from 'fs';
+
+// Target browsers, see: https://github.com/browserslist/browserslist
+// 依照 https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/userScripts#browser_compatibility
+const targets = ["chrome >= 120", "edge >= 120", "firefox >= 136"];
 // 读取项目根目录package.json，获取版本号等项目信息
 const packageConfig = JSON.parse(readFileSync("./package.json", "utf-8")) as { name: string, version: string };
 // 获取命令行执行目录（项目根目录）
@@ -11,6 +15,8 @@ const version = packageConfig.version;
 const isDev = process.env.NODE_ENV === "development";
 // 打包输出根目录 dist
 const dist = path.join(dirname, "dist");
+// 源码根目录 src
+const src = path.join(dirname, "src");
 
 // chunkExcludeSet Set 对象，用于存储需要排除的 chunk 名称/文件，不进行分离
 const chunkExcludeSet = new Set([
@@ -45,11 +51,43 @@ export default {
     context: dirname,
     // 多入口配置：浏览器扩展由多个独立脚本组成，全部单独打包
     entry: {
+        install: `${src}/pages/install/main.tsx`
     },
     // 打包产物输出配置
     output: {
         path: `${dist}/ext/src`, // JS代码输出目录 dist/ext/src
         filename: "[name].js", // 输出文件名和入口key同名，如service_worker.js
         clean: true // 每次打包自动清空旧dist目录，避免残留文件
+    },
+    // 资源编译规则：不同后缀文件交给对应loader处理
+    module: {
+        rules: [
+            // TS/TSX/JS/JSX 文件，使用Rspack内置SWC极速编译
+            {
+                test: /\.(jsx?|tsx?)$/, // 匹配文件后缀
+                use: [
+                    {
+                        loader: "builtin:swc-loader", // 使用Rspack内置SWC编译
+                        options: {
+                            jsc: {
+                                externalHelpers: true, // 抽取公共辅助代码，减小单文件体积
+                                parser: {
+                                    syntax: "typescript", // 解析TS语法
+                                    tsx: true, // 支持React TSX
+                                    decorators: true, // 开启装饰器语法
+                                },
+                                transform: {
+                                    react: {
+                                        runtime: "automatic", // React17+自动导入jsx runtime，无需手动import React
+                                        development: isDev, // 开发环境开启React调试提示
+                                    }
+                                }
+                            },
+                            env: {targets} // 根据目标浏览器降级JS语法
+                        }
+                    }
+                ]
+            } 
+        ]
     }
 } satisfies Configuration;
