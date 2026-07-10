@@ -1,6 +1,7 @@
-import { type Configuration } from '@rspack/core';
+import {rspack, type Configuration } from '@rspack/core';
 import * as path from 'path';
 import { readFileSync } from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 // Target browsers, see: https://github.com/browserslist/browserslist
 // 依照 https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/userScripts#browser_compatibility
@@ -17,6 +18,8 @@ const isDev = process.env.NODE_ENV === "development";
 const dist = path.join(dirname, "dist");
 // 源码根目录 src
 const src = path.join(dirname, "src");
+// agent 默认开启；正式版屏蔽由 scripts/pack.js 按版本判断后通过 SC_DISABLE_AGENT 声明。
+const enableAgent = process.env.SC_DISABLE_AGENT !== "true";
 
 // chunkExcludeSet Set 对象，用于存储需要排除的 chunk 名称/文件，不进行分离
 const chunkExcludeSet = new Set([
@@ -51,7 +54,8 @@ export default {
     context: dirname,
     // 多入口配置：浏览器扩展由多个独立脚本组成，全部单独打包
     entry: {
-        install: `${src}/pages/install/main.tsx`
+        service_worker: `${src}/service_worker.ts`,  // MV3后台常驻服务线程，插件核心后台逻辑
+        install: `${src}/pages/install/main.tsx`, // 插件安装引导页
     },
     // 打包产物输出配置
     output: {
@@ -89,5 +93,42 @@ export default {
                 ]
             } 
         ]
-    }
+    },
+    // 插件列表：构建全流程附加功能，filter(Boolean)过滤空插件
+    plugins: [
+        // 全局常量注入插件，代码内可直接读取 process.env.xxx
+        new rspack.DefinePlugin({
+            "process.env.VI_TESTING": "'false'", // 测试标识关闭
+            "process.env.SC_RANDOM_KEY": `'${uuidv4()}'`, // 每次打包生成唯一随机密钥
+            "process.env.SC_DISABLE_AGENT": `'${enableAgent ? "false" : "true"}'`, // Agent开关注入代码
+        }),
+        // 静态资源复制插件：拷贝manifest、图标、多语言等无需编译的文件
+        new rspack.CopyRspackPlugin({
+            patterns: [
+                {
+                    from: `${src}/manifest.json`, // 源文件：源码manifest模板（插件核心配置json）
+                    to: `${dist}/ext`, // 输出到插件根目录 dist/ext
+                }
+            ]
+        }),
+        // HtmlRspackPlugin：为每个React页面生成独立HTML文件，自动注入对应JS打包产物
+        // 弹窗页面html
+        new rspack.HtmlRspackPlugin({
+            filename: `${dist}/ext/src/popup.html`,
+            template: `${src}/pages/popup.html`, // html模板源文件
+            inject: "head", // 将js插入head标签
+            title: "ScriptCat",
+            minify: true, // 生产环境压缩html
+            chunks: ["popup"], // 只注入popup入口打包后的js
+        }),
+        // 安装引导页面html
+        new rspack.HtmlRspackPlugin({
+            filename: `${dist}/ext/src/install.html`, 
+            template: `${src}/pages/install.html`, // html模板源文件
+            inject: "head", // 将js插入head标签
+            title: "ScriptCat", // html标题
+            minify: true, // 生产环境压缩html
+            chunks: ["install"], // 只注入install入口打包后的js
+    }),
+    ]
 } satisfies Configuration;
