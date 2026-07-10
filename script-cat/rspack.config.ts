@@ -64,6 +64,20 @@ export default {
         filename: "[name].js", // 输出文件名和入口key同名，如service_worker.js
         clean: true // 每次打包自动清空旧dist目录，避免残留文件
     },
+    // 模块解析规则：导入文件时如何查找后缀、别名、第三方模块
+    resolve: {
+        extensions: ["...", ".ts", ".tsx", ".jsx"], // 自动补全文件后缀
+        alias: {
+            "@App": path.resolve(dirname, "src/"), // @App 等价于 src/
+            "@Packages": path.resolve(dirname, "packages/"), // @Packages 内部工具包
+            // 重定向eslint用户脚本规则文件路径，适配脚本猫自定义规则
+            "../data/compat-grant": path.resolve(dirname, "packages/eslint/compat-grant"),
+            "../data/compat-headers": path.resolve(dirname, "packages/eslint/compat-headers"),
+        },
+        fallback: {
+            child_process: false, // 浏览器无Node子进程模块，直接屏蔽
+        }
+    },
     // 资源编译规则：不同后缀文件交给对应loader处理
     module: {
         rules: [
@@ -92,7 +106,13 @@ export default {
                         }
                     }
                 ]
-            } 
+            },
+            // CSS文件处理，内置CSS处理 + postcss自动兼容浏览器
+            {
+                test: /\.css$/i, // 匹配文件后缀
+                type: "css/auto", // 使用Rspack内置CSS处理
+                use: ["postcss-loader"], // 使用postcss-loader自动兼容浏览器
+            }
         ]
     },
     // 插件列表：构建全流程附加功能，filter(Boolean)过滤空插件
@@ -131,5 +151,5 @@ export default {
             minify: true, // 生产环境压缩html
             chunks: ["install"], // 只注入install入口打包后的js
     }),
-    ]
+    ].filter(Boolean)
 } satisfies Configuration;

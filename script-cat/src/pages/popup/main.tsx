@@ -1,9 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ThemeProvider } from '../components/ThemeProvider';
+import App from './App';
+import '@App/index.css';
 
-
-const Root = (<h1>345000000</h1>);
-
+const Root = (
+    <ThemeProvider>
+        <App />
+    </ThemeProvider>
+);
 
 // 获取html中id="root"的DOM容器，创建React根实例并渲染内容
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
