@@ -56,6 +56,7 @@ export default {
     entry: {
         service_worker: `${src}/service_worker.ts`,  // MV3后台常驻服务线程，插件核心后台逻辑
         install: `${src}/pages/install/main.tsx`, // 插件安装引导页
+        popup: `${src}/pages/popup/main.tsx`, // 右上角弹窗页面（React）
     },
     // 打包产物输出配置
     output: {
