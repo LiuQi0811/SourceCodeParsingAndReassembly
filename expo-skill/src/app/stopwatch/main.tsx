@@ -1,4 +1,4 @@
-import StopWatchMainView from '@/components/view/stopwatch/StopWatchMainView';
+import StopWatchMainView from '@/components/view/stopwatch/App';
 /**
  * MainView component that serves as the main view for the stopwatch application.
  * @author LiuQi
