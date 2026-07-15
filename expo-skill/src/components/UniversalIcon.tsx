@@ -24,8 +24,8 @@ const IconFamilyMap: Record<IconFamily, typeof FontAwesome6 | typeof Ionicons | 
 interface UniversalIconProps {
     family: IconFamily;
     iconName: string;
-    size: number;
-    color: string;
+    size?: number;
+    color?: string;
     style?: any;
 }
 

@@ -31,10 +31,10 @@ export const APP_MENU_CONFIG: AppMenuItem[] = [
         hideNav: false
     },
     {
-        routerKey: "/explore",
-        title: "探索",
-        family: "FontAwesome6",
-        icon: "search1",
+        routerKey: "/weather/main",
+        title: "天气",
+        family: "MaterialCommunityIcons",
+        icon: "weather-cloudy",
         size: 30,
         color: "#000000",
         hideNav: false
