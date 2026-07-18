@@ -40,10 +40,10 @@ export const APP_MENU_CONFIG: AppMenuItem[] = [
         hideNav: false
     },
     {
-        routerKey: "/world",
-        title: "世界",
+        routerKey: "/twitter-entrance-animation",
+        title: "推特",
         family: "FontAwesome6",
-        icon: "globe-outline",
+        icon: "x-twitter",
         size: 30,
         color: "#000000",
         hideNav: false
