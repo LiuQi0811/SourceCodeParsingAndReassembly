@@ -1,4 +1,5 @@
 
+import { usePageHeader } from '@/hooks/usePageHeader';
 import { StyleSheet, View } from 'react-native';
 import Weather from './Weather';
 
@@ -8,6 +9,7 @@ import Weather from './Weather';
  * @author LiuQi
  */
 export default function App() {
+    usePageHeader();
     return (<View style={styles.weatherContainer}>
         <Weather />
     </View>);
