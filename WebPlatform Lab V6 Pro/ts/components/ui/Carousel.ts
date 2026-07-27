@@ -1,0 +1,147 @@
+// Carousel.ts —— 轮播图组件
+import { Component } from '../../core/Component.js';
+import { h } from '../../core/utils.js';
+import type { Props, State } from '../../core/types.js';
+
+export interface CarouselProps extends Props {
+  autoplay?: boolean;
+  pauseOnHover?: boolean;
+  autoplaySpeed?: number;
+  infinite?: boolean;
+  waitForAnimate?: boolean;
+  speed?: number;
+  slidesToScroll?: number;
+  dots?: boolean;
+  dotPosition?: 'top' | 'bottom' | 'left' | 'right';
+  effect?: 'scrollx' | 'fade';
+  slidesToShow?: number;
+  easing?: string;
+  beforeChange?: (from: number, to: number) => void;
+  afterChange?: (current: number) => void;
+  children?: Node | string | (Node | string)[];
+}
+
+export interface CarouselState extends State {
+  current: number;
+  animating: boolean;
+}
+
+export class Carousel extends Component {
+  declare props: CarouselProps;
+  declare state: CarouselState;
+  _timer: ReturnType<typeof setInterval> | null = null;
+
+  initialState(): CarouselState {
+    return { current: 0, animating: false };
+  }
+
+  componentDidMount(): void {
+    if (this.props.autoplay) this._startAutoplay();
+    // 鼠标悬停暂停
+    if (this.props.pauseOnHover && this.el) {
+      this.on(this.el, 'mouseenter', () => this._stopAutoplay());
+      this.on(this.el, 'mouseleave', () => { if (this.props.autoplay) this._startAutoplay(); });
+    }
+  }
+
+  componentWillUnmount(): void {
+    this._stopAutoplay();
+  }
+
+  /** 获取所有幻灯片（兼容单节点 children） */
+  _getSlides(): (Node | string)[] {
+    const { children } = this.props;
+    return Array.isArray(children) ? children : (children ? [children] : []);
+  }
+
+  _startAutoplay(): void {
+    this._stopAutoplay();
+    const speed = this.props.autoplaySpeed ?? 3000;
+    this._timer = setInterval(() => this.next(), speed);
+  }
+
+  _stopAutoplay(): void {
+    if (this._timer) { clearInterval(this._timer); this._timer = null; }
+  }
+
+  /** 跳转到指定索引 */
+  goTo(slideIndex: number): void {
+    const slides = this._getSlides();
+    const total = slides.length;
+    if (!total) return;
+    const { infinite = true, waitForAnimate = false } = this.props;
+    // 动画进行中且要求等待：跳过
+    if (waitForAnimate && this.state.animating) return;
+
+    let next: number;
+    if (infinite) {
+      next = ((slideIndex % total) + total) % total;
+    } else {
+      next = Math.max(0, Math.min(total - 1, slideIndex));
+    }
+    if (next === this.state.current) return;
+
+    const from = this.state.current;
+    this.props.beforeChange?.(from, next);
+    this.setState({ current: next, animating: waitForAnimate });
+    if (waitForAnimate) {
+      setTimeout(() => this.setState({ animating: false }), this.props.speed ?? 300);
+      setTimeout(() => this.props.afterChange?.(next), this.props.speed ?? 300);
+    } else {
+      setTimeout(() => this.props.afterChange?.(next), this.props.speed ?? 300);
+    }
+    // 用户手动切换后重置自动播放计时
+    if (this.props.autoplay) this._startAutoplay();
+  }
+
+  next(): void { this.goTo(this.state.current + (this.props.slidesToScroll ?? 1)); }
+  prev(): void { this.goTo(this.state.current - (this.props.slidesToScroll ?? 1)); }
+
+  render(): Node | string {
+    const {
+      dots = true, dotPosition = 'bottom', effect = 'scrollx',
+      slidesToShow = 1, easing = 'linear',
+    } = this.props;
+    const slides = this._getSlides();
+    const total = slides.length;
+    const current = this.state.current;
+
+    // 轨道：scrollx 用 translateX 平移；fade 用绝对定位 + 透明度切换
+    const trackStyle: Record<string, string> = effect === 'fade'
+      ? { position: 'relative' }
+      : {
+          display: 'flex',
+          transition: this.state.animating ? `transform ${this.props.speed ?? 300}ms ${easing}` : `transform ${this.props.speed ?? 300}ms ${easing}`,
+          transform: `translateX(-${current * (100 / slidesToShow)}%)`,
+          willChange: 'transform',
+        };
+
+    const trackEl = h('div', { class: `carousel__track carousel__track--${effect}`, style: trackStyle },
+      ...slides.map((slide, i) => {
+        const slideStyle: Record<string, string> = effect === 'fade'
+          ? {
+              position: 'absolute',
+              inset: '0',
+              opacity: i === current ? '1' : '0',
+              transition: `opacity ${this.props.speed ?? 300}ms ${easing}`,
+              zIndex: i === current ? '2' : '1',
+            }
+          : { flex: `0 0 ${100 / slidesToShow}%`, width: `${100 / slidesToShow}%` };
+        return h('div', { class: 'carousel__slide', style: slideStyle }, slide);
+      }),
+    );
+
+    // 圆点导航
+    const dotsEl = dots && total > 0 ? h('ul', { class: `carousel__dots carousel__dots--${dotPosition}` },
+      ...slides.map((_, i) => h('li', {
+        class: ['carousel__dot', i === current && 'carousel__dot--active'].filter(Boolean).join(' '),
+        onClick: () => this.goTo(i),
+      })),
+    ) : null;
+
+    return h('div', { class: 'carousel' },
+      h('div', { class: 'carousel__viewport' }, trackEl),
+      dotsEl,
+    );
+  }
+}

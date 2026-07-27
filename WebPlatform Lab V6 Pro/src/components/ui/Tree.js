@@ -1,0 +1,246 @@
+// Tree.js —— 树形控件
+import { Component } from '../../core/Component.js';
+import { h } from '../../core/utils.js';
+
+export class Tree extends Component {
+  initialState() {
+    const {
+      selectedKeys = [], expandedKeys, checkedKeys = [],
+      defaultExpandAll = false, treeData = [],
+    } = this.props;
+    // 受控/非受控统一处理：把传入 keys 作为初值
+    const initialExpanded = expandedKeys
+      ? new Set(expandedKeys)
+      : new Set(defaultExpandAll ? this._collectKeys(treeData) : []);
+    return {
+      selectedKeys: new Set(selectedKeys),
+      expandedKeys: initialExpanded,
+      checkedKeys: new Set(checkedKeys),
+    };
+  }
+
+  /** 递归收集所有节点 key */
+  _collectKeys(nodes, acc = []) {
+    for (const n of nodes) {
+      acc.push(n.key);
+      if (n.children?.length) this._collectKeys(n.children, acc);
+    }
+    return acc;
+  }
+
+  /** 在树中查找指定 key 的节点 */
+  _findNode(nodes, key) {
+    for (const n of nodes) {
+      if (n.key === key) return n;
+      if (n.children?.length) {
+        const found = this._findNode(n.children, key);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  /** 查找从根到指定 key 的路径（含自身） */
+  _findPath(nodes, key, path = []) {
+    for (const n of nodes) {
+      path.push(n);
+      if (n.key === key) return path;
+      if (n.children?.length && this._findPath(n.children, key, path)) return path;
+      path.pop();
+    }
+    return null;
+  }
+
+  /** 展开 / 收起节点 */
+  _toggleExpand(key) {
+    const next = new Set(this.state.expandedKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    // 直接更新 state 字段，不触发 setState/rerender：
+    // setState 会触发 _rerender 重建整个 Tree DOM，
+    // 导致正在交互的 switcher 被销毁重建 → 闪屏。
+    this.state.expandedKeys = next;
+    this._syncExpandDom(key);
+    this.props.onExpand?.(Array.from(next), { expanded: next.has(key), node: this._findNode(this.props.treeData || [], key) });
+  }
+
+  /** 选中节点（单选语义） */
+  _select(key, node) {
+    if (node?.disabled) return;
+    // selectable 默认 true：未传时也应允许选中（与 render 中解构默认值保持一致）
+    if (this.props.selectable === false) return;
+    const prev = Array.from(this.state.selectedKeys);
+    const next = new Set([key]);
+    this.state.selectedKeys = next;
+    this._syncSelectDom(prev, key);
+    this.props.onSelect?.(Array.from(next), { node, selected: true, selectedKeys: Array.from(next) });
+  }
+
+  /** 勾选 / 取消勾选（含父子联动） */
+  _toggleCheck(key, checked) {
+    const next = new Set(this.state.checkedKeys);
+    const node = this._findNode(this.props.treeData || [], key);
+    if (!node) return;
+    // 自身及所有后代同步
+    const descendants = this._collectKeys([node]);
+    descendants.forEach((k) => (checked ? next.add(k) : next.delete(k)));
+    // 自下而上重算祖先勾选状态：直接子节点全选则父勾选
+    const path = this._findPath(this.props.treeData || [], key);
+    const affectedAncestors = [];
+    if (path) {
+      for (let i = path.length - 2; i >= 0; i--) {
+        const ancestor = path[i];
+        const childKeys = (ancestor.children || []).map((c) => c.key);
+        const allChecked = childKeys.length > 0 && childKeys.every((k) => next.has(k));
+        if (allChecked) next.add(ancestor.key);
+        else next.delete(ancestor.key);
+        affectedAncestors.push(ancestor.key);
+      }
+    }
+    this.state.checkedKeys = next;
+    // 更新所有受影响节点（含祖先）的 checkbox class
+    this._syncCheckDom([...descendants, ...affectedAncestors]);
+    this.props.onCheck?.(Array.from(next), { node, checked });
+  }
+
+  /** 直接操作 DOM 同步展开/收起状态，不触发 rerender */
+  _syncExpandDom(key) {
+    if (!this.el) return;
+    const nodeEl = this.el.querySelector(`.tree__node[data-key="${key}"]`);
+    if (!nodeEl) return;
+    const expanded = this.state.expandedKeys.has(key);
+    // children 是直接子节点
+    const children = nodeEl.querySelector(':scope > .tree__children');
+    if (children) children.hidden = !expanded;
+    // switcher 是 node-content 的直接子节点
+    const switcher = nodeEl.querySelector(':scope > .tree__node-content > .tree__switcher');
+    if (switcher) {
+      switcher.classList.toggle('tree__switcher--open', expanded);
+      switcher.classList.toggle('tree__switcher--close', !expanded);
+      switcher.textContent = expanded ? '▼' : '▶';
+    }
+  }
+
+  /** 直接操作 DOM 同步选中状态，不触发 rerender */
+  _syncSelectDom(prevKeys, newKey) {
+    if (!this.el) return;
+    prevKeys.forEach((k) => {
+      if (k === newKey) return;
+      const n = this.el.querySelector(`.tree__node[data-key="${k}"]`);
+      n?.querySelector(':scope > .tree__node-content > .tree__title')?.classList.remove('tree__title--selected');
+    });
+    const newNode = this.el.querySelector(`.tree__node[data-key="${newKey}"]`);
+    newNode?.querySelector(':scope > .tree__node-content > .tree__title')?.classList.add('tree__title--selected');
+  }
+
+  /** 直接操作 DOM 同步勾选状态，不触发 rerender */
+  _syncCheckDom(keys) {
+    if (!this.el) return;
+    keys.forEach((k) => {
+      const nodeEl = this.el.querySelector(`.tree__node[data-key="${k}"]`);
+      if (!nodeEl) return;
+      const checkbox = nodeEl.querySelector(':scope > .tree__node-content > .tree__checkbox');
+      if (!checkbox) return;
+      checkbox.classList.toggle('tree__checkbox--checked', this.state.checkedKeys.has(k));
+    });
+  }
+
+  render() {
+    const {
+      treeData = [], checkable = false, selectable = true,
+      draggable = false, showLine = false, blockNode = false,
+    } = this.props;
+
+    const classes = [
+      'tree',
+      showLine && 'tree--line',
+      blockNode && 'tree--block',
+    ].filter(Boolean).join(' ');
+
+    return h('div', { class: classes },
+      ...(treeData.map((node) => this._renderNode(node, 0))),
+    );
+  }
+
+  /** 递归渲染单个节点 */
+  _renderNode(node, level) {
+    const hasChildren = node.children?.length > 0;
+    const isLeaf = node.isLeaf ?? !hasChildren;
+    const expanded = this.state.expandedKeys.has(node.key);
+    const selected = this.state.selectedKeys.has(node.key);
+    const checked = this.state.checkedKeys.has(node.key);
+    const { checkable, draggable } = this.props;
+
+    // 层级缩进
+    const indents = [];
+    for (let i = 0; i < level; i++) {
+      indents.push(h('span', { class: 'tree__indent' }));
+    }
+
+    // 展开/收起箭头
+    const switcher = h('span', {
+      class: [
+        'tree__switcher',
+        isLeaf ? 'tree__switcher--leaf' : (expanded ? 'tree__switcher--open' : 'tree__switcher--close'),
+      ].join(' '),
+      onClick: (e) => {
+        e.stopPropagation();
+        if (!isLeaf) this._toggleExpand(node.key);
+      },
+    }, isLeaf ? '' : (expanded ? '▼' : '▶'));
+
+    // 勾选框
+    const checkbox = checkable ? h('span', {
+      class: [
+        'tree__checkbox',
+        checked && 'tree__checkbox--checked',
+        node.disabled && 'tree__checkbox--disabled',
+      ].filter(Boolean).join(' '),
+      onClick: (e) => {
+        e.stopPropagation();
+        if (node.disabled) return;
+        this._toggleCheck(node.key, !checked);
+      },
+    }) : null;
+
+    // 标题区
+    const titleProps = {
+      class: [
+        'tree__title',
+        selected && 'tree__title--selected',
+        node.disabled && 'tree__title--disabled',
+      ].filter(Boolean).join(' '),
+      onClick: () => this._select(node.key, node),
+    };
+    if (draggable) {
+      titleProps.draggable = true;
+      titleProps.onDragStart = (e) => this.props.onDragStart?.({ event: e, node });
+      titleProps.onDragEnter = (e) => { e.preventDefault(); this.props.onDragEnter?.({ event: e, node }); };
+      titleProps.onDragOver = (e) => e.preventDefault();
+      titleProps.onDrop = (e) => { e.preventDefault(); this.props.onDrop?.({ event: e, node }); };
+    }
+    const title = h('span', titleProps,
+      node.icon && h('span', { class: 'tree__icon' }, node.icon),
+      h('span', { class: 'tree__label' }, node.title),
+    );
+
+    return h('div', { class: 'tree__node', 'data-key': node.key },
+      h('div', { class: 'tree__node-content' },
+        ...indents,
+        switcher,
+        checkbox,
+        title,
+      ),
+      // 始终渲染 children，用 hidden 控制显隐：
+      // 这样 _toggleExpand 只需切 hidden 属性，无需重建 DOM（避免闪屏）。
+      hasChildren && h('div', { class: 'tree__children', hidden: !expanded },
+        ...node.children.map((c) => this._renderNode(c, level + 1)),
+      ),
+    );
+  }
+
+  /** 外部调用：展开/收起 */
+  setExpandedKeys(keys) { this.setState({ expandedKeys: new Set(keys) }); }
+  setSelectedKeys(keys) { this.setState({ selectedKeys: new Set(keys) }); }
+  setCheckedKeys(keys) { this.setState({ checkedKeys: new Set(keys) }); }
+}

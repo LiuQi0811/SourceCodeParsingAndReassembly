@@ -1,0 +1,883 @@
+// IntlLocalizationPage.ts —— 国际化与本地化 API 实验室
+// 演示 MDN：Intl.DateTimeFormat、Intl.NumberFormat、Intl.PluralRules、
+//           Intl.ListFormat、Intl.RelativeTimeFormat、Intl.DisplayNames、
+//           Intl.Segmenter、Intl.Collator、Intl.Locale、
+//           Sanitizer API、URLPattern API、Intl.MessageFormat / MF2
+import { Page } from '../../core/Component.js';
+import { h, formatTime } from '../../core/utils.js';
+import { Card } from '../../components/ui/Card.js';
+import { Button } from '../../components/ui/Button.js';
+import { Alert } from '../../components/ui/Alert.js';
+import { Tag } from '../../components/ui/Tag.js';
+import { Input } from '../../components/ui/Input.js';
+import type { Props, State } from '../../core/types.js';
+
+// 多语言显示标签
+interface LocaleEntry {
+  code: string;
+  label: string;
+}
+
+const LOCALES: LocaleEntry[] = [
+  { code: 'zh-CN', label: '中文（中国）' },
+  { code: 'en-US', label: 'English (US)' },
+  { code: 'ja-JP', label: '日本語' },
+  { code: 'ar-EG', label: 'العربية' },
+  { code: 'de-DE', label: 'Deutsch' },
+  { code: 'fr-FR', label: 'Français' },
+  { code: 'ko-KR', label: '한국어' },
+  { code: 'ru-RU', label: 'Русский' },
+];
+
+// MessageFormat 能力检测标志
+interface MfFlags {
+  intlAvailable: boolean;
+  messageFormatCtor: boolean;
+  formatMethod: boolean;
+}
+
+export interface IntlLocalizationPageProps extends Props {}
+
+export interface IntlLog {
+  type: string;
+  content: string;
+  time: string;
+}
+
+export interface IntlLocalizationPageState extends State {
+  logs: IntlLog[];
+  dtLocale: string;
+  dtStyle: string;
+  dtResult: string;
+  dtPartsResult: string;
+  dtRangeResult: string;
+  numInput: string;
+  numLocale: string;
+  numStyle: string;
+  numResult: string;
+  numPartsResult: string;
+  pluralResult: string;
+  listResult: string;
+  relTimeResult: string;
+  displayResult: string;
+  segInput: string;
+  segGranularity: string;
+  segResult: string;
+  collatorResult: string;
+  localeResult: string;
+  sanitizeInput: string;
+  sanitizeOutput: string;
+  sanitizeRaw: string;
+  sanitizerSupported: boolean;
+  urlPattern: string;
+  urlTest: string;
+  urlPatternSupported: boolean;
+  urlPatternResult: string;
+  messageFormatInfo: string;
+  messageFormatResult: string;
+}
+
+export class IntlLocalizationPage extends Page {
+  declare props: IntlLocalizationPageProps;
+  declare state: IntlLocalizationPageState;
+  _demoInited: boolean = false;
+
+  initialState(): IntlLocalizationPageState {
+    return {
+      logs: [],
+      dtLocale: 'zh-CN',
+      dtStyle: 'full',
+      dtResult: '',
+      dtPartsResult: '',
+      dtRangeResult: '',
+      numInput: '1234567.89',
+      numLocale: 'zh-CN',
+      numStyle: 'currency',
+      numResult: '',
+      numPartsResult: '',
+      pluralResult: '',
+      listResult: '',
+      relTimeResult: '',
+      displayResult: '',
+      segInput: 'Hello 世界！你好，今天天气真好。人工智能 AI 是未来。',
+      segGranularity: 'word',
+      segResult: '',
+      collatorResult: '',
+      localeResult: '',
+      sanitizeInput: '<img src=x onerror=alert(1)><script>alert(1)</script><b>safe</b> 文本 <a href="javascript:alert(1)">恶意链接</a> <i>斜体</i>',
+      sanitizeOutput: '',
+      sanitizeRaw: '',
+      sanitizerSupported: typeof (globalThis as any).Sanitizer !== 'undefined',
+      urlPattern: '/users/:id(\\d+)/posts/:slug',
+      urlTest: '/users/42/posts/hello-world',
+      urlPatternSupported: typeof (globalThis as any).URLPattern !== 'undefined',
+      urlPatternResult: '',
+      messageFormatInfo: '',
+      messageFormatResult: '',
+    };
+  }
+
+  componentDidMount(): void {
+    if (this._demoInited) return;
+    this._demoInited = true;
+    this._runDateTime();
+    this._runNumberFormat();
+    this._runSegmenter();
+    this._runSanitize();
+    this._runUrlPattern();
+    const mf = this._flags();
+    this.setState({
+      messageFormatInfo: [
+        `Intl.MessageFormat 构造器: ${mf.messageFormatCtor ? '✓' : '✗'}`,
+        `.format() 方法: ${mf.formatMethod ? '✓' : '✗'}`,
+        `要求: Chrome 124+ / Edge 124+（ECMA-402 Stage 3 提案 / ICU MessageFormat 2）`,
+      ].join('\n'),
+    });
+    this._runMessageFormatDemo();
+    if (!mf.messageFormatCtor) {
+      this._addLog('err', '当前浏览器不支持 Intl.MessageFormat / MF2（建议 Chrome 124+）');
+    }
+    if (!this.state.sanitizerSupported) {
+      this._addLog('err', '当前浏览器不支持 Sanitizer API（建议 Chrome 105+/Firefox 83+ 开发版）');
+    }
+    if (!this.state.urlPatternSupported) {
+      this._addLog('err', '当前浏览器不支持 URLPattern API（建议 Chrome 95+ / Edge 95+）');
+    }
+  }
+
+  componentWillUnmount(): void {}
+
+  _addLog(type: string, content: string): void {
+    this.setState({ logs: [...this.state.logs, { type, content, time: formatTime() }].slice(-40) });
+  }
+
+  _btn(label: string, opts: Props): Node {
+    const btn = new Button({ ...opts, children: label, onClick: opts.onClick });
+    this.registerChild(btn);
+    return btn.render() as Node;
+  }
+
+  _localeSelect(value: string, onChange: (v: string) => void): Node {
+    return h('select', {
+      class: 'ant-input',
+      style: { width: 'auto', padding: '4px 8px' },
+      onChange: (e: Event) => onChange((e.target as HTMLSelectElement).value),
+    },
+      ...LOCALES.map((l: LocaleEntry) => h('option', { value: l.code, selected: l.code === value }, `${l.label}（${l.code}）`)),
+    );
+  }
+
+  _safe<T>(fn: () => T): T | false {
+    try { return fn(); } catch { return false; }
+  }
+
+  _caps(): any;
+  _caps(items: [string, boolean][]): Node[];
+  _caps(items?: [string, boolean][]): any {
+    return items!.map(([label, ok]: [string, boolean]) =>
+      h(Tag, { color: ok ? 'success' : 'error' }, `${label} ${ok ? '✓' : '✗'}`));
+  }
+
+  _flags(): MfFlags {
+    return {
+      intlAvailable: this._safe(() => typeof window !== 'undefined' && typeof window.Intl !== 'undefined'),
+      messageFormatCtor: this._safe(() => typeof window !== 'undefined'
+        && typeof window.Intl !== 'undefined'
+        && typeof (window.Intl as any).MessageFormat === 'function'),
+      formatMethod: this._safe(() => typeof new (window.Intl as any).MessageFormat('Hello {name}', 'en').format === 'function'),
+    };
+  }
+
+  // =================== 1. Intl.DateTimeFormat ===================
+  _runDateTime(): void {
+    try {
+      const { dtLocale, dtStyle } = this.state;
+      const now = new Date();
+      const opts: Intl.DateTimeFormatOptions = dtStyle === 'full'
+        ? { dateStyle: 'full', timeStyle: 'medium' }
+        : dtStyle === 'long'
+          ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+          : dtStyle === 'short'
+            ? { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }
+            : { dateStyle: 'medium', timeStyle: 'short' };
+      const fmt = new Intl.DateTimeFormat(dtLocale, opts);
+      const result = fmt.format(now);
+      this.setState({ dtResult: result });
+
+      const parts = fmt.formatToParts(now);
+      const partsStr = parts.map((p) => `${p.type}="${p.value}"`).join('  ');
+      this.setState({ dtPartsResult: partsStr });
+
+      const start = now;
+      const end = new Date(now.getTime() + 3 * 24 * 3600 * 1000);
+      let rangeStr = '';
+      try {
+        rangeStr = new Intl.DateTimeFormat(dtLocale, { dateStyle: 'medium' }).formatRange(start, end);
+      } catch (e: any) { rangeStr = `formatRange 不支持：${e.message}`; }
+      this.setState({ dtRangeResult: rangeStr });
+
+      this._addLog('intl', `DateTimeFormat(${dtLocale}, ${dtStyle}) → ${result}`);
+    } catch (err: any) {
+      this._addLog('err', `DateTimeFormat 失败：${err.message}`);
+    }
+  }
+
+  // =================== 2. Intl.NumberFormat ===================
+  _runNumberFormat(): void {
+    try {
+      const { numInput, numLocale, numStyle } = this.state;
+      const n = Number(numInput);
+      if (Number.isNaN(n)) {
+        this._addLog('err', `非法数字输入：${numInput}`);
+        return;
+      }
+      let opts: Intl.NumberFormatOptions = {};
+      if (numStyle === 'currency') opts = { style: 'currency', currency: numLocale.startsWith('zh') ? 'CNY' : numLocale.startsWith('ja') ? 'JPY' : numLocale.startsWith('ru') ? 'RUB' : numLocale.startsWith('ko') ? 'KRW' : 'USD' };
+      else if (numStyle === 'percent') opts = { style: 'percent' };
+      else if (numStyle === 'unit') opts = { style: 'unit', unit: 'kilometer-per-hour' };
+      else if (numStyle === 'compact') opts = { notation: 'compact', compactDisplay: 'short' };
+      else if (numStyle === 'scientific') opts = { notation: 'scientific' };
+      else opts = {};
+
+      const fmt = new Intl.NumberFormat(numLocale, opts);
+      const result = fmt.format(n);
+      this.setState({ numResult: result });
+
+      const parts = fmt.formatToParts(n);
+      const partsStr = parts.map((p) => `${p.type}="${p.value}"`).join('  ');
+      this.setState({ numPartsResult: partsStr });
+
+      this._addLog('intl', `NumberFormat(${numLocale}, ${numStyle}) → ${result}`);
+    } catch (err: any) {
+      this._addLog('err', `NumberFormat 失败：${err.message}`);
+    }
+  }
+
+  // =================== 3. PluralRules / ListFormat / RelativeTimeFormat / DisplayNames ===================
+  _runPluralRules(): void {
+    try {
+      const lines: string[] = [];
+      const cardEn = new Intl.PluralRules('en-US');
+      const cardZh = new Intl.PluralRules('zh-CN');
+      const cardRu = new Intl.PluralRules('ru-RU');
+      lines.push('【基数 plural】en-US: ' + [0, 1, 2, 5].map((n) => `${n}→${cardEn.select(n)}`).join(', '));
+      lines.push('【基数 plural】zh-CN: ' + [0, 1, 2, 5].map((n) => `${n}→${cardZh.select(n)}`).join(', '));
+      lines.push('【基数 plural】ru-RU: ' + [1, 2, 5, 21].map((n) => `${n}→${cardRu.select(n)}`).join(', '));
+
+      const ordEn = new Intl.PluralRules('en-US', { type: 'ordinal' });
+      const ordSuffix: Record<string, string> = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
+      lines.push('【序数 ordinal】en-US: ' + [1, 2, 3, 4, 11, 21, 22, 23].map((n) => `${n}${ordSuffix[ordEn.select(n)] || ''}`).join(', '));
+
+      this.setState({ pluralResult: lines.join('\n') });
+      this._addLog('intl', 'PluralRules 已生成基数 + 序数演示');
+    } catch (err: any) {
+      this._addLog('err', `PluralRules 失败：${err.message}`);
+    }
+  }
+
+  _runListFormat(): void {
+    try {
+      const items = ['苹果', '香蕉', '橘子'];
+      const lines: string[] = [];
+      for (const locale of ['zh-CN', 'en-US', 'ja-JP']) {
+        for (const type of ['conjunction', 'disjunction'] as const) {
+          for (const style of ['long', 'short', 'narrow'] as const) {
+            try {
+              const fmt = new Intl.ListFormat(locale, { type, style });
+              lines.push(`${locale} [${type}/${style}]: ${fmt.format(items)}`);
+            } catch (e: any) { lines.push(`${locale} [${type}/${style}]: 不支持`); }
+          }
+        }
+      }
+      this.setState({ listResult: lines.join('\n') });
+      this._addLog('intl', 'ListFormat 已生成 18 种组合演示');
+    } catch (err: any) {
+      this._addLog('err', `ListFormat 失败：${err.message}`);
+    }
+  }
+
+  _runRelativeTime(): void {
+    try {
+      const lines: string[] = [];
+      const units: Intl.RelativeTimeFormatUnit[] = ['year', 'month', 'week', 'day', 'hour', 'minute', 'second'];
+      for (const locale of ['zh-CN', 'en-US', 'ja-JP']) {
+        const fmt = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+        const row = units.map((u) => fmt.format(-1, u));
+        lines.push(`${locale}（numeric:auto, -1）: ${row.join(' / ')}`);
+      }
+      const fmtAuto = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'auto' });
+      const fmtAlways = new Intl.RelativeTimeFormat('zh-CN', { numeric: 'always' });
+      lines.push(`\nzh-CN 0 day（auto）: ${fmtAuto.format(0, 'day')}`);
+      lines.push(`zh-CN 0 day（always）: ${fmtAlways.format(0, 'day')}`);
+
+      this.setState({ relTimeResult: lines.join('\n') });
+      this._addLog('intl', 'RelativeTimeFormat 已生成相对时间演示');
+    } catch (err: any) {
+      this._addLog('err', `RelativeTimeFormat 失败：${err.message}`);
+    }
+  }
+
+  _runDisplayNames(): void {
+    try {
+      const lines: string[] = [];
+      const types: Array<'region' | 'language' | 'currency' | 'script' | 'calendar' | 'dateTimeField'> = ['region', 'language', 'currency', 'script', 'calendar', 'dateTimeField'];
+      for (const type of types) {
+        try {
+          const dn = new Intl.DisplayNames(['zh-CN'], { type });
+          let samples: string[];
+          if (type === 'region') samples = ['US', 'CN', 'JP', 'FR'];
+          else if (type === 'language') samples = ['en', 'zh', 'ja', 'fr'];
+          else if (type === 'currency') samples = ['USD', 'CNY', 'JPY', 'EUR'];
+          else if (type === 'script') samples = ['Latn', 'Hans', 'Hant', 'Cyrl'];
+          else if (type === 'calendar') samples = ['gregory', 'chinese', 'islamic', 'hebrew'];
+          else samples = ['year', 'month', 'day', 'hour'];
+          const row = samples.map((s) => `${s}=${dn.of(s)}`).join(', ');
+          lines.push(`【${type}】${row}`);
+        } catch (e: any) { lines.push(`【${type}】不支持：${e.message}`); }
+      }
+      this.setState({ displayResult: lines.join('\n') });
+      this._addLog('intl', 'DisplayNames 已生成 6 种类型演示');
+    } catch (err: any) {
+      this._addLog('err', `DisplayNames 失败：${err.message}`);
+    }
+  }
+
+  // =================== 4. Segmenter / Collator / Locale ===================
+  _runSegmenter(): void {
+    try {
+      if (typeof Intl.Segmenter === 'undefined') {
+        this.setState({ segResult: 'Intl.Segmenter 不支持（建议 Chrome 87+）' });
+        this._addLog('err', 'Intl.Segmenter 不支持');
+        return;
+      }
+      const { segInput, segGranularity } = this.state;
+      const segmenter = new Intl.Segmenter('zh', { granularity: segGranularity as 'word' | 'grapheme' | 'sentence' });
+      const segments = Array.from(segmenter.segment(segInput));
+      const lines = segments.map((s, i) => `[${i}] segment="${s.segment}"  isWordLike=${s.isWordLike ?? '-'}  index=${s.index}`);
+      this.setState({ segResult: lines.join('\n') });
+      this._addLog('intl', `Segmenter(granularity=${segGranularity}) 已分出 ${segments.length} 段`);
+    } catch (err: any) {
+      this._addLog('err', `Segmenter 失败：${err.message}`);
+    }
+  }
+
+  _runCollator(): void {
+    try {
+      const lines: string[] = [];
+      const files = ['file1', 'file10', 'file2', 'file20', 'file3'];
+      const sortNumeric = [...files].sort(new Intl.Collator('en', { numeric: true }).compare);
+      const sortLexical = [...files].sort(new Intl.Collator('en', { numeric: false }).compare);
+      lines.push(`原始: ${files.join(', ')}`);
+      lines.push(`numeric:true  → ${sortNumeric.join(', ')}`);
+      lines.push(`numeric:false → ${sortLexical.join(', ')}`);
+
+      const cBase = new Intl.Collator('en', { sensitivity: 'base' });
+      const cAccent = new Intl.Collator('en', { sensitivity: 'accent' });
+      const cCase = new Intl.Collator('en', { sensitivity: 'case' });
+      lines.push(`\nsensitivity:base   "a" vs "A" → ${cBase.compare('a', 'A')}（0=相等）`);
+      lines.push(`sensitivity:accent "a" vs "á" → ${cAccent.compare('a', 'á')}`);
+      lines.push(`sensitivity:case   "a" vs "A" → ${cCase.compare('a', 'A')}`);
+
+      const zh = ['赵', '钱', '孙', '李', '周', '吴', '郑', '王'];
+      const zhSorted = [...zh].sort(new Intl.Collator('zh-Hans-CN-u-co-pinyin').compare);
+      lines.push(`\n中文拼音排序:`);
+      lines.push(`原始: ${zh.join(' ')}`);
+      lines.push(`拼音: ${zhSorted.join(' ')}`);
+
+      this.setState({ collatorResult: lines.join('\n') });
+      this._addLog('intl', 'Collator 已生成 numeric / sensitivity / 拼音排序演示');
+    } catch (err: any) {
+      this._addLog('err', `Collator 失败：${err.message}`);
+    }
+  }
+
+  _runLocale(): void {
+    try {
+      const lines: string[] = [];
+      const localeStr = 'zh-Hans-CN-u-nu-hanidec-ca-chinese-hc-h12';
+      const loc = new Intl.Locale(localeStr);
+      lines.push(`locale string: ${localeStr}`);
+      lines.push(`language:       ${loc.language}`);
+      lines.push(`script:         ${loc.script}`);
+      lines.push(`region:         ${loc.region}`);
+      lines.push(`baseName:       ${loc.baseName}`);
+      lines.push(`calendar:       ${loc.calendar}`);
+      lines.push(`numberingSystem: ${loc.numberingSystem}`);
+      lines.push(`hourCycle:      ${loc.hourCycle}`);
+      try { lines.push(`textInfo:       ${JSON.stringify((loc as any).textInfo)}`); } catch { lines.push('textInfo:       不支持'); }
+      try { lines.push(`weekInfo:       ${JSON.stringify((loc as any).weekInfo)}`); } catch { lines.push('weekInfo:       不支持'); }
+      try { lines.push(`calendars:      ${JSON.stringify((loc as any).calendars)}`); } catch { lines.push('calendars:      不支持'); }
+
+      const min = new Intl.Locale('zh-Hans-CN', { region: 'CN' }).minimize();
+      const max = new Intl.Locale('zh', { script: 'Hans', region: 'CN' }).maximize();
+      lines.push(`\nminimize('zh-Hans-CN') → ${min.baseName}`);
+      lines.push(`maximize('zh')         → ${max.baseName}`);
+
+      this.setState({ localeResult: lines.join('\n') });
+      this._addLog('intl', 'Intl.Locale 已生成解析与 minimize/maximize 演示');
+    } catch (err: any) {
+      this._addLog('err', `Intl.Locale 失败：${err.message}`);
+    }
+  }
+
+  // =================== 5. Sanitizer API ===================
+  _runSanitize(): void {
+    const { sanitizeInput, sanitizerSupported } = this.state;
+    if (!sanitizerSupported) {
+      let cleaned = sanitizeInput
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+        .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+        .replace(/javascript:/gi, '');
+      this.setState({ sanitizeOutput: cleaned, sanitizeRaw: sanitizeInput });
+      this._addLog('sanitize', 'Sanitizer 不支持，已用降级正则剥离 script/事件处理器');
+      return;
+    }
+    try {
+      const sanitizer = new (globalThis as any).Sanitizer({
+        allowElements: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+        allowAttributes: { a: ['href'] },
+        blockElements: ['script', 'img'],
+        dropElements: ['script'],
+      });
+      const div = sanitizer.sanitizeFor('div', sanitizeInput);
+      this.setState({ sanitizeOutput: div.innerHTML, sanitizeRaw: sanitizeInput });
+      this._addLog('sanitize', `已用 Sanitizer 净化（输出 ${div.innerHTML.length} 字符）`);
+    } catch (err: any) {
+      this._addLog('err', `Sanitizer 失败：${err.message}`);
+    }
+  }
+
+  // =================== 6. URLPattern API ===================
+  _runUrlPattern(): void {
+    const { urlPattern, urlTest, urlPatternSupported } = this.state;
+    if (!urlPatternSupported) {
+      this.setState({ urlPatternResult: 'URLPattern 不支持（建议 Chrome 95+）' });
+      this._addLog('err', 'URLPattern 不支持');
+      return;
+    }
+    try {
+      const pattern = new (globalThis as any).URLPattern({ pathname: urlPattern });
+      const testResult = pattern.test({ pathname: urlTest });
+      const lines: string[] = [];
+      lines.push(`pattern:  ${urlPattern}`);
+      lines.push(`test url: ${urlTest}`);
+      lines.push(`test():   ${testResult}`);
+      if (testResult) {
+        const exec = pattern.exec({ pathname: urlTest });
+        lines.push(`\nexec() 结果:`);
+        lines.push(`pathname.input:    ${exec.pathname.input}`);
+        lines.push(`pathname.groups:   ${JSON.stringify(exec.pathname.groups)}`);
+      }
+      this.setState({ urlPatternResult: lines.join('\n') });
+      this._addLog('urlpattern', `URLPattern test(${urlTest}) → ${testResult}`);
+    } catch (err: any) {
+      this._addLog('err', `URLPattern 失败：${err.message}`);
+    }
+  }
+
+  // =================== 7. Intl.MessageFormat / MF2 ===================
+  _runMessageFormatDemo(): void {
+    const flags = this._flags();
+    if (!flags.messageFormatCtor) {
+      this.setState({
+        messageFormatResult: [
+          'Intl.MessageFormat 不支持（建议 Chrome 124+，ECMA-402 Stage 3 提案 / ICU MF2）',
+          '',
+          '本演示需要原生 Intl.MessageFormat。下方「MF2 消息语法」与「实战示例」',
+          '展示了预期行为；在支持的浏览器中点击「运行 MF2 演示」可看到真实输出。',
+        ].join('\n'),
+      });
+      this._addLog('err', 'Intl.MessageFormat / MF2 不支持（建议 Chrome 124+）');
+      return;
+    }
+    try {
+      const lines: string[] = [];
+      const fmt = (mf: any, values: any): string => {
+        if (typeof mf.format === 'function') return mf.format(values);
+        return JSON.stringify(mf.formatToParts(values));
+      };
+
+      const mf1 = new (window.Intl as any).MessageFormat('Hello, {name}!', 'en');
+      lines.push('【1. 简单变量 {name}】');
+      lines.push('  模板: Hello, {name}!');
+      lines.push(`  → ${fmt(mf1, { name: 'Alice' })}`);
+
+      const mf2 = new (window.Intl as any).MessageFormat(
+        'You have {count, plural, one {# item} other {# items}}.', 'en',
+      );
+      lines.push('\n【2. 复数 plural】');
+      lines.push('  模板: You have {count, plural, one {# item} other {# items}}.');
+      [0, 1, 5].forEach((n) => {
+        try { lines.push(`  count=${n}: ${fmt(mf2, { count: n })}`); }
+        catch (e: any) { lines.push(`  count=${n}: 错误 ${e.message}`); }
+      });
+
+      const mf3 = new (window.Intl as any).MessageFormat(
+        '{pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}', 'en',
+      );
+      lines.push('\n【3. 序数 selectordinal】');
+      lines.push('  模板: {pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}');
+      [1, 2, 3, 4, 11].forEach((n) => {
+        try { lines.push(`  pos=${n}: ${fmt(mf3, { pos: n })}`); }
+        catch (e: any) { lines.push(`  pos=${n}: 错误 ${e.message}`); }
+      });
+
+      const mf4 = new (window.Intl as any).MessageFormat(
+        '{gender, select, male {he} female {she} other {they}}', 'en',
+      );
+      lines.push('\n【4. 选择 select】');
+      lines.push('  模板: {gender, select, male {he} female {she} other {they}}');
+      ['male', 'female', 'unknown'].forEach((g) => {
+        try { lines.push(`  gender=${g}: ${fmt(mf4, { gender: g })}`); }
+        catch (e: any) { lines.push(`  gender=${g}: 错误 ${e.message}`); }
+      });
+
+      try {
+        const mf5 = new (window.Intl as any).MessageFormat('Price: {price, number, ::currency/USD}', 'en');
+        lines.push('\n【5. 函数 ::currency/USD】');
+        lines.push('  模板: Price: {price, number, ::currency/USD}');
+        lines.push(`  price=1234.56: ${fmt(mf5, { price: 1234.56 })}`);
+      } catch (e: any) { lines.push(`\n【5. 函数 ::currency/USD】错误: ${e.message}`); }
+
+      try {
+        const mf6 = new (window.Intl as any).MessageFormat('Today is {date, datetime, ::yMd}', 'en');
+        lines.push('\n【6. 函数 ::yMd (datetime)】');
+        lines.push('  模板: Today is {date, datetime, ::yMd}');
+        lines.push(`  date=2024-06-01: ${fmt(mf6, { date: new Date('2024-06-01') })}`);
+      } catch (e: any) { lines.push(`\n【6. 函数 ::yMd】错误: ${e.message}`); }
+
+      this.setState({ messageFormatResult: lines.join('\n') });
+      this._addLog('intl', 'Intl.MessageFormat / MF2 演示已生成（6 类语法）');
+    } catch (err: any) {
+      this._addLog('err', `Intl.MessageFormat 演示失败：${err.message}`);
+    }
+  }
+
+  _renderCard9(): Node | string {
+    const flags = this._flags();
+    return h(Card, {
+      title: '7. Intl.MessageFormat / MF2 — 结构化消息（ECMA-402 Stage 3）',
+      extra: h('div', { class: 'flex gap-xs' },
+        h(Tag, { color: 'primary' }, 'MessageFormat'),
+        h(Tag, { color: 'success' }, 'MF2'),
+        h(Tag, { color: 'warning' }, 'Stage 3'),
+      ),
+    },
+      h('div', { class: 'flex flex-col gap-sm' },
+        h('p', { class: 'fs-sm text-secondary' },
+          'Intl.MessageFormat 是 ICU MessageFormat 2（MF2）的 JS 原生实现，ECMA-402 Stage 3 提案，Chrome 124+ 起支持。与 ListFormat/PluralRules 等「单一功能」API 不同，MessageFormat 是「结构化消息」：一条消息内组合变量插值 / 复数 / 选择 / 函数调用，是 i18n 消息系统的基石。'),
+
+        h('div', { class: 'flex gap-xs flex-wrap' },
+          ...this._caps([
+            ['Intl.MessageFormat', flags.messageFormatCtor],
+            ['.format()', flags.formatMethod],
+          ]),
+        ),
+        !flags.messageFormatCtor
+          ? h(Alert, { type: 'warning', message: '当前浏览器不支持 Intl.MessageFormat / MF2（建议 Chrome 124+）。下方按钮可查看能力检测与降级说明。' })
+          : null,
+        h('pre', { class: 'code-block' }, this.state.messageFormatInfo || '—'),
+
+        h('div', { class: 'fs-sm text-secondary mt-sm' }, 'MF2 消息语法：'),
+        h('pre', { class: 'code-block' }, [
+          '// 构造：new Intl.MessageFormat(message, locales, options)',
+          "const mf = new Intl.MessageFormat('Hello {name}', 'en');",
+          'mf.formatToParts({ name: "Alice" });  // 字符串 + 变量 part 拆分',
+          "mf.format({ name: 'Alice' });          // 拼好的字符串（若实现）",
+          '',
+          '{name}                                          // 简单变量插值',
+          '{count, plural, one {item} other {items}}       // 复数（# 代表数值）',
+          '{pos, selectordinal, one {#st} other {#th}}     // 序数',
+          '{gender, select, male {he} female {she} other {they}}  // 选择',
+          '{date, datetime, ::yMd}                         // 函数（datetime + skeleton）',
+          '{price, number, ::currency/USD}                 // number + currency 选项',
+        ].join('\n')),
+
+        h('div', { class: 'fs-sm text-secondary mt-sm' }, 'MF2 vs MessageFormat 1：'),
+        h('pre', { class: 'code-block' }, [
+          'MF1 (messageformat 库)        MF2 (Intl.MessageFormat)',
+          '─────────────────────────     ────────────────────────────',
+          '社区库，非标准                  ECMA-402 Stage 3 标准化',
+          '字符串模板 + JS DSL            函数式语法 (function, arg)',
+          '自行实现复数/选择              复用 Intl.PluralRules / NumberFormat',
+          '与 Intl API 平行              与 Intl API 深度集成',
+          '需预编译为 JS                  浏览器原生运行时',
+          '工具链成熟（@formatjs）        工具链建设中，长期统一',
+        ].join('\n')),
+
+        h('div', { class: 'fs-sm text-secondary mt-sm' }, 'i18n 消息系统实战：'),
+        h('pre', { class: 'code-block' }, [
+          '// 翻译资源 JSON（按 locale 组织）',
+          '{',
+          '  "en": {',
+          '    "greeting": "Hello, {name}!",',
+          '    "items": "You have {count, plural, one {# item} other {# items}}"',
+          '  },',
+          '  "zh": {',
+          '    "greeting": "你好，{name}！",',
+          '    "items": "你有 {count, plural, other {# 件物品}}"',
+          '  }',
+          '}',
+          '',
+          '// 动态 locale 切换',
+          'function t(locale, key, values) {',
+          '  const mf = new Intl.MessageFormat(messages[locale][key], locale);',
+          '  return mf.format(values);  // 富文本场景用 formatToParts',
+          '}',
+          '',
+          '// 框架集成：',
+          '// - React Intl (@formatjs/intl): 已对齐 MF2 资源格式',
+          '// - Vue I18n v9+: message resolver 与 MF2 语法靠近',
+          '// - vs i18next: 用自有插值 {{name}}，不直接复用 Intl；',
+          '//   MF2 是原生标准，长期看会统一消息格式生态',
+          '// - vs messageformat 库: MF1 实现，需预编译；',
+          '//   Intl.MessageFormat 是运行时原生，无需编译步骤',
+        ].join('\n')),
+
+        h('div', { class: 'demo-row' },
+          this._btn('运行 MF2 演示', { type: 'primary', size: 'sm', onClick: () => this._runMessageFormatDemo() }),
+        ),
+        h('div', { class: 'fs-sm text-secondary' }, '运行结果：'),
+        h('pre', { class: 'code-block', style: { maxHeight: '320px' } }, this.state.messageFormatResult || '（点击「运行 MF2 演示」）'),
+      ),
+    );
+  }
+
+  renderPage(): Node | string | (Node | string)[] {
+    return [
+      h('h2', { class: 'section-title' }, '国际化 / 本地化 / 字符串 API 实验室'),
+      h('p', { class: 'text-secondary mb-lg' },
+        '演示 Intl 全家桶（DateTimeFormat / NumberFormat / PluralRules / ListFormat / RelativeTimeFormat / DisplayNames / Segmenter / Collator / Locale / MessageFormat MF2）、Sanitizer API、URLPattern API。'),
+
+      h(Card, {
+        title: '1. Intl.DateTimeFormat — 日期/时间格式化',
+        extra: h('div', { class: 'flex gap-xs' },
+          h(Tag, { color: 'primary' }, 'DateTimeFormat'),
+          h(Tag, { color: 'success' }, 'formatToParts'),
+          h(Tag, { color: 'warning' }, 'formatRange'),
+        ),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            '根据 locale 与 options 把 Date 格式化为字符串；formatToParts 暴露每个字段；formatRange 处理区间。'),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, 'Locale'),
+            this._localeSelect(this.state.dtLocale, (v: string) => { this.setState({ dtLocale: v }); }),
+          ),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '样式'),
+            h('select', {
+              class: 'ant-input', style: { width: 'auto', padding: '4px 8px' },
+              onChange: (e: Event) => this.setState({ dtStyle: (e.target as HTMLSelectElement).value }),
+            },
+              h('option', { value: 'full', selected: this.state.dtStyle === 'full' }, 'full（dateStyle+timeStyle）'),
+              h('option', { value: 'long', selected: this.state.dtStyle === 'long' }, 'long（字段化）'),
+              h('option', { value: 'medium', selected: this.state.dtStyle === 'medium' }, 'medium'),
+              h('option', { value: 'short', selected: this.state.dtStyle === 'short' }, 'short（hour12:false）'),
+            ),
+            this._btn('格式化', { type: 'primary', size: 'sm', onClick: () => this._runDateTime() }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, '结果：'),
+          h('div', { class: 'api-metric', style: { fontSize: '24px' } }, this.state.dtResult || '—'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'formatToParts：'),
+          h('pre', { class: 'code-block' }, this.state.dtPartsResult || '—'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'formatRange（now → now+3d）：'),
+          h('pre', { class: 'code-block' }, this.state.dtRangeResult || '—'),
+        ),
+      ),
+
+      h(Card, {
+        title: '2. Intl.NumberFormat — 数字 / 货币 / 百分比 / 单位',
+        extra: h('div', { class: 'flex gap-xs' },
+          h(Tag, { color: 'primary' }, 'NumberFormat'),
+          h(Tag, { color: 'success' }, 'compact'),
+          h(Tag, { color: 'warning' }, 'currency'),
+        ),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            '支持 style: decimal / currency / percent / unit；notation: standard / scientific / compact；signDisplay / useGrouping 等。'),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '数字'),
+            h(Input, {
+              value: this.state.numInput,
+              style: { width: '180px' },
+              onInput: (e: Event) => this.setState({ numInput: (e.target as HTMLInputElement).value }),
+            }),
+          ),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, 'Locale'),
+            this._localeSelect(this.state.numLocale, (v: string) => { this.setState({ numLocale: v }); }),
+          ),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '样式'),
+            h('select', {
+              class: 'ant-input', style: { width: 'auto', padding: '4px 8px' },
+              onChange: (e: Event) => this.setState({ numStyle: (e.target as HTMLSelectElement).value }),
+            },
+              ['currency', 'decimal', 'percent', 'unit', 'compact', 'scientific'].map((s: string) =>
+                h('option', { value: s, selected: this.state.numStyle === s }, s),
+              ),
+            ),
+            this._btn('格式化', { type: 'primary', size: 'sm', onClick: () => this._runNumberFormat() }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, '结果：'),
+          h('div', { class: 'api-metric', style: { fontSize: '28px' } }, this.state.numResult || '—'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'formatToParts：'),
+          h('pre', { class: 'code-block' }, this.state.numPartsResult || '—'),
+        ),
+      ),
+
+      h(Card, {
+        title: '3. PluralRules / ListFormat / RelativeTimeFormat / DisplayNames',
+        extra: h('div', { class: 'flex gap-xs' },
+          h(Tag, { color: 'primary' }, 'PluralRules'),
+          h(Tag, { color: 'primary' }, 'ListFormat'),
+          h(Tag, { color: 'primary' }, 'RelativeTimeFormat'),
+          h(Tag, { color: 'primary' }, 'DisplayNames'),
+        ),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            'PluralRules：基数/序数规则（俄语有 few/many 等多形式）；ListFormat：列表连接词；RelativeTimeFormat：相对时间（昨天/明天）；DisplayNames：区域/语言/货币等本地化名称。'),
+          h('div', { class: 'flex gap-sm flex-wrap' },
+            this._btn('PluralRules', { type: 'primary', size: 'sm', onClick: () => this._runPluralRules() }),
+            this._btn('ListFormat', { type: 'primary', size: 'sm', onClick: () => this._runListFormat() }),
+            this._btn('RelativeTimeFormat', { type: 'primary', size: 'sm', onClick: () => this._runRelativeTime() }),
+            this._btn('DisplayNames', { type: 'primary', size: 'sm', onClick: () => this._runDisplayNames() }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, 'PluralRules 结果：'),
+          h('pre', { class: 'code-block' }, this.state.pluralResult || '（点击 PluralRules）'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'ListFormat 结果：'),
+          h('pre', { class: 'code-block' }, this.state.listResult || '（点击 ListFormat）'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'RelativeTimeFormat 结果：'),
+          h('pre', { class: 'code-block' }, this.state.relTimeResult || '（点击 RelativeTimeFormat）'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'DisplayNames 结果：'),
+          h('pre', { class: 'code-block' }, this.state.displayResult || '（点击 DisplayNames）'),
+        ),
+      ),
+
+      h(Card, {
+        title: '4. Intl.Segmenter / Intl.Collator / Intl.Locale',
+        extra: h('div', { class: 'flex gap-xs' },
+          h(Tag, { color: 'success' }, 'Segmenter'),
+          h(Tag, { color: 'success' }, 'Collator'),
+          h(Tag, { color: 'success' }, 'Locale'),
+        ),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            'Segmenter：按 grapheme / word / sentence 切分字符串（中日韩友好）；Collator：本地化字符串比较与排序（numeric/sensitivity/拼音）；Intl.Locale：解析 locale 与 Unicode 扩展。'),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '切分粒度'),
+            h('select', {
+              class: 'ant-input', style: { width: 'auto', padding: '4px 8px' },
+              onChange: (e: Event) => this.setState({ segGranularity: (e.target as HTMLSelectElement).value }),
+            },
+              ['word', 'grapheme', 'sentence'].map((g: string) =>
+                h('option', { value: g, selected: this.state.segGranularity === g }, g),
+              ),
+            ),
+            this._btn('切分', { type: 'primary', size: 'sm', onClick: () => this._runSegmenter() }),
+            this._btn('Collator', { type: 'primary', size: 'sm', onClick: () => this._runCollator() }),
+            this._btn('Locale', { type: 'primary', size: 'sm', onClick: () => this._runLocale() }),
+          ),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '切分输入'),
+            h(Input, {
+              value: this.state.segInput,
+              style: { flex: '1', minWidth: '240px' },
+              onInput: (e: Event) => this.setState({ segInput: (e.target as HTMLInputElement).value }),
+            }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, 'Segmenter 结果（按行展示每段）：'),
+          h('pre', { class: 'code-block', style: { maxHeight: '200px' } }, this.state.segResult || '—'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'Collator 结果：'),
+          h('pre', { class: 'code-block' }, this.state.collatorResult || '（点击 Collator）'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, 'Intl.Locale 解析结果：'),
+          h('pre', { class: 'code-block' }, this.state.localeResult || '（点击 Locale）'),
+        ),
+      ),
+
+      h(Card, {
+        title: '5. Sanitizer API — HTML 净化',
+        extra: h(Tag, { color: 'warning' }, 'Sanitizer'),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            'Sanitizer API 在浏览器内原生净化 HTML，移除 script/事件处理器/javascript: 等危险内容，仅保留白名单元素与属性。sanitizeFor 返回 Element；Element.setHTML 是另一种用法。'),
+          !this.state.sanitizerSupported
+            ? h(Alert, { type: 'warning', message: '当前浏览器不支持 Sanitizer API，下方使用降级正则剥离（仅供演示，不可在生产用）' })
+            : null,
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '恶意 HTML'),
+            h(Input, {
+              value: this.state.sanitizeInput,
+              style: { flex: '1', minWidth: '320px' },
+              onInput: (e: Event) => this.setState({ sanitizeInput: (e.target as HTMLInputElement).value }),
+            }),
+            this._btn('净化', { type: 'primary', size: 'sm', onClick: () => this._runSanitize() }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, '原始 HTML（已转义显示）：'),
+          h('pre', { class: 'code-block' }, this.state.sanitizeRaw || '—'),
+          h('div', { class: 'fs-sm text-secondary mt-sm' }, '净化后 HTML（已安全渲染）：'),
+          h('div', {
+            class: 'code-block sanitize-output',
+            style: { background: 'var(--color-bg-spotlight)', padding: 'var(--spacing-md)' },
+            html: this.state.sanitizeOutput || '—',
+          }),
+        ),
+      ),
+
+      h(Card, {
+        title: '6. URLPattern API — URL 模式匹配',
+        extra: h(Tag, { color: 'warning' }, 'URLPattern'),
+      },
+        h('div', { class: 'flex flex-col gap-sm' },
+          h('p', { class: 'fs-sm text-secondary' },
+            'URLPattern 类似 path-to-regexp，但支持 protocol/host/pathname 全字段；:name 命名组、:name(regex) 正则约束、* 通配；test() 返回布尔，exec() 返回分组详情。'),
+          !this.state.urlPatternSupported
+            ? h(Alert, { type: 'warning', message: '当前浏览器不支持 URLPattern API（建议 Chrome 95+ / Edge 95+）' })
+            : null,
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '模式'),
+            h(Input, {
+              value: this.state.urlPattern,
+              style: { flex: '1', minWidth: '240px' },
+              onInput: (e: Event) => this.setState({ urlPattern: (e.target as HTMLInputElement).value }),
+            }),
+          ),
+          h('div', { class: 'demo-row' },
+            h('span', { class: 'demo-row__label' }, '测试 URL'),
+            h(Input, {
+              value: this.state.urlTest,
+              style: { flex: '1', minWidth: '240px' },
+              onInput: (e: Event) => this.setState({ urlTest: (e.target as HTMLInputElement).value }),
+            }),
+            this._btn('匹配', { type: 'primary', size: 'sm', onClick: () => this._runUrlPattern() }),
+          ),
+          h('div', { class: 'fs-sm text-secondary' }, '结果：'),
+          h('pre', { class: 'code-block' }, this.state.urlPatternResult || '—'),
+        ),
+      ),
+
+      this._renderCard9(),
+
+      h(Card, {
+        title: '事件日志',
+        extra: h(Tag, { color: 'primary' }, `${this.state.logs.length} 条`),
+      },
+        this.state.logs.length === 0
+          ? h('div', { class: 'fs-sm text-tertiary' }, '（暂无日志）')
+          : h('div', { class: 'log-panel' },
+            ...this.state.logs.map((log: IntlLog) => h('div', { class: 'log-panel__line' },
+              h('span', { class: 'log-panel__time' }, log.time),
+              h('span', { class: `log-panel__tag log-panel__tag--${log.type}` }, log.type),
+              h('span', {}, log.content),
+            )),
+          ),
+      ),
+    ];
+  }
+}
