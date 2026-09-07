@@ -1,0 +1,86 @@
+import { api, chapter, ex, p, section } from './helpers';
+
+// 第 19 章：readline 命令行交互
+export const readlineChapter = chapter('readline', 'readline', '命令行交互：提问、菜单与逐行处理', [
+  section('readline-core', '交互与逐行处理', [
+    api(
+      'readline-basic',
+      'createInterface：交互式问答',
+      'readline.createInterface(options)',
+      '创建逐行读取接口。事件风格适合长期运行的 CLI（自定义 REPL、菜单循环），配合 process.stdin 实现交互式脚本。',
+      [
+        p('input', 'Readable', true, '输入流，通常是 process.stdin'),
+        p('output', 'Writable', false, '输出流，传 process.stdout 才有输入回显'),
+        p('prompt', 'string', false, '提示符，需配合 rl.prompt() 显示'),
+      ],
+      [
+        ex('迷你命令行程序', [
+          "import * as readline from 'node:readline';",
+          '',
+          'const rl = readline.createInterface({',
+          '  input: process.stdin,',
+          '  output: process.stdout,',
+          '});',
+          '',
+          'rl.setPrompt("node-treasury> ");',
+          'rl.prompt();',
+          '',
+          'rl.on("line", (line: string) => {',
+          '  const cmd = line.trim();',
+          '  if (cmd === "exit") {',
+          '    rl.close();',
+          '    return;',
+          '  }',
+          "  console.log('收到命令:', cmd);",
+          '  rl.prompt();',
+          '});',
+          '',
+          'rl.on("close", () => {',
+          "  console.log('再见');",
+          '  process.exit(0);',
+          '});',
+        ].join('\n'), 'node-treasury> help\n收到命令: help\nnode-treasury> exit\n再见'),
+      ],
+      [
+        '不调用 close() 进程不会退出：readline 持有 stdin，纯脚本忘记 close 会一直挂着。',
+        '监听 SIGINT 事件可自定义 Ctrl+C 行为（如"再按一次退出"），否则默认直接退出。',
+        'history 自动记录输入，上箭头回溯；terminal: true（有 output 时默认）启用补全与历史。',
+        '配合 fs.createReadStream 可逐行解析大日志，内存占用与文件大小无关。',
+      ],
+    ),
+    api(
+      'readline-promises',
+      'readline/promises：异步问答',
+      'readline/promises 的 question()',
+      'v17+ 提供的 Promise 化 API：question 返回 Promise，可无缝接入 async/await 流程；配合 for await 还能逐行遍历整个输入流。',
+      [
+        p('options.input / output', 'Stream', true, '同回调版：stdin + stdout'),
+        p('rl.question(query)', 'Promise<string>', true, '提问并等待用户回车，resolve 输入内容'),
+      ],
+      [
+        ex('顺序问答脚本', [
+          "import { createInterface } from 'node:readline/promises';",
+          "import { stdin, stdout } from 'node:process';",
+          '',
+          'async function main(): Promise<void> {',
+          '  const rl = createInterface({ input: stdin, output: stdout });',
+          '',
+          '  const name = await rl.question("你的名字: ");',
+          '  const age = await rl.question("你的年龄: ");',
+          "  console.log('你好,', name, '| 明年你', Number(age) + 1, '岁');",
+          '',
+          '  rl.close();',
+          '}',
+          '',
+          'void main();',
+        ].join('\n'), '你的名字: Alice\n你的年龄: 18\n你好, Alice | 明年你 19 岁'),
+      ],
+      [
+        'readline/promises 从 v17.0 起可用；旧版本用 util.promisify 包装回调版 question。',
+        'question 的 Promise 在回车时 resolve；Ctrl+C 会 reject（AbortError），CI 脚本记得 catch。',
+        'for await (const line of rl) 逐行遍历输入，流结束（EOF）自动退出循环并 close。',
+        '一次性问答（初始化确认、CI 提示）用 promises 版；常驻 REPL 用事件版更省心。',
+      ],
+    ),
+  ]),
+]);

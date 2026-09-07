@@ -1,0 +1,115 @@
+import { api, chapter, ex, p, section } from './helpers';
+
+// 第 14 章：全局对象与定时器
+export const globalsChapter = chapter('globals', '全局对象与定时器', 'console、timers 与 AbortController：无需导入的内置能力', [
+  section('console-module', 'console', [
+    api(
+      'console-full',
+      'console 全家桶',
+      'console.log / table / time / group',
+      'console 除了 log，还有 table、time 计时、group 分组、dir 深度查看、count 计数等，是 CLI 调试输出的主力工具。',
+      [],
+      [
+        ex('计时、分组与表格', [
+          "console.time('build');",
+          '',
+          "console.group('数据库迁移');",
+          "console.log('检查 schema');",
+          "console.log('执行 3 条 DDL');",
+          'console.groupEnd();',
+          '',
+          "console.table([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }]);",
+          '',
+          "console.timeEnd('build');",
+        ].join('\n'), '数据库迁移\n  检查 schema\n  执行 3 条 DDL\n┌─────────┬────┬─────────┐\n│ (index) │ id │  name   │\n├─────────┼────┼─────────┤\n│    0    │ 1  │ \'Alice\' │\n│    1    │ 2  │ \'Bob\'   │\n└─────────┴────┴─────────┘\nbuild: 12.34ms'),
+      ],
+      [
+        'console.time/timeEnd 用同一个标签配对，重复 start 同名标签会告警；可多次 timeLog 打中间时间。',
+        'console.table 大数组慎用（渲染开销），生产日志建议结构化 JSON 输出。',
+        'console.error 写入 stderr，日志采集系统据此分离错误流。',
+        'console.count(label) 是免写计数器的偷懒神器。',
+      ],
+    ),
+  ]),
+  section('timers-module', '定时器', [
+    api(
+      'timers-ref-unref',
+      'setTimeout / setInterval 与 unref',
+      'const t = setTimeout(cb, ms): NodeJS.Timeout',
+      'Node.js 的定时器返回 Timeout 对象（不是 number）。ref/unref 控制定时器是否阻止进程退出：unref 的定时器像"闹钟"，进程没别的事可干时直接下班。',
+      [
+        p('cb', '(...args) => void', true, '到时回调；额外参数会透传给回调'),
+        p('ms', 'number', false, '毫秒；实际延迟受事件循环繁忙程度影响，只会更长'),
+        p('返回值', 'NodeJS.Timeout', false, '带 ref() / unref() / refresh() / [Symbol.toPrimitive] 方法'),
+      ],
+      [
+        ex('unref 与定时器控制', [
+          'const heartbeat = setInterval(() => {',
+          "  console.log('心跳');",
+          '}, 1000);',
+          '',
+          '// 心跳不阻止进程退出',
+          'heartbeat.unref();',
+          '',
+          'const shutdownTimer = setTimeout(() => {',
+          "  console.log('10 秒后兜底退出');",
+          '  process.exit(1);',
+          '}, 10_000);',
+          '',
+          'setTimeout(() => {',
+          "  console.log('任务完成，取消兜底定时器');",
+          '  clearTimeout(shutdownTimer);',
+          '  clearInterval(heartbeat);',
+          '}, 3000);',
+        ].join('\n'), '心跳\n任务完成，取消兜底定时器'),
+      ],
+      [
+        '定时器精度受事件循环影响：回调排队时延迟只会更长，不要用于精确计时（计时用 performance.now）。',
+        'timeout.refresh() 重置倒计时，实现"防抖式兜底"非常顺手。',
+        '浏览器里 setTimeout 返回 number，Node 返回对象——跨端代码用 ReturnType<typeof setTimeout> 声明类型。',
+        'setImmediate / setTimeout(0) 的顺序差异见第 9 章事件循环。',
+      ],
+    ),
+  ]),
+  section('abort-module', 'AbortController', [
+    api(
+      'abort-controller',
+      'AbortController 与超时取消',
+      'new AbortController() → { signal, abort(reason?) }',
+      'AbortController 是 Web 标准取消协议：signal 传给支持取消的 API（fetch、定时器、事件监听、流），调用 abort() 即统一取消。Node 17.3+ 内置，取代五花八门的自造取消方案。',
+      [
+        p('signal', 'AbortSignal', true, '传给目标 API 的取消信号；只读 reason 携带取消原因'),
+        p('abort(reason?)', 'method', true, '触发取消；reason 默认 AbortError'),
+      ],
+      [
+        ex('取消请求与事件监听', [
+          'const controller = new AbortController();',
+          '',
+          'const timer = setTimeout(() => controller.abort(new Error("超时")), 5000);',
+          '',
+          'try {',
+          '  const res = await fetch("https://api.example.com/slow", {',
+          '    signal: controller.signal,',
+          '  });',
+          '  console.log("状态:", res.status);',
+          '} catch (err) {',
+          '  console.error("被取消:", err instanceof Error ? err.message : err);',
+          '} finally {',
+          '  clearTimeout(timer);',
+          '}',
+          '',
+          '// 语法糖：一行实现超时（v17.3+）',
+          'const res2 = await fetch("https://api.example.com/data", {',
+          '  signal: AbortSignal.timeout(3000),',
+          '});',
+        ].join('\n'), '状态: 200'),
+      ],
+      [
+        'AbortSignal.any([sigA, sigB])（v20.3+）可组合多个信号：任一触发即取消。',
+        'addEventListener 的 { signal } 选项让事件监听器随 signal 一起清理，杜绝监听器泄漏。',
+        'signal.aborted / signal.onabort 可查询或响应"已取消"状态。',
+        'AbortSignal.timeout 到点自动 abort，无需手工管理定时器。',
+      ],
+    ),
+  ]),
+]);
