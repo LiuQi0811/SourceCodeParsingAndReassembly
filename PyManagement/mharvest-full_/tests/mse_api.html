@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>MSE 播放器（地址来自接口）</title></head>
+<body>
+<h1>MediaSource 播放器 · 版本二</h1>
+<p>video.src 是 blob: 地址，分片地址由 <code>/api/segments.json</code> 动态返回，
+<b>页面源码里一个 .m4s 都搜不到</b>。</p>
+<p><button id="play">点我开始播放</button> <span id="stat">未开始</span></p>
+<video id="v" controls width="720"></video>
+
+<script>
+// 真实站点的常见做法：播放地址走接口，且往往带签名、有时效
+fetch('/api/segments.json').then(function (r) { return r.json(); })
+  .then(function (cfg) {
+    window.__CFG__ = cfg;
+    document.getElementById('stat').textContent =
+      '已获取配置，' + cfg.segments.length + ' 个分片';
+  });
+
+document.getElementById('play').onclick = function () {
+  var cfg = window.__CFG__;
+  if (!cfg) return;
+
+  var video = document.getElementById('v');
+  var ms = new MediaSource();
+  video.src = URL.createObjectURL(ms);
+
+  ms.addEventListener('sourceopen', async function () {
+    var sb = ms.addSourceBuffer('video/mp4; codecs="avc1.64001f,mp4a.40.2"');
+    var stat = document.getElementById('stat');
+
+    var initBuf = await (await fetch(cfg.init)).arrayBuffer();
+    sb.appendBuffer(initBuf);
+
+    for (var i = 0; i < cfg.segments.length; i++) {
+      var buf = await (await fetch(cfg.segments[i])).arrayBuffer();
+      sb.appendBuffer(buf);
+      stat.textContent = "已加载 " + (i + 1) + "/" + cfg.segments.length;
+    }
+    video.play();
+  });
+};
+</script>
+</body></html>
