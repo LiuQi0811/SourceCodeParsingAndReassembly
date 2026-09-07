@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>MSE 播放器（地址硬编码）</title></head>
+<body>
+<h1>MediaSource 播放器 · 版本一</h1>
+<p>video.src 是 blob: 地址，真实分片在 JS 数组里。</p>
+<p><button id="play">点我开始播放</button> <span id="stat">未开始</span></p>
+<video id="v" controls width="720"></video>
+
+<script>
+var SEGMENTS = ["fmp4_seg_000.m4s", "fmp4_seg_001.m4s", "fmp4_seg_002.m4s", "fmp4_seg_003.m4s", "fmp4_seg_004.m4s"];
+var INIT = "/media/fmp4_init.mp4";
+
+document.getElementById('play').onclick = function () {
+  var video = document.getElementById('v');
+  var ms = new MediaSource();
+  // 关键：video 的 src 是浏览器内存里的 blob 引用，服务端不存在这个 URL
+  video.src = URL.createObjectURL(ms);
+
+  ms.addEventListener('sourceopen', async function () {
+    var sb = ms.addSourceBuffer('video/mp4; codecs="avc1.64001f,mp4a.40.2"');
+    var stat = document.getElementById('stat');
+
+    // 先喂初始化段，没有它后面的分片全是废数据
+    var initBuf = await (await fetch(INIT)).arrayBuffer();
+    sb.appendBuffer(initBuf);
+
+    for (var i = 0; i < SEGMENTS.length; i++) {
+      var url = "/media/" + SEGMENTS[i];
+      var buf = await (await fetch(url)).arrayBuffer();
+      sb.appendBuffer(buf);
+      stat.textContent = "已加载 " + (i + 1) + "/" + SEGMENTS.length;
+    }
+    video.play();
+  });
+};
+</script>
+</body></html>
