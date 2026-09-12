@@ -1,0 +1,496 @@
+import LoggerCore from "@App/app/logger/core";
+import Logger from "@App/app/logger/logger";
+import type { Resource, ResourceHash, ResourceType } from "@App/app/repo/resource";
+import { ResourceDAO } from "@App/app/repo/resource";
+import type { Script, ScriptResource, ScriptResourceByType } from "@App/app/repo/scripts";
+import { type IMessageQueue } from "@Packages/message/message_queue";
+import { type Group } from "@Packages/message/server";
+import type { ResourceBackup } from "@App/pkg/backup/struct";
+import { isText } from "@App/pkg/utils/istextorbinary";
+import { base64ToBlob, blobToBase64, randNum, sleep } from "@App/pkg/utils/utils";
+import { type TDeleteScript } from "../queue";
+import { calculateHashFromArrayBuffer } from "@App/pkg/utils/crypto";
+import { isBase64, parseUrlSRI, type TUrlSRIInfo } from "./utils";
+import { stackAsyncTask } from "@App/pkg/utils/async_queue";
+import { blobToUint8Array } from "@App/pkg/utils/datatype";
+import { readRawContent } from "@App/pkg/utils/encoding";
+import { Semaphore, withTimeoutNotify } from "@App/pkg/utils/concurrency-control";
+import { parseResourceDeclaration } from "@App/pkg/utils/resource";
+
+/**
+ * 滑动窗口并发上限：同时"已启动、尚未归还槽位"的 fetch 数量。
+ * 超过此数量的请求会排队等待槽位释放后再启动，
+ * 避免瞬间大量请求冲击同一 server（被误判为 DDoS）。
+ */
+const MAX_ACTIVE_FETCHES = 5;
+
+/** fetch 启动前的随机抖动范围(ms)，分散对同一 server 的请求时间 */
+const FETCH_JITTER_MIN_MS = 100;
+const FETCH_JITTER_MAX_MS = 150;
+
+/**
+ * 滑动窗口超时(ms)：
+ * fetch 启动后若超过此时间仍无响应，提前归还并发槽位，
+ * 允许队列中的下一个请求启动——但原 fetch 继续运行，
+ * 响应回来后仍会被正常处理。
+ *
+ * 这是"槽位滑动"而非"取消请求"：
+ *   - 慢响应不会阻塞后续请求的启动（需求 3）
+ *   - 慢响应最终到达时仍会被处理（需求 4）
+ *   - 同时活跃的 fetch 数受 MAX_ACTIVE_FETCHES 控制（需求 1 & 2）
+ */
+const FETCH_SLOT_SLIDE_TIMEOUT_MS = 800;
+
+/** 资源缓存过期时间(ms)，24小时 */
+const RESOURCE_CACHE_TTL_MS = 86_400_000;
+
+/**
+ * 滑动窗口并发控制器（Sliding Window Semaphore）。
+ * 持有槽位 = "已启动 fetch 且尚未超时或完成"。
+ * 超时后槽位提前归还，让下一个 fetch 可以启动，
+ * 而超时的 fetch 本身继续跑直到响应或网络错误。
+ */
+const concurrentFetchSlots = new Semaphore(MAX_ACTIVE_FETCHES);
+
+export class ResourceService {
+  logger: Logger;
+  resourceDAO: ResourceDAO = new ResourceDAO();
+
+  constructor(
+    private group: Group,
+    private mq: IMessageQueue
+  ) {
+    this.logger = LoggerCore.logger().with({ service: "resource" });
+    this.resourceDAO.enableCache();
+  }
+
+  public async getResource(
+    uuid: string,
+    url: string,
+    type: ResourceType,
+    forceUpdate = false
+  ): Promise<Resource | undefined> {
+    const u = parseUrlSRI(url);
+    const oldResource = await this.getResourceModel(u);
+
+    if (forceUpdate) {
+      return this.updateResource(uuid, u, type, oldResource);
+    }
+
+    if (!oldResource) {
+      return undefined;
+    }
+
+    // 读取过但失败的资源加载也会被放在缓存，避免执行期重复加载资源。
+    if (!oldResource.contentType) {
+      return undefined;
+    }
+
+    const shouldUpdate =
+      u.url.startsWith("file:///") ||
+      !oldResource.updatetime ||
+      oldResource.updatetime <= Date.now() - RESOURCE_CACHE_TTL_MS;
+
+    if (shouldUpdate) {
+      return this.updateResource(uuid, u, type, oldResource);
+    }
+
+    // TTL 命中：内容无需重新下载，但仍要登记当前脚本对该资源的引用。
+    if (!oldResource.link[uuid]) {
+      const updated = await this.resourceDAO.update(u.url, { link: { ...oldResource.link, [uuid]: true } });
+      if (updated) {
+        return updated;
+      }
+    }
+
+    return oldResource;
+  }
+
+  public async getScriptResourceValue(script: Script): Promise<ScriptResource> {
+    const resourceByType = await this.getScriptResourceValueByType(script);
+    const { require, "require-css": require_css, resource } = resourceByType;
+    const ret = {
+      ...require,
+      ...require_css,
+      ...resource,
+    };
+
+    // 注意！ 如果它们包含相同名字的Resource，会根据次序而覆盖
+    const recordKeyLens = [ret, require, require_css, resource].map((record) => Object.keys(record).length);
+    if (recordKeyLens[0] !== recordKeyLens[1] + recordKeyLens[2] + recordKeyLens[3]) {
+      this.logger.warn("One or more properties are merged in ResourceService.getScriptResourceValue");
+    }
+
+    return ret;
+  }
+
+  public async getScriptResourceValueByType(script: Script): Promise<ScriptResourceByType> {
+    const [require, require_css, resource] = await this.getResourceByTypes(script, [
+      "require",
+      "require-css",
+      "resource",
+    ]);
+    return {
+      require,
+      "require-css": require_css,
+      resource,
+    } as ScriptResourceByType;
+  }
+
+  public getResourceByTypes(script: Script, types: ResourceType[]): Promise<Record<string, Resource>[]> {
+    const promises = types.map(async (type) => {
+      const ret: Record<string, Resource> = {};
+      const metadataEntries = script.metadata[type];
+      const uuid = script.uuid;
+      if (metadataEntries) {
+        await Promise.allSettled(
+          metadataEntries.map(async (mdValue) => {
+            /** 资源键名 */
+            let resourceKey;
+            /** 文件路径 */
+            let resourcePath: string;
+            if (type === "resource") {
+              // @resource xxx https://...
+              const declaration = parseResourceDeclaration(mdValue);
+              if (!declaration) return;
+              resourceKey = declaration.name;
+              resourcePath = declaration.url;
+            } else {
+              // require / require-css 的话，使用 url 作为 resourceKey
+              resourceKey = mdValue;
+              resourcePath = mdValue;
+            }
+            if (resourcePath) {
+              const u = parseUrlSRI(resourcePath);
+              const oldResources = await this.getResourceModel(u);
+              let freshResource: Resource | undefined = undefined;
+              if (oldResources && !resourcePath.startsWith("file:///")) {
+                // 读取过但失败的资源加载也会被放在缓存，避免再加载资源
+                // 因此 getResource 时不会再加载资源，直接返回 undefined 表示没有资源
+                if (!oldResources.contentType) {
+                  freshResource = undefined;
+                } else {
+                  freshResource = oldResources;
+                }
+              } else {
+                // 1) 如果是file://协议，则每次请求更新一下文件
+                // 2) 缓存中无资源加载纪录，需要取得资源
+                freshResource = await this.updateResource(uuid, u, type, oldResources);
+                // 没有 oldResources 时，下载资源失败还是会生成一个空 Resource，避免重复尝试失败的下载
+              }
+              if (freshResource) {
+                // 空资源也储存一下，确保 resourceDAO 的记录和 script 的 resourceValue 记录一致
+                ret[resourceKey] = freshResource;
+              }
+            }
+          })
+        );
+      }
+      return ret;
+    });
+    return Promise.all(promises);
+  }
+
+  // 只需要等待Promise返回，不理会返回值（失败也可以）
+  updateResourceByTypes(script: Script, types: ResourceType[]): Promise<any> {
+    const uuid = script.uuid;
+    const metadata = script.metadata;
+    const promises = types.map((type) => {
+      const promises = metadata[type]?.map(async (value) => {
+        let url = "";
+        if (type === "resource") {
+          url = parseResourceDeclaration(value)?.url || "";
+        } else {
+          url = value;
+        }
+        if (url) {
+          // 检查资源是否存在,如果不存在则重新加载
+          // 如果有旧资源，而没有新资讯，则继续使用旧资源
+          // 只需要等待Promise返回，不理会返回值（失败也可以）
+          const u = parseUrlSRI(url);
+          const oldResources = await this.getResourceModel(u);
+          // 非空值 url 且 url 不是本地档案 -> 检查最后更新时间 (空资源除外)
+          if (u.url && !u.url.startsWith("file:///") && oldResources?.contentType) {
+            const updateTime = oldResources.updatetime;
+            // 资源最后更新是24小时内则不更新
+            // 这里是假设 resources 都是 static. 使用者应该加 ?d=xxxx 之类的方式提示SC要更新资源
+            if (updateTime && updateTime > Date.now() - RESOURCE_CACHE_TTL_MS) {
+              // TTL 命中：内容无需重新下载，但仍要登记当前脚本对该资源的引用，
+              // 否则多个脚本复用同一 URL 时，删除其中一个脚本会把仍被其它脚本使用的资源一并删除。
+              // 只更新 link 字段：oldResources 可能因 SRI 校验失败被改写过 content，不能整份写回。
+              if (!oldResources.link[uuid]) {
+                await this.resourceDAO.update(u.url, { link: { ...oldResources.link, [uuid]: true } });
+              }
+              return;
+            }
+          }
+          // 旧资源或没有资源记录或本地档案，尝试更新
+          await this.updateResource(uuid, u, type, oldResources);
+        }
+      });
+      if (promises?.length) return Promise.allSettled(promises);
+    });
+    return Promise.all(promises);
+  }
+
+  async updateResource(uuid: string, u: TUrlSRIInfo, type: ResourceType, oldResources: Resource | undefined) {
+    let result: Resource;
+    let resource: Resource | undefined;
+    try {
+      resource = await this.createResourceByUrlFetch(u, type);
+    } catch (e) {
+      this.logger.error("fetch resource error", { url: u.url }, Logger.E(e));
+    }
+    try {
+      if (resource) {
+        if (!oldResources || !oldResources.contentType) {
+          // 资源不存在,保存
+          resource.link = { [uuid]: true };
+          result = resource;
+          await this.resourceDAO.save(result).catch(console.warn);
+          this.logger.info("reload new resource success", { url: u.url });
+        } else {
+          result = {
+            ...oldResources,
+            base64: resource.base64,
+            content: resource.content,
+            contentType: resource.contentType,
+            hash: resource.hash,
+            updatetime: resource.updatetime,
+            link: { ...oldResources.link, [uuid]: true },
+          };
+          await this.resourceDAO.save(result).catch(console.warn);
+          this.logger.info("reload resource success", { url: u.url });
+        }
+        return result;
+      } else {
+        // 如果有旧资源，则使用旧资源
+        if (oldResources) return oldResources;
+        // 资源错误时（且没有旧资源）保存一个空纪录以防止再度尝试加载
+        // this.resourceDAO.save 自身出错的话忽略
+        const now = Date.now();
+        result = {
+          url: u.url,
+          content: "",
+          contentType: "",
+          hash: {
+            md5: "",
+            sha1: "",
+            sha256: "",
+            sha384: "",
+            sha512: "",
+          },
+          base64: "",
+          link: { [uuid]: true },
+          type,
+          createtime: now,
+          updatetime: now,
+        };
+        await this.resourceDAO.save(result).catch(console.warn);
+        return result; // 下载失败还是回传一下 result
+      }
+    } catch (e) {
+      this.logger.error("Unexpected error in updateResource", { url: u.url }, Logger.E(e));
+    }
+  }
+
+  async getResourceModel(u: TUrlSRIInfo) {
+    const resource = await this.resourceDAO.get(u.url);
+    if (resource) {
+      // 校验hash
+      const hash = u.hash;
+      if (hash) {
+        let flag = true;
+        for (const key of Object.keys(hash)) {
+          if (isBase64(hash[key])) {
+            // 对比base64编码的hash
+            const integrity = resource.hash.integrity as Partial<Record<string, string>>;
+            if (integrity && integrity[key] !== hash[key]) {
+              flag = false;
+              break;
+            }
+          } else {
+            // 对比普通的hash
+            if (key in resource.hash) {
+              if (resource.hash[key as keyof ResourceHash] !== hash[key].toLowerCase()) {
+                flag = false;
+                break;
+              }
+            }
+          }
+        }
+        if (!flag) {
+          resource.content = `console.warn("ScriptCat: couldn't load resource from URL ${u.originalUrl} due to a SRI error ");`;
+        }
+      }
+      return resource;
+    }
+    return undefined;
+  }
+
+  calculateHash(blob: Blob): Promise<ResourceHash> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(blob);
+      reader.onloadend = function () {
+        if (!reader.result) {
+          resolve({
+            md5: "",
+            sha1: "",
+            sha256: "",
+            sha384: "",
+            sha512: "",
+          });
+        } else {
+          resolve(calculateHashFromArrayBuffer(<ArrayBuffer>reader.result));
+        }
+      };
+    });
+  }
+
+  async createResourceByUrlFetch(u: TUrlSRIInfo, type: ResourceType): Promise<Resource> {
+    const url = u.url; // 无 URI Integrity Hash
+
+    // 随机抖动：分散对同一 server 的请求启动时间，降低被限速的概率
+    await sleep(randNum(FETCH_JITTER_MIN_MS, FETCH_JITTER_MAX_MS));
+
+    // 等待并发槽位（滑动窗口入口）
+    await concurrentFetchSlots.acquire();
+
+    // releaseSlotOnce 保证槽位只归还一次，无论经由 timeout 路径还是正常完成路径
+    let slotReleased = false;
+    const releaseSlotOnce = () => {
+      if (!slotReleased) {
+        slotReleased = true;
+        concurrentFetchSlots.release();
+      }
+    };
+
+    // 滑动窗口语义：
+    //   - fetch 超时 (timeouted=true)  → 提前归还槽位，下一个请求可以启动
+    //   - fetch 完成/失败 (settled=true)  → 归还槽位（若 timeout 已归还则为 no-op）
+    // 原 fetch 在超时后仍继续运行，响应到达时照常处理（不会被取消）
+    const { result, err } = await withTimeoutNotify(
+      fetch(url),
+      FETCH_SLOT_SLIDE_TIMEOUT_MS,
+      ({ settled, timeouted }) => {
+        if (timeouted || settled) {
+          releaseSlotOnce();
+        }
+      }
+    );
+
+    if (err) {
+      throw new Error(`resource fetch failed: ${err.message || err}`);
+    }
+
+    const resp = result! as Response;
+
+    if (resp.status !== 200) {
+      throw new Error(`resource response status not 200: ${resp.status}`);
+    }
+    const data = await resp.blob();
+    const now = Date.now();
+    const [hash, uint8Array, base64] = await Promise.all([
+      this.calculateHash(data),
+      blobToUint8Array(data),
+      blobToBase64(data),
+    ]);
+    const contentType = resp.headers.get("content-type");
+    const resource: Resource = {
+      url: u.url,
+      content: "",
+      contentType: (contentType || "application/octet-stream").split(";")[0], // 保证下载成功时必定有 contentType
+      hash: hash,
+      base64: "",
+      link: {},
+      type,
+      createtime: now,
+      updatetime: now,
+    };
+    if (isText(uint8Array)) {
+      if (type === "require" || type === "require-css") {
+        resource.content = await readRawContent(data, contentType); // @require和@require-css 是会转换成代码运行的，可以进行解码
+      } else {
+        resource.content = await data.text(); // @resource 应该要保留原汁原味
+      }
+    }
+    resource.base64 = base64 || "";
+    return resource;
+  }
+
+  async deleteResource(url: string) {
+    // 删除缓存
+    const res = await this.resourceDAO.get(url);
+    if (!res) {
+      throw new Error("resource not found");
+    }
+    return this.resourceDAO.delete(url);
+  }
+
+  async importResource(uuid: string, data: ResourceBackup, type: ResourceType) {
+    // 导入资源：文本资源用 source，二进制资源(如图片/字体)只有 base64(dataURI)
+    if (!data.source && !data.base64) {
+      return undefined;
+    }
+    const now = Date.now();
+    const ts = data.meta.ts || 0;
+    let res = await this.resourceDAO.get(data.meta.url);
+    if (!res) {
+      // 新增资源
+      const blob = data.source ? new Blob([data.source]) : base64ToBlob(data.base64);
+      const [hash, base64] = await Promise.all([this.calculateHash(blob), blobToBase64(blob)]);
+      res = {
+        url: data.meta.url,
+        content: data.source || "",
+        contentType: data.meta.mimetype || "",
+        hash,
+        base64,
+        link: {},
+        type,
+        createtime: ts ? Math.min(ts, now) : now,
+        updatetime: ts ? Math.min(ts, now) : now,
+      };
+    } else {
+      res.updatetime = now;
+    }
+    res.link[uuid] = true;
+    // 用 save(=_save，无则创建) 而非 update(键不存在时返回 false 不落库)——否则备份中的新资源永不入库(#1150)
+    return await this.resourceDAO.save(res);
+  }
+
+  requestGetScriptResources(script: Script): Promise<ScriptResource> {
+    return this.getScriptResourceValue(script);
+  }
+
+  init() {
+    this.group.on("getScriptResources", this.requestGetScriptResources.bind(this));
+    this.group.on("deleteResource", this.deleteResource.bind(this));
+
+    // 删除相关资源
+    this.mq.subscribe<TDeleteScript[]>("deleteScripts", (data) => {
+      // 使用事务当锁，避免并发删除导致数据不一致
+      stackAsyncTask<boolean>("resource_lock", async () => {
+        for (const { uuid } of data) {
+          const resources = await this.resourceDAO.find((key, value) => {
+            return value.link[uuid];
+          });
+          for (const res of resources) {
+            // 删除link
+            delete res.link[uuid];
+          }
+          await Promise.all(
+            resources.map((res) => {
+              if (Object.keys(res.link).length > 0) {
+                return this.resourceDAO.update(res.url, res);
+              }
+              // 如果没有关联脚本了,删除资源
+              return this.resourceDAO.delete(res.url);
+            })
+          );
+        }
+        return true;
+      });
+    });
+  }
+}

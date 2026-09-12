@@ -1,0 +1,157 @@
+import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import { initTestLanguage } from "@Tests/initTestLanguage";
+import { InstallActions } from "./InstallActions";
+
+const baseProps = () => ({
+  isUpdate: false,
+  isSubscribe: false,
+  onInstall: vi.fn(),
+  onClose: vi.fn(),
+  onToggleWatch: vi.fn(),
+});
+
+const open = async (el: HTMLElement) => {
+  await act(async () => {
+    fireEvent.click(el);
+  });
+};
+
+beforeAll(() => initTestLanguage("zh-CN"));
+
+afterEach(cleanup);
+
+describe("InstallActions 操作区", () => {
+  it("点击主按钮触发安装", () => {
+    const p = baseProps();
+    render(<InstallActions {...p} />);
+    fireEvent.click(screen.getByTestId("install-primary"));
+    expect(p.onInstall).toHaveBeenCalledTimes(1);
+  });
+
+  it("primaryDisabled 时主按钮禁用", () => {
+    render(<InstallActions {...baseProps()} primaryDisabled />);
+    expect(screen.getByTestId("install-primary")).toBeDisabled();
+  });
+
+  it("展开更多菜单可选择不关闭窗口", async () => {
+    const p = baseProps();
+    render(<InstallActions {...p} />);
+    await open(screen.getByTestId("install-more"));
+    fireEvent.click(screen.getByText(/不关闭窗口/).closest('[role="menuitem"]')!);
+    expect(p.onInstall).toHaveBeenCalledWith({ closeAfterInstall: false });
+  });
+
+  it("非订阅展开菜单含禁止更新项并可点击", async () => {
+    const p = baseProps();
+    render(<InstallActions {...p} />);
+    await open(screen.getByTestId("install-more"));
+    fireEvent.click(screen.getByText(/不再检查更新/).closest('[role="menuitem"]')!);
+    expect(p.onInstall).toHaveBeenCalledWith({ noMoreUpdates: true });
+  });
+
+  it("订阅源隐藏禁止更新项", async () => {
+    render(<InstallActions {...baseProps()} isSubscribe />);
+    await open(screen.getByTestId("install-more"));
+    expect(screen.queryByText(/不再检查更新/)).not.toBeInTheDocument();
+  });
+
+  it("全新安装关闭为普通按钮并触发关闭", () => {
+    const p = baseProps();
+    render(<InstallActions {...p} />);
+    fireEvent.click(screen.getByTestId("close-primary"));
+    expect(p.onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("close-more")).not.toBeInTheDocument();
+  });
+
+  it("更新态关闭可选择不再检查更新", async () => {
+    const p = baseProps();
+    render(<InstallActions {...p} isUpdate />);
+    await open(screen.getByTestId("close-more"));
+    fireEvent.click(screen.getByText(/不再检查更新/).closest('[role="menuitem"]')!);
+    expect(p.onClose).toHaveBeenCalledWith({ noMoreUpdates: true });
+  });
+
+  it("本地文件显示监听按钮,点击切换监听", () => {
+    const p = baseProps();
+    render(<InstallActions {...p} localFile />);
+    fireEvent.click(screen.getByTestId("watch-toggle"));
+    expect(p.onToggleWatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("监听中显示停止监听文案", () => {
+    render(<InstallActions {...baseProps()} localFile watching />);
+    expect(screen.getByTestId("watch-toggle")).toHaveTextContent("停止监听");
+  });
+
+  it("操作栏左侧渲染信任提示语(对照设计稿 BarNote)", () => {
+    render(<InstallActions {...baseProps()} />);
+    expect(screen.getByTestId("action-bar-note")).toBeInTheDocument();
+  });
+
+  it("未提供 onExternalAccessReject 时不渲染拒绝按钮", () => {
+    render(<InstallActions {...baseProps()} />);
+    expect(screen.queryByTestId("external-access-reject")).not.toBeInTheDocument();
+  });
+
+  it("提供 onExternalAccessReject 时渲染拒绝按钮，点击触发回调（MCP 请求安装流程）", () => {
+    const onExternalAccessReject = vi.fn();
+    render(<InstallActions {...baseProps()} onExternalAccessReject={onExternalAccessReject} />);
+    const rejectButton = screen.getByTestId("external-access-reject");
+    expect(rejectButton).toBeInTheDocument();
+    fireEvent.click(rejectButton);
+    expect(onExternalAccessReject).toHaveBeenCalledTimes(1);
+  });
+
+  it("外部接入触发时操作栏提示语切换为渠道说明（设计稿 ActionNote）", () => {
+    render(<InstallActions {...baseProps()} onExternalAccessReject={vi.fn()} />);
+    expect(screen.getByTestId("action-bar-note")).toHaveTextContent("由「外部接入」触发");
+  });
+});
+
+describe("InstallActions 主按钮就地状态机", () => {
+  it("安装中:主按钮显示进行中文案并禁用,连同拆分菜单一起锁住", () => {
+    render(<InstallActions {...baseProps()} phase="installing" />);
+    const primary = screen.getByTestId("install-primary");
+    expect(primary).toHaveTextContent("安装中");
+    expect(primary).toBeDisabled();
+    expect(screen.getByTestId("install-more")).toBeDisabled();
+  });
+
+  it("已安装:主按钮转为已安装且保持禁用,避免重复点击", () => {
+    render(<InstallActions {...baseProps()} phase="installed" />);
+    const primary = screen.getByTestId("install-primary");
+    expect(primary).toHaveTextContent("已安装");
+    expect(primary).toBeDisabled();
+  });
+
+  it("失败:主按钮回到可点状态并改为重试安装", () => {
+    const p = baseProps();
+    render(<InstallActions {...p} phase="failed" />);
+    const primary = screen.getByTestId("install-primary");
+    expect(primary).toHaveTextContent("重试安装");
+    expect(primary).not.toBeDisabled();
+    fireEvent.click(primary);
+    expect(p.onInstall).toHaveBeenCalledTimes(1);
+  });
+
+  it("外部接入的决策按钮在安装完成后锁住,避免在已批准后再提交拒绝", () => {
+    render(
+      <InstallActions
+        {...baseProps()}
+        phase="installed"
+        onExternalAccessReject={vi.fn()}
+        onExternalAccessSessionAllow={vi.fn()}
+      />
+    );
+    expect(screen.getByTestId("external-access-reject")).toBeDisabled();
+    expect(screen.getByTestId("external-access-session-allow")).toBeDisabled();
+  });
+
+  it("未传 phase 时保持原有的安装文案与可点状态", () => {
+    render(<InstallActions {...baseProps()} />);
+    const primary = screen.getByTestId("install-primary");
+    expect(primary).toHaveTextContent("安装");
+    expect(primary).not.toBeDisabled();
+  });
+});

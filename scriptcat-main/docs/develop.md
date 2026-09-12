@@ -1,0 +1,226 @@
+# ScriptCat Development Guide (开发规范)
+
+> **Read this before writing code.** [`AGENTS.md`](../AGENTS.md) holds the non-negotiable engineering
+> principles (SOLID / high cohesion & low coupling, TDD/BDD-first, root-cause fixes, scope discipline) and the
+> architecture quick-map — those are **not** repeated here. This file is the concrete development spec: the
+> commands, structure, coding style, UI/theme rules, testing mechanics, i18n, and commit/PR workflow you follow
+> while implementing. For deep internals see [`docs/architecture.md`](./architecture.md).
+
+## Commands
+
+```bash
+pnpm install              # install deps (preinstall enforces pnpm)
+pnpm run dev              # dev build (source maps); load dist/ext as unpacked extension
+pnpm run dev:noMap        # dev build w/o source maps (incognito)
+pnpm run build            # production Rspack build
+pnpm run pack             # package the extension (requires dist/scriptcat.pem)
+
+pnpm test                 # all tests (Vitest)
+pnpm test -- --run path/to/file.test.ts   # single test file
+pnpm run coverage
+pnpm run typecheck        # tsc --noEmit
+
+pnpm run test:e2e:install # install Playwright Chromium (first run only)
+pnpm run test:e2e         # Playwright (e2e/*.spec.ts; worker count comes from playwright.config.ts)
+pnpm run lint             # prettier --check + tsc --noEmit + check:i18n + check:issue-templates, then eslint
+pnpm run lint-fix         # prettier --write + tsc --noEmit + eslint --fix
+
+pnpm run check:i18n              # translation key parity (see docs/translation.md)
+pnpm run check:issue-templates   # .github/ISSUE_TEMPLATE schema, zh/en parity, issues/new prefill ids
+```
+
+If a project command fails because a local prerequisite is missing, restore that prerequisite and retry the
+original command before reporting it blocked: use `pnpm install` for Node dependencies and
+`pnpm run test:e2e:install` for missing Playwright Chromium. If `pnpm` itself is unavailable, activate the
+repository-declared pnpm through Corepack when available. If setup cannot succeed or changes tracked files, report
+that blocker or mismatch instead of switching package managers or committing recovery changes.
+
+No standalone `format` script — formatting is part of `lint-fix` and runs through `prettier --write`. Husky
+pre-commit runs `prettier --check` and `pnpm run typecheck` plus ESLint for staged JS/TS files, runs
+`check:i18n` when locale files are staged and `check:issue-templates` when issue templates or `src/` TypeScript
+are staged, and also runs `pnpm run test:ci` when committing on `main` or `release/*`.
+
+`check:issue-templates` guards a contract that is invisible in review: GitHub prefills an issue form from
+`issues/new?...` query params keyed by **field id**, so renaming or deleting an id silently breaks every link
+using it — including links already shipped in installed builds, which keep sending the old param name.
+
+After `pnpm run dev`, load `dist/ext` as an unpacked extension. The browser hot-reloads page changes, but edits to `manifest.json`, `service_worker`, `offscreen`, or `sandbox` require reloading the extension.
+
+### External Access (`external_access/` subsystem)
+
+External Access — the user-facing "外部接入 / External Access" feature
+(`src/app/service/service_worker/external_access/`) — is **built into every profile and gated only at
+runtime** by `external_access_enabled` (`SystemConfig`, device-local, off by default); there is no build-time flag
+and no `nativeMessaging` permission (both were removed when the transport moved to WebSocket). Trust is
+flat: a single enrollment establishes the long-term key K, and the CLI and every MCP agent inherit it
+(no per-client pairing/scope/revocation). It connects, from an offscreen WebSocket client
+(`src/app/service/offscreen/external-access-connect.ts`), to a local companion binary
+[`sctl`](https://github.com/scriptscat/sctl) — a WS daemon that defaults to `127.0.0.1:8643`; the
+extension never listens on a port itself. RPC schemas and generators are owned by the sctl repo's `protocol/`
+directory. ScriptCat consumes generated artifacts under
+[`external_access/generated/`](../src/app/service/service_worker/external_access/generated/), and
+`protocol.conformance.test.ts` guards its runtime types against them. See the
+[External Access user guide](https://docs.scriptcat.org/en/docs/use/external-access/) for usage, and the sctl repo's
+`docs/protocol.md` / `docs/threat-model.md` for the wire protocol and security design.
+
+## Project Structure & Module Organization
+
+Core entry points live in `src` (`service_worker.ts`, `content.ts`, `inject.ts`, `offscreen.ts`, `sandbox.ts`). UI pages are in `src/pages`, with shared UI in `src/pages/components` and state in `src/pages/store`. Reusable domain code is in `src/pkg`; app services are in `src/app`; templates are in `src/template`; assets and translations are in `src/assets` and `src/locales`. Workspace packages live in `packages`, including browser mocks and filesystem adapters. Unit tests are colocated as `*.test.ts`/`*.test.tsx` or placed in `tests`; E2E specs are in `e2e`.
+
+### Path Aliases
+
+`@App/* → src/*`, `@Packages/* → packages/*`, `@Tests/* → tests/*`
+
+## Coding Style & Naming Conventions
+
+Use strict TypeScript, React JSX runtime, 2-space indentation, semicolons, double quotes, trailing commas where valid, and a 120-column Prettier width. Prefer aliases from `tsconfig.json`: `@App/*`, `@Packages/*`, and `@Tests/*`. ESLint requires type-only imports, allows `_`-prefixed unused variables, errors on literal JSX text, and enforces `chrome.runtime.lastError` checks. Use `pnpm run lint-fix` for mechanical fixes.
+
+### ESLint custom rules
+
+The project's own custom rules live in `eslint-rules/` at the repo root (wired in `eslint.config.mjs`, **not**
+`packages/eslint/`, which is the unrelated userscript lint config for the in-app editor) and act as a mechanical
+harness for conventions that would otherwise rely on memory. Lint enforces the rules themselves — violating code
+fails CI; the scope and coverage notes below are hand-maintained prose, so check `eslint.config.mjs` when a
+detail matters:
+
+- `chrome-error/require-last-error-check` — enforces `chrome.runtime.lastError` handling. Not covered by
+  `harness.test.mjs`.
+- `scriptcat/no-i18n-default-value` — bans `t(key, { defaultValue })` inline fallbacks (they leak hardcoded text
+  to every language and bypass the `i18n-usage` key check); add the key to `src/locales/<locale>/*.json` instead.
+- `scriptcat/no-raw-color-classname` (`src/pages/**/*.tsx`) — bans raw palette/hex colors in `className`
+  (`bg-white`, `text-gray-500`, `dark:bg-gray-800`, `bg-[#fff]`); use design tokens (`bg-background`/
+  `text-foreground`/…) so light & dark both work.
+- `scriptcat/no-test-large-boundary-fixture` (`src/pages/**/*.test.{ts,tsx}`) — requires a line-level rationale for
+  explicit `PAGE_SIZE + 1`/`PAGE_ROWS + 1`-style `Array.from({ length: ... })` fixtures, so pagination and filtering
+  tests keep their boundary explicit; render cost remains a semantic test-review concern.
+
+Three conventions are enforced via built-in rules in `eslint.config.mjs`: `no-restricted-imports` bans
+`@radix-ui/react-*` single packages (use the merged `radix-ui`) and the `sonner` `toast` export (use `notify`);
+`no-restricted-syntax` bans `forwardRef` across `src/pages/**` (use React 19 `function` + ref-prop); and a
+file-scoped `no-restricted-imports` on `tests/vitest.setup.ts` bans `./utils` / `@App/app/service*` /
+`@App/pages/store*` so global test setup stays lightweight (as a per-file rule replacement it also drops the
+sonner/radix restriction there — the file imports neither).
+`eslint-rules/harness.test.mjs` covers every custom rule except `require-last-error-check`, plus the Radix import
+pattern and the `forwardRef` restriction — not the `sonner` pattern of `no-restricted-imports`, the
+`tests/vitest.setup.ts` scope, or the type-aware rules.
+
+`src/pages/components/ui/toast.ts` turns `no-restricted-imports` **entirely off** (`eslint.config.mjs`), but
+only the `sonner` half of that is intentional: this is the one place in `src/pages/**` allowed to import
+`sonner`'s `toast` directly (it's what `notify` wraps). Also losing the `@radix-ui/react-*` restriction is an
+unintended side effect — the file imports no Radix today, and `harness.test.mjs`'s Radix case only exercises
+`dialog.tsx`, so lint would not catch one landing here. Treat it as a lint gap rather than permission: narrow
+the override to the `sonner` import if you touch this file. Every other file still gets both restrictions.
+
+Separately, type-aware rules run on `src/pages/**` (tests excluded) via `projectService` —
+`@typescript-eslint/no-floating-promises`, `no-misused-promises` (with `checksVoidReturn.attributes: false`, so
+`async` JSX handlers are allowed), and `await-thenable`, all `error` — to catch missing `await`s and promises
+misused as void callbacks. These need type information, so they are *not* part of `harness.test.mjs`.
+
+### Language Conventions
+
+- Comments in Simplified Chinese.
+- Code-review responses in Chinese.
+- UI default English (global users).
+- Template literals: `${i}`, not `${i.toString()}`.
+
+### Comment Discipline
+
+A comment must tell the reader something the code cannot: an invariant, a race condition, a workaround for a specific constraint, or why something looks wrong but is correct. If deleting it would cost a future reader nothing, delete it.
+
+- **No ephemeral review labels; permanent issue/PR references are allowed when useful.** Never write review-round or audit identifiers that only made sense inside a now-gone conversation, such as `finding 5`, `round 2 fix`, or `【finding N 回归】`. A permanent issue or PR reference that is accessible to the intended maintainers can be useful, for example: `// regression test for #1234: 附件在会话删除重建后被误删`. Apply the same test to every reference: will it still help a future reader who has no memory of the conversation that added it? A relevant, accessible issue or PR usually passes; a private review label never does. In all cases, state the invariant or behavior in words first, such as `确认读失败不代表写入未落盘，只是无法证实`. The reference supplements the explanation; it does not replace it.
+- **Do not restate the next line.** A comment above code must add information the code does not already convey. Do not write `// 继续循环` above `continue;` or `// send done event` above `sendEvent({ type: "done" })`. If the comment adds no meaning beyond the code below it, delete it.
+- **Do not duplicate enclosing documentation.** If a function, class, or module doc comment already explains a behavior, do not repeat the same fact inside the implementation. State each fact once, in the place that owns it.
+- **Keep comments attached to the code they describe.** When code is moved, replaced, reordered, or deleted, move, update, or delete its comments as well. A comment that no longer describes what actually runs is worse than no comment. Check this explicitly whenever a diff changes existing code, not only when it adds new code.
+
+## UI
+
+React 19 + shadcn/ui (Radix UI primitives, "new-york" style) + Tailwind CSS v4 + React Router. Pages in
+`src/pages/`; shared primitives in `src/pages/components/ui/` (config in `components.json`).
+
+- Compose styles with Tailwind utility classes joined via `cn()` (`src/pkg/utils/cn.ts` — clsx + tailwind-merge);
+  avoid inline `style={{}}`. Build component variants with `class-variance-authority`; icons from `lucide-react`.
+- **Hover/focus visuals → CSS pseudo-classes (`hover:`, `focus:`)**, not React state. State is for data/logic.
+- **Theme** (light/dark/auto) — managed by `src/pages/components/theme-provider.tsx` and applied as the `.dark`
+  class on `document.documentElement` (`src/pages/common.ts` sets the initial class before React mounts to avoid a
+  flash). Every UI change must work in both themes:
+  - Use the design-system CSS variables defined in `src/index.css` (`bg-background`, `text-foreground`,
+    `border-border`, `text-primary`, `bg-primary-background`, `text-muted-foreground`, …) — they auto-adapt per theme.
+  - Use Tailwind's `dark:` variant for dark-only overrides (`@custom-variant dark` in `src/index.css`).
+  - No hard-coded colors.
+- **Design system** — the full color-token reference (light/dark values), component palette, layout &
+  responsive patterns, motion guidance, state patterns, and a new-page recipe live in
+  [`design.md`](./design.md). Read it before building or modifying any page, dialog, or block.
+
+## Testing
+
+This project uses Vitest for unit tests and Playwright for end-to-end tests.
+
+> Test design, meaningful-test & cleanup guidance, run mechanics, and Vitest performance hygiene live in [testing.md](./references/develop-testing.md). To verify a change end-to-end without growing the suite, see [verification.md](./verification.md).
+
+## i18n
+
+i18next; extension strings in `src/assets/_locales/`. The current locale list is owned by [`docs/translation.md`](./translation.md). ESLint `react/jsx-no-literals: error` enforces translation. Each locale is split by namespace into multiple `*.json` files (`common.json`, `popup.json`, `script.json`, …), re-exported via the locale's `index.ts` and merged in `src/locales/locales.ts`. `defaultNS` is `common`; keys in any other namespace need the `ns:` prefix (e.g. `t("script:tags")`). For localization, edit the relevant namespace `*.json` under `src/locales/<locale>/`; new locales must also be registered in `src/locales/locales.ts`.
+
+**Before translating, read [`docs/translation.md`](./translation.md)** — the translation/localization guide (terminology rules + per-locale `terminology-<locale>.md` specs).
+
+## Security & Configuration Tips
+
+Do not commit secrets, local certificates, build output, coverage, Playwright reports, test results, or local `.env` changes.
+
+## Commit & Pull Request Guidelines
+
+Commits must be single-purpose and **start with a gitmoji emoji** — use the actual emoji character, not the `:code:` text form, for example `git commit -m "🐛 fix template matching"` or `git commit -m "✨ add script filter"`. The leading emoji drives release changelog grouping (see the `release` skill), so pick the one that matches the change:
+
+| Emoji | Use for |
+|---|---|
+| ✨ | New feature |
+| 🐛 / 🚑 | Bug fix / urgent hotfix |
+| ⚡️ | Performance improvement |
+| ♻️ | Refactor / compatibility |
+| 🎨 / 💄 | Code structure / UI & styling |
+| 🔒 | Security |
+| ⬆️ | Dependency bump |
+| ✅ | Tests |
+| 📄 | Docs |
+| 🔧 / 👷 / 💚 | Config / CI / CI fix |
+| 🔖 | Release / version bump |
+
+Work from a feature branch or fork and open PRs against `main`. Chinese PR titles are preferred for changelog generation.
+
+Use `.github/pull_request_template.md` as the starting point. It is intentionally lightweight for human-authored PRs; agents should preserve its checklist and expand `Description / 描述` only when useful. The detailed structure is defined in [`pull-request.md`](./pull-request.md). Keep exact commands and results in `验证`, describe UI evidence when the change is visual, and do not claim checks or evidence that did not happen.
+
+### Revision, Scope, and Publication Binding
+
+Before reviewing or reporting a branch or pull request, or creating/updating a pull request or pushing its
+branch, bind the artifact, revision, and scope to the current remote state:
+
+1. Identify the target. For a live pull request, read its metadata and record its repository, base branch, head
+   branch, and head SHA. If only a local branch or commit is available, record its SHA and label all results
+   local-only; do not call them final pull-request evidence.
+2. Fetch the current base and relevant head refs before choosing the parent or diff. For a new pull request,
+   fetch `origin/main` and branch from that ref. For an existing pull request, fetch the recorded head repository
+   and branch.
+3. Compare the local SHA used for review or publication with the live branch/PR head using `git rev-parse HEAD`,
+   `git ls-remote <head-remote> refs/heads/<head-branch>` when a remote head exists, and the live pull-request
+   metadata. A local `HEAD` or tracking ref is not evidence of the pull-request head. If any identity differs,
+   stop, rebind the worktree and diff, and rerun the review before continuing.
+4. For a live pull request, derive review conclusions and inclusion/exclusion claims from the live base-to-head
+   diff, including changed paths and patch content. Apply the final-diff rule in
+   [`pull-request.md#scope-claims-and-final-diff-evidence`](./pull-request.md#scope-claims-and-final-diff-evidence);
+   branch ancestry, intention, and an earlier local check are insufficient.
+5. Before publication, require `git status --short --branch`, a named non-detached branch, and `git rev-parse
+   HEAD`; re-read the remote head immediately before pushing. Push normally only when the expected head is
+   unchanged. Never overwrite an unexpected or unreviewed remote commit. If the user explicitly authorizes a
+   rewrite, bind the current remote head, use a lease-protected force update against that exact SHA, and verify
+   the remote ref after pushing.
+6. Before reporting results or changing pull-request metadata, re-read the live pull request and bind every claim
+   to its returned head SHA. Any new commit, force-push, rebase, base change, conflict resolution, or scope-claim
+   edit invalidates earlier evidence; rerun the affected review, checks, and final-diff audit.
+
+The same binding applies to the scope you declared for your own change. A commit's gitmoji type and title, and the
+task statement they serve, name a scope class; compare the final diff against that class before committing or
+pushing. Move anything outside it into its own commit with its own justification, or restate the scope. A
+production behavior change that arrives inside a test-cleanup or refactor commit is not reviewable as either, and
+stays unreviewable no matter how correct it is on its own.
+
+**Review policy**: review **all** modified files (including `.md`/`.json`); PR description is context only — judge from the diff. Verify every code path touched.

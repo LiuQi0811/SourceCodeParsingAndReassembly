@@ -1,0 +1,1382 @@
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { parseMetadata, parseScriptFromCode, fetchScriptBody, prepareScriptByCode } from "./script";
+import { getMetadataStr, getUserConfigStr } from "./utils";
+import { parseUserConfig } from "./yaml";
+import {
+  SCRIPT_TYPE_NORMAL,
+  SCRIPT_TYPE_CRONTAB,
+  SCRIPT_TYPE_BACKGROUND,
+  SCRIPT_STATUS_DISABLE,
+  SCRIPT_STATUS_ENABLE,
+  SCRIPT_RUN_STATUS_COMPLETE,
+  ScriptDAO,
+  ScriptCodeDAO,
+} from "@App/app/repo/scripts";
+import type { Script } from "@App/app/repo/scripts";
+import { TrashScriptDAO, type TrashScript } from "@App/app/repo/trash_script";
+import { createMockOPFS } from "@App/app/repo/test-helpers";
+
+beforeEach(() => createMockOPFS());
+
+describe.concurrent("parseMetadata", () => {
+  it.concurrent("解析标准UserScript元数据", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  这是一个测试脚本
+// @author       测试作者
+// @match        https://example.com/*
+// @grant        none
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.version).toEqual(["1.0.0"]);
+    expect(result?.description).toEqual(["这是一个测试脚本"]);
+    expect(result?.author).toEqual(["测试作者"]);
+    expect(result?.match).toEqual(["https://example.com/*"]);
+    expect(result?.grant).toEqual(["none"]);
+  });
+
+  it.concurrent("解析非GM标准UserScript元数据", () => {
+    // https://github.com/Tampermonkey/tampermonkey/issues/1326
+    const code = `
+// ==UserScript==
+// @name         测试脚本 TEST 💁🏼‍♀️
+// @namespace    admin@scriptcat.org
+// @version      -
+// @description  这是一个 💁🏼‍♀️ 测试脚本
+// @author       测试作者
+// @match        https://example.com/*
+//@require       https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js
+// @match        https://greasyfork.org/*/scripts*
+//@exclude       https://greasyfork.org/*/scripts/*
+// @grant        none
+//@downloadURL				https://github.com/EvilSpark/LazyScroll/blob/master/LazyScroll.js
+// ==/UserScript==
+
+// ==UserScript==
+// @match        https://no-this-domain.com/*
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本 TEST 💁🏼‍♀️"]);
+    expect(result?.namespace).toEqual(["admin@scriptcat.org"]);
+    expect(result?.version).toEqual(["-"]);
+    expect(result?.description).toEqual(["这是一个 💁🏼‍♀️ 测试脚本"]);
+    expect(result?.author).toEqual(["测试作者"]);
+    expect(result?.match).toEqual(["https://example.com/*", "https://greasyfork.org/*/scripts*"]);
+    expect(result?.require).toEqual(["https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"]);
+    expect(result?.exclude).toEqual(["https://greasyfork.org/*/scripts/*"]);
+    expect(result?.grant).toEqual(["none"]);
+    expect(result?.downloadurl).toEqual(["https://github.com/EvilSpark/LazyScroll/blob/master/LazyScroll.js"]);
+  });
+
+  it.concurrent("解析最少UserScript元数据", () => {
+    const code = `
+// ==UserScript==
+// @name         GM_addElement test
+// @match        *://*/*
+// @grant        GM_addElement
+// ==/UserScript==
+
+console.log('image insertion begin');
+
+await new Promise((resolve, reject) => {
+    GM_addElement(document.body, 'img', {
+        src: 'https://www.tampermonkey.net/favicon.ico',
+        onload: resolve,
+        onerror: reject
+    });
+
+    console.log('image insertion end');
+});
+
+console.log('image loaded'); // never fired
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["GM_addElement test"]);
+    expect(result?.match).toEqual(["*://*/*"]);
+    expect(result?.grant).toEqual(["GM_addElement"]);
+  });
+
+  it.concurrent("解析@match *", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  这是一个测试脚本
+// @author       测试作者
+// @match        *://*/*
+// @include      *
+// @grant        none
+// ==/UserScript==
+`;
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.match).toEqual(["*://*/*"]);
+  });
+
+  it.concurrent("解析UserSubscribe元数据", () => {
+    const code = `
+// ==UserSubscribe==
+// @name         测试订阅
+// @author       订阅作者
+// @version      1.0.0
+// @description  这是一个测试订阅
+// ==/UserSubscribe==
+
+// 订阅内容
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试订阅"]);
+    expect(result?.author).toEqual(["订阅作者"]);
+    expect(result?.version).toEqual(["1.0.0"]);
+    expect(result?.description).toEqual(["这是一个测试订阅"]);
+    expect(result?.usersubscribe).toEqual([]);
+  });
+
+  it.concurrent("解析多个相同键的元数据", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @match        https://example.com/*
+// @match        https://test.com/*
+// @match        https://demo.com/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.match).toEqual(["https://example.com/*", "https://test.com/*", "https://demo.com/*"]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+  });
+
+  it.concurrent("解析包含空值的元数据 (1)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  
+// @author       
+// @match        https://example.com/*
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("解析包含空值的元数据(2)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version
+// @description  
+// @author       
+// @match        https://example.com/*
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+    expect(result?.version).toEqual([""]);
+  });
+
+  it.concurrent("解析元数据(分行1)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// @match        https://test.com/*
+// @match        https://demo.com/*
+// @version      1.0.0
+// @description  
+// @author       
+// @match        https://example.com/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("解析元数据(分行2)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+
+// @namespace    http://tampermonkey.net/
+
+// @match        https://example.org/*
+// @match        https://test.com/*
+
+// @match        https://demo.com/*
+// @version      1.0.0
+// @description  
+
+// @author       
+// @match        https://example.com/*
+// @grant        GM_setValue
+
+// @grant        GM_getValue
+
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("解析元数据(分行3)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+
+
+// @namespace    http://tampermonkey.net/
+
+// @match        https://example.org/*
+// @match        https://test.com/*
+
+
+// @match        https://demo.com/*
+// @version      1.0.0
+// @description  
+
+//
+
+// @author       
+// @match        https://example.com/*
+// @grant        GM_setValue
+
+// @grant        GM_getValue
+//
+
+//
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("解析元数据(分行4)", () => {
+    const code = `
+// ==UserScript==
+// @name       测试脚本
+
+
+// @namespace      http://tampermonkey.net/
+
+// @match          https://example.org/*
+// @match      https://test.com/*
+
+
+// @match          https://demo.com/*
+// @version     1.0.0
+// @description  
+
+//
+
+// @author       
+// @match         https://example.com/*
+// @grant       GM_setValue
+
+// @grant         GM_getValue
+//
+
+//
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("正確解析元数据(換行空白1)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// @match        https://test.com/*
+// @match        https://demo.com/*
+// @version      1.0.0
+// @description  
+// @early-start  
+// @author       
+// @match        https://example.com/*
+// @grant    
+    GM_setValue
+// @grant        GM_getValue
+// ==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.["early-start"]).toEqual([""]);
+    expect(result?.grant).toEqual(["", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("正確解析元数据(換行空白2)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// @match        https://test.com/*
+//
+@match        https://demo.com/*
+// @version      1.0.0
+// @description  
+// @early-start
+// @author       
+// @match        https://example.com/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// ==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual(["https://example.org/*", "https://test.com/*", "https://example.com/*"]);
+    expect(result?.["early-start"]).toEqual([""]);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("正確解析元数据(換行空白3)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// match        https://test.com/*
+// match        https://demo.com/*
+// @version      1.0.0
+// @description  
+//
+@early-start       
+// @author
+// @match        https://example.com/*
+// @grant        GM_setValue
+// @grant        GM_getValue
+// ==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual(["https://example.org/*", "https://example.com/*"]);
+    expect(result?.["early-start"]).toEqual(undefined);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual([""]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("忽略非元数据的注釋", () => {
+    const code = `
+/*
+Copyright <YEAR> <COPYRIGHT HOLDER>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+// The above is The MIT License.
+// ==UserScript==
+// Ignore me please
+// @name         测试脚本
+//      I am a comment
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// match        https://test.com/*
+// match        https://demo.com/*
+// @version      1.0.0
+// -------------------------------------------------
+// @description  This is Description
+// -------------------------------------------------
+// 不要使用 @early-start
+// @author
+// @match        https://example.com/*
+//
+// @grant        GM_setValue
+// @grant        GM_getValue
+// 
+// This is just a comment.
+// ==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual(["https://example.org/*", "https://example.com/*"]);
+    expect(result?.["early-start"]).toEqual(undefined);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual(["This is Description"]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("兼容TM: 可不包含空白開首(1)", () => {
+    const code = `
+//==UserScript==
+//@name         测试脚本
+//@namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// @match        https://test.com/*
+// @match        https://demo.com/*
+// @version      1.0.0
+// -------------------------------------------------
+// @description  This is Description
+// -------------------------------------------------
+// 不要使用 @early-start
+// @author
+// @match        https://example.com/*
+//
+// @grant        GM_setValue
+// @grant        GM_getValue
+// 
+// This is just a comment.
+// ==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.["early-start"]).toEqual(undefined);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual(["This is Description"]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("兼容TM: 可不包含空白開首(2)", () => {
+    const code = `
+//  ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        https://example.org/*
+// @match        https://test.com/*
+// @match        https://demo.com/*
+// @version      1.0.0
+// -------------------------------------------------
+// @description  This is Description
+// -------------------------------------------------
+// 不要使用 @early-start
+// @author
+// @match        https://example.com/*
+//
+//@grant        GM_setValue
+//   @grant        GM_getValue
+// 
+//This is just a comment.
+//==/UserScript==
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.match).toEqual([
+      "https://example.org/*",
+      "https://test.com/*",
+      "https://demo.com/*",
+      "https://example.com/*",
+    ]);
+    expect(result?.["early-start"]).toEqual(undefined);
+    expect(result?.grant).toEqual(["GM_setValue", "GM_getValue"]);
+    expect(result?.description).toEqual(["This is Description"]);
+    expect(result?.author).toEqual([""]);
+  });
+
+  it.concurrent("缺少name字段应返回null", () => {
+    const code = `
+// ==UserScript==
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  这是一个测试脚本
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("元数据字段少于3个应返回null", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("没有UserScript或UserSubscribe标签应返回null", () => {
+    const code = `
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("不完整的UserScript标签应返回null", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// 缺少结束标签
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("自动添加空namespace", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+// @description  这是一个测试脚本
+// @author       测试作者
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.namespace).toEqual([""]);
+  });
+
+  it.concurrent("解析键名大小写不敏感", () => {
+    const code = `
+// ==UserScript==
+// @Name         测试脚本
+// @NAMESPACE    http://tampermonkey.net/
+// @Version      1.0.0
+// @Description  这是一个测试脚本
+// @Author       测试作者
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.version).toEqual(["1.0.0"]);
+    expect(result?.description).toEqual(["这是一个测试脚本"]);
+    expect(result?.author).toEqual(["测试作者"]);
+  });
+
+  it.concurrent("处理带有额外空格的元数据", () => {
+    const code = `
+// ==UserScript==
+//   @name           测试脚本   
+//   @namespace      http://tampermonkey.net/   
+//   @version        1.0.0   
+//   @description    这是一个测试脚本   
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = parseMetadata(code);
+    expect(result).not.toBeNull();
+    expect(result?.name).toEqual(["测试脚本"]);
+    expect(result?.namespace).toEqual(["http://tampermonkey.net/"]);
+    expect(result?.version).toEqual(["1.0.0"]);
+    expect(result?.description).toEqual(["这是一个测试脚本"]);
+  });
+});
+
+describe.concurrent("getMetadataStr", () => {
+  it.concurrent("提取UserScript元数据字符串", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = getMetadataStr(code);
+    expect(result).toBe(`// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+// ==/UserScript==`);
+  });
+
+  it.concurrent("提取UserScript元数据字符串 (分行1)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = getMetadataStr(code);
+    expect(result).toBe(`// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+
+// ==/UserScript==`);
+  });
+
+  it.concurrent("提取UserScript元数据字符串 (分行2)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+
+// @version      1.0.0
+
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = getMetadataStr(code);
+    expect(result).toBe(`// ==UserScript==
+// @name         测试脚本
+
+// @version      1.0.0
+
+// ==/UserScript==`);
+  });
+
+  it.concurrent("提取UserScript元数据字符串 (分行3)", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+
+
+// @version      1.0.0
+//
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = getMetadataStr(code);
+    expect(result).toBe(`// ==UserScript==
+// @name         测试脚本
+
+
+// @version      1.0.0
+//
+// ==/UserScript==`);
+  });
+
+  it.concurrent("提取UserScript元数据字符串 (分行4)", () => {
+    const code = `
+// ==UserScript==
+// @name           测试脚本
+
+
+// @version    1.0.0
+//
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+    const result = getMetadataStr(code);
+    expect(result).toBe(`// ==UserScript==
+// @name           测试脚本
+
+
+// @version    1.0.0
+//
+// ==/UserScript==`);
+  });
+
+  it.concurrent("没有UserScript标签应返回null", () => {
+    const code = `console.log('Hello World');`;
+    const result = getMetadataStr(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("不完整的UserScript标签应返回null", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// 缺少结束标签
+`;
+    const result = getMetadataStr(code);
+    expect(result).toBeNull();
+  });
+});
+
+describe.concurrent("getUserConfigStr", () => {
+  it.concurrent("提取UserConfig配置字符串", () => {
+    const code = `
+/* ==UserConfig==
+config:
+  name: 配置名称
+  value: 123
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    const result = getUserConfigStr(code);
+    expect(result).toBe(`/* ==UserConfig==
+config:
+  name: 配置名称
+  value: 123
+==/UserConfig== */`);
+  });
+
+  it.concurrent("没有UserConfig标签应返回null", () => {
+    const code = `console.log('Hello World');`;
+    const result = getUserConfigStr(code);
+    expect(result).toBeNull();
+  });
+
+  it.concurrent("不完整的UserConfig标签应返回null", () => {
+    const code = `
+/* ==UserConfig==
+config:
+  name: 配置名称
+缺少结束标签 */
+`;
+    const result = getUserConfigStr(code);
+    expect(result).toBeNull();
+  });
+});
+
+describe.concurrent("parseUserConfig", () => {
+  it.concurrent("解析单个YAML配置", () => {
+    const code = `
+/* ==UserConfig==
+group1:
+  config1:
+    title: 测试配置
+    default: 123
+    enabled: true
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    const result = parseUserConfig(code);
+    expect(result).toEqual({
+      group1: {
+        config1: {
+          title: "测试配置",
+          default: 123,
+          enabled: true,
+          index: 0,
+        },
+      },
+      "#options": { sort: ["group1"] },
+    });
+  });
+
+  it.concurrent("解析多个YAML配置（用---分隔）", () => {
+    const code = `
+/* ==UserConfig==
+group1:
+  config1:
+    title: 配置1
+    default: 123
+---
+group1:
+  config2:
+    title: 配置2
+    default: 456
+    enabled: true
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    const result = parseUserConfig(code);
+    expect(result).toEqual({
+      group1: {
+        config2: {
+          // 后面的配置会覆盖前面的同名分组
+          title: "配置2",
+          default: 456,
+          enabled: true,
+          index: 0,
+        },
+      },
+      "#options": { sort: ["group1"] },
+    });
+  });
+
+  it.concurrent("没有UserConfig标签应返回undefined", () => {
+    const code = `console.log('Hello World');`;
+    const result = parseUserConfig(code);
+    expect(result).toBeUndefined();
+  });
+
+  it.concurrent("解析空的UserConfig", () => {
+    const code = `
+/* ==UserConfig==
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    const result = parseUserConfig(code);
+    expect(result).toEqual({ "#options": { sort: [] } });
+  });
+
+  it.concurrent("解析格式错误的YAML应该抛出错误", () => {
+    const code = `
+/* ==UserConfig==
+name: 配置
+  invalid yaml: [
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    expect(() => parseUserConfig(code)).toThrow();
+  });
+
+  it.concurrent("不符合分组规范的YAML配置应该抛出错误", () => {
+    const code = `
+/* ==UserConfig==
+name: 测试配置
+value: 123
+enabled: true
+==/UserConfig== */
+
+console.log('Hello World');
+`;
+
+    expect(() => parseUserConfig(code)).toThrow('UserConfig group "name" is not a valid object.');
+  });
+});
+
+describe.concurrent("parseScriptFromCode", () => {
+  const normalCode = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  这是一个测试脚本
+// @author       测试作者
+// @match        https://example.com/*
+// @grant        none
+// ==/UserScript==
+
+console.log('Hello World');
+`;
+
+  it.concurrent("解析普通脚本基本信息", () => {
+    const origin = "https://example.com/test.user.js";
+    const script = parseScriptFromCode(normalCode, origin);
+
+    expect(script.name).toBe("测试脚本");
+    expect(script.namespace).toBe("http://tampermonkey.net/");
+    expect(script.author).toBe("测试作者");
+    expect(script.type).toBe(SCRIPT_TYPE_NORMAL);
+    expect(script.status).toBe(SCRIPT_STATUS_DISABLE);
+    expect(script.runStatus).toBe(SCRIPT_RUN_STATUS_COMPLETE);
+    expect(script.origin).toBe(origin);
+    expect(script.originDomain).toBe("example.com");
+    expect(script.metadata.version).toEqual(["1.0.0"]);
+    expect(script.selfMetadata).toEqual({});
+    expect(script.sort).toBe(-1);
+    expect(script.checkUpdate).toBe(true);
+  });
+
+  it.concurrent("使用指定的uuid", () => {
+    const script = parseScriptFromCode(normalCode, "https://example.com/test.user.js", "custom-uuid-123");
+    expect(script.uuid).toBe("custom-uuid-123");
+  });
+
+  it.concurrent("未指定uuid时自动生成", () => {
+    const script = parseScriptFromCode(normalCode, "https://example.com/test.user.js");
+    expect(script.uuid).toBeTruthy();
+    expect(script.uuid.length).toBeGreaterThan(0);
+  });
+
+  it.concurrent("从origin解析checkUpdateUrl和downloadUrl", () => {
+    const origin = "https://example.com/test.user.js";
+    const script = parseScriptFromCode(normalCode, origin);
+
+    expect(script.checkUpdateUrl).toBe("https://example.com/test.meta.js");
+    expect(script.downloadUrl).toBe(origin);
+  });
+
+  it.concurrent("使用metadata中的updateurl和downloadurl", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @author       test
+// @match        *://*/*
+// @updateURL    https://cdn.example.com/test.meta.js
+// @downloadURL  https://cdn.example.com/test.user.js
+// @grant        none
+// ==/UserScript==
+`;
+    const script = parseScriptFromCode(code, "https://example.com/test.user.js");
+    expect(script.checkUpdateUrl).toBe("https://cdn.example.com/test.meta.js");
+    expect(script.downloadUrl).toBe("https://cdn.example.com/test.user.js");
+  });
+
+  it.concurrent("解析crontab类型脚本", () => {
+    const code = `
+// ==UserScript==
+// @name         定时脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @author       test
+// @crontab      * * * * *
+// @grant        none
+// ==/UserScript==
+`;
+    const script = parseScriptFromCode(code, "https://example.com/test.user.js");
+    expect(script.type).toBe(SCRIPT_TYPE_CRONTAB);
+  });
+
+  it.concurrent("解析background类型脚本", () => {
+    const code = `
+// ==UserScript==
+// @name         后台脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @author       test
+// @background
+// @grant        none
+// ==/UserScript==
+`;
+    const script = parseScriptFromCode(code, "https://example.com/test.user.js");
+    expect(script.type).toBe(SCRIPT_TYPE_BACKGROUND);
+  });
+
+  it.concurrent("非http origin不设置domain", () => {
+    const script = parseScriptFromCode(normalCode, "file:///tmp/test.user.js");
+    expect(script.originDomain).toBe("");
+  });
+
+  it.concurrent("可接受空白namespace", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @version      1.0.0
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+`;
+    const script = parseScriptFromCode(code, "https://example.com/test.user.js");
+    expect(script.namespace).toBe("");
+  });
+
+  it.concurrent("可接受空白version", () => {
+    const code = `
+// ==UserScript==
+// @name         测试脚本
+// @namespace    http://tampermonkey.net/
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+`;
+    const script = parseScriptFromCode(code, "https://example.com/test.user.js");
+    expect(script.metadata.version).toEqual(undefined);
+  });
+
+  it.concurrent("无效metadata应抛出错误", () => {
+    expect(() => parseScriptFromCode("invalid code", "https://example.com/test.user.js")).toThrow();
+  });
+
+  it.concurrent("空白name应抛出错误", () => {
+    const code = `
+// ==UserScript==
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+`;
+    expect(() => parseScriptFromCode(code, "https://example.com/test.user.js")).toThrow();
+  });
+
+  it.concurrent("无效crontab表达式应抛出错误", () => {
+    const code = `
+// ==UserScript==
+// @name         定时脚本
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @crontab      invalid_cron
+// @grant        none
+// ==/UserScript==
+`;
+    expect(() => parseScriptFromCode(code, "https://example.com/test.user.js")).toThrow();
+  });
+});
+
+describe("fetchScriptBody 流式下载与进度", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  // 构造一个分两块返回的 Response 假体,模拟流式下载
+  const makeStreamResponse = (
+    text: string,
+    opts: { contentLength?: number; contentType?: string; status?: number; contentEncoding?: string } = {}
+  ) => {
+    const bytes = new TextEncoder().encode(text);
+    const mid = Math.ceil(bytes.length / 2) || bytes.length;
+    const parts = bytes.length ? [bytes.slice(0, mid), bytes.slice(mid)] : [];
+    let i = 0;
+    const headers = new Map<string, string>();
+    headers.set("content-type", opts.contentType ?? "application/javascript");
+    if (opts.contentLength !== undefined) headers.set("content-length", String(opts.contentLength));
+    if (opts.contentEncoding !== undefined) headers.set("content-encoding", opts.contentEncoding);
+    return {
+      status: opts.status ?? 200,
+      headers,
+      body: {
+        getReader: () => ({
+          read: async () => (i < parts.length ? { done: false, value: parts[i++] } : { done: true, value: undefined }),
+        }),
+      },
+      arrayBuffer: async () => bytes.buffer,
+    };
+  };
+
+  it("逐块累加并回调已接收字节与总大小", async () => {
+    const code = "// ==UserScript==\n// @name x\n// ==/UserScript==\nconsole.log(1);";
+    const total = new TextEncoder().encode(code).length;
+    globalThis.fetch = vi.fn(async () => makeStreamResponse(code, { contentLength: total })) as unknown as typeof fetch;
+
+    const progress: Array<{ receivedLength: number; totalLength?: number }> = [];
+    const body = await fetchScriptBody("https://e.com/x.user.js", undefined, (p) => progress.push(p));
+
+    expect(body).toBe(code);
+    expect(progress.length).toBeGreaterThan(0);
+    // 末次回调:已接收等于总长度,总大小为 Content-Length
+    expect(progress.at(-1)).toEqual({ receivedLength: total, totalLength: total });
+    // 已接收字节单调不减
+    const received = progress.map((p) => p.receivedLength);
+    expect(received).toEqual([...received].sort((a, b) => a - b));
+  });
+
+  it("无 Content-Length 时 totalLength 为 undefined 但仍报告已接收字节", async () => {
+    const code = "// hello world\nconsole.log(2);";
+    const total = new TextEncoder().encode(code).length;
+    globalThis.fetch = vi.fn(async () => makeStreamResponse(code)) as unknown as typeof fetch;
+
+    const progress: Array<{ receivedLength: number; totalLength?: number }> = [];
+    const body = await fetchScriptBody("https://e.com/x.user.js", undefined, (p) => progress.push(p));
+
+    expect(body).toBe(code);
+    expect(progress.at(-1)?.totalLength).toBeUndefined();
+    expect(progress.at(-1)?.receivedLength).toBe(total);
+  });
+
+  it("压缩响应(Content-Encoding)不报告 totalLength,因为 Content-Length 是压缩后大小", async () => {
+    const code = "// ==UserScript==\n// @name gz\n// ==/UserScript==\nconsole.log(4);";
+    const compressedLen = 5; // 压缩后大小,远小于解压后字节数
+    globalThis.fetch = vi.fn(async () =>
+      makeStreamResponse(code, { contentLength: compressedLen, contentEncoding: "gzip" })
+    ) as unknown as typeof fetch;
+
+    const progress: Array<{ receivedLength: number; totalLength?: number }> = [];
+    const body = await fetchScriptBody("https://e.com/x.user.js", undefined, (p) => progress.push(p));
+
+    expect(body).toBe(code);
+    // 压缩响应:不能用压缩后的 Content-Length 当总大小
+    expect(progress.every((p) => p.totalLength === undefined)).toBe(true);
+    expect(progress.at(-1)?.receivedLength).toBe(new TextEncoder().encode(code).length);
+  });
+
+  it("未传 onProgress 时仍能正常返回脚本正文(兼容旧调用)", async () => {
+    const code = "console.log(3);";
+    globalThis.fetch = vi.fn(async () => makeStreamResponse(code)) as unknown as typeof fetch;
+    const body = await fetchScriptBody("https://e.com/x.user.js");
+    expect(body).toBe(code);
+  });
+
+  it("非 200 响应抛出错误", async () => {
+    globalThis.fetch = vi.fn(async () => makeStreamResponse("x", { status: 404 })) as unknown as typeof fetch;
+    await expect(fetchScriptBody("https://e.com/x.user.js", undefined, () => {})).rejects.toThrow();
+  });
+
+  it("fetch 时以脚本来源 origin 作为 referrer(对齐 v1.4 反盗链处理)", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => makeStreamResponse("console.log(5);"));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    await fetchScriptBody("https://greasyfork.org/scripts/1.user.js");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.referrer).toBe("https://greasyfork.org/");
+  });
+});
+
+describe("prepareScriptByCode —— 回收站中的同名脚本", () => {
+  beforeEach(async () => {
+    await chrome.storage.local.clear();
+  });
+
+  const TRASHED_CODE =
+    "// ==UserScript==\n// @name 重装脚本\n// @namespace ns\n// @version 1.0.0\n// ==/UserScript==\n";
+  const NEW_CODE = "// ==UserScript==\n// @name 重装脚本\n// @namespace ns\n// @version 2.0.0\n// ==/UserScript==\n";
+
+  const seedTrashed = async (uuid: string) => {
+    await new TrashScriptDAO().save(
+      {
+        uuid,
+        name: "重装脚本",
+        namespace: "ns",
+        type: SCRIPT_TYPE_NORMAL,
+        status: SCRIPT_STATUS_ENABLE,
+        sort: 0,
+        runStatus: SCRIPT_RUN_STATUS_COMPLETE,
+        createtime: Date.now(),
+        checktime: Date.now(),
+        metadata: { name: ["重装脚本"], namespace: ["ns"], version: ["1.0.0"] },
+        deleteTime: Date.now(),
+        deleteBy: "user",
+      } as TrashScript,
+      TRASHED_CODE
+    );
+  };
+
+  it("回收站中存在同 name+namespace 的脚本时应复用其 uuid 并标记 oldInTrash", async () => {
+    await seedTrashed("reuse-me");
+
+    const p = await prepareScriptByCode(NEW_CODE, "https://e.com/s.user.js");
+
+    expect(p.script.uuid).toBe("reuse-me");
+    expect(p.oldScript?.uuid).toBe("reuse-me");
+    expect(p.oldInTrash).toBe(true);
+  });
+
+  it("回收站里没有同名脚本时应是全新安装,不得标记 oldInTrash", async () => {
+    const p = await prepareScriptByCode(NEW_CODE, "https://e.com/s.user.js");
+
+    expect(p.oldScript).toBeUndefined();
+    expect(p.oldInTrash).toBeFalsy();
+  });
+
+  it("活跃表已有同名脚本时应优先命中活跃表,不得标记 oldInTrash", async () => {
+    await seedTrashed("trashed-one");
+    const aliveUuid = "alive-one";
+    await new ScriptDAO().save({
+      uuid: aliveUuid,
+      name: "重装脚本",
+      namespace: "ns",
+      type: SCRIPT_TYPE_NORMAL,
+      status: SCRIPT_STATUS_ENABLE,
+      sort: 0,
+      runStatus: SCRIPT_RUN_STATUS_COMPLETE,
+      createtime: Date.now(),
+      checktime: Date.now(),
+      metadata: { name: ["重装脚本"], namespace: ["ns"], version: ["1.5.0"] },
+    } as Script);
+    await new ScriptCodeDAO().save({ uuid: aliveUuid, code: TRASHED_CODE });
+
+    const p = await prepareScriptByCode(NEW_CODE, "https://e.com/s.user.js");
+
+    expect(p.script.uuid).toBe(aliveUuid);
+    expect(p.oldInTrash).toBeFalsy();
+  });
+
+  // 这条才真正锁住「回收站查找必须在所有活跃表查找之后」。
+  // 场景：上游把脚本改了名 → 活跃表里那份仍是旧名，findByNameAndNamespace(新名) 落空，
+  // 只有 byWebRequest 的 searchExistingScript(按 origin 匹配 + 拉 meta 校验新名) 能认出它；
+  // 而回收站里恰好躺着一个同为新名的**另一个**脚本。
+  // 若回收站查找抢在 searchExistingScript 之前，就会误判成「还原回收站里那个」，
+  // 结果是复用错的 uuid、且活跃表那份仍在 → 同名两份。
+  it("上游改名时应优先命中活跃表而非回收站中的同名脚本", async () => {
+    const renamedCode =
+      "// ==UserScript==\n// @name 重装脚本\n// @namespace ns\n// @version 3.0.0\n// ==/UserScript==\n";
+    await new TrashScriptDAO().save(
+      {
+        uuid: "trash-same-name",
+        name: "重装脚本",
+        namespace: "ns",
+        type: SCRIPT_TYPE_NORMAL,
+        status: SCRIPT_STATUS_ENABLE,
+        sort: 0,
+        runStatus: SCRIPT_RUN_STATUS_COMPLETE,
+        createtime: Date.now(),
+        checktime: Date.now(),
+        metadata: { name: ["重装脚本"], namespace: ["ns"], version: ["1.0.0"] },
+        deleteTime: Date.now(),
+        deleteBy: "user",
+      } as TrashScript,
+      renamedCode
+    );
+
+    // 活跃表里那份还是旧名，但 origin 与新代码一致
+    await new ScriptDAO().save({
+      uuid: "alive-renamed",
+      name: "旧名",
+      namespace: "ns",
+      origin: "https://e.com/s.user.js",
+      checkUpdateUrl: "https://e.com/s.meta.js",
+      type: SCRIPT_TYPE_NORMAL,
+      status: SCRIPT_STATUS_ENABLE,
+      sort: 0,
+      runStatus: SCRIPT_RUN_STATUS_COMPLETE,
+      createtime: Date.now(),
+      checktime: Date.now(),
+      metadata: { name: ["旧名"], namespace: ["ns"], version: ["2.0.0"] },
+    } as Script);
+    await new ScriptCodeDAO().save({ uuid: "alive-renamed", code: renamedCode });
+
+    // meta.js 已是新名 → searchExistingScript 的校验会认下这条活跃脚本
+    globalThis.fetch = vi.fn(async () => ({
+      status: 200,
+      headers: new Map([["content-type", "application/javascript"]]),
+      body: null,
+      text: async () => renamedCode,
+      arrayBuffer: async () => new TextEncoder().encode(renamedCode).buffer,
+    })) as unknown as typeof fetch;
+
+    const p = await prepareScriptByCode(renamedCode, "https://e.com/s.user.js", undefined, false, undefined, {
+      byWebRequest: true,
+    });
+
+    expect(p.script.uuid).toBe("alive-renamed");
+    expect(p.oldInTrash).toBeFalsy();
+  });
+});

@@ -1,0 +1,340 @@
+import { describe, it, expect, vi } from "vitest";
+import { type IGetSender } from "@Packages/message/server";
+import { type ExtMessageSender } from "@Packages/message/types";
+import GMApi, {
+  ConnectMatch,
+  getConnectMatched,
+  getExtensionSiteAccessOriginPattern,
+  mergeCookieHeader,
+} from "./gm_api";
+import { PermissionVerifyApiGet, type ConfirmParam } from "../permission_verify";
+import type { GMApiRequest } from "../types";
+// 触发所有 GM API 装饰器注册（与 gm_api.ts 中的 import 保持同步）
+import "./gm_api";
+
+// 小工具：建立假的 IGetSender
+const makeSender = (url?: string): IGetSender => ({
+  getSender: () => (url ? { url } : {}),
+  getType: () => 0,
+  isType: (_type: any) => false,
+  getExtMessageSender: () => null as unknown as ExtMessageSender,
+  getConnect: () => undefined,
+});
+
+describe.concurrent("isConnectMatched", () => {
+  it.concurrent("回传 false 当 metadataConnect 为 undefined 或空阵列", () => {
+    const req = new URL("https://api.example.com/v1");
+    expect(getConnectMatched(undefined, req, makeSender("https://app.example.com"))).toBe(ConnectMatch.NONE);
+    expect(getConnectMatched([], req, makeSender("https://app.example.com"))).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent("无 connect 时，可以同域匹配成功，但是子/上级域不匹配", () => {
+    const req = new URL("https://service.example.com/data");
+    const sender = makeSender("https://service.example.com/page");
+    expect(getConnectMatched(undefined, req, sender)).toBe(ConnectMatch.EXACT);
+    const subdomainSender = makeSender("https://sub.service.example.com/page");
+    expect(getConnectMatched(undefined, req, subdomainSender)).toBe(ConnectMatch.NONE);
+    const topdomainSender = makeSender("https://example.com/page");
+    expect(getConnectMatched(undefined, req, topdomainSender)).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent('遇到 "*" 应回传 true', () => {
+    const req = new URL("https://anything.example.com/path");
+    expect(getConnectMatched(["*"], req, makeSender())).toBe(ConnectMatch.ALL);
+  });
+
+  it.concurrent("尾缀网域比对成功时回传 true（example.com 比对 api.example.com）", () => {
+    const req = new URL("https://api.example.com/users");
+    expect(getConnectMatched(["example.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["foo.com", "bar.net", "example.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["foo.com", "bar.net", "api.example.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["foo.com", "bar.net", "apiexample.com"], req, makeSender())).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent("尾缀网域比对成功时回传 true（myapple.com vs apple.com）", () => {
+    const req = new URL("https://myapple.com/users");
+    expect(getConnectMatched(["myapple.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["apple.com"], req, makeSender())).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent('metadata 包含 "self" 且 sender.url 与 reqURL 主机相同时回传 true', () => {
+    const req = new URL("https://app.example.com/dashboard");
+    const sender = makeSender("https://app.example.com/some-page");
+    expect(getConnectMatched(["self"], req, sender)).toBe(ConnectMatch.EXACT);
+
+    const req2 = new URL("https://app.example.com/dashboard");
+    const sender2 = makeSender("https://example.com/some-page");
+    expect(getConnectMatched(["self"], req2, sender2)).toBe(ConnectMatch.DOMAIN);
+  });
+
+  it.concurrent('metadata 包含 "self" 但 sender.url 与 reqURL 主机不同时回传 false（若无其他规则命中）', () => {
+    const req = new URL("https://api.example.com/resource");
+    const sender = makeSender("https://news.example.com/article");
+    expect(getConnectMatched(["self"], req, sender)).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent(
+    '当 sender.getSender() 回传没有 url 或无效 URL 时，"self" 不应报错且回传 false（若无其他规则命中）',
+    () => {
+      const req = new URL("https://example.com/path");
+
+      // 无 url
+      const senderNoUrl = makeSender();
+      expect(getConnectMatched(["self"], req, senderNoUrl)).toBe(ConnectMatch.NONE);
+
+      // 无效 URL（try/catch 会吞掉错误）
+      const senderBadUrl = makeSender("not a valid url");
+      expect(getConnectMatched(["self"], req, senderBadUrl)).toBe(ConnectMatch.NONE);
+    }
+  );
+
+  it.concurrent('当 "self" 不符合但尾缀规则符合时仍应回传 true（走到后续条件）', () => {
+    const req = new URL("https://api.example.com/data");
+    const sender = makeSender("https://other.site.com/");
+    expect(getConnectMatched(["self", "example.com"], req, sender)).toBe(ConnectMatch.DOMAIN);
+  });
+
+  it.concurrent("完全不匹配时回传 false", () => {
+    const req = new URL("https://api.foo.com");
+    const sender = makeSender("https://bar.com");
+    expect(getConnectMatched(["baz.com", "qux.net"], req, sender)).toBe(ConnectMatch.NONE);
+  });
+
+  it.concurrent("域名不区分大小写", () => {
+    const req = new URL("https://API.Example.COM/Path");
+    expect(getConnectMatched(["example.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["EXAMPLE.COM"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+    expect(getConnectMatched(["Api.Example.com"], req, makeSender())).toBe(ConnectMatch.DOMAIN);
+  });
+});
+
+describe.concurrent("GM API 注册完整性", () => {
+  it.concurrent("CAT_agentDom 应已注册", () => {
+    const api = PermissionVerifyApiGet("CAT_agentDom");
+    expect(api).toBeDefined();
+    expect(api!.param.link).toContain("CAT.agent.dom");
+  });
+
+  it.concurrent("Agent 相关 API 应全部注册", () => {
+    // 确保 Agent 相关的 GM API 不会因 import 遗漏而丢失
+    const agentApis = ["CAT_agentConversation", "CAT_agentConversationChat", "CAT_agentSkills", "CAT_agentDom"];
+    for (const name of agentApis) {
+      expect(PermissionVerifyApiGet(name), `${name} 应已注册`).toBeDefined();
+    }
+  });
+});
+
+describe("window.focus", () => {
+  it("应同时激活标签页并将其所在窗口置于前台", async () => {
+    const tabsUpdate = vi.fn().mockResolvedValue(undefined);
+    const windowsUpdate = vi.fn().mockResolvedValue(undefined);
+    const originalChrome = globalThis.chrome;
+    vi.stubGlobal("chrome", {
+      ...originalChrome,
+      tabs: { ...originalChrome.tabs, update: tabsUpdate },
+      windows: { ...originalChrome.windows, update: windowsUpdate },
+    });
+    const sender = makeSender();
+    sender.getSender = () => ({ tab: { id: 42, windowId: 7 } as chrome.tabs.Tab });
+
+    await GMApi.prototype["window.focus"]({} as GMApiRequest<void>, sender);
+
+    expect(tabsUpdate).toHaveBeenCalledWith(42, { active: true });
+    expect(windowsUpdate).toHaveBeenCalledWith(7, { focused: true });
+    vi.stubGlobal("chrome", originalChrome);
+  });
+});
+
+describe.concurrent("mergeCookieHeader（GM_xmlhttpRequest 非 anonymous 的 cookie 合并）", () => {
+  it.concurrent("同名 cookie 应以脚本自定义值覆盖已有 cookie，而非追加（TM #2754）", () => {
+    const result = mergeCookieHeader("data=2", [{ name: "data", value: "1" }]);
+    expect(result).toBe("data=2");
+  });
+
+  it.concurrent("不同名的已有 cookie 应全部保留，不因覆盖逻辑被截断（TM #2829）", () => {
+    const result = mergeCookieHeader(undefined, [
+      { name: "data1", value: "1" },
+      { name: "data2", value: "2" },
+    ]);
+    expect(result).toBe("data1=1; data2=2");
+  });
+
+  it.concurrent("同名覆盖与不同名保留应可同时生效", () => {
+    const result = mergeCookieHeader("data1=9", [
+      { name: "data1", value: "1" },
+      { name: "data2", value: "2" },
+    ]);
+    expect(result).toBe("data1=9; data2=2");
+  });
+
+  it.concurrent("脚本自定义多个 cookie 且无已有 cookie 时应原样透传", () => {
+    const result = mergeCookieHeader("data1=1; data2=2", []);
+    expect(result).toBe("data1=1; data2=2");
+  });
+
+  it.concurrent("无自定义 cookie 也无已有 cookie 时应回传空字符串", () => {
+    expect(mergeCookieHeader(undefined, [])).toBe("");
+    expect(mergeCookieHeader("", undefined)).toBe("");
+  });
+
+  it.concurrent("已有同名 cookie 存在多个值时（如不同 domain/path），只要脚本指定了该名称就应全部覆盖", () => {
+    // cookie 名称在规范上允许因 domain/path 不同而以多值形式共存，但只要脚本明确指定了该名称，
+    // 意图就是完全接管该名称，浏览器原有的全部同名值都应被丢弃
+    const result = mergeCookieHeader("attr1=new", [
+      { name: "attr1", value: "old1" },
+      { name: "attr1", value: "old2" },
+    ]);
+    expect(result).toBe("attr1=new");
+  });
+
+  it.concurrent("脚本指定的同名值本身也可以是多值，覆盖时应原样保留、不去重", () => {
+    const result = mergeCookieHeader("attr1=new1; attr1=new2", [
+      { name: "attr1", value: "old1" },
+      { name: "attr1", value: "old2" },
+    ]);
+    expect(result).toBe("attr1=new1; attr1=new2");
+  });
+
+  it.concurrent("未被脚本指定的 cookie 名称，无论浏览器原本是 0 个、1 个还是多个值都应保持不变", () => {
+    const result = mergeCookieHeader("other=x", [
+      { name: "attr1", value: "old1" },
+      { name: "attr1", value: "old2" },
+      { name: "single", value: "s" },
+    ]);
+    expect(result).toBe("other=x; attr1=old1; attr1=old2; single=s");
+  });
+});
+
+// 针对单一 cookie 名称 attr1：脚本是否指定（0/1/多个值）× 浏览器已有是否存在（0/1/多个值）共 3×3=9 种组合，
+// 规则固定为：脚本指定则完全覆盖该名称（不论脚本给几个值、浏览器原本有几个值）；
+// 脚本未指定则完全保留浏览器原样（不论浏览器原本有几个值）。
+describe.concurrent("mergeCookieHeader 完整组合矩阵：脚本指定状态 × 浏览器已有状态（3×3=9）", () => {
+  const scriptCases = [
+    { label: "脚本未指定 attr1", customCookie: undefined, expectedWhenNotOverridden: null },
+    { label: "脚本指定 attr1 单一值", customCookie: "attr1=new", expectedWhenOverridden: "attr1=new" },
+    {
+      label: "脚本指定 attr1 多个值",
+      customCookie: "attr1=new1; attr1=new2",
+      expectedWhenOverridden: "attr1=new1; attr1=new2",
+    },
+  ] as const;
+
+  const storedCases: { label: string; stored: { name: string; value: string }[]; expectedWhenKept: string }[] = [
+    { label: "浏览器无 attr1", stored: [], expectedWhenKept: "" },
+    {
+      label: "浏览器有 1 个 attr1",
+      stored: [{ name: "attr1", value: "old" }],
+      expectedWhenKept: "attr1=old",
+    },
+    {
+      label: "浏览器有 2 个 attr1（同名多值，如不同 domain/path）",
+      stored: [
+        { name: "attr1", value: "old1" },
+        { name: "attr1", value: "old2" },
+      ],
+      expectedWhenKept: "attr1=old1; attr1=old2",
+    },
+  ];
+
+  for (const script of scriptCases) {
+    for (const stored of storedCases) {
+      it.concurrent(`${script.label} × ${stored.label}`, () => {
+        const result = mergeCookieHeader(script.customCookie, stored.stored);
+        const expected = "expectedWhenOverridden" in script ? script.expectedWhenOverridden : stored.expectedWhenKept;
+        expect(result).toBe(expected);
+      });
+    }
+  }
+});
+
+describe.concurrent("getExtensionSiteAccessOriginPattern", () => {
+  it.concurrent("应生成不带端口的扩展站点访问权限 pattern", () => {
+    expect(getExtensionSiteAccessOriginPattern(new URL("http://127.0.0.1:3000/get"))).toBe("http://127.0.0.1/*");
+    expect(getExtensionSiteAccessOriginPattern(new URL("https://example.com:8443/path"))).toBe("https://example.com/*");
+  });
+
+  it.concurrent("应忽略非 http/https 协议", () => {
+    expect(getExtensionSiteAccessOriginPattern(new URL("data:text/plain,hello"))).toBeUndefined();
+    expect(getExtensionSiteAccessOriginPattern(new URL("file:///tmp/test.txt"))).toBeUndefined();
+  });
+});
+
+// 建立假的 IGetSender（getConnect 回传一个只有 sendMessage/disconnect 的假连结，供错误路径使用）
+const makeConnSender = (pageUrl?: string): IGetSender =>
+  ({
+    getSender: () => (pageUrl ? { url: pageUrl } : {}),
+    getType: () => 0,
+    isType: () => false,
+    getExtMessageSender: () => null as unknown as ExtMessageSender,
+    getConnect: () => ({ sendMessage: () => {}, disconnect: () => {} }) as any,
+  }) as IGetSender;
+
+const makeReq = (opts: { connect?: string[]; url: string; downloadMode?: string }): GMApiRequest<any> =>
+  ({
+    uuid: "uuid-test",
+    api: "GM_download",
+    runFlag: "run",
+    params: [{ url: opts.url, downloadMode: opts.downloadMode, name: "" }],
+    script: {
+      uuid: "uuid-test",
+      name: "测试脚本",
+      metadata: opts.connect ? { connect: opts.connect } : {},
+    },
+  }) as unknown as GMApiRequest<any>;
+
+// 假的 GMApi：仅提供 verifyXhrConnect 依赖的 gmExternalDependencies / permissionVerify，并挂上真实的 verifyXhrConnect
+const makeGmApi = (opts?: { blacklist?: boolean; allow?: boolean }) =>
+  ({
+    gmExternalDependencies: { isBlacklistNetwork: () => opts?.blacklist ?? false },
+    permissionVerify: { queryPermission: async () => (opts?.allow ? { allow: true } : undefined) },
+    verifyXhrConnect: (GMApi.prototype as any).verifyXhrConnect,
+  }) as any;
+
+const downloadConfirm = PermissionVerifyApiGet("GM_download")!.param.confirm!;
+const xhrConfirm = PermissionVerifyApiGet("GM_xmlhttpRequest")!.param.confirm!;
+
+describe.concurrent("native GM_download 的 @connect 校验（verifyXhrConnect 软/硬确认）", () => {
+  it.concurrent("downloadMode 非 native（browser）时直接放行，不做跨域校验", async () => {
+    // 即使 @connect 未匹配，browser 下载也不触发校验，保证浏览器下载行为不变
+    const req = makeReq({ url: "https://not-connected.com/f.zip", downloadMode: "browser", connect: ["example.com"] });
+    const ret = await downloadConfirm(req, makeConnSender(), makeGmApi());
+    expect(ret).toBe(true);
+  });
+
+  it.concurrent("native 下载：@connect 已声明但域名未匹配时，返回确认弹窗而非直接拒绝", async () => {
+    // 这是本次改动的核心：软确认（softConnect=true）不再硬拒绝，而是弹窗交给用户决定
+    const req = makeReq({ url: "https://not-connected.com/f.zip", downloadMode: "native", connect: ["example.com"] });
+    const ret = await downloadConfirm(req, makeConnSender(), makeGmApi());
+    expect(ret).not.toBe(true);
+    expect((ret as ConfirmParam).permission).toBe("cors");
+  });
+
+  it.concurrent("native 下载：完全未声明 @connect 时，返回确认弹窗", async () => {
+    const req = makeReq({ url: "https://not-connected.com/f.zip", downloadMode: "native" });
+    const ret = await downloadConfirm(req, makeConnSender(), makeGmApi());
+    expect((ret as ConfirmParam).permission).toBe("cors");
+  });
+
+  it.concurrent("native 下载：域名命中 @connect 时放行", async () => {
+    const req = makeReq({ url: "https://api.example.com/f.zip", downloadMode: "native", connect: ["example.com"] });
+    const ret = await downloadConfirm(req, makeConnSender(), makeGmApi());
+    expect(ret).toBe(true);
+  });
+
+  it.concurrent("native 下载：黑名单域名始终硬拒绝（软确认也不放行）", async () => {
+    const req = makeReq({ url: "https://blocked.com/f.zip", downloadMode: "native", connect: ["*"] });
+    await expect(downloadConfirm(req, makeConnSender(), makeGmApi({ blacklist: true }))).rejects.toThrow(/blacklisted/);
+  });
+
+  it.concurrent("native 下载：用户此前已授权该域名（cors 记录 allow）时放行", async () => {
+    const req = makeReq({ url: "https://not-connected.com/f.zip", downloadMode: "native", connect: ["example.com"] });
+    const ret = await downloadConfirm(req, makeConnSender(), makeGmApi({ allow: true }));
+    expect(ret).toBe(true);
+  });
+
+  it.concurrent("对照：GM_xmlhttpRequest（硬校验）对未匹配 @connect 的域名直接拒绝", async () => {
+    // 与 native GM_download 的软确认形成对比，锁定 softConnect 分叉
+    const req = makeReq({ url: "https://not-connected.com/api", connect: ["example.com"] });
+    await expect(xhrConfirm(req, makeConnSender(), makeGmApi())).rejects.toThrow(/not a part of the @connect list/);
+  });
+});

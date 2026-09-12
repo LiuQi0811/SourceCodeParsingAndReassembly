@@ -1,0 +1,267 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { MessageQueue, type IMessageQueue } from "./message_queue";
+
+const nextTick = () => Promise.resolve().then(() => {});
+
+describe("MessageQueueGroup", () => {
+  let messageQueue: IMessageQueue;
+
+  beforeEach(() => {
+    messageQueue = new MessageQueue();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("基本功能测试", () => {
+    it.concurrent("应该能够在分组中订阅和发布消息", () => {
+      const group = messageQueue.group("api-sendBasic");
+      const handler = vi.fn();
+
+      group.subscribe("user1", handler);
+      group.emit("user1", { id: 1, name: "test" });
+
+      expect(handler).toHaveBeenCalledWith({ id: 1, name: "test" });
+    });
+
+    it.concurrent("应该自动为分组名称添加斜杠", () => {
+      const group1 = messageQueue.group("group1");
+      const group2 = messageQueue.group("group2/");
+
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+      const handler3 = vi.fn();
+      const handler4 = vi.fn();
+
+      group1.subscribe("test1", handler1);
+      group2.subscribe("test1", handler2);
+      group1.subscribe("test2", handler3);
+      group2.subscribe("test2", handler4);
+
+      // 直接通过 messageQueue 发布消息来验证主题名称
+      messageQueue.emit("group1/test1", "message1");
+      messageQueue.emit("group2/test1", "message2");
+
+      expect(handler1).toHaveBeenCalledWith("message1");
+      expect(handler2).toHaveBeenCalledWith("message2");
+
+      expect(handler3).not.toHaveBeenCalled();
+      expect(handler4).not.toHaveBeenCalled();
+    });
+
+    it.concurrent("应该能够创建嵌套分组", () => {
+      const apiGroup = messageQueue.group("api-groupNested");
+      const userGroup = apiGroup.group("user2");
+      const profileGroup = userGroup.group("profile");
+
+      const handler = vi.fn();
+      profileGroup.subscribe("get1", handler);
+
+      profileGroup.emit("get1", { userId: 123 });
+
+      expect(handler).toHaveBeenCalledWith({ userId: 123 });
+    });
+  });
+
+  describe("中间件功能测试", () => {
+    it.concurrent("应该能够添加和执行中间件", async () => {
+      const middlewareOrder: string[] = [];
+
+      const middleware = vi.fn((topic: string, message: any, next: () => void) => {
+        middlewareOrder.push("middleware-before");
+        next();
+        middlewareOrder.push("middleware-after");
+      });
+
+      const group = messageQueue.group("api-middleware", middleware);
+
+      const handler = vi.fn(() => {
+        middlewareOrder.push("handler-middle");
+      });
+
+      group.subscribe("good", handler);
+
+      // 等待异步操作
+      group.emit("good", { data: "bye" });
+
+      await nextTick();
+      await nextTick();
+
+      expect(middlewareOrder).toEqual(["middleware-before", "handler-middle", "middleware-after"]);
+      expect(middleware).toHaveBeenCalledWith("api-middleware/good", { data: "bye" }, expect.any(Function));
+      expect(handler).toHaveBeenCalledWith({ data: "bye" });
+    });
+
+    it.concurrent("应该能够使用 use 方法添加中间件", async () => {
+      const middlewareOrder: string[] = [];
+
+      const middleware1 = vi.fn((topic: string, message: any, next: () => void) => {
+        middlewareOrder.push("middleware1-before");
+        next();
+        middlewareOrder.push("middleware1-after");
+      });
+
+      const middleware2 = vi.fn((topic: string, message: any, next: () => void) => {
+        middlewareOrder.push("middleware2-before");
+        next();
+        middlewareOrder.push("middleware2-after");
+      });
+
+      const group = messageQueue.group("group-08").use(middleware1).use(middleware2);
+
+      const handler = vi.fn(() => {
+        middlewareOrder.push("handler-08");
+      });
+
+      group.subscribe("test-08", handler);
+      group.emit("test-08", { data: "test-08" });
+
+      await nextTick();
+      await nextTick();
+
+      expect(middlewareOrder).toEqual([
+        "middleware1-before",
+        "middleware2-before",
+        "handler-08",
+        "middleware2-after",
+        "middleware1-after",
+      ]);
+    });
+
+    it.concurrent("子分组应该继承父分组的中间件", async () => {
+      const middlewareOrder: string[] = [];
+
+      const parentMiddleware = vi.fn((topic: string, message: any, next: () => void) => {
+        middlewareOrder.push("parent-middleware");
+        next();
+      });
+
+      const childMiddleware = vi.fn((topic: string, message: any, next: () => void) => {
+        middlewareOrder.push("child-middleware");
+        next();
+      });
+
+      const parentGroup = messageQueue.group("parent", parentMiddleware);
+      const childGroup = parentGroup.group("child", childMiddleware);
+
+      const handler = vi.fn(() => {
+        middlewareOrder.push("handler-09");
+      });
+
+      childGroup.subscribe("test-09", handler);
+      childGroup.emit("test-09", { data: "test-09" });
+
+      await nextTick();
+      await nextTick();
+
+      expect(middlewareOrder).toEqual(["parent-middleware", "child-middleware", "handler-09"]);
+    });
+
+    it.concurrent("应该支持异步中间件", async () => {
+      const asyncMiddleware = vi.fn(async (topic: string, message: any, next: () => void) => {
+        await nextTick();
+        next();
+      });
+
+      const group = messageQueue.group("api-middlewareAsync", asyncMiddleware);
+      const handler = vi.fn();
+
+      group.subscribe("test4", handler);
+      group.emit("test4", { data: "test4" });
+
+      // 等待异步操作完成
+      await nextTick();
+      await nextTick();
+
+      expect(asyncMiddleware).toHaveBeenCalled();
+      expect(handler).toHaveBeenCalledWith({ data: "test4" });
+    });
+  });
+
+  describe("发布方法测试", () => {
+    it("publish 方法应该使用 chrome.runtime.sendMessage", () => {
+      const group = messageQueue.group("api-sendChromeMessage");
+
+      const sendSpy = vi.spyOn(chrome.runtime, "sendMessage");
+      group.publish("test-sendChromeMessage", { data: "test-sendChromeMessage" });
+
+      expect(sendSpy).toHaveBeenCalledWith({
+        msgQueue: "api-sendChromeMessage/test-sendChromeMessage",
+        data: { action: "message", message: { data: "test-sendChromeMessage" } },
+      });
+    });
+
+    it("publish 在没有接收方时(Firefox 下 sendMessage 返回的 Promise 会 reject)会主动 catch 住该 rejection", () => {
+      // chrome.runtime.sendMessage() 不带回调时返回 Promise。Chrome 在没有其它监听方时该 Promise
+      // 不会 reject，但 Firefox 会 reject 并抛出 "Could not establish connection. Receiving end
+      // does not exist."。publish 广播给"任何在监听的人"，没人监听是正常情况，不应表现为报错，
+      // 也不应留下未处理的 Promise rejection。
+      // 直接断言 .catch() 是否被调用，而不是依赖 process 的 unhandledRejection 事件——
+      // 后者的触发时机取决于 Node 事件循环细节，在测试环境下并不可靠。
+      const group = messageQueue.group("api-publishNoReceiver");
+      const rejectedPromise = Promise.reject(
+        new Error("Could not establish connection. Receiving end does not exist.")
+      );
+      const originalCatch = rejectedPromise.catch.bind(rejectedPromise);
+      let caughtCalled = false;
+      rejectedPromise.catch = (onRejected: any) => {
+        caughtCalled = true;
+        return originalCatch(onRejected);
+      };
+      vi.spyOn(chrome.runtime, "sendMessage").mockImplementation(() => rejectedPromise as unknown as void);
+
+      expect(() => group.publish("test-publishNoReceiver", { data: 1 })).not.toThrow();
+
+      expect(caughtCalled).toBe(true);
+    });
+
+    it("publish 遇到非无人接收类异常时记录 error 而不是静默降为 debug", async () => {
+      const group = messageQueue.group("api-publishUnexpectedError");
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.spyOn(chrome.runtime, "sendMessage").mockReturnValue(Promise.reject(new Error("transport exploded")) as never);
+
+      group.publish("test-publishUnexpectedError", { data: 1 });
+      await nextTick();
+      await nextTick();
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Unable to execute runtime.sendMessage"),
+        expect.anything()
+      );
+    });
+
+    it("emit 方法应该只在本地发布", () => {
+      const group = messageQueue.group("api-emitLocal");
+      const handler = vi.fn();
+
+      const sendSpy = vi.spyOn(chrome.runtime, "sendMessage"); // 不能 concurrent
+      group.subscribe("test-emitLocal", handler);
+      group.emit("test-emitLocal", { data: "test-emitLocal" });
+
+      expect(handler).toHaveBeenCalledWith({ data: "test-emitLocal" });
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("取消订阅功能", () => {
+    it.concurrent("应该能够取消订阅", () => {
+      const group = messageQueue.group("api-unsubscribe");
+      const handler = vi.fn();
+
+      const unsubscribe = group.subscribe("test-unsubscribe", handler);
+
+      // 发布消息，应该收到
+      group.emit("test-unsubscribe", { data: "test1" });
+      expect(handler).toHaveBeenCalledWith({ data: "test1" });
+
+      // 取消订阅
+      unsubscribe();
+
+      // 再次发布消息，不应该收到
+      group.emit("test-unsubscribe", { data: "test2" });
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+  });
+});

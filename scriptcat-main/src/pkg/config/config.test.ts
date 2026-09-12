@@ -1,0 +1,348 @@
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { SystemConfig } from "./config";
+import { MessageQueue } from "@Packages/message/message_queue";
+
+describe("SystemConfig 双 storage 与懒迁移", () => {
+  let mq: MessageQueue;
+  let config: SystemConfig;
+
+  beforeEach(() => {
+    // 清空 storage 数据
+    chrome.storage.sync.clear();
+    chrome.storage.local.clear();
+    mq = new MessageQueue();
+    config = new SystemConfig(mq);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe("local key 读写", () => {
+    it("cloud_sync 应写入 local storage 而非 sync", async () => {
+      const cloudSync = {
+        enable: true,
+        syncDelete: false,
+        syncStatus: true,
+        filesystem: "onedrive" as const,
+        params: { token: "test" },
+      };
+      config.setCloudSync(cloudSync);
+
+      const result = await config.getCloudSync();
+      expect(result).toEqual(cloudSync);
+
+      // 验证值在 local 中
+      const localData = await chrome.storage.local.get("system_cloud_sync");
+      expect(localData["system_cloud_sync"]).toEqual(cloudSync);
+
+      // 验证值不在 sync 中
+      const syncData = await chrome.storage.sync.get("system_cloud_sync");
+      expect(syncData["system_cloud_sync"]).toBeUndefined();
+    });
+
+    it("同一配置键连续写入应按调用顺序持久化，避免旧值后完成覆盖新值", async () => {
+      const callbacks: Array<() => void> = [];
+      const set = vi.spyOn(chrome.storage.local, "set").mockImplementation(((
+        _items: Record<string, unknown>,
+        callback?: () => void
+      ) => {
+        callbacks.push(callback || (() => {}));
+      }) as never);
+      const first = {
+        enable: false,
+        syncDelete: false,
+        syncStatus: true,
+        filesystem: "webdav" as const,
+        params: { webdav: { url: "h" } },
+      };
+      const second = {
+        ...first,
+        params: { webdav: { url: "ht" } },
+      };
+
+      config.setCloudSync(first);
+      config.setCloudSync(second);
+
+      expect(set).toHaveBeenCalledTimes(1);
+      callbacks.shift()?.();
+      await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(2));
+      callbacks.shift()?.();
+      await vi.waitFor(() => expect(callbacks).toHaveLength(0));
+      await expect(config.getCloudSync()).resolves.toEqual(second);
+      set.mockRestore();
+    });
+
+    it("language 应写入 local storage", async () => {
+      config.setLanguage("zh-CN");
+
+      // 通过 storage 验证写入位置
+      const localData = await chrome.storage.local.get("system_language");
+      expect(localData["system_language"]).toBe("zh-CN");
+
+      const syncData = await chrome.storage.sync.get("system_language");
+      expect(syncData["system_language"]).toBeUndefined();
+    });
+
+    it("vscode_url 应写入 local storage", async () => {
+      config.setVscodeUrl("ws://localhost:9999");
+
+      const localData = await chrome.storage.local.get("system_vscode_url");
+      expect(localData["system_vscode_url"]).toBe("ws://localhost:9999");
+
+      const syncData = await chrome.storage.sync.get("system_vscode_url");
+      expect(syncData["system_vscode_url"]).toBeUndefined();
+    });
+
+    it("enable_script 应写入 local storage", async () => {
+      config.setEnableScript(false);
+
+      const localData = await chrome.storage.local.get("system_enable_script");
+      expect(localData["system_enable_script"]).toBe(false);
+
+      const syncData = await chrome.storage.sync.get("system_enable_script");
+      expect(syncData["system_enable_script"]).toBeUndefined();
+    });
+
+    it("external_access_enabled 应写入 local storage 而非 sync", async () => {
+      config.setExternalAccessEnabled(true);
+
+      const localData = await chrome.storage.local.get("system_external_access_enabled");
+      expect(localData["system_external_access_enabled"]).toBe(true);
+
+      const syncData = await chrome.storage.sync.get("system_external_access_enabled");
+      expect(syncData["system_external_access_enabled"]).toBeUndefined();
+    });
+
+    it("external_access_enabled 默认值为 false", async () => {
+      expect(await config.getExternalAccessEnabled()).toBe(false);
+    });
+
+    it("external_access_url 默认 ws://localhost:8643 并写入 local storage", async () => {
+      expect(await config.getExternalAccessUrl()).toBe("ws://localhost:8643");
+      config.setExternalAccessUrl("ws://127.0.0.1:9000");
+      const localData = await chrome.storage.local.get("system_external_access_url");
+      expect(localData["system_external_access_url"]).toBe("ws://127.0.0.1:9000");
+      const syncData = await chrome.storage.sync.get("system_external_access_url");
+      expect(syncData["system_external_access_url"]).toBeUndefined();
+    });
+
+    it("external_access_write_policy 默认 approval 并写入 local storage", async () => {
+      expect(await config.getExternalAccessWritePolicy()).toBe("approval");
+      config.setExternalAccessWritePolicy("allow");
+      expect(await config.getExternalAccessWritePolicy()).toBe("allow");
+      const localData = await chrome.storage.local.get("system_external_access_write_policy");
+      expect(localData["system_external_access_write_policy"]).toBe("allow");
+      const syncData = await chrome.storage.sync.get("system_external_access_write_policy");
+      expect(syncData["system_external_access_write_policy"]).toBeUndefined();
+    });
+
+    it("external_access_source_read_policy 默认 approval 并写入 local storage", async () => {
+      expect(await config.getExternalAccessSourceReadPolicy()).toBe("approval");
+      config.setExternalAccessSourceReadPolicy("allow");
+      expect(await config.getExternalAccessSourceReadPolicy()).toBe("allow");
+      const localData = await chrome.storage.local.get("system_external_access_source_read_policy");
+      expect(localData["system_external_access_source_read_policy"]).toBe("allow");
+      const syncData = await chrome.storage.sync.get("system_external_access_source_read_policy");
+      expect(syncData["system_external_access_source_read_policy"]).toBeUndefined();
+    });
+
+    it("external_access_pairing 默认未配对，写入后落 local storage 且不入 sync", async () => {
+      expect(await config.getExternalAccessPairing()).toEqual({ key: "", clientId: "" });
+      config.setExternalAccessPairing({ key: "deadbeef", clientId: "cid-1" });
+      expect(await config.getExternalAccessPairing()).toEqual({ key: "deadbeef", clientId: "cid-1" });
+      const localData = await chrome.storage.local.get("system_external_access_pairing");
+      expect(localData["system_external_access_pairing"]).toEqual({ key: "deadbeef", clientId: "cid-1" });
+      const syncData = await chrome.storage.sync.get("system_external_access_pairing");
+      expect(syncData["system_external_access_pairing"]).toBeUndefined();
+    });
+  });
+
+  describe("sync key 读写", () => {
+    it("check_script_update_cycle 应写入 sync storage", async () => {
+      config.setCheckScriptUpdateCycle(3600);
+
+      const syncData = await chrome.storage.sync.get("system_check_script_update_cycle");
+      expect(syncData["system_check_script_update_cycle"]).toBe(3600);
+
+      const localData = await chrome.storage.local.get("system_check_script_update_cycle");
+      expect(localData["system_check_script_update_cycle"]).toBeUndefined();
+    });
+
+    it("enable_eslint 应写入 sync storage", async () => {
+      config.setEnableEslint(false);
+
+      const syncData = await chrome.storage.sync.get("system_enable_eslint");
+      expect(syncData["system_enable_eslint"]).toBe(false);
+
+      const localData = await chrome.storage.local.get("system_enable_eslint");
+      expect(localData["system_enable_eslint"]).toBeUndefined();
+    });
+
+    it("popup 紧凑布局应默认关闭并写入 sync storage", async () => {
+      await expect(config.getPopupCompactLayout()).resolves.toBe(false);
+
+      config.setPopupCompactLayout(true);
+
+      await expect(config.getPopupCompactLayout()).resolves.toBe(true);
+      const syncData = await chrome.storage.sync.get("system_popup_compact_layout");
+      expect(syncData["system_popup_compact_layout"]).toBe(true);
+
+      const localData = await chrome.storage.local.get("system_popup_compact_layout");
+      expect(localData["system_popup_compact_layout"]).toBeUndefined();
+    });
+
+    it("编辑器偏好应返回默认值并写入 sync storage", async () => {
+      await expect(config.getEditorPreferences()).resolves.toEqual({
+        version: 1,
+        fontSize: 14,
+        mouseWheelScrollSensitivity: 1,
+        smoothScrolling: true,
+      });
+
+      const value = { version: 1 as const, fontSize: 16, mouseWheelScrollSensitivity: 1.5, smoothScrolling: false };
+      config.setEditorPreferences(value);
+
+      await expect(config.getEditorPreferences()).resolves.toEqual(value);
+      const syncData = await chrome.storage.sync.get("system_editor_preferences");
+      expect(syncData["system_editor_preferences"]).toEqual(value);
+
+      const localData = await chrome.storage.local.get("system_editor_preferences");
+      expect(localData["system_editor_preferences"]).toBeUndefined();
+    });
+
+    it("编辑器偏好重置后应回到当前默认值", async () => {
+      config.setEditorPreferences({ version: 1, fontSize: 18, mouseWheelScrollSensitivity: 2, smoothScrolling: false });
+      config.setEditorPreferences(undefined);
+
+      await expect(config.getEditorPreferences()).resolves.toEqual(config.defaultEditorPreferences());
+      const syncData = await chrome.storage.sync.get("system_editor_preferences");
+      expect(syncData["system_editor_preferences"]).toBeUndefined();
+    });
+  });
+
+  describe("懒迁移：sync → local", () => {
+    it("local key 的旧数据应从 sync 迁移到 local", async () => {
+      // 模拟旧版本数据在 sync 中
+      const oldCloudSync = {
+        enable: true,
+        syncDelete: false,
+        syncStatus: true,
+        filesystem: "webdav" as const,
+        params: { url: "https://example.com" },
+      };
+      await chrome.storage.sync.set({ system_cloud_sync: oldCloudSync });
+
+      // 读取时应自动迁移
+      const result = await config.getCloudSync();
+      expect(result).toEqual(oldCloudSync);
+
+      // 验证已迁移到 local
+      const localData = await chrome.storage.local.get("system_cloud_sync");
+      expect(localData["system_cloud_sync"]).toEqual(oldCloudSync);
+
+      // 验证已从 sync 中删除
+      const syncData = await chrome.storage.sync.get("system_cloud_sync");
+      expect(syncData["system_cloud_sync"]).toBeUndefined();
+    });
+
+    it("local 有值时不应回退到 sync", async () => {
+      const localValue = "zh-CN";
+      const syncValue = "en-US";
+      await chrome.storage.local.set({ system_language: localValue });
+      await chrome.storage.sync.set({ system_language: syncValue });
+
+      const result = await config.getLanguage();
+      expect(result).toBe(localValue);
+
+      // sync 中的值不应被删除（因为 local 有值，不触发迁移）
+      const syncData = await chrome.storage.sync.get("system_language");
+      expect(syncData["system_language"]).toBe(syncValue);
+    });
+
+    it("sync 和 local 都没有值时返回默认值", async () => {
+      const result = await config.getCloudSync();
+      expect(result).toEqual({
+        enable: false,
+        syncDelete: false,
+        syncStatus: true,
+        filesystem: "webdav",
+        params: {},
+      });
+    });
+
+    it("迁移后再次读取应走缓存", async () => {
+      await chrome.storage.sync.set({ system_vscode_url: "ws://old:8642" });
+
+      // 第一次读取触发迁移
+      const first = await config.getVscodeUrl();
+      expect(first).toBe("ws://old:8642");
+
+      // 修改 local storage（模拟外部写入），验证缓存生效
+      await chrome.storage.local.set({ system_vscode_url: "ws://new:9999" });
+
+      // 第二次读取应返回缓存值
+      const second = await config.getVscodeUrl();
+      expect(second).toBe("ws://old:8642");
+    });
+  });
+
+  describe("React 外部存储适配器", () => {
+    it("同一配置键应返回稳定的 store 实例", () => {
+      expect(config.externalStore("favicon_service")).toBe(config.externalStore("favicon_service"));
+    });
+
+    it("订阅时应加载初始快照并通知监听器", async () => {
+      const store = config.externalStore("favicon_service");
+      const listener = vi.fn();
+      const unsubscribe = store.subscribe(listener);
+
+      await vi.waitFor(() => expect(store.getSnapshot()).toBe("scriptcat"));
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsubscribe();
+    });
+
+    it("通知期间新增的监听器不应加入当前派发", async () => {
+      const store = config.externalStore("favicon_service");
+      const lateListener = vi.fn();
+      store.subscribe(() => store.subscribe(lateListener));
+
+      await vi.waitFor(() => expect(store.getSnapshot()).toBe("scriptcat"));
+      expect(lateListener).not.toHaveBeenCalled();
+    });
+
+    it("store setter 应同步更新快照且不提前触发旧 addListener", () => {
+      const store = config.externalStore("favicon_service");
+      const storeListener = vi.fn();
+      const legacyListener = vi.fn();
+      store.subscribe(storeListener);
+      config.addListener("favicon_service", legacyListener);
+      storeListener.mockClear();
+
+      store.set("google");
+
+      expect(store.getSnapshot()).toBe("google");
+      expect(storeListener).toHaveBeenCalledTimes(1);
+      expect(legacyListener).not.toHaveBeenCalled();
+    });
+
+    it("延迟的初始读取不应覆盖 store setter 的新值", async () => {
+      let resolveRead!: () => void;
+      vi.spyOn(chrome.storage.sync, "get").mockImplementationOnce(((
+        _key: string,
+        callback: (items: Record<string, unknown>) => void
+      ) => {
+        resolveRead = () => callback({ system_favicon_service: "scriptcat" });
+      }) as never);
+      const store = config.externalStore("favicon_service");
+      store.subscribe(() => {});
+
+      store.set("google");
+      resolveRead();
+      await Promise.resolve();
+
+      expect(store.getSnapshot()).toBe("google");
+      await expect(config.get("favicon_service")).resolves.toBe("google");
+    });
+  });
+});

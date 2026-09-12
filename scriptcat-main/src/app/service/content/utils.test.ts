@@ -1,0 +1,945 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  compileScriptCode,
+  compileScript,
+  compileInjectScript,
+  compileScriptletCode,
+  isScriptletUnwrap,
+  addStyle,
+  addStyleSheet,
+  trimScriptInfo,
+} from "./utils";
+import type { SCMetadata, ScriptLoadInfo, ScriptRunResource } from "@App/app/repo/scripts";
+import type { ScriptFunc } from "./types";
+import { RuleType, type URLRuleEntry } from "@App/pkg/utils/url_matcher";
+
+// 设置 console mock 来避免测试输出污染
+vi.spyOn(console, "error").mockImplementation(() => {});
+vi.spyOn(console, "log").mockImplementation(() => {});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("utils", () => {
+  describe.concurrent("compileScriptCode", () => {
+    const createMockScriptRes = (overrides: Partial<ScriptRunResource> = {}): ScriptRunResource => ({
+      uuid: "test-uuid",
+      name: "Test Script",
+      namespace: "test.namespace",
+      type: 1,
+      status: 1,
+      sort: 0,
+      runStatus: "complete",
+      createtime: Date.now(),
+      checktime: Date.now(),
+      code: "console.log('test');",
+      value: {},
+      flag: "test-flag",
+      resource: {},
+      metadata: {},
+      originalMetadata: {},
+      ...overrides,
+    });
+
+    it.concurrent("应该正确编译基本脚本代码", () => {
+      const scriptRes = createMockScriptRes({
+        name: "Basic Script",
+        code: "console.log('hello world');",
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("console.log('hello world');");
+      expect(result).toContain("//# sourceURL=");
+      expect(result).toContain("Basic%20Script.user.js");
+      expect(result).toContain("try {");
+      expect(result).toContain("} catch (e) {");
+      expect(result).toContain("with(arguments[0]||this.$)");
+      expect(result).toContain("return(async function(){");
+    });
+
+    it.concurrent("应该处理自定义脚本代码参数", () => {
+      const scriptRes = createMockScriptRes();
+      const customCode = "alert('custom code');";
+
+      const result = compileScriptCode(scriptRes, customCode);
+
+      expect(result).toContain("alert('custom code');");
+      expect(result).not.toContain("console.log('test');");
+    });
+
+    it.concurrent("应该包含 require 资源", () => {
+      const scriptRes = createMockScriptRes({
+        metadata: {
+          require: ["https://example.com/lib1.js", "https://example.com/lib2.js"],
+        },
+        resource: {
+          "https://example.com/lib1.js": {
+            url: "https://example.com/lib1.js",
+            content: "// Library 1 content",
+            base64: "",
+            hash: {
+              md5: "test",
+              sha1: "test",
+              sha256: "test",
+              sha384: "test",
+              sha512: "test",
+            },
+            type: "require",
+            link: {},
+            contentType: "text/javascript",
+            createtime: Date.now(),
+          },
+          "https://example.com/lib2.js": {
+            url: "https://example.com/lib2.js",
+            content: "// Library 2 content",
+            base64: "",
+            hash: {
+              md5: "test",
+              sha1: "test",
+              sha256: "test",
+              sha384: "test",
+              sha512: "test",
+            },
+            type: "require",
+            link: {},
+            contentType: "text/javascript",
+            createtime: Date.now(),
+          },
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("// Library 1 content");
+      expect(result).toContain("// Library 2 content");
+      expect(result.indexOf("// Library 1 content")).toBeLessThan(result.indexOf("// Library 2 content"));
+    });
+
+    it.concurrent("应该从 category-specific resource map 编译冲突 key 的 require", () => {
+      const sharedUrl = "https://example.com/shared.js";
+      const scriptRes = createMockScriptRes({
+        metadata: { require: [sharedUrl] },
+        resource: {
+          [sharedUrl]: {
+            url: "https://example.com/wrong-resource.txt",
+            content: "wrong resource content",
+            base64: "",
+            hash: {
+              md5: "test",
+              sha1: "test",
+              sha256: "test",
+              sha384: "test",
+              sha512: "test",
+            },
+            type: "resource",
+            link: {},
+            contentType: "text/plain",
+            createtime: Date.now(),
+          },
+        },
+        resourceByType: {
+          require: {
+            [sharedUrl]: {
+              url: sharedUrl,
+              content: "correct library content",
+              base64: "",
+              hash: {
+                md5: "test",
+                sha1: "test",
+                sha256: "test",
+                sha384: "test",
+                sha512: "test",
+              },
+              type: "require",
+              link: {},
+              contentType: "text/javascript",
+              createtime: Date.now(),
+            },
+          },
+          "require-css": {},
+          resource: {},
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("correct library content");
+      expect(result).not.toContain("wrong resource content");
+    });
+
+    it.concurrent("应该忽略不存在的 require 资源", () => {
+      const scriptRes = createMockScriptRes({
+        metadata: {
+          require: ["https://example.com/missing.js", "https://example.com/existing.js"],
+        },
+        resource: {
+          "https://example.com/existing.js": {
+            url: "https://example.com/existing.js",
+            content: "// Existing content",
+            base64: "",
+            hash: {
+              md5: "test",
+              sha1: "test",
+              sha256: "test",
+              sha384: "test",
+              sha512: "test",
+            },
+            type: "require",
+            link: {},
+            contentType: "text/javascript",
+            createtime: Date.now(),
+          },
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("// Existing content");
+      expect(result).not.toContain("missing.js");
+    });
+
+    it.concurrent("应该正确处理脚本名称中的特殊字符", () => {
+      const scriptRes = createMockScriptRes({
+        name: "Test Script with 中文 & Special!@#$%^&*() Characters",
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("sourceURL=");
+      // 验证 encodeURI 被正确应用
+      expect(chrome.runtime.getURL).toHaveBeenCalledWith(
+        "/Test%20Script%20with%20%E4%B8%AD%E6%96%87%20&%20Special!@#$%25%5E&*()%20Characters.user.js"
+      );
+    });
+
+    it.concurrent("应该包含错误处理逻辑", () => {
+      const scriptRes = createMockScriptRes({
+        name: "Error Test Script",
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toContain("catch (e)");
+      expect(result).toContain("console.error");
+      expect(result).toContain("arguments[1]");
+      expect(result).toContain("e.message && e.stack");
+    });
+
+    it.concurrent("应该处理空的 metadata", () => {
+      const scriptRes = createMockScriptRes({
+        metadata: {},
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toBeDefined();
+      expect(result).toContain("try {");
+    });
+
+    it.concurrent("应该处理 undefined require", () => {
+      const scriptRes = createMockScriptRes({
+        metadata: {
+          require: undefined,
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toBeDefined();
+      expect(result).toContain("try {");
+    });
+
+    it.concurrent("应该处理 @run-at context-menu", () => {
+      const scriptRes = createMockScriptRes({
+        name: 'ScriptCat\'s demo for "context-menu"',
+        code: "console.log(567); // testing",
+        metadata: {
+          "run-at": ["context-menu"],
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      expect(result).toBeDefined();
+      expect(result).toContain(
+        `GM_registerMenuCommand(("ScriptCat's demo for \\"context-menu\\""), ()=>{\nconsole.log(567); // testing\n}, {nested:false});\n`
+      );
+    });
+
+    it.concurrent("@run-at context-menu 的包装不得屏蔽脚本体自己的 GM_registerMenuCommand", () => {
+      const scriptRes = createMockScriptRes({
+        name: "menu registering script",
+        code: 'GM_registerMenuCommand("Own Item", () => {});',
+        metadata: {
+          "run-at": ["context-menu"],
+        },
+      });
+
+      const result = compileScriptCode(scriptRes);
+
+      // 曾经在回调开头把 GM_registerMenuCommand 连同 window./GM. 上的引用一起置为 undefined，
+      // 于是任何在脚本体里注册菜单的脚本一点菜单就 TypeError 中断，自己的菜单项也永远注册不上
+      expect(result).not.toContain("GM_registerMenuCommand=undefined");
+      expect(result).not.toContain("window.GM_registerMenuCommand");
+      expect(result).not.toContain("GM.registerMenuCommand");
+    });
+  });
+
+  describe("trimScriptInfo resource selection", () => {
+    const assetName = "asset";
+    const assetDeclaration = `${assetName} https://example.com/asset.bin`;
+    const libraryUrl = "https://example.com/library.js";
+    const styleUrl = "https://example.com/style.css";
+    const resourceGrants = [
+      "GM_getResourceText",
+      "GM.getResourceText",
+      "GM_getResourceURL",
+      "GM.getResourceUrl",
+      "GM.getResourceURL",
+      "GM_getResourceUrl",
+    ];
+
+    const resource = (url: string, content: string) => ({
+      url,
+      content,
+      base64: "",
+      hash: { md5: "test", sha1: "test", sha256: "test", sha384: "test", sha512: "test" },
+      type: "resource" as const,
+      link: {},
+      contentType: "text/plain",
+      createtime: Date.now(),
+    });
+
+    const createScript = (metadata: SCMetadata, resourceKeys: string[]) =>
+      ({
+        uuid: "trim-test-uuid",
+        name: "Trim test",
+        namespace: "trim.test",
+        type: 1,
+        status: 1,
+        sort: 0,
+        runStatus: "complete",
+        createtime: Date.now(),
+        checktime: Date.now(),
+        code: "",
+        value: {},
+        flag: "trim-test-flag",
+        resource: Object.fromEntries(
+          resourceKeys.map((key) => [
+            key,
+            resource(
+              key === assetName ? "https://example.com/asset.bin" : key,
+              key === libraryUrl ? "library content" : key === styleUrl ? "body { color: red; }" : "asset content"
+            ),
+          ])
+        ),
+        metadata,
+        originalMetadata: {},
+      }) as unknown as ScriptLoadInfo;
+
+    it.each([
+      {
+        name: "drops @resource without a resource grant",
+        metadata: { resource: [assetDeclaration] },
+        resourceKeys: [assetName],
+        expected: [],
+      },
+      {
+        name: "drops @resource for ordinary @grant none",
+        metadata: { grant: ["none"], resource: [assetDeclaration] },
+        resourceKeys: [assetName],
+        expected: [],
+      },
+      {
+        name: "does not forward @require after Service Worker compilation",
+        metadata: { require: [libraryUrl] },
+        resourceKeys: [libraryUrl],
+        expected: [],
+      },
+      {
+        name: "keeps @require-css independently of resource grants",
+        metadata: { "require-css": [styleUrl] },
+        resourceKeys: [styleUrl],
+        expected: [],
+        expectedCss: [styleUrl],
+      },
+      {
+        name: "keeps CSS and granted @resource but not compiled @require",
+        metadata: {
+          grant: ["GM_getResourceText"],
+          resource: [assetDeclaration],
+          require: [libraryUrl],
+          "require-css": [styleUrl],
+        },
+        resourceKeys: [assetName, libraryUrl, styleUrl],
+        expected: [assetName],
+        expectedCss: [styleUrl],
+      },
+      {
+        name: "keeps CSS when @grant none disables resource APIs",
+        metadata: {
+          grant: ["none", "GM_getResourceText"],
+          resource: [assetDeclaration],
+          "require-css": [styleUrl],
+        },
+        resourceKeys: [assetName, styleUrl],
+        expected: [],
+        expectedCss: [styleUrl],
+      },
+    ])("$name", ({ metadata, resourceKeys, expected, expectedCss }) => {
+      const trimmed = trimScriptInfo(createScript(metadata, resourceKeys));
+
+      expect(Object.keys(trimmed.resource).sort()).toEqual(expected.sort());
+      expect(Object.keys(trimmed.requireCssResource || {}).sort()).toEqual((expectedCss || []).sort());
+    });
+
+    it.each(resourceGrants)("keeps @resource for %s", (grant) => {
+      const script = createScript({ grant: [grant], resource: [assetDeclaration] }, [assetName]);
+      script.resourceByType = {
+        require: {},
+        "require-css": {},
+        resource: { [assetName]: script.resource[assetName] },
+      };
+      const trimmed = trimScriptInfo(script);
+
+      expect(Object.keys(trimmed.resource)).toEqual([assetName]);
+    });
+
+    it("keeps a resource grant in context-menu scripts after removing none", () => {
+      const trimmed = trimScriptInfo(
+        createScript(
+          {
+            grant: ["none", "GM_getResourceText"],
+            resource: [assetDeclaration],
+            "run-at": ["context-menu"],
+          },
+          [assetName]
+        )
+      );
+
+      expect(Object.keys(trimmed.resource)).toEqual([assetName]);
+    });
+
+    it("keeps category-specific values when resource keys collide", () => {
+      const sharedKey = "https://example.com/shared";
+      const script = createScript(
+        {
+          grant: ["GM_getResourceText"],
+          resource: [`${sharedKey} https://example.com/data.txt`],
+          "require-css": [sharedKey],
+        },
+        [sharedKey]
+      );
+      script.resourceByType = {
+        require: { [sharedKey]: resource(sharedKey, "library content") },
+        "require-css": { [sharedKey]: resource(sharedKey, "body { color: red; }") },
+        resource: { [sharedKey]: resource("https://example.com/data.txt", "resource content") },
+      };
+
+      const trimmed = trimScriptInfo(script);
+
+      expect(trimmed.resource[sharedKey]?.content).toBe("resource content");
+      expect(trimmed.requireCssResource?.[sharedKey]?.content).toBe("body { color: red; }");
+    });
+
+    it("does not expose malformed @resource declarations", () => {
+      const script = createScript(
+        {
+          grant: ["GM_getResourceText"],
+          resource: [assetName, `${assetName} https://example.com/asset.bin extra`],
+        },
+        [assetName]
+      );
+
+      expect(Object.keys(trimScriptInfo(script).resource)).toEqual([]);
+    });
+
+    it("does not mutate the full resource map while trimming", () => {
+      const script = createScript(
+        {
+          grant: ["GM_getResourceText"],
+          resource: [assetDeclaration],
+          require: [libraryUrl],
+          "require-css": [styleUrl],
+        },
+        [assetName, libraryUrl, styleUrl]
+      );
+      const originalResourceKeys = Object.keys(script.resource);
+
+      const trimmed = trimScriptInfo(script);
+
+      expect(Object.keys(script.resource)).toEqual(originalResourceKeys);
+      expect(trimmed.resource[assetName]).toEqual({
+        base64: "",
+        content: "asset content",
+        contentType: "text/plain",
+      });
+    });
+  });
+
+  describe("compileScript", () => {
+    it.concurrent("应该返回一个函数", () => {
+      const code = "return 'test result';";
+      const result = compileScript(code);
+
+      expect(typeof result).toBe("function");
+    });
+
+    it.concurrent("应该编译并执行简单代码", () => {
+      const code = "return arguments[0].value + arguments[1];";
+      const func: ScriptFunc = compileScript(code);
+
+      const result = func({ value: 10 }, "test-script");
+
+      expect(result).toBe("10test-script");
+    });
+
+    it.concurrent("应该处理复杂的脚本逻辑", () => {
+      const code = `
+        const named = arguments[0];
+        const scriptName = arguments[1];
+        if (named && named.multiply) {
+          return named.value * named.multiply;
+        }
+        return scriptName;
+      `;
+      const func: ScriptFunc = compileScript(code);
+
+      const result1 = func({ value: 5, multiply: 3 }, "test");
+      const result2 = func({ value: 5 }, "fallback");
+
+      expect(result1).toBe(15);
+      expect(result2).toBe("fallback");
+    });
+
+    it.concurrent("应该处理异步代码", async () => {
+      const code = `
+        return new Promise(resolve => {
+          setTimeout(() => resolve(arguments[0].value * 2), 10);
+        });
+      `;
+      const func: ScriptFunc = compileScript(code);
+
+      const result = await func({ value: 5 }, "async-test");
+
+      expect(result).toBe(10);
+    });
+
+    it.concurrent("应该正确处理错误", () => {
+      const code = "throw new Error('Test error');";
+      const func: ScriptFunc = compileScript(code);
+
+      expect(() => func({}, "error-test")).toThrow("Test error");
+    });
+  });
+
+  describe("compileInjectScript", () => {
+    const createMockScript = (overrides: Partial<ScriptRunResource> = {}): ScriptRunResource => ({
+      uuid: "inject-test-uuid",
+      name: "Inject Test Script",
+      namespace: "inject.test",
+      type: 1,
+      status: 1,
+      sort: 0,
+      runStatus: "complete",
+      createtime: Date.now(),
+      checktime: Date.now(),
+      code: "",
+      value: {},
+      flag: "inject-test-flag",
+      resource: {},
+      metadata: {},
+      originalMetadata: {},
+      ...overrides,
+    });
+
+    it.concurrent("应该生成基本的注入脚本代码", () => {
+      const script = createMockScript();
+      const scriptCode = "console.log('injected');";
+
+      const result = compileInjectScript(script, scriptCode);
+
+      expect(result).toBe(`window['inject-test-flag'] = function(){console.log('injected');}`);
+    });
+
+    it.concurrent("应该包含自动删除挂载函数的代码", () => {
+      const script = createMockScript();
+      const scriptCode = "console.log('with auto delete');";
+
+      const result = compileInjectScript(script, scriptCode, true);
+
+      expect(result).toContain(`try{delete window['inject-test-flag']}catch(e){}`);
+      expect(result).toContain("console.log('with auto delete');");
+      expect(result).toBe(
+        `window['inject-test-flag'] = function(){try{delete window['inject-test-flag']}catch(e){}console.log('with auto delete');}`
+      );
+    });
+
+    it.concurrent("默认情况下不应该包含自动删除代码", () => {
+      const script = createMockScript();
+      const scriptCode = "console.log('without auto delete');";
+
+      const result = compileInjectScript(script, scriptCode);
+
+      expect(result).not.toContain("try{delete window");
+      expect(result).toBe(`window['inject-test-flag'] = function(){console.log('without auto delete');}`);
+    });
+
+    it.concurrent("应该处理复杂的脚本代码", () => {
+      const script = createMockScript({ flag: "complex-flag" });
+      const scriptCode = `
+        var x = 1;
+        function test() { return x + 1; }
+        console.log(test());
+      `;
+
+      const result = compileInjectScript(script, scriptCode, true);
+
+      expect(result).toContain("window['complex-flag']");
+      expect(result).toContain("var x = 1;");
+      expect(result).toContain("function test()");
+      expect(result).toContain("try{delete window['complex-flag']}catch(e){}");
+    });
+
+    it.concurrent("应该正确转义脚本标志名称", () => {
+      const script = createMockScript({ flag: "flag-with-special-chars_123" });
+      const scriptCode = "console.log('test');";
+
+      const result = compileInjectScript(script, scriptCode);
+
+      expect(result).toContain(`window['flag-with-special-chars_123']`);
+    });
+  });
+
+  describe("addStyle", () => {
+    afterEach(() => {
+      // 清理 DOM
+      document.head.innerHTML = "";
+      document.body.innerHTML = "";
+      document.documentElement.replaceChildren(document.head, document.body);
+    });
+
+    it("应该创建并添加 style 元素到 head", () => {
+      const css = "body { background: red; }";
+
+      const styleElement = addStyle(css);
+
+      expect(styleElement).toBeInstanceOf(HTMLStyleElement);
+      expect(styleElement.textContent).toBe(css);
+      expect(document.head.contains(styleElement)).toBe(true);
+    });
+
+    it("应该在没有 head 时添加到 documentElement", () => {
+      // 移除 head 元素
+      const head = document.head;
+      head.remove();
+
+      const css = ".test { color: blue; }";
+      const styleElement = addStyle(css);
+
+      expect(styleElement).toBeInstanceOf(HTMLStyleElement);
+      expect(styleElement.textContent).toBe(css);
+      expect(document.documentElement.contains(styleElement)).toBe(true);
+
+      // 恢复 head 元素以便其他测试
+      document.documentElement.appendChild(head);
+    });
+
+    it("应该处理空的 CSS 字符串", () => {
+      const css = "";
+
+      const styleElement = addStyle(css);
+
+      expect(styleElement.textContent).toBe("");
+      expect(document.head.contains(styleElement)).toBe(true);
+    });
+
+    it("应该处理复杂的 CSS 规则", () => {
+      const css = `
+        .container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        
+        @media (max-width: 768px) {
+          .container {
+            flex-direction: column;
+          }
+        }
+        
+        .item:hover {
+          transform: scale(1.1);
+          transition: transform 0.3s ease;
+        }
+      `;
+
+      const styleElement = addStyle(css);
+
+      expect(styleElement.textContent).toBe(css);
+      expect(document.head.contains(styleElement)).toBe(true);
+    });
+
+    it("应该允许添加多个样式", () => {
+      const css1 = ".class1 { color: red; }";
+      const css2 = ".class2 { color: blue; }";
+
+      const style1 = addStyle(css1);
+      const style2 = addStyle(css2);
+
+      expect(document.head.contains(style1)).toBe(true);
+      expect(document.head.contains(style2)).toBe(true);
+      expect(style1.textContent).toBe(css1);
+      expect(style2.textContent).toBe(css2);
+      expect(document.head.children.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("应该返回添加的 style 元素", () => {
+      const css = ".return-test { font-size: 14px; }";
+
+      const returnedElement = addStyle(css);
+      const queriedElement = document.querySelector("style");
+
+      expect(returnedElement).toBe(queriedElement);
+      expect(returnedElement?.textContent).toBe(css);
+    });
+  });
+
+  describe("addStyleSheet", () => {
+    // 简单的 CSSStyleSheet mock，适配 DOM 测试环境
+    beforeEach(() => {
+      class MockCSSStyleSheet {
+        cssText = "";
+        replaceSync(css: string) {
+          this.cssText = css;
+        }
+      }
+      vi.stubGlobal("CSSStyleSheet", MockCSSStyleSheet);
+      //@ts-expect-error
+      if (!document.adoptedStyleSheets) document.adoptedStyleSheets = undefined;
+      let adoptedSheets = [] as CSSStyleSheet[];
+      const getSpy = vi.spyOn(document, "adoptedStyleSheets", "get");
+      const setSpy = vi.spyOn(document, "adoptedStyleSheets", "set");
+
+      // FrozenArray
+      getSpy.mockImplementation(() => [...adoptedSheets]);
+      setSpy.mockImplementation((value: CSSStyleSheet[]) => {
+        adoptedSheets = Array.isArray(value) ? [...value] : [];
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks(); // Restores spies + stubGlobal
+      vi.resetAllMocks(); // Clears call history
+    });
+
+    it("应该创建并返回 CSSStyleSheet 实例，并添加到 adoptedStyleSheets", () => {
+      const css = "body { background: red; }";
+
+      const sheet = addStyleSheet(css);
+
+      expect(sheet).toBeInstanceOf(CSSStyleSheet);
+      expect((sheet as any).cssText).toBe(css);
+
+      const adopted = (document as any).adoptedStyleSheets as CSSStyleSheet[];
+      expect(adopted.includes(sheet)).toBe(true);
+    });
+
+    it("应该在已有样式表的基础上追加新的样式表", () => {
+      const existing = new (CSSStyleSheet as any)();
+      (existing as any).replaceSync("html { color: black; }");
+
+      (document as any).adoptedStyleSheets = [existing];
+
+      const css = ".test { color: blue; }";
+      const newSheet = addStyleSheet(css);
+
+      const adopted = (document as any).adoptedStyleSheets as CSSStyleSheet[];
+
+      expect(adopted.length).toBe(2);
+      expect(adopted[0]).toBe(existing);
+      expect(adopted[1]).toBe(newSheet);
+      expect((newSheet as any).cssText).toBe(css);
+    });
+
+    it("应该处理空的 CSS 字符串", () => {
+      const css = "";
+
+      const sheet = addStyleSheet(css);
+
+      expect(sheet).toBeInstanceOf(CSSStyleSheet);
+      expect((sheet as any).cssText).toBe("");
+
+      const adopted = (document as any).adoptedStyleSheets as CSSStyleSheet[];
+      expect(adopted.includes(sheet)).toBe(true);
+    });
+
+    it("应该允许添加多个样式表", () => {
+      const css1 = ".class1 { color: red; }";
+      const css2 = ".class2 { color: blue; }";
+
+      const sheet1 = addStyleSheet(css1);
+      const sheet2 = addStyleSheet(css2);
+
+      const adopted = (document as any).adoptedStyleSheets as CSSStyleSheet[];
+
+      expect(adopted.length).toBe(2);
+      expect(adopted[0]).toBe(sheet1);
+      expect(adopted[1]).toBe(sheet2);
+      expect((sheet1 as any).cssText).toBe(css1);
+      expect((sheet2 as any).cssText).toBe(css2);
+    });
+
+    it("应该返回刚刚添加到 adoptedStyleSheets 末尾的样式表", () => {
+      const css = ".return-test { font-size: 14px; }";
+
+      const returnedSheet = addStyleSheet(css);
+
+      const adopted = (document as any).adoptedStyleSheets as CSSStyleSheet[];
+      const lastSheet = adopted[adopted.length - 1];
+
+      expect(returnedSheet).toBe(lastSheet);
+      expect((returnedSheet as any).cssText).toBe(css);
+    });
+  });
+
+  describe.concurrent("isScriptletUnwrap", () => {
+    it.concurrent("@unwrap 为空值时返回 true", () => {
+      expect(isScriptletUnwrap({ unwrap: [""] })).toBe(true);
+    });
+
+    it.concurrent("@unwrap 为 true 时返回 true", () => {
+      expect(isScriptletUnwrap({ unwrap: ["true"] })).toBe(true);
+    });
+
+    it.concurrent("没有 @unwrap 时返回 false", () => {
+      expect(isScriptletUnwrap({})).toBe(false);
+    });
+
+    it.concurrent("@unwrap 为 false 时返回 false", () => {
+      expect(isScriptletUnwrap({ unwrap: ["false"] })).toBe(false);
+    });
+  });
+
+  describe.concurrent("compileScriptletCode", () => {
+    const createMockScriptRes = (
+      overrides: Partial<ScriptRunResource> = {},
+      scriptUrlPatterns: URLRuleEntry[] = []
+    ): { scriptRes: ScriptRunResource; scriptUrlPatterns: URLRuleEntry[] } => ({
+      scriptRes: {
+        uuid: "test-uuid",
+        name: "Unwrap Script",
+        namespace: "test.namespace",
+        type: 1,
+        status: 1,
+        sort: 0,
+        runStatus: "complete",
+        createtime: Date.now(),
+        checktime: Date.now(),
+        code: "console.log('unwrap');",
+        value: {},
+        flag: "test-flag",
+        resource: {},
+        metadata: { unwrap: [""] },
+        originalMetadata: {},
+        ...overrides,
+      },
+      scriptUrlPatterns,
+    });
+
+    it.concurrent("应该正确编译基本 unwrap 脚本", () => {
+      const patterns: URLRuleEntry[] = [
+        {
+          ruleType: RuleType.MATCH_INCLUDE,
+          ruleContent: ["https", "example.com", "*"],
+          ruleTag: "match",
+          patternString: "https://example.com/*",
+        },
+      ];
+      const { scriptRes } = createMockScriptRes({}, patterns);
+
+      const result = compileScriptletCode(scriptRes, scriptRes.code, patterns);
+
+      // 包含脚本代码
+      expect(result).toContain("console.log('unwrap');");
+      // 包含 sourceURL
+      expect(result).toContain("sourceURL=");
+      expect(chrome.runtime.getURL).toHaveBeenCalledWith("/Unwrap%20Script.user.js");
+      // 包含 flag 注册
+      expect(result).toContain("window['test-flag']=function(){};");
+      // 包含 URL 条件包裹 (if(...){...})
+      expect(result).toMatch(/^if\(/);
+      // 不包含沙箱封装
+      expect(result).not.toContain("with(arguments[0]||this.$)");
+      expect(result).not.toContain("return(async function(){");
+    });
+
+    it.concurrent("应该包含 require 资源", () => {
+      const patterns: URLRuleEntry[] = [
+        {
+          ruleType: RuleType.MATCH_INCLUDE,
+          ruleContent: ["*", "example.com", "*"],
+          ruleTag: "match",
+          patternString: "*://example.com/*",
+        },
+      ];
+      const { scriptRes } = createMockScriptRes(
+        {
+          metadata: {
+            unwrap: [""],
+            require: ["https://cdn.example.com/lib.js"],
+          },
+          resource: {
+            "https://cdn.example.com/lib.js": {
+              url: "https://cdn.example.com/lib.js",
+              content: "var libLoaded = true;",
+              base64: "",
+              hash: { md5: "t", sha1: "t", sha256: "t", sha384: "t", sha512: "t" },
+              type: "require",
+              link: {},
+              contentType: "text/javascript",
+              createtime: Date.now(),
+            },
+          },
+        },
+        patterns
+      );
+
+      const result = compileScriptletCode(scriptRes, scriptRes.code, patterns);
+
+      expect(result).toContain("var libLoaded = true;");
+      expect(result).toContain("console.log('unwrap');");
+    });
+
+    it.concurrent("应该包含 URL 条件检查代码", () => {
+      const patterns: URLRuleEntry[] = [
+        {
+          ruleType: RuleType.MATCH_INCLUDE,
+          ruleContent: ["https", "example.com", "*"],
+          ruleTag: "match",
+          patternString: "https://example.com/*",
+        },
+        {
+          ruleType: RuleType.MATCH_EXCLUDE,
+          ruleContent: ["https", "example.com", "admin/*"],
+          ruleTag: "match",
+          patternString: "https://example.com/admin/*",
+        },
+      ];
+      const { scriptRes } = createMockScriptRes({}, patterns);
+
+      const result = compileScriptletCode(scriptRes, scriptRes.code, patterns);
+
+      // 生成的代码应包含 embeddedPatternChecker 调用
+      expect(result).toContain("location.href");
+      // if 条件包裹
+      expect(result).toMatch(/^if\(/);
+    });
+  });
+});

@@ -1,0 +1,109 @@
+import { configs } from "eslint-plugin-userscripts";
+
+// 默认规则
+const config = {
+  parserOptions: {
+    ecmaVersion: "latest",
+    sourceType: "script",
+    ecmaFeatures: {
+      globalReturn: true,
+    },
+  },
+  globals: {
+    CATRetryError: "readonly",
+    CAT_fileStorage: "readonly",
+    CAT_userConfig: "readonly",
+    CAT_registerMenuInput: "readonly",
+    CAT_unregisterMenuInput: "readonly",
+    CAT_scriptLoaded: "readonly",
+    CAT: "readonly",
+  },
+  rules: {
+    "constructor-super": ["error"],
+    "for-direction": ["error"],
+    "getter-return": ["warn"], // implicitly means return undefined
+    "no-async-promise-executor": ["error"],
+    "no-case-declarations": ["error"],
+    "no-class-assign": ["error"],
+    "no-compare-neg-zero": ["error"],
+    "no-cond-assign": ["warn"], // this is common writing style in JavaScript
+    "no-const-assign": ["error"],
+    "no-constant-condition": ["error"],
+    "no-control-regex": ["error"],
+    "no-debugger": ["error"],
+    "no-delete-var": ["error"],
+    "no-dupe-args": ["error"],
+    "no-dupe-class-members": ["error"],
+    "no-dupe-else-if": ["error"],
+    "no-dupe-keys": ["error"],
+    "no-duplicate-case": ["error"],
+    "no-empty": ["error", { allowEmptyCatch: true }],
+    "no-empty-character-class": ["error"],
+    "no-empty-pattern": ["error"],
+    "no-ex-assign": ["error"],
+    "no-extra-boolean-cast": ["error"],
+    "no-extra-semi": ["error"],
+    "no-fallthrough": ["error"],
+    "no-func-assign": ["error"],
+    "no-global-assign": ["warn"], // we always modify global variable in UserScript
+    "no-import-assign": ["error"],
+    "no-inner-declarations": ["error"],
+    "no-invalid-regexp": ["error"],
+    "no-irregular-whitespace": ["error"],
+    "no-loss-of-precision": ["error"],
+    "no-misleading-character-class": ["error"],
+    "no-mixed-spaces-and-tabs": ["error"],
+    "no-new-symbol": ["error"],
+    "no-nonoctal-decimal-escape": ["error"],
+    "no-obj-calls": ["error"],
+    "no-octal": ["error"],
+    "no-prototype-builtins": ["error"],
+    "no-redeclare": ["error", { builtinGlobals: false }],
+    "no-regex-spaces": ["error"],
+    "no-self-assign": ["error"],
+    "no-setter-return": ["warn"], // sometimes developers like to return true in setter
+    "no-shadow-restricted-names": ["error"],
+    "no-sparse-arrays": ["error"],
+    "no-this-before-super": ["error"],
+    "no-undef": ["warn"],
+    "no-unexpected-multiline": ["error"],
+    "no-unreachable": ["error"],
+    "no-unsafe-finally": ["error"],
+    "no-unsafe-negation": ["error"],
+    "no-unsafe-optional-chaining": ["error"],
+    "no-unused-labels": ["error"],
+    "no-unused-vars": ["warn"],
+    "no-useless-backreference": ["error"],
+    "no-useless-catch": ["error"],
+    "no-useless-escape": ["error", { allowRegexCharacters: ["-", "&", "/"] }],
+    "no-with": ["error"],
+    "require-yield": ["error"],
+    "use-isnan": ["error"],
+    "valid-typeof": ["error"],
+    ...configs.recommended.rules,
+  } as Record<string, any>,
+  env: {
+    es6: true,
+    browser: true,
+    greasemonkey: true,
+  },
+};
+
+// 调整规则
+// ScriptCat 在 Monaco 侧用自定义检查处理 metadata 对齐：
+// 只要求 value 起始列一致，不要求固定空格数。
+config.rules["userscripts/align-attributes"] = ["off"];
+config.rules["userscripts/require-download-url"] = ["warn"];
+
+// ScriptCat 不适用 - 有必要存在的用法
+// 不是所有 @include 都要改为 @match。改用自定义处理
+config.rules["userscripts/better-use-match"] = ["off"];
+// 不是 @name @name:en @name:zh-CN @name:zh-TW @name:ja 都要放在最前。这个连 warning 也很无谓
+config.rules["userscripts/require-name"] = ["off"];
+// ScriptCat 不用指定 ==UserScript== 放最前。在 ==UserScript== 前面可以写其他注释, 例如是 License。 不视为 invalid
+config.rules["userscripts/no-invalid-metadata"] = ["off"];
+// @homepage 与 @homepageURL 只需其一即可，不强制成对出现
+config.rules["userscripts/use-homepage-and-url"] = ["off"];
+
+// 以文本形式导出默认规则
+export const defaultConfig = JSON.stringify(config, null, 2);

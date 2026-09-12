@@ -1,0 +1,1847 @@
+import { fetchScriptBody, parseMetadata, prepareScriptByCode } from "@App/pkg/utils/script";
+import { uuidv4 } from "@App/pkg/utils/uuid";
+import type { Group } from "@Packages/message/server";
+import Logger from "@App/app/logger/logger";
+import LoggerCore from "@App/app/logger/core";
+import {
+  checkSilenceUpdate,
+  getBrowserType,
+  getStorageName,
+  openInCurrentTab,
+  stringMatching,
+} from "@App/pkg/utils/utils";
+import { ltever } from "@App/pkg/utils/semver";
+import type {
+  SCMetadata,
+  Script,
+  SCRIPT_RUN_STATUS,
+  ScriptDAO,
+  ScriptRunResource,
+  ScriptSite,
+} from "@App/app/repo/scripts";
+import { SELF_METADATA_ONLY_RUN_ON_URL } from "@App/app/repo/metadata";
+import { SCRIPT_STATUS_DISABLE, SCRIPT_STATUS_ENABLE, ScriptCodeDAO } from "@App/app/repo/scripts";
+import { type IMessageQueue } from "@Packages/message/message_queue";
+import { type ScriptInfo, type InstallSource, createTempCodeEntry } from "@App/pkg/utils/scriptInstall";
+import { type ResourceService } from "./resource";
+import { type ValueService } from "./value";
+import { compileScriptCode } from "../content/utils";
+import { type SystemConfig } from "@App/pkg/config/config";
+import type {
+  TScriptRunStatus,
+  TDeleteScript,
+  TEnableScript,
+  TInstallScript,
+  TSortedScript,
+  TInstallScriptParams,
+} from "../queue";
+import { CLOUD_SYNC_QUEUE_KEY } from "../queue";
+import { buildScriptRunResourceBasic, selfMetadataUpdate } from "./utils";
+import { extractUrlPatterns, getMatchPatternHost } from "@App/pkg/utils/url_matcher";
+import { isUrlIncluded } from "@App/pkg/utils/match";
+import {
+  BatchUpdateListActionCode,
+  type TBatchUpdateListAction,
+  UpdateStatusCode,
+  type TBatchUpdateRecord,
+  type TBatchUpdateItemResult,
+  type TBatchUpdateResult,
+  type TCheckScriptUpdateResult,
+  type TOpenUpdatePageResult,
+} from "./types";
+import { getSimilarityScore, ScriptUpdateCheck } from "./script_update_check";
+import { LocalStorageDAO } from "@App/app/repo/localStorage";
+import { CompiledResourceDAO } from "@App/app/repo/resource";
+import { initRegularUpdateCheck, watchRegularUpdateCheck } from "./regular_updatecheck";
+import { parseSkillScriptMetadata } from "@App/pkg/utils/skill_script";
+import { stackAsyncTask } from "@App/pkg/utils/async_queue";
+import { TempStorageDAO, TempStorageItemType } from "@App/app/repo/tempStorage";
+import { EnableAgent } from "@App/app/const";
+import { TrashScriptDAO } from "@App/app/repo/trash_script";
+import type { TrashScript } from "@App/app/repo/trash_script";
+import { SubscribeDAO } from "@App/app/repo/subscribe";
+import { INSTALL_REDIRECT_RULE_ID_MIN, INTERNAL_DNR_PRIORITY, buildInstallGuardRules } from "./dnr_rule_ids";
+
+export type TCheckScriptUpdateOption = Partial<
+  { checkType: "user"; noUpdateCheck?: number } | ({ checkType: "system" } & Record<string, any>)
+>;
+
+export type TOpenBatchUpdatePageOption = { q: string; dontCheckNow: boolean };
+
+export type TScriptInstallParam = {
+  script: Script; // 脚本信息（包含脚本的基础元数据）
+  code: string; // 脚本源码内容
+  upsertBy?: InstallSource; // 安装/更新来源（用于标识脚本来源渠道）
+  createtime?: number; // 导入时指定的创建时间（时间戳，毫秒）
+  updatetime?: number; // 导入时指定的最后更新时间（时间戳，毫秒）
+  overwriteSelfMetadata?: boolean; // 备份导入时用备份中的自定义元数据覆盖本地配置
+};
+
+export type TScriptInstallReturn = {
+  update: boolean; // 是否为更新操作（true 表示更新，false 表示新增）
+  updatetime: number | undefined; // 实际生效的更新时间（时间戳，毫秒）
+};
+
+export type TRestoreResult = {
+  restored: string[];
+  conflicts: { uuid: string; name: string }[];
+};
+
+export class ScriptService {
+  logger: Logger;
+  scriptCodeDAO: ScriptCodeDAO = new ScriptCodeDAO();
+  localStorageDAO: LocalStorageDAO = new LocalStorageDAO();
+  compiledResourceDAO: CompiledResourceDAO = new CompiledResourceDAO();
+  trashScriptDAO: TrashScriptDAO = new TrashScriptDAO();
+  subscribeDAO: SubscribeDAO = new SubscribeDAO();
+  private readonly scriptUpdateCheck;
+
+  constructor(
+    private readonly systemConfig: SystemConfig,
+    private readonly group: Group,
+    private readonly mq: IMessageQueue,
+    private readonly valueService: ValueService,
+    private readonly resourceService: ResourceService,
+    private readonly scriptDAO: ScriptDAO
+  ) {
+    this.logger = LoggerCore.logger().with({ service: "script" });
+    this.scriptCodeDAO.enableCache();
+    // 只给 SW 的长生命周期实例开启目录快照缓存；页面上下文中的短生命周期 DAO 按需读取 OPFS。
+    this.trashScriptDAO.enableCache();
+    this.scriptUpdateCheck = new ScriptUpdateCheck(systemConfig, group, mq, valueService, resourceService, scriptDAO);
+  }
+
+  listenerScriptInstall() {
+    // 初始化脚本安装监听
+    chrome.webNavigation.onBeforeNavigate.addListener(
+      (req: chrome.webNavigation.WebNavigationBaseCallbackDetails) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          console.error("chrome.runtime.lastError in chrome.webNavigation.onBeforeNavigate:", lastError);
+          return;
+        }
+        // 处理url, 实现安装脚本
+        let targetUrl: string;
+        // 判断是否为 file:///*/*.user.js 或 file:///*/*.skill.js（skill 仅 agent 启用时）
+        if (
+          req.url.startsWith("file://") &&
+          (req.url.endsWith(".user.js") || (EnableAgent && req.url.endsWith(".skill.js")))
+        ) {
+          targetUrl = req.url;
+        } else {
+          const reqUrl = new URL(req.url);
+          // 判断是否有hash
+          if (!reqUrl.hash) {
+            return undefined;
+          }
+          // 判断是否有url参数
+          const idx = reqUrl.hash.indexOf("url=");
+          if (idx < 0) {
+            return undefined;
+          }
+          // 获取url参数
+          targetUrl = reqUrl.hash.substring(idx + 4);
+        }
+        // 读取脚本url内容, 进行安装
+        const logger = this.logger.with({ url: targetUrl });
+        logger.debug("install script");
+        this.openInstallPageByUrl(targetUrl, { source: "user", byWebRequest: true })
+          .catch((e) => {
+            logger.error("install script error", Logger.E(e));
+            // 不再重定向当前url
+            chrome.declarativeNetRequest.updateDynamicRules(
+              {
+                removeRuleIds: [2],
+                addRules: [
+                  {
+                    id: 2,
+                    priority: INTERNAL_DNR_PRIORITY,
+                    action: {
+                      type: "allow" as chrome.declarativeNetRequest.RuleActionType,
+                    },
+                    condition: {
+                      regexFilter: targetUrl,
+                      resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+                      requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod],
+                    },
+                  },
+                ],
+              },
+              () => {
+                if (chrome.runtime.lastError) {
+                  console.error(
+                    "chrome.runtime.lastError in chrome.declarativeNetRequest.updateDynamicRules:",
+                    chrome.runtime.lastError
+                  );
+                }
+              }
+            );
+          })
+          .finally(async () => {
+            try {
+              // 直接用 chrome.tabs.goBack，不再走 content script 消息通道：
+              // content.js 依赖 chrome.userScripts 注册，未开发者模式/脚本被禁用/命中黑名单时不会被注入，
+              // 消息发不到会静默失败；goBack 只依赖已必需的 tabs 权限，不受这些条件影响。
+              const currentTab = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+              // 仅针对用户自行点击安装、且仍停留在该标签的场景；用户若已切到其他标签，不应把后台标签拉回历史记录
+              if (currentTab?.[0]?.id === req.tabId) {
+                // 回退到到安装页
+                await chrome.tabs.goBack(req.tabId);
+              }
+            } catch (e) {
+              console.error("chrome.tabs.goBack/query error:", e);
+            }
+          });
+      },
+      {
+        url: [
+          { schemes: ["http", "https"], hostEquals: "docs.scriptcat.org", pathPrefix: "/docs/script_installation/" },
+          { schemes: ["http", "https"], hostEquals: "docs.scriptcat.org", pathPrefix: "/en/docs/script_installation/" },
+          { schemes: ["http", "https"], hostEquals: "www.tampermonkey.net", pathPrefix: "/script_installation.php" },
+          { schemes: ["file"], pathSuffix: ".user.js" },
+          // Skill 安装入口仅在 agent 启用时拦截（正式版屏蔽）
+          ...(EnableAgent
+            ? [
+                { schemes: ["file"], pathSuffix: ".skill.js" },
+                { schemes: ["file"], pathSuffix: ".cat.md" },
+              ]
+            : []),
+        ],
+      }
+    );
+
+    // 兼容 chrome 内核 < 128 处理
+    const browserType = getBrowserType();
+    const addResponseHeaders = browserType.chrome && browserType.chromeVersion >= 128;
+    // Chrome 84+
+    const conditions: chrome.declarativeNetRequest.RuleCondition[] = [
+      {
+        regexFilter: "^([^?#]+?\\.user(\\.bg|\\.sub)?\\.js)", // Chrome 84+
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME], // Chrome 84+
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false, // Chrome 84+
+        excludedRequestDomains: ["github.com", "gitlab.com", "gitea.com", "bitbucket.org"], // Chrome 101+
+      },
+      {
+        regexFilter: "^(.+?\\.user(\\.bg|\\.sub)?\\.js&response-content-type=application%2Foctet-stream)",
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["githubusercontent.com"], // Chrome 101+
+      },
+      {
+        regexFilter:
+          "^(https?:\\/\\/github.com\\/[^\\s/?#]+\\/[^\\s/?#]+\\/releases/[^\\s/?#]+/download/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        // https://github.com/<user>/<repo>/releases/latest/download/file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["github.com"], // Chrome 101+
+      },
+      {
+        regexFilter:
+          "^(https?:\\/\\/gitlab\\.com\\/[^\\s/?#]+\\/[^\\s/?#]+\\/-\\/raw\\/[a-z0-9_/.-]+\\/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["gitlab.com"], // Chrome 101+
+      },
+      {
+        regexFilter: "^(https?:\\/\\/github\\.com\\/[^\\/]+\\/[^\\/]+\\/releases\\/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        // https://github.com/<user>/<repo>/releases/latest/download/file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["github.com"], // Chrome 101+
+      },
+      {
+        regexFilter: "^(https?://github.com/[^\\s/?#]+/[^\\s/?#]+/raw/[a-z]+/[^?#]+?.user(\\.bg|\\.sub)?.js)",
+        // https://github.com/<user>/<repo>/raw/refs/heads/main/.../file.user.js
+        // https://github.com/<user>/<repo>/raw/<branch>/.../file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod], // Chrome 91+
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["github.com"], // Chrome 101+
+      },
+      {
+        regexFilter:
+          "^(https?://gitlab\\.com/[^\\s/?#]+/[^\\s/?#]+/-/raw/[a-z0-9_/.-]+/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        // https://gitlab.com/<user>/<repo>/-/raw/<branch>/.../file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod],
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["gitlab.com"], // Chrome 101+
+      },
+      {
+        regexFilter:
+          "^(https?://gitea\\.com/[^\\s/?#]+/[^\\s/?#]+/raw/[a-z0-9_/.-]+/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        // https://gitea.com/<user>/<repo>/raw/<branch>/.../file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod],
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["gitea.com"], // Chrome 101+
+      },
+      {
+        regexFilter:
+          "^(https?://bitbucket\\.org/[^\\s/?#]+/[^\\s/?#]+/raw/[a-z0-9_/.-]+/[^?#]+?\\.user(\\.bg|\\.sub)?\\.js)",
+        // https://bitbucket.org/<user>/<repo>/raw/<branch>/.../file.user.js
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+        requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod],
+        isUrlFilterCaseSensitive: false,
+        requestDomains: ["bitbucket.org"], // Chrome 101+
+      },
+      // Skill 包 (.cat.md) 安装检测，仅 agent 启用时拦截（正式版屏蔽）
+      ...(EnableAgent
+        ? [
+            {
+              regexFilter: "^([^?#]+?\\.cat\\.md)",
+              resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME],
+              requestMethods: ["get" as chrome.declarativeNetRequest.RequestMethod],
+              isUrlFilterCaseSensitive: false,
+            },
+          ]
+        : []),
+    ];
+    const installPageURL = chrome.runtime.getURL("src/install.html");
+    for (const condition of conditions) {
+      Object.assign(condition, {
+        excludedTabIds: [chrome.tabs.TAB_ID_NONE],
+      });
+    }
+    // 必须在附加 responseHeaders 之前取条件：守卫要留在请求阶段，才能在用户的 block 短路请求之前放行。
+    const guardRules = buildInstallGuardRules(conditions);
+    const rules = conditions.map((condition, idx) => {
+      if (addResponseHeaders) {
+        Object.assign(condition, {
+          responseHeaders: [
+            {
+              header: "Content-Type",
+              values: [
+                "text/javascript*",
+                "application/javascript*",
+                "application/x-javascript*",
+                "text/html*",
+                "text/plain*",
+                "application/octet-stream*",
+                "application/force-download*",
+                "text/markdown*",
+              ],
+            },
+          ],
+        });
+      }
+      return {
+        id: INSTALL_REDIRECT_RULE_ID_MIN + idx,
+        priority: INTERNAL_DNR_PRIORITY,
+        action: {
+          type: "redirect" as chrome.declarativeNetRequest.RuleActionType,
+          redirect: {
+            // 直接 URL 入口不经过 UUID 暂存；byWebRequest 只在暂存链路中用于脚本身份匹配，
+            // 不能再作为安装页 history.back()/window.close() 的来源标记。
+            regexSubstitution: `${installPageURL}?url=\\1`,
+          },
+        },
+        condition: condition,
+      } as chrome.declarativeNetRequest.Rule;
+    });
+    // 重定向到脚本安装页
+    chrome.declarativeNetRequest.updateDynamicRules(
+      {
+        removeRuleIds: [1],
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "chrome.runtime.lastError in chrome.declarativeNetRequest.updateDynamicRules:",
+            chrome.runtime.lastError
+          );
+        }
+      }
+    );
+    chrome.declarativeNetRequest.updateSessionRules(
+      {
+        removeRuleIds: [...guardRules.map((rule) => rule.id), ...rules.map((rule) => rule.id)],
+        addRules: [...guardRules, ...rules],
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "chrome.runtime.lastError in chrome.declarativeNetRequest.updateSessionRules:",
+            chrome.runtime.lastError
+          );
+        }
+      }
+    );
+  }
+
+  public async openInstallPageByUrl(
+    url: string,
+    options: { source: InstallSource; byWebRequest?: boolean }
+  ): Promise<{ success: boolean; msg: string }> {
+    try {
+      const installPageUrl = await this.getInstallPageUrl(url, options);
+      if (!installPageUrl) throw new Error("getInstallPageUrl failed");
+      await openInCurrentTab(installPageUrl);
+      return { success: true, msg: "" };
+    } catch (err: any) {
+      this.logger.error("open install page failed", { source: options.source }, Logger.E(err));
+      return { success: false, msg: err.message };
+    }
+  }
+
+  public async getInstallPageUrl(
+    url: string,
+    options: { source: InstallSource; byWebRequest?: boolean }
+  ): Promise<string> {
+    const uuid = uuidv4();
+    try {
+      await this.openUpdateOrInstallPage(uuid, url, options, false);
+      return `/src/install.html?uuid=${uuid}`;
+    } catch (err: any) {
+      this.logger.error("prepare install page failed", { source: options.source }, Logger.E(err));
+      return "";
+    }
+  }
+
+  // 直接通过url静默安装脚本
+  async installByUrl(url: string, source: InstallSource, subscribeUrl?: string) {
+    const uuid = uuidv4();
+    const code = await fetchScriptBody(url);
+    const { script } = await prepareScriptByCode(code, url, uuid);
+    script.subscribeUrl = subscribeUrl;
+    await this.installScript({
+      script,
+      code,
+      upsertBy: source,
+    });
+    return script;
+  }
+
+  // 直接通过code静默安装脚本
+  async installByCode(param: { uuid: string; code: string; upsertBy: InstallSource }) {
+    const { code, upsertBy, uuid } = param;
+    const { script } = await prepareScriptByCode(code, "", uuid, true);
+    await this.installScript({
+      script,
+      code,
+      upsertBy,
+    });
+    return script;
+  }
+
+  // 获取安装信息
+  async getInstallInfo(uuid: string) {
+    const entry = await new TempStorageDAO().get(uuid);
+    return <[boolean, ScriptInfo, Record<string, any>]>entry?.value;
+  }
+
+  publishInstallScript(scriptFull: Script, options: any) {
+    const { uuid, type, status, name, namespace, origin, checkUpdateUrl, downloadUrl } = scriptFull;
+    const script = { uuid, type, status, name, namespace, origin, checkUpdateUrl, downloadUrl } as TInstallScriptParams;
+    return this.mq.publish<TInstallScript>("installScript", { script, ...options });
+  }
+
+  // 安装脚本 / 更新脚本
+  async installScript(param: TScriptInstallParam): Promise<TScriptInstallReturn> {
+    param.upsertBy = param.upsertBy || "user";
+    const { script, upsertBy, createtime, updatetime } = param;
+    // 删 storage cache
+    const compiledResourceUpdatePromise = this.compiledResourceDAO.delete(script.uuid);
+    const logger = this.logger.with({
+      name: script.name,
+      uuid: script.uuid,
+      version: script.metadata.version?.[0] || "0.0",
+      upsertBy,
+    });
+    let update = false;
+    // 判断是否已经安装
+    const oldScript = await this.scriptDAO.get(script.uuid);
+    if (oldScript) {
+      // 执行更新逻辑
+      update = true;
+      if (!param.overwriteSelfMetadata) {
+        script.selfMetadata = oldScript.selfMetadata;
+      }
+      // 如果已安装的脚本是由 Subscribe 安装，即使是手动更新也不会影响跟 Subscribe 关联
+      if (oldScript.subscribeUrl && oldScript.origin) {
+        // origin 和 subscribeUrl 保持不变
+        // @downloadURL @updateURL 随脚本最新代码而更新
+        script.origin = oldScript.origin;
+        script.subscribeUrl = oldScript.subscribeUrl;
+      }
+    }
+    if (script.ignoreVersion) script.ignoreVersion = "";
+    if (createtime) {
+      script.createtime = createtime;
+    }
+    if (updatetime) {
+      script.updatetime = updatetime;
+    }
+    // 拖拉安装等同本地创建脚本
+    if (script.origin?.startsWith("file:///*from-local*/")) {
+      script.origin = "";
+      script.originDomain = "";
+      script.downloadUrl = "";
+      script.checkUpdateUrl = "";
+    }
+    // 现存的脚本：以最初的安装(即 createtime)为标准，回填 origin 用于更新检查。
+    // 如果最初是从网络安装，之后拖拉安装本机档案，则保留 origin 资讯。
+    // 如果本机安装的版本号较低，则会在下次更新检查时提醒有更新。那个时候，用户可以选择更新至网络上最新版本，或忽略并保留本机版本。
+    // 跳过 ScriptCat 旧版本 (1.0.0-beta.2 ~ 1.4.x，自 commit d9b0eeede1a8b114f79a43fade99d825323c63f6 @ 2025.07.23)
+    // 误写入的 file:///*from-local*/ 与 file://-/ 前缀
+    if (
+      oldScript &&
+      script.createtime === oldScript.createtime &&
+      oldScript.origin &&
+      !script.origin &&
+      !oldScript.origin.startsWith("file:///*from-local*/") &&
+      !oldScript.origin.startsWith("file://-/")
+    ) {
+      script.origin = oldScript.origin;
+      script.originDomain = oldScript.originDomain;
+      script.downloadUrl = oldScript.downloadUrl;
+      script.checkUpdateUrl = oldScript.checkUpdateUrl;
+    }
+    // 同步复活 / vscode 推送 / 安装页复用回收站 uuid 均汇流至此。
+    // OPFS 是回收站脚本的唯一原件，必须等活跃元数据与代码都保存成功后再删除。
+    const trashedBeforeInstall = await this.trashScriptDAO.get(script.uuid);
+    if (
+      trashedBeforeInstall?.subscribeUrl &&
+      script.subscribeUrl === trashedBeforeInstall.subscribeUrl &&
+      !(await this.subscribeDAO.get(trashedBeforeInstall.subscribeUrl))
+    ) {
+      delete script.subscribeUrl;
+    }
+    return (async () => {
+      if (trashedBeforeInstall) {
+        await this.scriptCodeDAO.save({
+          uuid: script.uuid,
+          code: param.code,
+        });
+        try {
+          await this.scriptDAO.save(script);
+        } catch (error) {
+          await this.scriptCodeDAO.delete(script.uuid);
+          throw error;
+        }
+        try {
+          await this.trashScriptDAO.delete(script.uuid);
+        } catch (error) {
+          await this.scriptDAO.delete(script.uuid);
+          await this.scriptCodeDAO.delete(script.uuid);
+          throw error;
+        }
+      } else {
+        await this.scriptDAO.save(script);
+        await this.scriptCodeDAO.save({
+          uuid: script.uuid,
+          code: param.code,
+        });
+      }
+      logger.info("install success");
+
+      // Cache更新 & 下载资源
+      await Promise.all([
+        compiledResourceUpdatePromise,
+        this.resourceService.updateResourceByTypes(script, ["require", "require-css", "resource"]),
+      ]);
+      // 广播一下
+      // Runtime 会负责更新 CompiledResource
+      this.publishInstallScript(script, { update, upsertBy });
+
+      // 传回(由后台控制的)实际更新时间，让 editor 中的script能保持正确的更新时间
+      return { update, updatetime: script.updatetime };
+    })().catch((e: unknown) => {
+      logger.error("install error", Logger.E(e));
+      throw e;
+    });
+  }
+
+  /** 删除脚本 = 移入回收站。不销毁任何关联数据(value/资源/权限/图标/代码全部保留) */
+  async deleteScript(uuid: string, deleteBy?: InstallSource) {
+    return this.deleteScripts([uuid], deleteBy);
+  }
+
+  /** 删除脚本 = 移入回收站。彻底销毁走 purgeScripts */
+  async deleteScripts(uuids: string[], deleteBy: InstallSource = "user") {
+    const logger = this.logger.with({ uuids });
+    const scripts = (await this.scriptDAO.gets(uuids)).filter((s) => !!s);
+    if (!scripts.length) {
+      logger.error("scripts not found");
+      throw new Error("scripts not found");
+    }
+    if (!(await this.systemConfig.getTrashEnabled())) {
+      return this.destroyActiveScripts(scripts, deleteBy);
+    }
+    const deleteTime = Date.now();
+    try {
+      // 先写回收站,成功后再删活跃表。失败的最坏结果是两张表短暂都有(可被 upsert 清理自愈),
+      // 反过来的顺序失败一次就是脚本彻底消失。
+      const codes = await this.scriptCodeDAO.gets(uuids);
+      const codeByUuid = new Map(codes.filter((item) => item !== undefined).map((item) => [item.uuid, item.code]));
+      await Promise.all(
+        scripts.map((script) => {
+          const code = codeByUuid.get(script.uuid);
+          if (code === undefined) throw new Error(`script code not found: ${script.uuid}`);
+          return this.trashScriptDAO.save({ ...script, deleteTime, deleteBy }, code);
+        })
+      );
+      await this.scriptDAO.deletes(uuids);
+      await this.scriptCodeDAO.deletes(uuids);
+      // 编译缓存是可重建缓存(runtime.ts:394-398 取不到会自动重建),直接丢弃
+      await this.compiledResourceDAO.deletes(uuids);
+      logger.info("trash success");
+      const data = scripts.map((script) => ({
+        uuid: script.uuid,
+        storageName: getStorageName(script),
+        type: script.type,
+        deleteBy,
+      })) as TDeleteScript[];
+      this.mq.publish<TDeleteScript[]>("trashScripts", data);
+      return true;
+    } catch (e) {
+      logger.error("trash error", Logger.E(e));
+      throw e;
+    }
+  }
+
+  /**
+   * 回收站关闭时的删除:不经回收站直接销毁。
+   * 必须同时发出 trashScripts 与 deleteScripts —— 二者的订阅者是不相交的两半(停用 / 销毁),
+   * 且「彻底删除永远发生在进回收站之后」这条前提在关闭态不成立。只发后者会让 runtime 注销不掉、
+   * cron 停不下、云端删不掉,即脚本被删了却还在跑。
+   */
+  private async destroyActiveScripts(scripts: Script[], deleteBy: InstallSource) {
+    const uuids = scripts.map((s) => s.uuid);
+    const logger = this.logger.with({ uuids });
+    try {
+      await this.scriptDAO.deletes(uuids);
+      await this.scriptCodeDAO.deletes(uuids);
+      await this.compiledResourceDAO.deletes(uuids);
+      logger.info("delete without trash success");
+      const data = scripts.map((script) => ({
+        uuid: script.uuid,
+        storageName: getStorageName(script),
+        type: script.type,
+      }));
+      this.mq.publish<TDeleteScript[]>("trashScripts", data.map((d) => ({ ...d, deleteBy })) as TDeleteScript[]);
+      this.mq.publish<TDeleteScript[]>("deleteScripts", data as TDeleteScript[]);
+      return true;
+    } catch (e) {
+      logger.error("delete without trash error", Logger.E(e));
+      throw e;
+    }
+  }
+
+  /** 彻底删除:从回收站移除并销毁全部关联数据。单条删除 / 清空回收站 / 到期自动清理共用此入口 */
+  async purgeScripts(uuids: string[]) {
+    const logger = this.logger.with({ uuids });
+    const scripts = (await this.trashScriptDAO.gets(uuids)).filter((s) => !!s);
+    if (!scripts.length) {
+      logger.error("trash scripts not found");
+      throw new Error("trash scripts not found");
+    }
+    return this.trashScriptDAO
+      .deletes(uuids)
+      .then(async () => {
+        await this.scriptCodeDAO.deletes(uuids);
+        await this.compiledResourceDAO.deletes(uuids);
+        logger.info("purge success");
+        const data = scripts.map((script) => ({
+          uuid: script.uuid,
+          storageName: getStorageName(script),
+          type: script.type,
+        })) as TDeleteScript[];
+        this.mq.publish<TDeleteScript[]>("deleteScripts", data);
+        return true;
+      })
+      .catch((e) => {
+        logger.error("purge error", Logger.E(e));
+        throw e;
+      });
+  }
+
+  /** 从回收站还原脚本。同 name+namespace 已被占用者拒绝还原并回报冲突 */
+  async restoreScripts(uuids: string[]): Promise<TRestoreResult> {
+    const logger = this.logger.with({ uuids });
+    const trashed = (await this.trashScriptDAO.gets(uuids)).filter((s) => !!s);
+    if (!trashed.length) {
+      logger.error("trash scripts not found");
+      throw new Error("trash scripts not found");
+    }
+    const restored: string[] = [];
+    const conflicts: { uuid: string; name: string }[] = [];
+    for (const item of trashed) {
+      const occupied = await this.scriptDAO.findByNameAndNamespace(item.name, item.namespace);
+      if (occupied) {
+        conflicts.push({ uuid: item.uuid, name: item.name });
+        continue;
+      }
+      const { deleteTime: _deleteTime, deleteBy: _deleteBy, ...script } = item;
+      // 订阅已不存在时解除关联,否则日后重新订阅该 URL 会因脚本不在列表中而再次删除它
+      if (script.subscribeUrl && !(await this.subscribeDAO.get(script.subscribeUrl))) {
+        delete script.subscribeUrl;
+      }
+      const code = await this.trashScriptDAO.getCode(item.uuid);
+      if (code === undefined) throw new Error(`trash script code not found: ${item.uuid}`);
+      // 先恢复代码再写活跃表；后续任一步失败都回滚活跃数据并保留 OPFS 原件。
+      await this.scriptCodeDAO.save({ uuid: item.uuid, code });
+      try {
+        await this.scriptDAO.save(script);
+        await this.trashScriptDAO.delete(item.uuid);
+      } catch (error) {
+        await this.scriptDAO.delete(item.uuid);
+        await this.scriptCodeDAO.delete(item.uuid);
+        throw error;
+      }
+      restored.push(item.uuid);
+      this.mq.publish<TInstallScript>("installScript", { script, update: false, upsertBy: "user" });
+    }
+    logger.info("restore done", { restored: restored.length, conflicts: conflicts.length });
+    return { restored, conflicts };
+  }
+
+  /** 清理回收站中超过保留期的脚本。返回清理条数 */
+  async cleanupExpiredTrash(): Promise<number> {
+    // 回收站关闭 = 一切自动行为停摆,残留条目只由用户手动清空
+    if (!(await this.systemConfig.getTrashEnabled())) {
+      return 0;
+    }
+    const retentionDays = await this.systemConfig.getTrashRetentionDays();
+    if (!retentionDays) {
+      return 0; // 0 = 永不自动清理
+    }
+    const deadline = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const all = await this.trashScriptDAO.all();
+    const expired = all.filter((item) => item.deleteTime < deadline).map((item) => item.uuid);
+    if (!expired.length) {
+      return 0;
+    }
+    try {
+      await this.purgeScripts(expired);
+    } catch (error) {
+      // 自动清理与用户手动清空并发时，目标已不存在已经满足清理目的；其他异常仍需暴露。
+      if (!(error instanceof Error) || error.message !== "trash scripts not found") throw error;
+      return 0;
+    }
+    this.logger.info("cleanup expired trash", { count: expired.length });
+    return expired.length;
+  }
+
+  /** 读取回收站全部条目,按删除时间倒序(最近删的在前) */
+  async getTrashScripts(): Promise<TrashScript[]> {
+    const all = await this.trashScriptDAO.all();
+    return all.sort((a, b) => b.deleteTime - a.deleteTime);
+  }
+
+  async enableScript(param: { uuid: string; enable: boolean }) {
+    const { uuid, enable } = param;
+    const logger = this.logger.with({ uuid, enable });
+    const script = await this.scriptDAO.get(uuid);
+    if (!script) {
+      logger.error("script not found");
+      throw new Error("script not found");
+    }
+    return this.scriptDAO
+      .update(uuid, {
+        status: enable ? SCRIPT_STATUS_ENABLE : SCRIPT_STATUS_DISABLE,
+        updatetime: Date.now(),
+      })
+      .then(() => {
+        logger.info(enable ? "enable success" : "disable success");
+        this.mq.publish<TEnableScript[]>("enableScripts", [{ uuid: uuid, enable: enable }]);
+        return {};
+      })
+      .catch((e) => {
+        logger.error(enable ? "enable error" : "disable error", Logger.E(e));
+        throw e;
+      });
+  }
+
+  async enableScripts(param: { uuids: string[]; enable: boolean }) {
+    const { uuids, enable } = param;
+    const logger = this.logger.with({ uuids, enable });
+    const scripts = await this.scriptDAO.gets(uuids);
+    const uuids2: string[] = [];
+    for (let i = 0, l = uuids.length; i < l; i++) {
+      const script = scripts[i];
+      if (script && script.uuid && script.uuid === uuids[i]) {
+        uuids2.push(script.uuid);
+      }
+    }
+    if (!uuids2.length) {
+      logger.error("scripts not found");
+      throw new Error("scripts not found");
+    }
+    return this.scriptDAO
+      .updates(uuids2, {
+        status: enable ? SCRIPT_STATUS_ENABLE : SCRIPT_STATUS_DISABLE,
+        updatetime: Date.now(),
+      })
+      .then(() => {
+        logger.info(enable ? "enable success" : "disable success");
+        this.mq.publish<TEnableScript[]>(
+          "enableScripts",
+          uuids2.map((uuid) => ({ uuid, enable }))
+        );
+        return {};
+      })
+      .catch((e) => {
+        logger.error(enable ? "enable error" : "disable error", Logger.E(e));
+        throw e;
+      });
+  }
+
+  async fetchInfo(uuid: string) {
+    const script = await this.scriptDAO.get(uuid);
+    if (!script) {
+      return null;
+    }
+    return script;
+  }
+
+  async updateRunStatus(params: { uuid: string; runStatus: SCRIPT_RUN_STATUS; error?: string; nextruntime?: number }) {
+    // 如果脚本删除了就不再更新状态
+    const script = await this.scriptDAO.get(params.uuid);
+    if (!script) {
+      return false;
+    }
+    if (
+      (await this.scriptDAO.update(params.uuid, {
+        runStatus: params.runStatus,
+        lastruntime: Date.now(),
+        error: params.error,
+        nextruntime: params.nextruntime,
+      })) === false
+    ) {
+      throw new Error("update error");
+    }
+    this.mq.publish<TScriptRunStatus>("scriptRunStatus", params);
+    return true;
+  }
+
+  async getFilterResult(req: { value: string }) {
+    const OPTION_CASE_INSENSITIVE = true;
+    const scripts = await this.scriptDAO.all();
+    const scriptCodes = await Promise.all(
+      scripts.map((script) => this.scriptCodeDAO.get(script.uuid).catch((_) => undefined))
+    );
+
+    const keyword = req.value.toLocaleLowerCase();
+
+    // 空格分开关键字搜索
+    const keys = keyword.split(/\s+/).filter((e) => e.length);
+
+    const results: Partial<Record<string, string | boolean>>[] = [];
+    const codeCache: Partial<Record<string, string>> = {}; // temp cache
+    if (!keys.length) return results;
+    for (let i = 0, l = scripts.length; i < l; i++) {
+      const script = scripts[i];
+      const scriptCode = scriptCodes[i];
+      const uuid = script.uuid;
+      const result: Partial<Record<string, string | boolean>> = { uuid };
+
+      const searchName = (keyword: string) => {
+        if (OPTION_CASE_INSENSITIVE) {
+          return stringMatching(script.name.toLowerCase(), keyword.toLowerCase());
+        }
+        return stringMatching(script.name, keyword);
+      };
+      const searchCode = (keyword: string) => {
+        let c = codeCache[script.uuid];
+        if (!c) {
+          const code = scriptCode;
+          if (code && code.uuid === script.uuid) {
+            codeCache[script.uuid] = c = code.code;
+            c = code.code;
+          }
+        }
+        if (c) {
+          if (OPTION_CASE_INSENSITIVE) {
+            return stringMatching(c.toLowerCase(), keyword.toLowerCase());
+          }
+          return stringMatching(c, keyword);
+        }
+        return false;
+      };
+
+      let codeMatched = true;
+      let nameMatched = true;
+      for (const key of keys) {
+        if (codeMatched && !searchCode(key)) {
+          codeMatched = false;
+        }
+        if (nameMatched && !searchName(key)) {
+          nameMatched = false;
+        }
+        if (!codeMatched && !nameMatched) break;
+      }
+      result.code = codeMatched;
+      result.name = nameMatched;
+      if (result.name || result.code) {
+        result.auto = true;
+      }
+      results.push(result);
+    }
+    return results;
+  }
+
+  async getScriptRunResourceByUUID(uuid: string) {
+    const script = await this.fetchInfo(uuid);
+    if (!script) return null;
+    const scriptRes = await this.buildScriptRunResource(script);
+    scriptRes.code = compileScriptCode(scriptRes);
+    return scriptRes;
+  }
+
+  async buildScriptRunResource(script: Script): Promise<ScriptRunResource> {
+    const ret = buildScriptRunResourceBasic(script);
+    return Promise.all([
+      this.valueService.getScriptValue(ret),
+      this.resourceService.getScriptResourceValueByType(ret),
+      this.scriptCodeDAO.get(script.uuid),
+    ]).then(([value, resourceByType, code]) => {
+      if (!code) {
+        throw new Error("code is null");
+      }
+      ret.value = value;
+      ret.resourceByType = resourceByType;
+      ret.resource = {
+        ...resourceByType.require,
+        ...resourceByType["require-css"],
+        ...resourceByType.resource,
+      };
+      ret.code = code.code;
+      return ret;
+    });
+  }
+
+  async onlyRunOnUrl({ uuid, matchPattern }: { uuid: string; matchPattern: string }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) throw new Error("script not found");
+      script = selfMetadataUpdate(script, "match", new Set([matchPattern]));
+      script = selfMetadataUpdate(script, "include", new Set());
+      script = selfMetadataUpdate(script, SELF_METADATA_ONLY_RUN_ON_URL, new Set([matchPattern]));
+      await this.scriptDAO.update(uuid, script);
+      this.publishInstallScript(script, { update: true });
+      return true;
+    });
+  }
+
+  async allowUrl({
+    uuid,
+    matchPattern,
+    excludePattern,
+  }: {
+    uuid: string;
+    matchPattern: string;
+    excludePattern: string;
+  }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) throw new Error("script not found");
+      if (script.selfMetadata?.match !== undefined) {
+        script = selfMetadataUpdate(script, "match", new Set([...script.selfMetadata.match, matchPattern]));
+        script = selfMetadataUpdate(script, SELF_METADATA_ONLY_RUN_ON_URL, undefined);
+      }
+      if (script.selfMetadata?.exclude !== undefined) {
+        // 用户覆盖整体替换作者规则，因此移除当前项时把作者 @exclude 一并并入，避免丢作者规则
+        const excludeSet = new Set([...(script.metadata?.exclude || []), ...script.selfMetadata.exclude]);
+        excludeSet.delete(excludePattern);
+        script = selfMetadataUpdate(script, "exclude", excludeSet);
+      }
+      await this.scriptDAO.update(uuid, script);
+      this.publishInstallScript(script, { update: true });
+      return true;
+    });
+  }
+
+  /**
+   * 关掉脚本在 host 上的执行：优先把只服务于该站点的 @match 移出匹配列表，只有在移完仍会命中
+   * 当前网址时（通配 @match、@include、正则等移不动的规则）才追加 @exclude。排除会冻结作者的
+   * @exclude 并让匹配与排除自相矛盾，因此只在删不掉的情况下使用。
+   */
+  async excludeFromMatch({ uuid, host, url }: { uuid: string; host: string; url: string }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) throw new Error("script not found");
+      // 用户覆盖存在时整体替换作者规则，生效值须按项取
+      const match = script.selfMetadata?.match ?? script.metadata?.match ?? [];
+      const include = script.selfMetadata?.include ?? script.metadata?.include ?? [];
+      const exclude = script.selfMetadata?.exclude ?? script.metadata?.exclude ?? [];
+      // 通配网域（`*://*/*`、`*://*.example.com/*`）不只服务于当前站点，移除会连带关掉其他站点
+      const keptMatch = match.filter((pattern) => getMatchPatternHost(pattern) !== host);
+      const removedFromMatch = keptMatch.length !== match.length;
+      if (removedFromMatch) {
+        script = selfMetadataUpdate(script, "match", new Set(keptMatch));
+        script = selfMetadataUpdate(script, SELF_METADATA_ONLY_RUN_ON_URL, undefined);
+      }
+      const rules = extractUrlPatterns([
+        ...keptMatch.map((e) => `@match ${e}`),
+        ...include.map((e) => `@include ${e}`),
+        ...exclude.map((e) => `@exclude ${e}`),
+      ]);
+      if (isUrlIncluded(url, rules)) {
+        // 用户覆盖整体替换作者规则，因此把作者 @exclude 一并并入用户覆盖，避免丢作者规则
+        const excludeSet = new Set([...(script.metadata?.exclude || []), ...(script.selfMetadata?.exclude || [])]);
+        excludeSet.add(`*://${host}/*`);
+        script = selfMetadataUpdate(script, "exclude", excludeSet);
+      } else if (!removedFromMatch) {
+        return; // 当前站点本就不在匹配范围内，没有要改的覆盖
+      }
+      await this.scriptDAO.update(uuid, script);
+      this.publishInstallScript(script, { update: true });
+      return true;
+    });
+  }
+
+  async resetExclude({ uuid, exclude }: { uuid: string; exclude: string[] | undefined }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) {
+        throw new Error("script not found");
+      }
+      // 建立Set去掉重复（如有）；exclude 为 undefined 表示重置，即撤销用户覆盖
+      const excludeSet = exclude === undefined ? undefined : new Set(exclude);
+      // 更新 script.selfMetadata.exclude
+      script = selfMetadataUpdate(script, "exclude", excludeSet);
+      try {
+        await this.scriptDAO.update(uuid, script);
+        // 广播一下
+        this.publishInstallScript(script, { update: true });
+        return true;
+      } catch (e) {
+        this.logger.error("reset exclude error", Logger.E(e));
+        throw e;
+      }
+    });
+  }
+
+  async resetMatch({ uuid, match }: { uuid: string; match: string[] | undefined }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) {
+        throw new Error("script not found");
+      }
+      // 建立Set去掉重复（如有）；match 为 undefined 表示重置，即撤销用户覆盖
+      const matchSet = match === undefined ? undefined : new Set(match);
+      // 更新 script.selfMetadata.match
+      script = selfMetadataUpdate(script, "match", matchSet);
+      if (script.selfMetadata?.[SELF_METADATA_ONLY_RUN_ON_URL] !== undefined && match === undefined) {
+        // onlyRunOnUrl owns the empty include override; an imported or explicit include override does not.
+        script = selfMetadataUpdate(script, "include", undefined);
+      }
+      script = selfMetadataUpdate(script, SELF_METADATA_ONLY_RUN_ON_URL, undefined);
+      try {
+        await this.scriptDAO.update(uuid, script);
+        // 广播一下
+        this.publishInstallScript(script, { update: true });
+        return true;
+      } catch (e) {
+        this.logger.error("reset match error", Logger.E(e));
+        throw e;
+      }
+    });
+  }
+
+  async checkUpdatesAvailable(
+    uuids: string[],
+    opts: {
+      MIN_DELAY: number;
+      MAX_DELAY: number;
+    }
+  ) {
+    // 检查更新有无
+
+    // 更新 checktime 并返回 script资料列表
+    const scripts = await this.scriptDAO.updates(uuids, { checktime: Date.now() });
+    const checkScripts = scripts.filter((script) => script && typeof script === "object" && script.checkUpdateUrl);
+    if (checkScripts.length === 0) return [];
+    const n = checkScripts.length;
+    let i = 0;
+    const { MIN_DELAY, MAX_DELAY } = opts;
+
+    const delayFn = () =>
+      new Promise((resolve) =>
+        setTimeout(resolve, Math.round(MIN_DELAY + ((++i / n + Math.random()) / 2) * (MAX_DELAY - MIN_DELAY)))
+      );
+
+    const CHECK_UPDATE_TIMEOUT_MS = 300_000; // 5 分钟超时
+
+    const results = new Map<
+      string,
+      | false
+      | {
+          updateAvailable: true;
+          code: string;
+          metadata: Partial<Record<string, string[]>>;
+        }
+    >();
+
+    // 预初始化 Map 确保顺序
+    for (const uuid of uuids as string[]) {
+      results.set(uuid, false);
+    }
+
+    const abortController = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const timeoutPromise = new Promise<void>((resolve) => {
+      timeoutId = setTimeout(() => {
+        abortController.abort();
+        resolve();
+      }, CHECK_UPDATE_TIMEOUT_MS);
+    });
+
+    await Promise.race([
+      timeoutPromise,
+      Promise.allSettled(
+        (uuids as string[]).map(async (uuid, _idx) => {
+          const script = scripts[_idx];
+          const res =
+            !script || script.uuid !== uuid || !checkScripts.includes(script)
+              ? false
+              : await this._checkUpdateAvailable(script, delayFn, abortController.signal);
+          if (!res) return false;
+          results.set(uuid, res);
+          return res;
+        })
+      ).finally(() => {
+        clearTimeout(timeoutId);
+      }),
+    ]);
+    return [...results.values()];
+  }
+
+  async _checkUpdateAvailable(
+    script: {
+      uuid: string;
+      name: string;
+      checkUpdateUrl?: string;
+      metadata: Partial<Record<string, any>>;
+    },
+    delayFn?: () => Promise<any>,
+    signal?: AbortSignal
+  ): Promise<false | { updateAvailable: true; code: string; metadata: SCMetadata }> {
+    const { uuid, name, checkUpdateUrl } = script;
+
+    if (!checkUpdateUrl) {
+      return false;
+    }
+    const logger = LoggerCore.logger({
+      uuid,
+      name,
+    });
+    try {
+      if (delayFn) {
+        if (signal?.aborted) return false;
+        await delayFn();
+      }
+      if (signal?.aborted) return false;
+      const code = await fetchScriptBody(checkUpdateUrl, signal);
+      const metadata = parseMetadata(code);
+      if (!metadata) {
+        logger.error("parse metadata failed");
+        return false;
+      }
+      const newVersion = metadata.version?.[0] || "0.0";
+      const oldVersion = script.metadata.version?.[0] || "0.0";
+      // 对比版本大小
+      if (ltever(newVersion, oldVersion)) {
+        return false;
+      }
+      return { updateAvailable: true, code, metadata };
+    } catch (e) {
+      logger.error("check update failed", { ...Logger.E(e), check_update_url: checkUpdateUrl });
+      return false;
+    }
+  }
+
+  async checkUpdateAvailable(uuid_: string) {
+    // 检查更新
+    const script = await this.scriptDAO.get(uuid_);
+    if (!script || !script.checkUpdateUrl) {
+      return false;
+    }
+    await this.scriptDAO.update(uuid_, { checktime: Date.now() });
+    const res = await this._checkUpdateAvailable(script);
+    if (!res) return false;
+    return script;
+  }
+
+  async openUpdateOrInstallPage(
+    uuid: string,
+    url: string,
+    options: { source: InstallSource; byWebRequest?: boolean },
+    update: boolean,
+    logger?: Logger
+  ) {
+    return this.prepareUpdateOrInstallPage(uuid, await fetchScriptBody(url), url, options, update, logger);
+  }
+
+  /** 已经拿到脚本代码之后的处理：静默更新判定 + 写入待安装的临时代码，由调用方决定是否打开安装页 */
+  async prepareUpdateOrInstallPage(
+    uuid: string,
+    code: string,
+    url: string,
+    options: { source: InstallSource; byWebRequest?: boolean },
+    update: boolean,
+    logger?: Logger
+  ) {
+    const upsertBy = options.source;
+    if (update) {
+      try {
+        const { oldScript, script } = await prepareScriptByCode(code, url, uuid);
+        // 订阅脚本始终静默更新，信任关系由订阅建立
+        if (oldScript?.subscribeUrl) {
+          logger?.info("silence update subscribe script");
+          await this.installScript({ script, code, upsertBy });
+          return 2;
+        }
+        // 普通脚本：检查静默更新开关和 connect 变化
+        if (await this.systemConfig.getSilenceUpdateScript()) {
+          if (checkSilenceUpdate(oldScript!.metadata, script.metadata)) {
+            logger?.info("silence update script");
+            await this.installScript({ script, code, upsertBy });
+            return 2;
+          }
+          logger?.info("not silence update script, open install page");
+        }
+      } catch (e) {
+        logger?.error("prepare script failed", Logger.E(e));
+      }
+    }
+    // 检测是否为 SkillScript（仅 agent 启用时，正式版不识别 skill 安装）
+    const skillScriptMeta = EnableAgent ? parseSkillScriptMetadata(code) : null;
+    if (skillScriptMeta) {
+      const si = await createTempCodeEntry(false, uuid, code, url, upsertBy, {} as SCMetadata, options);
+      si[1].skillScript = true;
+      await new TempStorageDAO().save({
+        key: uuid,
+        value: si,
+        savedAt: Date.now(),
+        type: TempStorageItemType.tempCode,
+      });
+      return 1;
+    }
+
+    const metadata = parseMetadata(code);
+    if (!metadata) {
+      throw new Error("parse script info failed");
+    }
+    const si = await createTempCodeEntry(update, uuid, code, url, upsertBy, metadata, options);
+    await new TempStorageDAO().save({
+      key: uuid,
+      value: si,
+      savedAt: Date.now(),
+      type: TempStorageItemType.tempCode,
+    });
+    return 1;
+  }
+
+  /**
+   * 打开更新窗口。cachedNewCode 是检查阶段已经拉到的新版代码，命中时直接复用。
+   * 静默更新与打开安装页必须让调用方能区分：前者页面上什么都不会发生，需要自己补一条反馈。
+   */
+  public async openUpdatePage(
+    script: Script,
+    source: "user" | "system",
+    cachedNewCode?: string
+  ): Promise<TOpenUpdatePageResult> {
+    const { uuid, name, downloadUrl, checkUpdateUrl } = script;
+    const logger = this.logger.with({
+      uuid,
+      name,
+      downloadUrl,
+      checkUpdateUrl,
+    });
+    const url = downloadUrl || checkUpdateUrl!;
+    try {
+      const ret = cachedNewCode
+        ? await this.prepareUpdateOrInstallPage(uuid, cachedNewCode, url, { source }, true, logger)
+        : await this.openUpdateOrInstallPage(uuid, url, { source }, true, logger);
+      if (ret === 2) return "silent";
+      // 打开安装页面
+      openInCurrentTab(`/src/install.html?uuid=${uuid}`);
+      return "opened";
+    } catch (e) {
+      logger.error("fetch script info failed", Logger.E(e));
+      return "failed";
+    }
+  }
+
+  async openBatchUpdatePage(opts: TOpenBatchUpdatePageOption) {
+    const { q, dontCheckNow } = opts;
+    const p = q ? `?${q}` : "";
+    const pageUrl = chrome.runtime.getURL(`/src/batchupdate.html${p}`);
+    const pageBaseUrl = chrome.runtime.getURL("/src/batchupdate.html");
+    const existing = await chrome.tabs.query({ url: `${pageBaseUrl}*` });
+    const existingTab = existing.find((tab) => typeof tab.id === "number");
+    if (existingTab?.id !== undefined) {
+      await chrome.tabs.update(existingTab.id, { active: true });
+      if (typeof existingTab.windowId === "number") {
+        await chrome.windows.update(existingTab.windowId, { focused: true });
+      }
+    } else {
+      await openInCurrentTab(pageUrl);
+    }
+    if (!dontCheckNow) {
+      await this.checkScriptUpdate({ checkType: "user", noUpdateCheck: 10 * 60 * 1000 });
+    }
+    return true;
+  }
+
+  shouldIgnoreUpdate(script: Script, newMeta: Partial<Record<string, string[]>> | null) {
+    const newVersion = newMeta?.version?.[0];
+    return typeof newVersion === "string" && script.ignoreVersion === newVersion;
+  }
+
+  // 用于定时自动检查脚本更新
+  async _checkScriptUpdate(opts: TCheckScriptUpdateOption): Promise<TCheckScriptUpdateResult> {
+    const executeSlienceUpdate = opts.checkType === "system" && (await this.systemConfig.getSilenceUpdateScript());
+    const checkCycle = await this.systemConfig.getCheckScriptUpdateCycle();
+    if (!checkCycle) {
+      return {
+        ok: false,
+        err: "checkCycle is undefined.",
+      };
+    }
+    const checkDisableScript = await this.systemConfig.getUpdateDisableScript();
+    const scripts = await this.scriptDAO.all();
+
+    const checkScripts = scripts.filter((script) => {
+      // 不检查更新
+      if (script.checkUpdate === false || !script.checkUpdateUrl) {
+        return false;
+      }
+      // 是否检查禁用脚本
+      if (!checkDisableScript && script.status === SCRIPT_STATUS_DISABLE) {
+        return false;
+      }
+      return true;
+    });
+
+    const checkDelay =
+      opts?.checkType === "user"
+        ? {
+            MIN_DELAY: 250,
+            MAX_DELAY: 1600,
+          }
+        : {
+            MIN_DELAY: 400,
+            MAX_DELAY: 4200,
+          };
+
+    const checkScriptsResult = await this.checkUpdatesAvailable(
+      checkScripts.map((script) => script.uuid),
+      checkDelay
+    );
+    const checkResults = [];
+    const slienceUpdates = [];
+    for (let i = 0, l = checkScripts.length; i < l; i++) {
+      const script = checkScripts[i];
+      const result = checkScriptsResult[i];
+      if (result) {
+        const withNewConnect = !checkSilenceUpdate(script.metadata, result.metadata);
+        if (executeSlienceUpdate && !withNewConnect && !this.shouldIgnoreUpdate(script, result.metadata)) {
+          slienceUpdates.push({
+            uuid: script.uuid,
+            script,
+            result,
+            withNewConnect,
+          });
+        } else {
+          checkResults.push({
+            uuid: script.uuid,
+            script,
+            result,
+            withNewConnect,
+          });
+        }
+      }
+    }
+
+    const checkScriptsOldCode = await this.scriptCodeDAO.gets(checkResults.map((entry) => entry.uuid));
+
+    const checkScriptsNewCode = await Promise.all(
+      checkResults.map(async (entry) => {
+        const script = entry.script;
+        const url = script.downloadUrl || script.checkUpdateUrl;
+        try {
+          return url
+            ? url === script.checkUpdateUrl
+              ? (entry.result.code as string)
+              : await fetchScriptBody(url)
+            : "";
+        } catch (_e) {
+          return "";
+        }
+      })
+    );
+
+    const slienceUpdatesNewCode = await Promise.all(
+      slienceUpdates.map(async (entry) => {
+        const script = entry.script;
+        const url = script.downloadUrl || script.checkUpdateUrl;
+        try {
+          return url
+            ? url === script.checkUpdateUrl
+              ? (entry.result.code as string)
+              : await fetchScriptBody(url)
+            : "";
+        } catch (_e) {
+          return "";
+        }
+      })
+    );
+
+    for (let i = 0, l = slienceUpdates.length; i < l; i++) {
+      const entry = slienceUpdates[i];
+      const url = entry.script.downloadUrl || entry.script.checkUpdateUrl || "";
+      const code = slienceUpdatesNewCode[i];
+      const uuid = entry.uuid;
+      const { script } = await prepareScriptByCode(code, url, uuid);
+      this.logger.info("silent update script", { uuid, name: script.name });
+      await this.installScript({
+        script,
+        code,
+        upsertBy: "system",
+      });
+    }
+
+    const checkScriptsScores = await Promise.all(
+      checkResults.map(async (entry, i) => {
+        let oldCode: any = checkScriptsOldCode[i];
+        if (typeof oldCode === "object" && typeof oldCode.code === "string") oldCode = oldCode.code;
+        const score = await getSimilarityScore(oldCode, checkScriptsNewCode[i]);
+        return +(Math.floor(score * 1000) / 1000);
+      })
+    );
+
+    const currentSites: ScriptSite = (await this.localStorageDAO.getValue<ScriptSite>("sites")) || ({} as ScriptSite);
+
+    // 一次检查要跑完逐条节流 + 网络往返，耗时可达数分钟。下面用到的 script / oldCode 都是检查开始时的
+    // 快照，期间脚本可能已被装上新版本（用户在更新页点了更新、或从别的入口装过一次）。据当前库内状态复核，
+    // 否则失真的「旧版 → 新版」会被写回记录，让刚更新过的那一行重新冒出来。
+    const currentScripts = await this.scriptDAO.gets(checkResults.map((entry) => entry.uuid));
+
+    const batchUpdateRecord: TBatchUpdateRecord[] = [];
+    for (let i = 0, l = checkResults.length; i < l; i++) {
+      const entry = checkResults[i];
+      const script = entry.script;
+      const result = entry.result;
+      const current = currentScripts[i];
+      // 检查期间被删掉的脚本没有任何可展示的东西，连「已检查」都不该再算它一份
+      if (!current || current.uuid !== script.uuid) continue;
+      const versionChanged = current.metadata.version?.[0] !== script.metadata.version?.[0];
+      if (!result || !script.downloadUrl || versionChanged) {
+        batchUpdateRecord.push({
+          uuid: script.uuid,
+          checkUpdate: false,
+        } as TBatchUpdateRecord);
+        continue;
+      }
+      let oldCode: any = checkScriptsOldCode[i];
+      if (typeof oldCode === "object" && typeof oldCode.code === "string") oldCode = oldCode.code;
+      const newCode = checkScriptsNewCode[i];
+      batchUpdateRecord.push({
+        uuid: script.uuid,
+        checkUpdate: true,
+        oldCode: oldCode,
+        newCode: newCode,
+        codeSimilarity: checkScriptsScores[i],
+        newMeta: {
+          ...(result.metadata || {}),
+        },
+        script: script,
+        sites: currentSites[script.uuid] || ([] as string[]),
+        withNewConnect: entry.withNewConnect,
+      } as TBatchUpdateRecord);
+    }
+
+    this.scriptUpdateCheck.setCacheFull({
+      checktime: Date.now(),
+      list: batchUpdateRecord,
+    });
+
+    // set CHECKED_BEFORE
+    this.scriptUpdateCheck.state.status |= UpdateStatusCode.CHECKED_BEFORE;
+    this.scriptUpdateCheck.state.checktime = this.scriptUpdateCheck.cacheFull?.checktime;
+
+    return {
+      ok: true,
+      targetSites: this.scriptUpdateCheck.getTargetSites(),
+      fresh: true,
+      checktime: this.scriptUpdateCheck.lastCheck,
+    };
+  }
+
+  async checkScriptUpdate(opts: TCheckScriptUpdateOption): Promise<TCheckScriptUpdateResult> {
+    let res: TCheckScriptUpdateResult;
+    if ((this.scriptUpdateCheck.state.status & UpdateStatusCode.CHECKING_UPDATE) === UpdateStatusCode.CHECKING_UPDATE) {
+      res = {
+        ok: false,
+        reason: "busy",
+        err: "checkScriptUpdate is busy. Please try again later.",
+      };
+    } else if (this.scriptUpdateCheck.canSkipScriptUpdateCheck(opts)) {
+      return {
+        ok: true,
+        targetSites: this.scriptUpdateCheck.getTargetSites(),
+        fresh: false,
+        checktime: this.scriptUpdateCheck.lastCheck,
+      };
+    } else {
+      // set CHECKING_UPDATE
+      this.scriptUpdateCheck.state.status |= UpdateStatusCode.CHECKING_UPDATE;
+      this.scriptUpdateCheck.announceMessage(this.scriptUpdateCheck.state);
+      try {
+        res = await this._checkScriptUpdate(opts);
+      } catch (e) {
+        this.logger.error("check script updates failed", Logger.E(e));
+        res = { ok: false, err: e as Error };
+      }
+      // clear CHECKING_UPDATE
+      this.scriptUpdateCheck.state.status &= ~UpdateStatusCode.CHECKING_UPDATE;
+      this.scriptUpdateCheck.state.checktime = this.scriptUpdateCheck.cacheFull?.checktime;
+      this.scriptUpdateCheck.announceMessage(this.scriptUpdateCheck.state);
+    }
+    return res;
+  }
+
+  requestCheckUpdate(uuid: string) {
+    return this.checkUpdateAvailable(uuid).then((script) => {
+      if (script) {
+        // 如有更新则打开更新画面进行更新
+        this.openUpdatePage(script, "user");
+        return true;
+      }
+      return false;
+    });
+  }
+
+  isInstalled({ name, namespace }: { name: string; namespace: string }): Promise<App.IsInstalledResponse> {
+    // 用于 window.external
+    return this.scriptDAO.findByNameAndNamespace(name, namespace).then((script) => {
+      if (script) {
+        return {
+          installed: true,
+          version: script.metadata.version?.[0] || "0.0",
+        } as App.IsInstalledResponse;
+      }
+      return { installed: false } as App.IsInstalledResponse;
+    });
+  }
+
+  async getAllScripts() {
+    return stackAsyncTask(CLOUD_SYNC_QUEUE_KEY, async () => {
+      // 获取数据并排序
+      const scripts = await this.scriptDAO.all();
+      scripts.sort((a, b) => a.sort - b.sort);
+      const batchUpdate: Record<string, Partial<Script>> = {};
+      const changed = new Set<string>();
+      for (let i = 0; i < scripts.length; i += 1) {
+        if (scripts[i].sort !== i) {
+          batchUpdate[scripts[i].uuid] = { sort: i };
+          scripts[i].sort = i;
+          changed.add(scripts[i].uuid);
+        }
+      }
+      if (changed.size) {
+        await this.scriptDAO.updates(batchUpdate);
+        const sortUpdatetime = Date.now();
+        this.mq.publish<TSortedScript[]>(
+          "sortedScripts",
+          scripts.map(({ uuid, sort }) => ({ uuid, sort, ...(changed.has(uuid) ? { sortUpdatetime } : {}) }))
+        );
+      }
+      return scripts;
+    });
+  }
+
+  async getScriptAndCode(uuid: string) {
+    return this.scriptDAO.getAndCode(uuid);
+  }
+
+  // 脚本排序，after为排序后的uuid列表
+  async sortScript({ after }: { before: string[]; after: string[] }) {
+    return stackAsyncTask(CLOUD_SYNC_QUEUE_KEY, async () => {
+      const daoAll = await this.scriptDAO.all();
+      const scripts = daoAll.sort((a, b) => a.sort - b.sort);
+      const sortingMap: Map<string, number> = new Map(after.map((uuid, index) => [uuid, index]));
+
+      // 排序 scripts 并更新 sort 字段
+      const batchUpdate: Record<string, Partial<Script>> = {};
+      const sortUpdatetime = Date.now();
+      const changed = new Set<string>();
+
+      const newList = (
+        await Promise.all(
+          scripts.map(async (script) => {
+            const newSort = sortingMap.get(script.uuid);
+            if (newSort !== undefined && script.sort !== newSort) {
+              batchUpdate[script.uuid] = { sort: newSort };
+              script.sort = newSort;
+              changed.add(script.uuid);
+            }
+            return script;
+          })
+        )
+      ).sort((a, b) => a.sort - b.sort);
+
+      await this.scriptDAO.updates(batchUpdate);
+
+      this.mq.publish<TSortedScript[]>(
+        "sortedScripts",
+        newList.map(({ uuid, sort }) => ({ uuid, sort, ...(changed.has(uuid) ? { sortUpdatetime } : {}) }))
+      );
+    });
+  }
+
+  // 将指定 uuid 列表的脚本置顶，其他脚本排序不变
+  async pinToTop(uuids: string[]) {
+    return stackAsyncTask(CLOUD_SYNC_QUEUE_KEY, async () => {
+      const daoAll = await this.scriptDAO.all();
+      const sortingMap: Map<string, number> = new Map(uuids.map((uuid, index) => [uuid, index]));
+      // 排序 scripts 并更新 sort 字段
+      const scripts = daoAll.sort((a, b) => {
+        // 将 sortingMap 中有的 uuid 放在前面，其他的放在后面，且保持原有顺序
+        const aIndex = sortingMap.get(a.uuid);
+        const bIndex = sortingMap.get(b.uuid);
+        if (aIndex !== undefined && bIndex !== undefined) {
+          return aIndex - bIndex;
+        } else if (aIndex !== undefined) {
+          return -1;
+        } else if (bIndex !== undefined) {
+          return 1;
+        } else {
+          return a.sort - b.sort;
+        }
+      });
+
+      const batchUpdate: Record<string, Partial<Script>> = {};
+      const sortUpdatetime = Date.now();
+      const changed = new Set<string>();
+
+      const newList = await Promise.all(
+        scripts.map(async (script, index) => {
+          const newSort = index;
+          if (script.sort !== newSort) {
+            batchUpdate[script.uuid] = { sort: newSort };
+            script.sort = newSort;
+            changed.add(script.uuid);
+          }
+          return script;
+        })
+      );
+      await this.scriptDAO.updates(batchUpdate);
+
+      this.mq.publish<TSortedScript[]>(
+        "sortedScripts",
+        newList.map(({ uuid, sort }) => ({ uuid, sort, ...(changed.has(uuid) ? { sortUpdatetime } : {}) }))
+      );
+    });
+  }
+
+  importByUrl(url: string) {
+    return this.openInstallPageByUrl(url, { source: "user" });
+  }
+
+  setCheckUpdateUrl({
+    uuid,
+    checkUpdate,
+    checkUpdateUrl,
+  }: {
+    uuid: string;
+    checkUpdate: boolean;
+    checkUpdateUrl?: string;
+  }) {
+    const update: Partial<Script> = { checkUpdate };
+    if (checkUpdateUrl) {
+      update.downloadUrl = checkUpdateUrl;
+      update.checkUpdateUrl = checkUpdateUrl;
+    }
+    return this.scriptDAO.update(uuid, update);
+  }
+
+  // 更新脚本元数据；value 为 undefined 表示撤销用户覆盖，生效值回落脚本自带 metadata
+  async updateMetadata({ uuid, key, value }: { uuid: string; key: string; value: string[] | undefined }) {
+    return stackAsyncTask("script-site-scope", async () => {
+      let script = await this.scriptDAO.get(uuid);
+      if (!script) {
+        throw new Error("script not found");
+      }
+      const valueSet = value === undefined ? undefined : new Set(value);
+      script = selfMetadataUpdate(script, key, valueSet);
+      if (key === "match" || key === "include") {
+        script = selfMetadataUpdate(script, SELF_METADATA_ONLY_RUN_ON_URL, undefined);
+      }
+      try {
+        await this.scriptDAO.update(uuid, script);
+        // 广播一下
+        this.mq.publish<TInstallScript>("installScript", { script, update: true });
+        return true;
+      } catch (e) {
+        this.logger.error("reset exclude error", Logger.E(e));
+        throw e;
+      }
+    });
+  }
+
+  async getBatchUpdateRecordLite(i: number) {
+    return this.scriptUpdateCheck.makeDeliveryPacket(i);
+  }
+
+  async fetchCheckUpdateStatus() {
+    this.scriptUpdateCheck.announceMessage(this.scriptUpdateCheck.state);
+  }
+
+  async sendUpdatePageOpened() {
+    this.mq.publish<any>("msgUpdatePageOpened", {});
+  }
+
+  async batchUpdateListAction(action: TBatchUpdateListAction) {
+    if (action.actionCode === BatchUpdateListActionCode.IGNORE) {
+      const map = new Map();
+      // 逐条回报结果：忽略写的是脚本本身的 ignoreVersion，与检查缓存无关，
+      // 因此即使缓存已随 Service Worker 回收，忽略照样生效，页面据此收起该行
+      const items: TBatchUpdateItemResult[] = await Promise.all(
+        action.actionPayload.map(async ({ uuid, ignoreVersion }) => {
+          try {
+            const updatedScript = await this.scriptDAO.update(uuid, { ignoreVersion });
+            if (!updatedScript || updatedScript.uuid !== uuid) {
+              return { uuid, success: false, error: "script not found" };
+            }
+            map.set(uuid, updatedScript);
+            return { uuid, success: true };
+          } catch (e) {
+            this.logger.error("ignore script update failed", { uuid }, Logger.E(e));
+            return { uuid, success: false, error: e instanceof Error ? e.message : String(e) };
+          }
+        })
+      );
+      if (this.scriptUpdateCheck.cacheFull) {
+        this.scriptUpdateCheck.cacheFull.list?.forEach((entry) => {
+          const uuid = entry.uuid;
+          const script = map.get(entry.uuid);
+          if (script && entry.script?.uuid === uuid && script.uuid === uuid) {
+            entry.script = script;
+          }
+        });
+        this.scriptUpdateCheck.setCacheFull(this.scriptUpdateCheck.cacheFull);
+        this.scriptUpdateCheck.announceMessage({ refreshRecord: true });
+      }
+      return { ok: true, items } satisfies TBatchUpdateResult;
+    } else if (action.actionCode === BatchUpdateListActionCode.UPDATE) {
+      const uuids = action.actionPayload.map((entry) => entry.uuid);
+      const list = this.scriptUpdateCheck.cacheFull?.list;
+      // 缓存已随 Service Worker 回收而消失：整批无从执行，回报明确原因让页面提示重新检查更新
+      if (!list) return { ok: false, reason: "record_expired", items: [] } satisfies TBatchUpdateResult;
+      const data = new Map<string, TBatchUpdateRecord>();
+      const set = new Set(uuids);
+      for (const entry of list) {
+        if (set.has(entry.uuid)) {
+          if (!entry.checkUpdate || !entry.script || !entry.newCode) continue;
+          data.set(entry.uuid, entry);
+        }
+      }
+      const currentScripts = await Promise.all(uuids.map((uuid) => this.scriptDAO.get(uuid)));
+      const cacheExpired = uuids.some((uuid, index) => {
+        const entry = data.get(uuid);
+        const current = currentScripts[index];
+        return (
+          !entry ||
+          !current ||
+          current.uuid !== uuid ||
+          current.metadata.version?.[0] !== entry.script?.metadata.version?.[0]
+        );
+      });
+      if (cacheExpired) return { ok: false, reason: "record_expired", items: [] } satisfies TBatchUpdateResult;
+      const res: TBatchUpdateItemResult[] = [];
+      const updated = new Set();
+      for (const uuid of set) {
+        const entry = data.get(uuid);
+        try {
+          await this.installByCode({ uuid, code: entry!.newCode, upsertBy: "user" });
+          res.push({
+            uuid,
+            success: true,
+          });
+          updated.add(uuid);
+        } catch (e) {
+          this.logger.error("install checked script update failed", { uuid }, Logger.E(e));
+          res.push({
+            uuid,
+            success: false,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      if (this.scriptUpdateCheck.cacheFull?.list) {
+        this.scriptUpdateCheck.cacheFull = {
+          ...this.scriptUpdateCheck.cacheFull,
+          list: this.scriptUpdateCheck.cacheFull.list.filter((entry) => {
+            return !updated.has(entry.uuid);
+          }),
+        };
+        this.scriptUpdateCheck.setCacheFull(this.scriptUpdateCheck.cacheFull);
+        this.scriptUpdateCheck.announceMessage({ refreshRecord: true });
+      }
+      return { ok: true, items: res } satisfies TBatchUpdateResult;
+    }
+  }
+
+  async openUpdatePageByUUID(uuid: string): Promise<TOpenUpdatePageResult> {
+    const source = "user"; // TBC
+    const script = await this.scriptDAO.get(uuid);
+    if (!script || script.uuid !== uuid) return "failed";
+    // 检查记录里已经带着这次要装的新版代码：复用它既省掉一次让用户干等的网络往返，
+    // 也保证打开的正是列表上展示的那一版
+    const cachedNewCode = this.scriptUpdateCheck.cacheFull?.list?.find((entry) => entry.uuid === uuid)?.newCode;
+    return await this.openUpdatePage(script, source, cachedNewCode || undefined);
+  }
+
+  init() {
+    this.listenerScriptInstall();
+
+    this.group.on("getAllScripts", this.getAllScripts.bind(this));
+    this.group.on("getInstallInfo", this.getInstallInfo);
+    this.group.on("install", this.installScript.bind(this));
+    // 消息层会把 IGetSender 作为第二参传入，不能直接 bind：否则 sender 会落进 deleteBy
+    this.group.on("deletes", (uuids: string[]) => this.deleteScripts(uuids));
+    this.group.on("purges", this.purgeScripts.bind(this));
+    this.group.on("restores", this.restoreScripts.bind(this));
+    this.group.on("getTrashScripts", this.getTrashScripts.bind(this));
+    this.group.on("enable", this.enableScript.bind(this));
+    this.group.on("enables", this.enableScripts.bind(this));
+    this.group.on("fetchInfo", this.fetchInfo.bind(this));
+    this.group.on("updateRunStatus", this.updateRunStatus.bind(this));
+    this.group.on("getFilterResult", this.getFilterResult.bind(this));
+    this.group.on("getScriptRunResourceByUUID", this.getScriptRunResourceByUUID.bind(this));
+    this.group.on("onlyRunOnUrl", this.onlyRunOnUrl.bind(this));
+    this.group.on("allowUrl", this.allowUrl.bind(this));
+    this.group.on("excludeFromMatch", this.excludeFromMatch.bind(this));
+    this.group.on("resetMatch", this.resetMatch.bind(this));
+    this.group.on("resetExclude", this.resetExclude.bind(this));
+    this.group.on("requestCheckUpdate", this.requestCheckUpdate.bind(this));
+    this.group.on("isInstalled", this.isInstalled.bind(this));
+    this.group.on("sortScript", this.sortScript.bind(this));
+    this.group.on("pinToTop", this.pinToTop.bind(this));
+    this.group.on("importByUrl", this.importByUrl.bind(this));
+    this.group.on("installByCode", this.installByCode.bind(this));
+    this.group.on("setCheckUpdateUrl", this.setCheckUpdateUrl.bind(this));
+    this.group.on("updateMetadata", this.updateMetadata.bind(this));
+    this.group.on("getBatchUpdateRecordLite", this.getBatchUpdateRecordLite.bind(this));
+    this.group.on("fetchCheckUpdateStatus", this.fetchCheckUpdateStatus.bind(this));
+    this.group.on("sendUpdatePageOpened", this.sendUpdatePageOpened.bind(this));
+    this.group.on("batchUpdateListAction", this.batchUpdateListAction.bind(this));
+    this.group.on("openUpdatePageByUUID", this.openUpdatePageByUUID.bind(this));
+    this.group.on("openBatchUpdatePage", this.openBatchUpdatePage.bind(this));
+    this.group.on("checkScriptUpdate", this.checkScriptUpdate.bind(this));
+
+    initRegularUpdateCheck(this.systemConfig);
+    // 更新周期配置变更后立即重新设定alarm，无需等待SW重启
+    watchRegularUpdateCheck(this.systemConfig);
+  }
+}

@@ -1,0 +1,284 @@
+import LoggerCore from "@App/app/logger/core";
+import Logger from "@App/app/logger/logger";
+import { isText } from "../utils/istextorbinary";
+import { blobToBase64 } from "../utils/utils";
+import { parseStorageValue } from "../utils/utils";
+import { parseMetadata } from "@App/pkg/utils/script";
+import { overrideToSelfMetadata, vmCustomToOverride, vmValueUri } from "./self_metadata";
+import { parseConfigBundle, type ConfigBundle } from "./config_bundle";
+import type {
+  BackupData,
+  ResourceBackup,
+  ResourceMeta,
+  ScriptBackupData,
+  ScriptOptionsFile,
+  SubscribeBackupData,
+  SubscribeOptionsFile,
+  ValueStorage,
+  ScriptData,
+  SubscribeData,
+  ViolentmonkeyManifest,
+} from "./struct";
+import type { FileInfo } from "@Packages/filesystem/filesystem";
+import type FileSystem from "@Packages/filesystem/filesystem";
+
+// 备份导入工具
+
+export default class BackupImport {
+  fs: FileSystem;
+
+  logger: Logger;
+
+  constructor(fileSystem: FileSystem) {
+    this.fs = fileSystem;
+    this.logger = LoggerCore.logger({ component: "backupImport" });
+  }
+
+  async getFileContent(file: FileInfo, toJson: boolean, type?: "string" | "blob"): Promise<string | any> {
+    const fileReader = await this.fs.open(file);
+    const fileContent = await fileReader.read(type);
+    if (toJson) return JSON.parse(fileContent);
+    return fileContent;
+  }
+
+  // 解析出备份数据
+  async parse(): Promise<BackupData> {
+    const map = new Map<string, Partial<ScriptData> & ScriptBackupData>();
+    const subscribe = new Map<string, Partial<SubscribeData> & SubscribeBackupData>();
+    let files = await this.fs.list();
+
+    // 处理 ScriptCat 设置 bundle(#1533)：可选文件，解析失败当作"无设置"，不连累脚本导入
+    let configBundle: ConfigBundle | undefined;
+    files = await this.dealFile(files, async (file) => {
+      if (file.name !== "scriptcat-config.json") {
+        return false;
+      }
+      try {
+        configBundle = parseConfigBundle(await this.getFileContent(file, true));
+      } catch (e) {
+        this.logger.warn("parse config bundle failed, skip settings", Logger.E(e));
+        configBundle = undefined;
+      }
+      return true;
+    });
+
+    // 处理订阅
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      if (!name.endsWith(".user.sub.js")) {
+        return false;
+      }
+      const key = name.substring(0, name.length - 12);
+      const subData = {
+        source: <string>await this.getFileContent(file, false),
+        lastModificationDate: file.updatetime,
+      } satisfies Partial<SubscribeData> & SubscribeBackupData;
+      subscribe.set(key, subData);
+      return true;
+    });
+    // 处理订阅options
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      if (!name.endsWith(".user.sub.options.json")) {
+        return false;
+      }
+      const key = name.substring(0, name.length - 22);
+      const data = <SubscribeOptionsFile>await this.getFileContent(file, true);
+      subscribe.get(key)!.options = data;
+      return true;
+    });
+
+    // 先处理*.user.js文件
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      if (!name.endsWith(".user.js")) {
+        return false;
+      }
+      // 遍历与脚本同名的文件
+      const key = name.substring(0, name.length - 8);
+      const backupData = {
+        code: <string>await this.getFileContent(file, false),
+        storage: { data: {}, ts: 0 },
+        requires: [],
+        requiresCss: [],
+        resources: [],
+        lastModificationDate: file.updatetime,
+      } satisfies Partial<ScriptData> & ScriptBackupData;
+      map.set(key, backupData);
+      return true;
+    });
+    // 处理options.json文件
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      if (!name.endsWith(".options.json")) {
+        return false;
+      }
+      const key = name.substring(0, name.length - 13);
+      const data = <ScriptOptionsFile>await this.getFileContent(file, true);
+      map.get(key)!.options = data;
+      return true;
+    });
+    // 处理storage.json文件
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      if (!name.endsWith(".storage.json")) {
+        return false;
+      }
+      const key = name.substring(0, name.length - 13);
+      const data = <ValueStorage>await this.getFileContent(file, true);
+      const dataData = data.data;
+      for (const dataKey of Object.keys(dataData)) {
+        dataData[dataKey] = parseStorageValue(dataData[dataKey]);
+      }
+      map.get(key)!.storage = data;
+      return true;
+    });
+    // 处理各种资源文件
+    // 将期望的资源文件名储存到map中, 以便后续处理
+    const resourceFilenameMap = new Map<
+      string,
+      {
+        index: number;
+        key: string;
+        type: "resources" | "requires" | "requiresCss";
+      }
+    >();
+    files = await this.dealFile(files, async (file) => {
+      const { name } = file;
+      const userJsIndex = name.indexOf(".user.js-");
+      if (userJsIndex === -1) {
+        return false;
+      }
+      const key = name.substring(0, userJsIndex);
+      let type: "resources" | "requires" | "requiresCss" | "" = "";
+      if (!name.endsWith(".resources.json")) {
+        if (!name.endsWith(".requires.json")) {
+          if (!name.endsWith(".requires.css.json")) {
+            return false;
+          }
+          type = "requiresCss";
+          resourceFilenameMap.set(name.substring(0, name.length - 18), {
+            index: map.get(key)!.requiresCss.length,
+            key,
+            type,
+          });
+        } else {
+          type = "requires";
+          resourceFilenameMap.set(name.substring(0, name.length - 14), {
+            index: map.get(key)!.requires.length,
+            key,
+            type,
+          });
+        }
+      } else {
+        type = "resources";
+        resourceFilenameMap.set(name.substring(0, name.length - 15), {
+          index: map.get(key)!.resources.length,
+          key,
+          type,
+        });
+      }
+      const data = <ResourceMeta>await this.getFileContent(file, true);
+      map.get(key)![type].push({
+        meta: data,
+      } as never as ResourceBackup);
+      return true;
+    });
+
+    // 处理资源文件的内容
+    let violentmonkeyFile: FileInfo | undefined;
+    files = await this.dealFile(files, async (file) => {
+      if (file.name === "violentmonkey") {
+        violentmonkeyFile = file;
+        return true;
+      }
+      const info = resourceFilenameMap.get(file.name);
+      if (info === undefined) {
+        return false;
+      }
+      const resource = map.get(info.key)![info.type][info.index];
+      resource.base64 = await blobToBase64(await this.getFileContent(file, false, "blob"));
+      if (resource.meta) {
+        // 存在meta
+        // 替换base64前缀
+        if (resource.meta.mimetype) {
+          resource.base64 = resource.base64.replace(/^data:.*?;base64,/, `data:${resource.meta.mimetype};base64,`);
+        }
+        if (isText(await (await this.fs.open(file)).read("blob"))) {
+          resource.source = await (await this.fs.open(file)).read();
+        }
+      }
+      return true;
+    });
+
+    files.length &&
+      this.logger.warn("unhandled files", {
+        num: files.length,
+        files: files.map((f) => f.name),
+      });
+
+    // 处理暴力猴：per-script 只有 .user.js，其余在根 violentmonkey 清单里。
+    // 归一成与 SC 相同的 ScriptOptionsFile(settings.enabled/position + selfMeta) + storage，使后续导入与来源无关。
+    if (violentmonkeyFile) {
+      try {
+        const vm = (await this.getFileContent(violentmonkeyFile, true, "string")) as ViolentmonkeyManifest;
+        for (const [name, backupData] of map.entries()) {
+          const vmScript = vm.scripts?.[name];
+          if (!vmScript) continue;
+          const metadata = parseMetadata(backupData.code) || {};
+          const enabledRaw = vmScript.config?.enabled ?? vmScript.enabled;
+          const enabled = enabledRaw === undefined ? true : !!enabledRaw;
+          const selfMeta = overrideToSelfMetadata(vmCustomToOverride(vmScript.custom), metadata);
+          const shouldUpdate = vmScript.config?.shouldUpdate;
+          backupData.options = {
+            options: {} as never,
+            settings: {
+              enabled,
+              position: vmScript.position ?? 0,
+              ...(shouldUpdate === undefined ? {} : { checkUpdate: !!shouldUpdate }),
+            },
+            meta: {
+              name,
+              uuid: "",
+              sc_uuid: "",
+              modified: backupData.lastModificationDate || 0,
+              file_url: vmScript.custom?.downloadURL || vmScript.custom?.lastInstallURL || "",
+            },
+            selfMeta: Object.keys(selfMeta).length > 0 ? selfMeta : undefined,
+          };
+          // 值：按 encodeFilename(namespace\nname\n) 找 values[uri] 并解码。
+          // uri 用脚本默认 @name(VM props.uri 的来源)而非文件名——本地化脚本(@name:zh-CN)的
+          // 文件名是显示名,与建键用的默认 @name 不同,用文件名会丢值。
+          const ns = metadata.namespace?.[0] || "";
+          const nameForUri = metadata.name?.[0] || name;
+          const rawValues = vm.values?.[vmValueUri(ns, nameForUri)];
+          if (rawValues) {
+            const decoded: { [key: string]: any } = {};
+            for (const k of Object.keys(rawValues)) decoded[k] = parseStorageValue(rawValues[k]);
+            backupData.storage = { data: decoded, ts: backupData.lastModificationDate || 0 };
+          }
+        }
+      } catch (e) {
+        this.logger.error("violentmonkey file parse error", Logger.E(e));
+      }
+    }
+
+    // 将map转化为数组
+    return {
+      script: [...map.values()] as ScriptData[],
+      subscribe: [...subscribe.values()] as SubscribeData[],
+      config: configBundle,
+    };
+  }
+
+  async dealFile(files: FileInfo[], handler: (file: FileInfo) => Promise<boolean>): Promise<FileInfo[]> {
+    const newFiles: FileInfo[] = [];
+    const results = await Promise.all(files.map(handler));
+    results.forEach((result, index) => {
+      if (!result) {
+        newFiles.push(files[index]);
+      }
+    });
+    return newFiles;
+  }
+}

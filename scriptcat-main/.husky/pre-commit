@@ -1,0 +1,79 @@
+#!/bin/sh
+
+# Skip: SKIP_PRE_COMMIT=1 git commit 或 git commit --no-verify
+if [ "$SKIP_PRE_COMMIT" = "1" ]; then
+  echo "⏭ SKIP_PRE_COMMIT=1, skipping pre-commit checks"
+  exit 0
+fi
+
+lint_files=$(mktemp)
+git diff --cached --name-only -z --diff-filter=ACMR -- "*.js" "*.jsx" "*.ts" "*.tsx" "*.mjs" "*.cjs" > "$lint_files"
+
+if [ -s "$lint_files" ]; then
+  xargs -0 pnpm exec prettier --check --cache < "$lint_files" &
+  PRETTIER_PID=$!
+  pnpm run typecheck &
+  TSC_PID=$!
+  wait $PRETTIER_PID; PRETTIER_STATUS=$?
+  wait $TSC_PID; TSC_STATUS=$?
+  if [ $PRETTIER_STATUS -ne 0 ] || [ $TSC_STATUS -ne 0 ]; then
+    rm -f "$lint_files"
+    exit 1
+  fi
+  xargs -0 pnpm exec eslint --cache --cache-location .eslintcache < "$lint_files" || {
+    rm -f "$lint_files"
+    exit 1
+  }
+else
+  echo "No staged JS/TS files, skipping lint checks"
+fi
+
+rm -f "$lint_files"
+
+# 涉及翻译 json 文件时，强制跑机械完整性检查（缺失/多余 key、缺失 messages.json 等），
+# 未通过则拒绝提交。--diff-filter 包含 D：删除一个翻译文件同样要触发检查。
+# 检查对象是 Git 索引里的暂存快照（git checkout-index 直接读索引，不碰工作区/索引本身），
+# 而不是工作区当前文件——避免"暂存坏版本、工作区又改回好版本"绕过检查。
+i18n_files=$(mktemp)
+git diff --cached --name-only -z --diff-filter=ACMRD -- \
+  "src/locales/*.json" "src/assets/_locales/*.json" > "$i18n_files"
+
+if [ -s "$i18n_files" ]; then
+  rm -f "$i18n_files"
+  snapshot_dir=$(mktemp -d)
+  node scripts/git-staged-snapshot.mjs "$(pwd)" "$snapshot_dir" && pnpm run check:i18n -- "--root=$snapshot_dir"
+  status=$?
+  rm -rf "$snapshot_dir"
+  [ $status -eq 0 ] || exit 1
+else
+  rm -f "$i18n_files"
+fi
+
+# issue 模板或构造 issues/new 预填链接的源码有改动时，跑模板机械检查（YAML 合法性、
+# issue-form schema、中英文结构对齐、预填参数 id 是否仍然存在）。同样检查暂存快照而非工作区。
+issue_template_files=$(mktemp)
+git diff --cached --name-only -z --diff-filter=ACMRD -- \
+  ".github/ISSUE_TEMPLATE/*" "src/*.ts" "src/*.tsx" > "$issue_template_files"
+
+if [ -s "$issue_template_files" ]; then
+  rm -f "$issue_template_files"
+  snapshot_dir=$(mktemp -d)
+  node scripts/git-staged-snapshot.mjs "$(pwd)" "$snapshot_dir" \
+    && node scripts/check-issue-templates.mjs "--root=$snapshot_dir"
+  status=$?
+  rm -rf "$snapshot_dir"
+  [ $status -eq 0 ] || exit 1
+else
+  rm -f "$issue_template_files"
+fi
+
+# 在 main 或 release/* 分支上提交时额外跑测试
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ] || echo "$branch" | grep -q "^release/"; then
+  echo ""
+  echo "🔍 Detected branch: $branch"
+  echo "▶ Running tests..."
+  pnpm run test:ci || exit 1
+  echo ""
+  echo "✅ All checks passed!"
+fi

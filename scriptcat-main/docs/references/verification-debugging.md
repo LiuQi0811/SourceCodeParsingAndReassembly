@@ -1,0 +1,54 @@
+# Debugging & common gotchas
+
+## Five-context debug map
+
+A feature can break in any of ScriptCat's five isolated contexts. Match the symptom to where its logs live (deep
+model in [`architecture.md`](../architecture.md)):
+
+| Symptom | Where to look |
+| --- | --- |
+| CRUD, permissions, routing, chrome API calls | **Service Worker** — `chrome://extensions` → ScriptCat → *Inspect views: service worker* |
+| Script not injecting / GM bridge to page | **Content** + **Inject** — the **target page**'s DevTools console |
+| Background / scheduled script, DOM-needing GM APIs | **Offscreen** — `dist/ext/src/offscreen.html` context |
+| Cron scheduling, `with`-sandboxed execution | **Sandbox** — `dist/ext/src/sandbox.html` context |
+
+**Firefox note.** Firefox MV3 has no separate Offscreen document — there is no `offscreen.html` to inspect.
+`EventPageOffscreenManager` runs offscreen-equivalent logic (background/scheduled-script DOM work) inside the
+DOM-capable background event page instead, so look there for those logs on Firefox. The Sandbox iframe is
+still a separate execution boundary on both browsers. See
+[architecture.md § Chrome vs Firefox: the offscreen split](../architecture.md#chrome-vs-firefox-the-offscreen-split)
+for the full picture.
+
+In a scratch script, capture the page console (`page.on("console", …)`), take screenshots
+(`await page.screenshot({ path: "e2e/scratch/<scenario>/screenshots/…png" })`), and write any manual notes to
+`e2e/scratch/<scenario>/`. Playwright's own failure artifacts land in `test-results/` for both
+[`playwright.config.ts`](../../playwright.config.ts) and
+[`playwright.scratch.config.ts`](../../playwright.scratch.config.ts), and every run wipes that directory,
+which is why your evidence belongs in the scenario directory instead. The local default keeps Playwright video recording
+off; CI records retried failures only.
+
+## Key extension URLs
+
+Key extension URLs (replace `<id>` with `extensionId`):
+
+| Page | URL |
+| --- | --- |
+| Options / dashboard | `chrome-extension://<id>/src/options.html` |
+| Popup | `chrome-extension://<id>/src/popup.html` |
+| Script editor | `chrome-extension://<id>/src/options.html#/script/editor` |
+| Install flow | `chrome-extension://<id>/src/install.html?url=<encoded userscript url>` |
+
+## Common gotchas
+
+The `E2E_RECORD_VIDEO_DIR` → `recordVideo` wiring lives in the **shared** `e2e/fixtures.ts` only. A Step 3 scratch that copies
+gm-api.spec's inline two-phase fixture does **not** read `E2E_RECORD_VIDEO_DIR` — either add
+`recordVideo: { dir }` to your own `launchPersistentContext(...)`, or rely on screenshots + logs as evidence.
+
+**Don't try to click the rendered popup button.** A standalone popup page resolves *its own* tab as the
+active one (`getCurrentTab()` → `chrome.tabs.query({ active: true, lastFocusedWindow: true })` in
+[`src/pkg/utils/utils.ts`](../../src/pkg/utils/utils.ts)), so it never lists your test tab's menus.
+
+**Local-server gotcha.** If your scratch starts a local HTTP server (for `@match` targets, mock responses, CSP
+pages) and closes it *inside* the test, call `server.closeAllConnections()` before `server.close()`. Otherwise
+`close()` blocks on the browser's keep-alive socket — which only drops on context teardown — and the test hangs
+to its timeout.

@@ -1,0 +1,31 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.tsx";
+import LoggerCore from "@App/app/logger/core.ts";
+import { message } from "../store/global.ts";
+import MessageWriter from "@App/app/logger/message_writer.ts";
+import { ThemeProvider } from "../components/theme-provider.tsx";
+import { TooltipProvider } from "../components/ui/tooltip.tsx";
+import { Toaster } from "../components/ui/sonner.tsx";
+import "@App/index.css";
+
+// 初始化日志组件
+const loggerCore = new LoggerCore({
+  writer: MessageWriter.serviceWorker(message),
+  labels: { env: "options" },
+});
+
+loggerCore.logger().debug("options page start");
+
+const Root = (
+  <ThemeProvider>
+    <TooltipProvider>
+      <App />
+      <Toaster />
+    </TooltipProvider>
+  </ThemeProvider>
+);
+
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  process.env.NODE_ENV === "development" ? <React.StrictMode>{Root}</React.StrictMode> : Root
+);

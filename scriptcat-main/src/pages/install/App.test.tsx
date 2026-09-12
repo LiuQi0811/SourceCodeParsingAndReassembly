@@ -1,0 +1,388 @@
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, type Mock } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { initTestLanguage } from "@Tests/initTestLanguage";
+import { mockMatchMedia } from "@Tests/mockMatchMedia";
+
+vi.mock("./useInstallData", () => ({ useInstallData: vi.fn() }));
+// Monaco 编辑器无法在 DOM 测试环境中渲染(需 worker + ThemeProvider),用桩替换
+vi.mock("@App/pages/components/CodeEditor", () => import("@Tests/mocks/CodeEditor.tsx"));
+
+import { useInstallData, type InstallView } from "./useInstallData";
+import App from "./App";
+
+const mockHook = useInstallData as Mock;
+
+const baseHook = () => ({
+  enabled: true,
+  setEnabled: vi.fn(),
+  localFile: false,
+  watching: false,
+  toggleWatch: vi.fn(),
+  install: vi.fn(),
+  close: vi.fn(),
+  installSkill: vi.fn(),
+  cancelSkill: vi.fn(),
+  retry: vi.fn(),
+  outcome: { phase: "idle" as const },
+  retryInstall: vi.fn(),
+});
+
+const readyView = (over: Partial<InstallView> = {}): InstallView => ({
+  isUpdate: false,
+  inTrash: false,
+  isSubscribe: false,
+  name: "全网每日签到助手",
+  author: "scriptcat",
+  source: "example.com",
+  description: "示例",
+  version: { kind: "install", version: "2.3.1" },
+  permissions: [{ kind: "match", risk: "normal", values: ["https://e.com/*"], sensitive: [] }],
+  antifeatures: [],
+  schedule: null,
+  code: "// a\n// b",
+  subscribeScripts: [],
+  ...over,
+});
+
+beforeEach(() => {
+  mockMatchMedia();
+});
+
+beforeAll(() => initTestLanguage("zh-CN"));
+
+afterEach(cleanup);
+
+describe("Install App 防点击劫持:禁止在 iframe 中嵌入", () => {
+  const originalTop = window.top;
+  afterEach(() => {
+    Object.defineProperty(window, "top", { value: originalTop, configurable: true });
+  });
+
+  it("非顶层 frame 时渲染拦截提示,即使当前状态是 loading 也不渲染原状态", () => {
+    Object.defineProperty(window, "top", { value: { document: {} }, configurable: true });
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "loading" } });
+    render(<App />);
+    expect(screen.getByText("禁止内嵌访问")).toBeInTheDocument();
+    expect(screen.queryByText("正在加载脚本")).not.toBeInTheDocument();
+  });
+
+  it("非顶层 frame 时点击关闭按钮应调用 close", () => {
+    Object.defineProperty(window, "top", { value: { document: {} }, configurable: true });
+    const close = vi.fn();
+    mockHook.mockReturnValue({ ...baseHook(), close, state: { status: "ready", view: readyView() } });
+    render(<App />);
+    fireEvent.click(screen.getByText("关闭"));
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("顶层 frame 时正常渲染 ready 状态,不触发拦截", () => {
+    Object.defineProperty(window, "top", { value: window, configurable: true });
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "ready", view: readyView() } });
+    render(<App />);
+    expect(screen.queryByText("禁止内嵌访问")).not.toBeInTheDocument();
+    expect(screen.getByText("全网每日签到助手")).toBeInTheDocument();
+  });
+});
+
+describe("Install App 状态分流", () => {
+  it("loading 状态渲染加载屏", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "loading" } });
+    render(<App />);
+    expect(screen.getByText("正在加载脚本")).toBeInTheDocument();
+  });
+
+  it("invalid 状态渲染无效页面", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "invalid" } });
+    render(<App />);
+    expect(screen.getByText("无效页面")).toBeInTheDocument();
+  });
+
+  it("error 状态渲染失败屏与错误信息", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "error", message: "boom-404" } });
+    render(<App />);
+    expect(screen.getByText("boom-404")).toBeInTheDocument();
+  });
+
+  it("error 状态提供重试按钮,点击调用 retry", () => {
+    const retry = vi.fn();
+    mockHook.mockReturnValue({ ...baseHook(), retry, state: { status: "error", message: "boom" } });
+    render(<App />);
+    fireEvent.click(screen.getByText("重试"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalid 状态不提供重试按钮", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "invalid" } });
+    render(<App />);
+    expect(screen.queryByText("重试")).not.toBeInTheDocument();
+  });
+
+  it("ready 状态渲染身份卡、权限卡、代码卡与安装按钮", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "ready", view: readyView() } });
+    render(<App />);
+    expect(screen.getByText("全网每日签到助手")).toBeInTheDocument();
+    expect(screen.getByText("此脚本将获得以下权限")).toBeInTheDocument();
+    expect(screen.getByText("2 行")).toBeInTheDocument();
+    expect(screen.getByTestId("install-primary")).toHaveTextContent("安装");
+  });
+
+  it("ready 更新态顶部上下文标题为脚本更新", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      state: {
+        status: "ready",
+        view: readyView({
+          isUpdate: true,
+          version: { kind: "update", oldVersion: "1.0.0", newVersion: "2.0.0", changed: true },
+        }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("脚本更新")).toBeInTheDocument();
+  });
+
+  it("外部接入触发的安装：顶栏上下文 chip 显示「外部接入 · 安装请求」", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      rejectExternalAccess: vi.fn(),
+      state: {
+        status: "ready",
+        view: readyView({ externalAccess: { operationId: "op-1", contentHash: "abcdef123456" } }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("外部接入 · 安装请求")).toBeInTheDocument();
+  });
+
+  it("外部接入触发的更新：顶栏上下文 chip 显示「外部接入 · 更新请求」", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      rejectExternalAccess: vi.fn(),
+      state: {
+        status: "ready",
+        view: readyView({
+          isUpdate: true,
+          version: { kind: "update", oldVersion: "2.3.1", newVersion: "2.3.1", changed: false },
+          externalAccess: { operationId: "op-2", contentHash: "abcdef123456" },
+        }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("外部接入 · 更新请求")).toBeInTheDocument();
+    expect(screen.queryByText("外部接入 · 安装请求")).not.toBeInTheDocument();
+  });
+
+  it("skill 状态渲染技能安装视图", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      state: {
+        status: "skill",
+        skill: {
+          skillMd: "# s",
+          metadata: { name: "我的技能" },
+          prompt: "提示词",
+          scripts: [],
+          references: [],
+          isUpdate: false,
+        },
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("我的技能")).toBeInTheDocument();
+    expect(screen.getByTestId("skill-install")).toBeInTheDocument();
+  });
+
+  it("订阅安装时渲染脚本列表卡而非权限卡", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      state: {
+        status: "ready",
+        view: readyView({ isSubscribe: true, subscribeScripts: ["https://s.cat/1.user.js"] }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("本订阅将安装以下脚本")).toBeInTheDocument();
+    expect(screen.getByText("https://s.cat/1.user.js")).toBeInTheDocument();
+    expect(screen.queryByText("此脚本将获得以下权限")).not.toBeInTheDocument();
+  });
+
+  it("本地文件安装时显示监听文件按钮", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      localFile: true,
+      state: { status: "ready", view: readyView() },
+    });
+    render(<App />);
+    expect(screen.getByTestId("watch-toggle")).toBeInTheDocument();
+  });
+
+  it("监听中显示监听横幅且安装按钮禁用", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      localFile: true,
+      watching: true,
+      watchFileName: "checkin.user.js",
+      state: { status: "ready", view: readyView() },
+    });
+    render(<App />);
+    expect(screen.getByTestId("watching-banner")).toBeInTheDocument();
+    expect(screen.getByTestId("install-primary")).toBeDisabled();
+  });
+});
+
+describe("Install App 安装反馈", () => {
+  const installedHook = (result: Record<string, unknown>, over: Record<string, unknown> = {}) => ({
+    ...baseHook(),
+    outcome: { phase: "installed" as const, result },
+    state: { status: "ready", view: readyView() },
+    ...over,
+  });
+
+  it("留在页面的成功路径渲染常驻成功条,主按钮转为已安装并禁用", () => {
+    mockHook.mockReturnValue(
+      installedHook({
+        name: "全网每日签到助手",
+        version: "2.3.1",
+        enabled: true,
+        editorUuid: "s-uuid",
+        kind: "install",
+        closing: false,
+      })
+    );
+    render(<App />);
+    const ribbon = screen.getByTestId("install-success-ribbon");
+    expect(ribbon).toHaveTextContent("已安装");
+    expect(ribbon).toHaveTextContent("全网每日签到助手");
+    expect(screen.getByTestId("install-success-open-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("install-primary")).toBeDisabled();
+    expect(screen.getByTestId("install-primary")).toHaveTextContent("已安装");
+  });
+
+  it("装完就关的路径不渲染常驻成功条,整页进入淡出", () => {
+    mockHook.mockReturnValue(installedHook({ name: "脚本", kind: "install", closing: true }));
+    render(<App />);
+    expect(screen.queryByTestId("install-success-ribbon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("install-layout").className).toContain("motion-safe:opacity-0");
+  });
+
+  it("成功条的关闭按钮触发离开安装页", () => {
+    const close = vi.fn();
+    mockHook.mockReturnValue(installedHook({ name: "脚本", kind: "install", closing: false }, { close }));
+    render(<App />);
+    fireEvent.click(screen.getByTestId("install-success-close"));
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("安装失败在操作栏上方渲染内联错误条,点击重试触发重装", () => {
+    const retryInstall = vi.fn();
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      retryInstall,
+      outcome: { phase: "failed" as const, message: "写入数据库失败" },
+      state: { status: "ready", view: readyView() },
+    });
+    render(<App />);
+    expect(screen.getByTestId("install-error-bar-message")).toHaveTextContent("写入数据库失败");
+    expect(screen.getByTestId("install-primary")).toHaveTextContent("重试安装");
+    fireEvent.click(screen.getByTestId("install-error-retry"));
+    expect(retryInstall).toHaveBeenCalledTimes(1);
+  });
+
+  it("外部接入批准后同样给出常驻成功条,决策按钮锁住", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      rejectExternalAccess: vi.fn(),
+      outcome: { phase: "installed" as const, result: { name: "MCP 脚本", kind: "install", closing: false } },
+      state: {
+        status: "ready",
+        view: readyView({ externalAccess: { operationId: "op-1", contentHash: "abcdef123456" } }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByTestId("install-success-ribbon")).toHaveTextContent("MCP 脚本");
+    expect(screen.getByTestId("external-access-reject")).toBeDisabled();
+  });
+
+  it("技能安装失败时错误条渲染在技能视图的操作栏上方", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      outcome: { phase: "failed" as const, message: "技能写入失败" },
+      state: {
+        status: "skill",
+        skill: {
+          skillMd: "# s",
+          metadata: { name: "我的技能" },
+          prompt: "提示词",
+          scripts: [],
+          references: [],
+          isUpdate: false,
+        },
+      },
+    });
+    render(<App />);
+    expect(screen.getByTestId("install-error-bar-message")).toHaveTextContent("技能写入失败");
+  });
+});
+
+describe("Install App 权限卡的更新基线", () => {
+  it("更新场景把已安装版本作为权限对比基线传给权限卡", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      state: {
+        status: "ready",
+        view: readyView({
+          isUpdate: true,
+          version: { kind: "update", oldVersion: "1.2.3", newVersion: "2.3.1", changed: true },
+          permissions: [
+            {
+              kind: "connect",
+              risk: "warn",
+              values: ["api.a.com"],
+              sensitive: [],
+              diff: { added: ["api.a.com"], removed: [] },
+            },
+          ],
+        }),
+      },
+    });
+    render(<App />);
+    expect(screen.getByText("对比已安装的 1.2.3")).toBeInTheDocument();
+    expect(screen.getByText("权限变化")).toBeInTheDocument();
+  });
+
+  it("全新安装不传基线,权限卡维持安装态卡头", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "ready", view: readyView() } });
+    render(<App />);
+    expect(screen.getByText("此脚本将获得以下权限")).toBeInTheDocument();
+    expect(screen.queryByText("权限变化")).not.toBeInTheDocument();
+  });
+});
+
+describe("Install App 不再渲染安全警示条", () => {
+  it("全新安装页没有安全警示条", () => {
+    mockHook.mockReturnValue({ ...baseHook(), state: { status: "ready", view: readyView() } });
+    render(<App />);
+    expect(screen.queryByTestId("install-warning-title")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("install-warning-desc")).not.toBeInTheDocument();
+  });
+
+  it("声明了危险权限的更新页同样没有安全警示条", () => {
+    mockHook.mockReturnValue({
+      ...baseHook(),
+      state: {
+        status: "ready",
+        view: readyView({
+          isUpdate: true,
+          version: { kind: "update", oldVersion: "1.2.3", newVersion: "2.3.1", changed: true },
+          antifeatures: ["ads"],
+          permissions: [
+            { kind: "connect", risk: "danger", values: ["*"], sensitive: [], diff: { added: [], removed: [] } },
+          ],
+        }),
+      },
+    });
+    render(<App />);
+    expect(screen.queryByTestId("install-warning-title")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("install-warning-risk")).not.toBeInTheDocument();
+  });
+});
