@@ -2,6 +2,7 @@ import asyncio
 import random
 import re
 import os
+import socket
 from urllib.parse import urljoin
 from typing import List, Optional, Dict
 import aiohttp
@@ -37,11 +38,13 @@ class SingletonMeta(type):
 class CrawlerConfig(metaclass=SingletonMeta):
     BASE_URL = "https://16k.club/"
     WORKER_NUM = 3              # 消费者协程数量
-    SEMAPHORE_LIMIT = 3         # 全局请求并发信号量
+    SEMAPHORE_LIMIT = 3         # 页面请求并发信号量
+    MEDIA_SEMAPHORE_LIMIT = 2   # 媒体下载独立信号量（更小！）
     QUEUE_MAX_SIZE = 10         # 队列容量（仅边抓边入队模式生效，背压用）
     MIN_SLEEP = 0.5
     MAX_SLEEP = 1.5
-    TIMEOUT = aiohttp.ClientTimeout(total=20)
+    PAGE_TIMEOUT = aiohttp.ClientTimeout(total=20)
+    MEDIA_TIMEOUT = aiohttp.ClientTimeout(total=40)
     MAX_RETRY = 3
     SAVE_ROOT = "./data"
     VISITED_FILE = "./visited.txt"
@@ -50,7 +53,7 @@ class CrawlerConfig(metaclass=SingletonMeta):
     # ★ 任务载入模式开关
     # "all"  = 一次性载入：先抓完所有列表页收集全部链接，再统一入队（进度条有准确 total）
     # "stream" = 边抓边入队：解析一页入队一页，生产消费流水线并行（内存低、更快产出）
-    LOAD_MODE = "all"
+    LOAD_MODE = "stream"
 
     # ★ 页面解析引擎开关
     # "bs4" = BeautifulSoup DOM解析
@@ -109,10 +112,11 @@ class CrawlRepository:
 
 # ====================== 【策略模式：异步请求封装 aiohttp】 ======================
 class AsyncRequestStrategy:
-    def __init__(self, session: aiohttp.ClientSession, sem: asyncio.Semaphore):
+    def __init__(self, session: aiohttp.ClientSession, page_sem: asyncio.Semaphore, media_sem: asyncio.Semaphore):
         self.cfg = CrawlerConfig()
         self.session = session
-        self.sem = sem
+        self.page_sem = page_sem
+        self.media_sem = media_sem
 
     def get_headers(self, referer: Optional[str] = None) -> dict:
         h = {
@@ -134,8 +138,8 @@ class AsyncRequestStrategy:
         for retry in range(self.cfg.MAX_RETRY):
             try:
                 await asyncio.sleep(random.uniform(self.cfg.MIN_SLEEP, self.cfg.MAX_SLEEP))
-                async with self.sem:
-                    async with self.session.get(url, headers=self.get_headers(referer), timeout=self.cfg.TIMEOUT) as resp:
+                async with self.page_sem:
+                    async with self.session.get(url, headers=self.get_headers(referer), timeout=self.cfg.PAGE_TIMEOUT) as resp:
                         if resp.status != 200:
                             logger.warning(f"状态码 {resp.status} {url} retry {retry+1}")
                             continue
@@ -149,11 +153,20 @@ class AsyncRequestStrategy:
         return None
 
     async def download_media(self, file_url: str, save_path: str, referer: str) -> bool:
+        # 如果文件已经存在且大于0字节，直接跳过
+        if os.path.exists(save_path):
+            stat = os.stat(save_path)
+            if stat.st_size > 0:
+                logger.info(f"⏭️ 文件已存在，跳过下载 {save_path}")
+                return True
+
         for retry in range(self.cfg.MAX_RETRY):
             try:
                 await asyncio.sleep(random.uniform(self.cfg.MIN_SLEEP, self.cfg.MAX_SLEEP))
-                async with self.sem:
-                    async with self.session.get(file_url, headers=self.get_headers(referer), timeout=self.cfg.TIMEOUT) as resp:
+                async with self.media_sem:
+                    headers = self.get_headers(referer)
+                    headers["Referer"] = referer
+                    async with self.session.get(file_url, headers=headers, timeout=self.cfg.MEDIA_TIMEOUT) as resp:
                         if resp.status != 200:
                             logger.warning(f"下载失败 status={resp.status}, {file_url} retry {retry+1}")
                             continue
@@ -300,12 +313,13 @@ class XpathPageParser(BasePageParser):
 
 # ====================== 新增：纯正则解析器 ======================
 class RegexPageParser(BasePageParser):
-    # 预编译正则，全局复用
-    RE_PAGE_HREF = re.compile(r'index\.php\?p=(\d+)&size=50')
-    RE_POST_HREF = re.compile(r'href="([^"]+/post/\d+/)"')
-    RE_H1_TEXT   = re.compile(r'<h1[^>]*>(.*?)</h1>', re.S)
-    RE_IMG_DATA_SRC = re.compile(r'<img[^>]+data-src="([^"]+)"')
-    RE_SOURCE_SRC = re.compile(r'<source[^>]+src="([^"]+)"')
+    # re.S：.匹配换行；re.I忽略大小写
+    RE_PAGE_HREF = re.compile(r'index\.php\?p=(\d+)&size=50', re.S | re.I)
+    # 核心修复：允许href属性中间带换行，捕获href值
+    RE_POST_HREF = re.compile(r'href\s*=\s*["\']\s*([^"\']*?/post/\d+/[^"\']*?)\s*["\']', re.S | re.I)
+    RE_H1_TEXT = re.compile(r'<h1[^>]*>(.*?)</h1>', re.S | re.I)
+    RE_IMG_DATA_SRC = re.compile(r'<img[^>]+data-src\s*=\s*["\']\s*([^"\']+?)\s*["\']', re.S | re.I)
+    RE_SOURCE_SRC = re.compile(r'<source[^>]+src\s*=\s*["\']\s*([^"\']+?)\s*["\']', re.S | re.I)
 
     @staticmethod
     def get_max_page(html: str) -> int:
@@ -359,19 +373,22 @@ class AsyncQueueCrawler:
         self.parser = ParserFactory.get_parser()
         logger.info(f"✅ 当前解析引擎：{self.cfg.PARSE_ENGINE}，载入模式：{self.cfg.LOAD_MODE}")
 
+        # 两套独立信号量
+        self.page_sem = asyncio.Semaphore(self.cfg.SEMAPHORE_LIMIT)
+        self.media_sem = asyncio.Semaphore(self.cfg.MEDIA_SEMAPHORE_LIMIT)
+
         # 边抓边入队模式用有界队列做背压；一次性载入模式用无界队列
         if self.cfg.LOAD_MODE == "stream":
             self.queue: asyncio.Queue = asyncio.Queue(maxsize=self.cfg.QUEUE_MAX_SIZE)
         else:
             self.queue: asyncio.Queue = asyncio.Queue()
-        self.sem = asyncio.Semaphore(self.cfg.SEMAPHORE_LIMIT)
         self.completed_count = 0
         self.pbar: Optional[tqdm] = None
         os.makedirs(self.cfg.SAVE_ROOT, exist_ok=True)
 
     # ========== 一次性载入：收集全部链接 ==========
     async def collect_all_links(self, session: aiohttp.ClientSession) -> List[str]:
-        req = AsyncRequestStrategy(session, self.sem)
+        req = AsyncRequestStrategy(session, self.page_sem, self.media_sem)
         max_page = await self._detect_max_page(req)
         logger.info(f"🔍 [一次性载入] 开始抓取列表页，总页数：{max_page}")
         all_links = []
@@ -390,7 +407,7 @@ class AsyncQueueCrawler:
 
     # ========== 边抓边入队：生产页直接入队 ==========
     async def producer_stream(self, session: aiohttp.ClientSession):
-        req = AsyncRequestStrategy(session, self.sem)
+        req = AsyncRequestStrategy(session, self.page_sem, self.media_sem)
         max_page = await self._detect_max_page(req)
         logger.info(f"🔍 [边抓边入队] 生产者检测总页数：{max_page}")
 
@@ -426,7 +443,7 @@ class AsyncQueueCrawler:
 
     async def consumer(self, worker_id: int, session: aiohttp.ClientSession):
         """消费者协程：处理专题详情、下载媒体"""
-        req = AsyncRequestStrategy(session, self.sem)
+        req = AsyncRequestStrategy(session, self.page_sem, self.media_sem)
         img_handler = self.media_factory.get_handler("image")
         vid_handler = self.media_factory.get_handler("video")
         logger.info(f"🟢 消费者Worker-{worker_id} 启动")
@@ -466,26 +483,20 @@ class AsyncQueueCrawler:
             f.write(html)
         logger.info(f"\n📦 专题【{title}】图片{len(image_urls)}张,视频{len(video_urls)}个 | {post_url}")
 
-        # 并发下载当前专题内的图片
-        img_tasks = [
-            img_handler.download(req, src, save_dir, idx+1, post_url)
-            for idx, src in enumerate(image_urls)
-        ]
-        await asyncio.gather(*img_tasks)
+        # 【改动重点】串行下载当前帖子图片，不再一次性gather爆并发
+        for idx, src in enumerate(image_urls):
+            await img_handler.download(req, src, save_dir, idx+1, post_url)
 
-        # 并发下载当前专题内的视频
-        vid_tasks = [
-            vid_handler.download(req, src, save_dir, idx+1, post_url)
-            for idx, src in enumerate(video_urls)
-        ]
-        await asyncio.gather(*vid_tasks)
+        # 串行下载视频
+        for idx, src in enumerate(video_urls):
+            await vid_handler.download(req, src, save_dir, idx+1, post_url)
 
         self.repo.mark_visited(post_url)
 
     async def run(self):
-        timeout = aiohttp.ClientTimeout(total=30)
-        connector = aiohttp.TCPConnector(limit=0, ttl_dns_cache=300)
-        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        # 修复：使用 socket.AF_INET 强制IPv4
+        connector = aiohttp.TCPConnector(limit=0, ttl_dns_cache=300, family=socket.AF_INET)
+        async with aiohttp.ClientSession(connector=connector) as session:
             if self.cfg.LOAD_MODE == "all":
                 # ===== 一次性载入模式 =====
                 all_links = await self.collect_all_links(session)
