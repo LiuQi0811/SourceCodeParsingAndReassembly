@@ -141,9 +141,22 @@ class BS4Parser(BaseParser):
         try:
             # 自动检测编码
             import chardet
-            encoding = chardet.detect(html[:10000]).get("encoding", "utf-8")
+            detect_res = chardet.detect(html[:10000])
+            encoding = detect_res.get("encoding") or "utf-8"
             html_text = html.decode(encoding, errors="replace")
-            soup = BeautifulSoup(html_text, "lxml")
+            is_xml = False
+            # 1. 通过响应头判断
+            if headers:
+                content_type = headers.get("Content-Type", "").lower()
+                if "xml" in content_type:
+                    is_xml = True
+            # 2. 兜底：文本开头检测 <?xml
+            if not is_xml and html_text.lstrip().startswith("<?xml"):
+                is_xml = True
+            if is_xml:
+                soup = BeautifulSoup(html_text, features="xml")
+            else:
+                soup = BeautifulSoup(html_text, "lxml")
 
             # 标题
             title_tag = soup.find("title")
@@ -159,6 +172,7 @@ class BS4Parser(BaseParser):
             # 元数据
             result.metadata = {
                 "encoding": encoding,
+                "is_xml": is_xml,  # 增加标记，方便上层判断
                 "meta_tags": {
                     m.get("name", m.get("property", "")): m.get("content", "")
                     for m in soup.find_all("meta")
