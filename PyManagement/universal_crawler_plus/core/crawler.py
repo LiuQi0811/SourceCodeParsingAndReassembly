@@ -246,16 +246,12 @@ class Crawler:
         if self.config.show_progress:
             self.progress.start(total=total if total > 0 else None)
 
-        # 流式模式：启动worker协程
+        # 流式模式：worker 自身即生产者（解析后回流新URL），
+        # 队列在“队列空且无在途任务”时会让 get_next 返回 None，worker 自然退出，无需显式标记。
         self._workers = []
         for i in range(self.config.max_concurrent):
             task = asyncio.create_task(self._worker(i))
             self._workers.append(task)
-
-        # 如果是流式模式，标记生产者已添加起始URL
-        if self.config.fetch_mode == FetchMode.STREAM_QUEUE:
-            # 生产者持续添加URL，不立即标记done
-            pass
 
         # 等待队列完成
         try:

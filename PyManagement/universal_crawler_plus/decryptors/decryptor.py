@@ -7,7 +7,6 @@ import re
 import base64
 import gzip
 import zlib
-import brotli
 import hashlib
 import json
 from abc import ABC, abstractmethod
@@ -17,6 +16,14 @@ from urllib.parse import unquote
 from utils.logger import get_logger
 
 logger = get_logger("Decryptor")
+
+try:
+    import brotli
+    HAS_BROTLI = True
+except ImportError:
+    brotli = None
+    HAS_BROTLI = False
+    logger.warning("brotli未安装，Brotli(br)解压不可用，可执行 pip install Brotli 安装")
 
 
 try:
@@ -71,6 +78,13 @@ class DeflateDecryptor(DecryptHandler):
     def decrypt(self, content: bytes, headers: Dict[str, str], context: Dict[str, Any]) -> bytes:
         try:
             return zlib.decompress(content)
+        except zlib.error:
+            # 部分服务器返回的是无 zlib 头的 raw deflate，使用 -wbits 兜底解压
+            try:
+                return zlib.decompressobj(-zlib.MAX_WBITS).decompress(content)
+            except Exception as e:
+                logger.warning(f"Deflate解压失败: {e}")
+                return content
         except Exception as e:
             logger.warning(f"Deflate解压失败: {e}")
             return content
@@ -79,8 +93,8 @@ class DeflateDecryptor(DecryptHandler):
 class BrotliDecryptor(DecryptHandler):
     """Brotli解压处理器"""
     def can_handle(self, content: bytes, headers: Dict[str, str], context: Dict[str, Any]) -> bool:
-        ce = headers.get("Content-Encoding", "").lower()
-        return "br" in ce
+        encodings = [c.strip() for c in headers.get("Content-Encoding", "").lower().split(",")]
+        return HAS_BROTLI and "br" in encodings
 
     def decrypt(self, content: bytes, headers: Dict[str, str], context: Dict[str, Any]) -> bytes:
         try:

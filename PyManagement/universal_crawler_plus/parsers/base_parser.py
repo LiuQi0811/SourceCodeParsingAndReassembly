@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from lxml import etree
 
-from core.config import ParseMode, get_config
+from core.config import ParseMode, ResourceType, get_config
 from core.models import ParseResult
 from utils.url_utils import normalize_url, get_resource_type
 from utils.logger import get_logger
@@ -30,6 +30,26 @@ class BaseParser(ABC):
         """解析HTML内容"""
         pass
 
+    # 兜底：匹配内联脚本/属性中出现的音视频直链或 HLS/DASH 清单地址
+    _INLINE_MEDIA_RE = re.compile(
+        r'''["'](?:https?:)?//[^\s"'<>]+?\.(?:m3u8|mp4|webm|mov|mkv|avi|flv|m4v|wmv|mpg|mpeg|ts|m4s|mpd|mp3|m4a|aac|wav|ogg)(?:[?#][^\s"'<>]*)?["']''',
+        re.IGNORECASE,
+    )
+
+    def _scan_inline_media(self, text: str, base_url: str) -> List[str]:
+        """从原始文本中兜底扫描内联音视频直链（覆盖 JS 动态赋值场景）"""
+        found: List[str] = []
+        if not text:
+            return found
+        # 归一化 JSON/JS 转义斜杠：DPlayer 等播放器配置常写成 https:\/\/host\/a.m3u8
+        scan_text = text.replace("\\/", "/")
+        for match in self._INLINE_MEDIA_RE.finditer(scan_text):
+            raw = match.group(0)[1:-1]  # 去掉两端引号
+            full = normalize_url(raw, base_url)
+            if full and get_resource_type(full) in (ResourceType.VIDEO, ResourceType.AUDIO):
+                found.append(full)
+        return found
+
     def _extract_links_and_resources_bs4(self, soup: BeautifulSoup, base_url: str) -> Tuple[List[str], List[str]]:
         """从BS4对象提取链接和资源（通用方法）"""
         links = []
@@ -44,8 +64,9 @@ class BaseParser(ABC):
         # 静态资源
         for tag, attr in [
             ("link", "href"), ("script", "src"), ("img", "src"),
-            ("img", "data-src"), ("source", "src"), ("video", "src"),
-            ("audio", "src"), ("iframe", "src"), ("embed", "src"),
+            ("img", "data-src"), ("source", "src"), ("source", "data-src"),
+            ("video", "src"), ("video", "data-src"), ("video", "poster"),
+            ("audio", "src"), ("audio", "data-src"), ("iframe", "src"), ("embed", "src"),
             ("object", "data"),
         ]:
             for el in soup.find_all(tag, attrs={attr: True}):
@@ -83,7 +104,8 @@ class BaseParser(ABC):
         # 静态资源
         xpath_queries = [
             "//link/@href", "//script/@src", "//img/@src", "//img/@data-src",
-            "//source/@src", "//video/@src", "//audio/@src", "//iframe/@src",
+            "//source/@src", "//source/@data-src", "//video/@src", "//video/@data-src",
+            "//video/@poster", "//audio/@src", "//audio/@data-src", "//iframe/@src",
         ]
         for xq in xpath_queries:
             for src in tree.xpath(xq):
@@ -117,6 +139,7 @@ class BaseParser(ABC):
             r'''<img\s[^>]*src\s*=\s*["']([^"']+)["']''',
             r'''<img\s[^>]*data-src\s*=\s*["']([^"']+)["']''',
             r'''<(?:source|video|audio|iframe|embed)\s[^>]*src\s*=\s*["']([^"']+)["']''',
+            r'''<(?:source|video|audio|img)\s[^>]*data-src\s*=\s*["']([^"']+)["']''',
             r'''url\(["']?([^)"\']+)["']?\)''',
         ]
         for pattern in res_patterns:
@@ -164,6 +187,8 @@ class BS4Parser(BaseParser):
 
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_bs4(soup, url)
+            # 兜底：补抓内联脚本中的音视频直链 / m3u8 清单
+            result.resources = sorted(set(result.resources + self._scan_inline_media(html_text, url)))
 
             # 正文文本
             body = soup.find("body")
@@ -192,8 +217,15 @@ class XPathParser(BaseParser):
     def parse(self, html: bytes, url: str, headers: dict = None) -> ParseResult:
         result = ParseResult(url=url, success=False)
         try:
-            parser = etree.HTMLParser(encoding="utf-8")
-            tree = etree.fromstring(html, parser=parser)
+            # 与 BS4/Regex 一致：先检测编码再解码为文本，避免 GBK/GB2312 页面乱码
+            import chardet
+            if isinstance(html, bytes):
+                enc = chardet.detect(html[:10000]).get("encoding") or "utf-8"
+                html = html.decode(enc, errors="replace")
+            tree = etree.HTML(html)
+            if tree is None:
+                result.error = "XPath无法构建DOM树"
+                return result
 
             # 标题
             title_list = tree.xpath("//title/text()")
@@ -201,6 +233,7 @@ class XPathParser(BaseParser):
 
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_xpath(tree, url)
+            result.resources = sorted(set(result.resources + self._scan_inline_media(html, url)))
 
             # 正文文本
             body_text = tree.xpath("//body//text()")
@@ -241,6 +274,7 @@ class RegexParser(BaseParser):
 
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_regex(html_text, url)
+            result.resources = sorted(set(result.resources + self._scan_inline_media(html_text, url)))
 
             # 正文文本（简单去除标签）
             text = re.sub(r"<script[^>]*>.*?</script>", "", html_text, flags=re.DOTALL | re.IGNORECASE)

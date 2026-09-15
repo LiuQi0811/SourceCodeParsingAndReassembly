@@ -27,11 +27,18 @@
 - **自动目录分组**：按资源类型(html/css/js/image/video/audio/font等)自动创建目录分类存储
 - **实时进度条**：基于tqdm的多维度进度显示，实时统计成功/失败/跳过/数据量/速率
 - **逆向解密框架**：自动处理Gzip/Deflate/Brotli解压、Base64/实体/Unicode解码，支持AES/DES对称解密、JS混淆执行还原（可扩展自定义解密处理器）
+- **流媒体下载（HLS/DASH）**：自动解析 m3u8（多码率Master、AES-128解密）与 mpd（SegmentTemplate/Timeline/List、选轨），并发下载分片并合并为可播放的 ts/mp4；支持 HLS 外挂 WebVTT 字幕轨下载与分片级进度条（详见下文“视频等媒体资源下载”）
 - **自动编码检测**：基于chardet自动识别网页编码，解决乱码问题
 - **请求头随机化**：User-Agent随机轮换，模拟真实浏览器
 - **域名/深度/页数限制**：灵活控制爬取范围
 - **URL规范化**：自动去除锚点、跟踪参数，标准化URL格式
 - **责任链/工厂/策略/单例/观察者/生产者消费者**：大量设计模式保证代码可扩展性
+
+### 🎬 视频等媒体资源下载
+- **直链音视频（已支持）**：自动识别 `mp4/webm/mov/mkv/avi/flv/m4v/wmv/mpg` 与 `mp3/m4a/aac/wav/ogg` 等扩展名；抓取 `<video>/<source>/<audio>` 的 `src`、`data-src`、`poster`，并兜底扫描内联脚本中的媒体直链（含协议相对地址 `//...`）。统一流式分块落盘到 `output/video|audio/`，支持 HTTP Range 断点续传；分块大小由 `CrawlerConfig.download_chunk_size` 控制（默认 64KB，兼顾大文件吞吐与内存）。
+- **HLS（m3u8）流媒体（已支持自动下载合并）**：识别到 `.m3u8` 后自动解析清单——支持 Master 多码率（默认选最高码率，`hls_prefer_variant` 可切 lowest）、相对路径补全、分片有界并发下载与失败重试、`#EXT-X-KEY:METHOD=AES-128` 解密（显式 IV 或按媒体序列号推导 IV，仅末片去 PKCS7 填充），最终按序合并为可直接播放的 `.ts`（**纯 Python、无外部依赖**）；若系统装有 ffmpeg，会再用 `-c copy` 无损转封装为 `.mp4`。相关配置：`hls_segment_concurrency`（分片并发，默认8，DASH 也复用）、`hls_segment_retries`（单片重试）、`hls_max_segments`（分片上限防失控）、`hls_merge_format`（auto/ts/mp4）。暂不支持 SAMPLE-AES、EXT-X-BYTERANGE 与 `blob:` 地址；直播流（无 `#EXT-X-ENDLIST`）只下载当前清单内分片、不持续追流。
+- **DASH（mpd）流媒体（已支持自动下载合并）**：识别到 `.mpd` 后用标准库解析 MPD（`urn:mpeg:dash` 命名空间），支持多级 BaseURL 相对补全、`SegmentTemplate`（`$Number$`/`$Number%05d$`/`$Time$`/`$RepresentationID$`）、`SegmentTimeline`（含 `S@r` 重复）、`SegmentList`；视频/音频各取最高带宽轨，fMP4 按 `[初始化段][媒体段…]` 二进制拼接。音视频同轨直接产出 `.mp4`（纯 Python）；音视频分离时分别落盘 `.video.mp4`/`.audio.m4a`，有 ffmpeg 则 `-c copy` 合流为最终 `.mp4`，无 ffmpeg 则保留两个文件。开关 `dash_enabled`（默认开）。暂不支持 ContentProtection 通用加密（CENC/CBCS）、SegmentBase(indexRange) 与多周期（Multi-Period，仅取首个 Period）；`type="dynamic"` 直播只下当前分片。
+- **外挂字幕与分片进度**：HLS Master 中的 `EXT-X-MEDIA TYPE=SUBTITLES` 字幕轨会随视频一并下载，把多个 WebVTT 分片合并为单个 `<片名>.<语言>.vtt`，并依据 `X-TIMESTAMP-MAP` 把各分片 cue 对齐到全局时间轴（字幕加密暂不支持，失败不影响主视频）。HLS/DASH 分片下载均带 tqdm 分片级进度条（未安装 tqdm 或 `show_progress=False` 时自动静默降级）。
 
 ## 📦 安装
 
@@ -117,7 +124,9 @@ universal_crawler/
 ├── parsers/                 # 解析器模块
 │   └── base_parser.py      # BS4/XPath/Regex三种解析器 + 工厂
 ├── downloaders/             # 下载器模块
-│   └── downloader.py       # 异步下载器（重试/断点续传/代理）
+│   ├── downloader.py       # 异步下载器（重试/断点续传/代理/m3u8·mpd分流）
+│   ├── hls_downloader.py   # HLS下载器（m3u8解析/分片并发/AES-128/字幕/合并ts·mp4）
+│   └── dash_downloader.py  # DASH下载器（MPD解析/选轨/fMP4拼接/ffmpeg音视频合流）
 ├── proxies/                 # 代理池模块
 │   └── proxy_pool.py       # 动态代理池（多策略轮换+健康检测）
 ├── decryptors/              # 逆向解密模块

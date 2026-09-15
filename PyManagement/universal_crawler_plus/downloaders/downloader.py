@@ -9,7 +9,6 @@ import hashlib
 import random
 from pathlib import Path
 from typing import Optional, Dict
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, RetryError
 
 import aiohttp
 import aiofiles
@@ -19,6 +18,8 @@ from core.config import get_config, ResourceType
 from core.models import DownloadResult, UrlItem
 from proxies.proxy_pool import ProxyPool
 from decryptors.decryptor import get_decrypt_chain
+from downloaders.hls_downloader import HLSDownloader
+from downloaders.dash_downloader import DASHDownloader
 from utils.url_utils import url_to_filename, get_resource_type
 from utils.logger import get_logger
 
@@ -30,13 +31,27 @@ class AsyncDownloader:
 
     def __init__(self):
         self.config = get_config()
-        self.proxy_pool = ProxyPool.get_instance() if self.config.enable_proxy else None
-        self.decrypt_chain = get_decrypt_chain() if self.config.enable_decrypt else None
+        # 始终持有代理池单例与解密责任链；是否启用以“运行时” config 开关为准，
+        # 修复“先构造下载器、之后才 load_proxies / 打开 decrypt 导致能力被永久关闭”的时序问题。
+        self.proxy_pool = ProxyPool.get_instance()
+        self.decrypt_chain = get_decrypt_chain()
         self._semaphore: Optional[asyncio.Semaphore] = None
         self._session: Optional[aiohttp.ClientSession] = None
         self._ua = UserAgent(fallback=self.config.user_agent)
-        self._downloaded_hashes: set = set()  # 用于文件级去重
+        self._downloaded_hashes: set = set()  # 真实内容 MD5 集合，用于内容级去重
         self._session_lock = asyncio.Lock()
+        # HLS 下载器：注入“原始字节抓取”回调，复用本下载器的会话/代理/UA
+        self.hls_downloader = HLSDownloader(
+            self.config,
+            self.fetch_raw,
+            output_dir_getter=lambda: self.config.output_dir / ResourceType.VIDEO.value,
+        )
+        # DASH 下载器：同样注入原始字节抓取回调
+        self.dash_downloader = DASHDownloader(
+            self.config,
+            self.fetch_raw,
+            output_dir_getter=lambda: self.config.output_dir / ResourceType.VIDEO.value,
+        )
 
     async def init_session(self):
         """初始化HTTP会话"""
@@ -161,12 +176,26 @@ class AsyncDownloader:
                         result.error = f"文件大小 {total_size} 超过限制 {self.config.max_file_size}"
                         return result
 
-                # 流式写入文件
+                # 流式写入文件，同时增量计算真实内容 MD5（大视频也不会整文件读入内存）
                 downloaded = existing_size
+                content_hasher = hashlib.md5()
+                if resume and mode == "ab" and existing_size > 0:
+                    # 断点续传：先把已落盘部分纳入哈希，保证整文件哈希一致
+                    try:
+                        async with aiofiles.open(save_path, "rb") as old:
+                            while True:
+                                seg = await old.read(65536)
+                                if not seg:
+                                    break
+                                content_hasher.update(seg)
+                    except Exception:
+                        content_hasher = hashlib.md5()
+
                 async with aiofiles.open(save_path, mode) as f:
-                    async for chunk in resp.content.iter_chunked(8192):
+                    async for chunk in resp.content.iter_chunked(self.config.download_chunk_size):
                         if chunk:
                             await f.write(chunk)
+                            content_hasher.update(chunk)
                             downloaded += len(chunk)
 
                 # 下载后解密处理
@@ -183,10 +212,15 @@ class AsyncDownloader:
                 result.content_length = downloaded
                 result.success = True
 
-                # 记录hash用于去重
+                # 记录真实内容 hash，用于内容级去重统计
+                content_hash = content_hasher.hexdigest()
+                item.content_hash = content_hash
+                result.content_hash = content_hash
+                result.headers["content-hash"] = content_hash
                 if self.config.deduplicate:
-                    content_hash = hashlib.md5(str(downloaded).encode() + url.encode()).hexdigest()
-                    result.headers["content-hash"] = content_hash
+                    if content_hash in self._downloaded_hashes:
+                        # 不同 URL 但内容完全相同（如占位图/重复资源）
+                        result.headers["duplicate-content"] = "1"
                     self._downloaded_hashes.add(content_hash)
 
                 if self.proxy_pool and proxy:
@@ -235,6 +269,14 @@ class AsyncDownloader:
         """
         await self.init_session()
 
+        # HLS 清单分流：m3u8 不按普通文件保存，改为下载分片并合并成片；
+        # 放在主信号量之外，避免一个 HLS 任务长期占用主并发槽位。
+        if self.config.hls_enabled and self._is_m3u8_url(item.url):
+            return await self._download_hls(item, progress_callback)
+        # DASH 清单分流：同样放在主信号量之外
+        if getattr(self.config, "dash_enabled", True) and self._is_mpd_url(item.url):
+            return await self._download_dash(item, progress_callback)
+
         async with self._semaphore:
             # 确定资源类型和保存路径
             if item.resource_type is None or item.resource_type == ResourceType.HTML:
@@ -255,10 +297,7 @@ class AsyncDownloader:
                     await progress_callback(result)
                 return result
 
-            # 获取代理
-            proxy = await self._get_proxy()
-
-            # 重试逻辑
+            # 重试逻辑：每次尝试都重新选取代理（某个代理失败可自动换一个）
             last_result = None
             for attempt in range(self.config.max_retries + 1):
                 if attempt > 0:
@@ -268,6 +307,7 @@ class AsyncDownloader:
                     await asyncio.sleep(delay)
                     item.retries = attempt
 
+                proxy = await self._get_proxy()
                 last_result = await self._download_chunked(
                     url=item.url,
                     save_path=save_path,
@@ -279,8 +319,9 @@ class AsyncDownloader:
                 if last_result.success:
                     break
 
-                # 对于4xx错误不重试
-                if 400 <= last_result.status_code < 500 and last_result.status_code != 429:
+                # 4xx（除配置为可重试的状态，如 429）不重试；5xx 继续退避重试
+                sc = last_result.status_code
+                if sc and 400 <= sc < 500 and sc not in self.config.retry_on_status:
                     break
 
             if not last_result.success:
@@ -290,6 +331,83 @@ class AsyncDownloader:
                 await progress_callback(last_result)
 
             return last_result
+
+    @staticmethod
+    def _is_m3u8_url(url: str) -> bool:
+        """判断 URL 是否为 HLS 清单（忽略 query/fragment）"""
+        from urllib.parse import urlparse
+        return urlparse(url).path.lower().endswith(".m3u8")
+
+    @staticmethod
+    def _is_mpd_url(url: str) -> bool:
+        """判断 URL 是否为 DASH 清单（忽略 query/fragment）"""
+        from urllib.parse import urlparse
+        return urlparse(url).path.lower().endswith(".mpd")
+
+    async def fetch_raw(self, url: str, referer: str = "") -> Optional[bytes]:
+        """
+        供 HLS 抓取清单/密钥/分片使用：复用会话、UA、代理与解密，
+        但不占用主下载信号量（HLS 内部有独立的分片并发控制），单次尝试、重试交给调用方。
+        """
+        await self.init_session()
+        headers = self._get_headers()
+        if referer:
+            headers["Referer"] = referer
+        proxy = await self._get_proxy()
+        try:
+            async with self._session.get(
+                url, headers=headers, proxy=proxy,
+                timeout=aiohttp.ClientTimeout(total=self.config.timeout),
+                allow_redirects=True,
+            ) as resp:
+                if resp.status != 200:
+                    logger.debug(f"fetch_raw HTTP {resp.status} [{url}]")
+                    return None
+                data = await resp.read()
+                if self.decrypt_chain and self.config.enable_decrypt:
+                    data = self.decrypt_chain.decrypt(data, dict(resp.headers))
+                return data
+        except Exception as e:
+            logger.debug(f"fetch_raw 异常 [{url}]: {e}")
+            return None
+
+    async def _download_hls(self, item: UrlItem, progress_callback=None) -> DownloadResult:
+        """m3u8 走 HLS 下载器：下分片并合并成片"""
+        stem = Path(url_to_filename(item.url)).stem  # 与普通文件命名保持一致，去掉 .m3u8
+        hls_res = await self.hls_downloader.download(item.url, stem)
+        result = DownloadResult(
+            url=item.url,
+            success=hls_res.success,
+            local_path=hls_res.local_path,
+            content_length=hls_res.total_bytes,
+            content_type="video/mp4" if hls_res.used_ffmpeg else "video/mp2t",
+            error=hls_res.error,
+        )
+        item.resource_type = ResourceType.VIDEO
+        if hls_res.local_path:
+            item.local_path = hls_res.local_path
+        if progress_callback:
+            await progress_callback(result)
+        return result
+
+    async def _download_dash(self, item: UrlItem, progress_callback=None) -> DownloadResult:
+        """mpd 走 DASH 下载器：解析清单、下分片并拼接/合流成片"""
+        stem = Path(url_to_filename(item.url)).stem  # 去掉 .mpd
+        dash_res = await self.dash_downloader.download(item.url, stem)
+        result = DownloadResult(
+            url=item.url,
+            success=dash_res.success,
+            local_path=dash_res.local_path,
+            content_length=0,
+            content_type="video/mp4",
+            error=dash_res.error,
+        )
+        item.resource_type = ResourceType.VIDEO
+        if dash_res.local_path:
+            item.local_path = dash_res.local_path
+        if progress_callback:
+            await progress_callback(result)
+        return result
 
     async def download_content_only(self, url: str, referer: str = "") -> Optional[bytes]:
         """仅下载内容到内存，不保存文件（用于解析）"""

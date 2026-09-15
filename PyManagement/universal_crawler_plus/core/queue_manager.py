@@ -5,12 +5,17 @@ URL队列管理器
 2. STREAM_QUEUE: 边解析边发现URL边加入队列下载（流式爬取，适合无限深度的站点）
 支持断点续爬、去重、优先级排序
 设计模式：生产者-消费者模式 + 观察者模式 + 状态模式
+
+结束判定（重要）：
+在本框架里 worker 同时是消费者和生产者（解析 HTML 后回流新 URL）。
+因此 stream 模式的可靠结束条件是「队列已空 且 在途任务数(_inflight)为 0」——
+此刻不存在任何还能产出新 URL 的任务，必然全局结束。取出任务与 _inflight+1
+在同一把锁内原子完成，避免“刚取走最后一个任务但在途计数尚未自增”被误判为结束。
 """
 import asyncio
 import json
 from pathlib import Path
 from typing import Optional, Set, Dict, AsyncIterator, List
-from collections import deque
 from datetime import datetime
 
 from core.config import get_config, FetchMode
@@ -27,29 +32,44 @@ class QueueManager:
     def __init__(self):
         self.config = get_config()
         self._queue: Optional[asyncio.Queue] = None
-        self._seen_urls: Set[str] = set()          # 已发现URL集合（去重）
+        self._seen_urls: Set[str] = set()          # 已入队/已完成URL集合（去重）
         self._completed_urls: Set[str] = set()     # 已完成URL集合
         self._failed_urls: Dict[str, int] = {}     # 失败URL及重试次数
         self._lock = asyncio.Lock()
+        self._state_lock = asyncio.Lock()          # 持久化断点文件的专用锁（可重入保护）
         self._total_discovered = 0
-        self._state_path = self.config.output_dir / self.config.state_file
+        self._inflight = 0                          # 已取出但尚未完成的任务数
+        self._started = False                       # 是否已经有任务入队过
+        self._no_more_input = False                 # 外部声明不会再有新输入（可选，立即收敛用）
         self._finished_event = asyncio.Event()
-        self._producer_done = False
-        self._active_tasks = 0
+        self._wakeup = asyncio.Event()             # 唤醒等待取任务的 worker
+        self._poll_interval = 0.1
+
+    @property
+    def _state_path(self) -> Path:
+        # 动态读取，set_output_dir 改变输出目录后依然指向正确位置
+        return self.config.output_dir / self.config.state_file
 
     async def init(self):
         """初始化队列"""
         if self._queue is None:
-            if self.config.fetch_mode == FetchMode.MEMORY_QUEUE:
-                # 内存队列模式：较大的队列容量
-                self._queue = asyncio.Queue(maxsize=0)
-            else:
-                # 流式模式：有界队列防止内存溢出
-                self._queue = asyncio.Queue(maxsize=self.config.max_concurrent * 3)
+            # 两种模式统一使用无界队列。stream 模式下 worker 同时是生产者和消费者，
+            # 若用有界队列，当队列被填满、所有 worker 又都阻塞在 put 时，会形成
+            # “无人消费”的经典自锁。队列里只存放轻量 UrlItem（响应体流式落盘、不进队列），
+            # 真正的并发与内存占用由下载信号量(max_concurrent)控制，故无界不会导致内存失控。
+            self._queue = asyncio.Queue(maxsize=0)
             logger.info(f"队列初始化完成，模式: {self.config.fetch_mode.value}")
             # 加载断点状态
             if self.config.enable_resume:
                 await self.load_state()
+
+    def _is_all_drained_locked(self) -> bool:
+        """持锁判断：是否已彻底排空（队列空、无在途、且确实开始过）"""
+        return (
+            self._started
+            and self._queue.empty()
+            and self._inflight == 0
+        )
 
     async def add_url(self, url: str, depth: int = 0, referer: str = "", force: bool = False) -> bool:
         """
@@ -75,11 +95,15 @@ class QueueManager:
                 return False
             self._seen_urls.add(url)
             self._total_discovered += 1
+            self._started = True
+            self._finished_event.clear()  # 有新任务，撤销可能已触发的结束信号
 
         item = UrlItem(url=url, depth=depth, referer=referer)
         item.status = TaskStatus.QUEUED
 
+        # put 放在锁外（无界队列不会阻塞；即便将来改回有界，也避免持锁等待）
         await self._queue.put(item)
+        self._wakeup.set()
         logger.debug(f"URL入队: {url} (深度={depth}, 队列长度={self._queue.qsize()})")
         return True
 
@@ -92,51 +116,72 @@ class QueueManager:
         return count
 
     async def get_next(self) -> Optional[UrlItem]:
-        """获取下一个任务（消费者使用）"""
+        """获取下一个任务（消费者使用）；无任务且确定结束时返回 None"""
         try:
-            if self.config.fetch_mode == FetchMode.STREAM_QUEUE:
-                # 流式模式：等待直到队列有元素或全部完成
-                while True:
+            while True:
+                item = None
+                async with self._lock:
                     if not self._queue.empty():
+                        # 取出与在途计数自增在同一锁内原子完成，消除收尾竞态
                         item = self._queue.get_nowait()
-                        break
-                    if self._producer_done and self._queue.empty() and self._active_tasks == 0:
-                        return None
-                    await asyncio.sleep(0.2)
-            else:
-                # 内存队列模式：阻塞获取
-                item = await self._queue.get()
+                        self._inflight += 1
+                    elif self._is_all_drained_locked() or self._no_more_input:
+                        # 队列空且无在途（或外部已声明不再有输入且队列空）→ 结束
+                        if self._queue.empty() and self._inflight == 0:
+                            self._finished_event.set()
+                            return None
 
-            self._active_tasks += 1
-            item.status = TaskStatus.DOWNLOADING
-            return item
+                if item is not None:
+                    item.status = TaskStatus.DOWNLOADING
+                    return item
+
+                # 队列为空，等待新任务回流的唤醒信号（带兜底超时防丢醒）
+                if self.config.fetch_mode == FetchMode.MEMORY_QUEUE:
+                    # 内存模式：阻塞等待，被 put 唤醒
+                    item = await self._queue.get()
+                    async with self._lock:
+                        self._inflight += 1
+                    item.status = TaskStatus.DOWNLOADING
+                    return item
+
+                try:
+                    await asyncio.wait_for(self._wakeup.wait(), timeout=self._poll_interval)
+                except asyncio.TimeoutError:
+                    pass
+                self._wakeup.clear()
         except Exception as e:
             logger.debug(f"获取队列任务异常: {e}")
             return None
 
+    async def _finish_one(self, item: UrlItem, ok: bool, error: str = ""):
+        """任务收尾的统一逻辑：更新在途/完成集合，判断是否全局结束"""
+        async with self._lock:
+            if ok:
+                self._completed_urls.add(item.url)
+            else:
+                self._failed_urls[item.url] = item.retries
+            self._inflight = max(0, self._inflight - 1)
+            drained = self._is_all_drained_locked()
+        # task_done 与 get 配对（内存模式 join 依赖），放锁外
+        self._queue.task_done()
+        self._wakeup.set()
+        # stream 模式：彻底排空则通知 wait_finished
+        if drained and self.config.fetch_mode == FetchMode.STREAM_QUEUE:
+            self._finished_event.set()
+
     async def mark_completed(self, item: UrlItem):
         """标记任务完成"""
-        async with self._lock:
-            self._completed_urls.add(item.url)
-            self._active_tasks = max(0, self._active_tasks - 1)
-        self._queue.task_done()
-
-        # 检查是否所有任务完成
-        if self.config.fetch_mode == FetchMode.STREAM_QUEUE:
-            if self._producer_done and self._queue.empty() and self._active_tasks == 0:
-                self._finished_event.set()
+        await self._finish_one(item, ok=True)
 
     async def mark_failed(self, item: UrlItem, error: str = ""):
         """标记任务失败"""
-        async with self._lock:
-            self._failed_urls[item.url] = item.retries
-            self._active_tasks = max(0, self._active_tasks - 1)
-        self._queue.task_done()
+        await self._finish_one(item, ok=False, error=error)
 
     def mark_producer_done(self):
-        """标记生产者已完成（流式模式使用）"""
-        self._producer_done = True
-        logger.debug("生产者已标记完成")
+        """声明外部不再生产新 URL（流式模式可选；达到页数上限时使用）"""
+        self._no_more_input = True
+        self._wakeup.set()
+        logger.debug("已标记不再有新输入")
 
     async def wait_finished(self):
         """等待所有任务完成"""
@@ -149,6 +194,10 @@ class QueueManager:
     @property
     def qsize(self) -> int:
         return self._queue.qsize() if self._queue else 0
+
+    @property
+    def inflight_count(self) -> int:
+        return self._inflight
 
     @property
     def seen_count(self) -> int:
@@ -180,8 +229,10 @@ class QueueManager:
                 "domain": self.config.domain,
             }
         }
+        # 注意：断点只持久化“已完成集合”，待办 frontier 不持久化；
+        # 恢复时以 completed 作为去重集，未完成 URL 会被重新发现并入队。
         try:
-            async with asyncio.Lock():
+            async with self._state_lock:
                 with open(self._state_path, "w", encoding="utf-8") as f:
                     json.dump(state, f, indent=2, ensure_ascii=False)
             logger.debug(f"断点状态已保存到: {self._state_path}")
@@ -204,29 +255,35 @@ class QueueManager:
                 logger.warning("断点配置与当前配置不匹配，将忽略断点从头开始")
                 return
 
-            self._seen_urls = set(state.get("seen_urls", []))
-            self._completed_urls = set(state.get("completed_urls", []))
+            completed = set(state.get("completed_urls", []))
+            # 用“已完成集合”初始化去重集：已完成的不再入队，
+            # 仅发现过但未完成的 URL 允许重新入队，避免任务丢失。
+            self._seen_urls = set(completed)
+            self._completed_urls = set(completed)
             self._failed_urls = state.get("failed_urls", {})
             self._total_discovered = state.get("total_discovered", 0)
-            logger.info(f"加载断点状态成功：已发现 {self._total_discovered} 个URL，已完成 {len(self._completed_urls)} 个")
+            logger.info(f"加载断点状态成功：历史发现 {self._total_discovered} 个URL，已完成 {len(self._completed_urls)} 个（未完成将重试）")
         except Exception as e:
             logger.warning(f"加载断点状态失败: {e}，将从头开始")
 
     async def reset(self):
         """重置队列"""
-        while not self._queue.empty():
-            try:
-                self._queue.get_nowait()
-                self._queue.task_done()
-            except Exception:
-                break
+        if self._queue is not None:
+            while not self._queue.empty():
+                try:
+                    self._queue.get_nowait()
+                    self._queue.task_done()
+                except Exception:
+                    break
         self._seen_urls.clear()
         self._completed_urls.clear()
         self._failed_urls.clear()
         self._total_discovered = 0
-        self._producer_done = False
-        self._active_tasks = 0
+        self._inflight = 0
+        self._started = False
+        self._no_more_input = False
         self._finished_event.clear()
+        self._wakeup.clear()
         # 删除状态文件
         if self._state_path.exists():
             self._state_path.unlink()

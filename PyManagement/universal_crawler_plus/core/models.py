@@ -1,6 +1,6 @@
 """
 核心数据模型
-使用 Pydantic 定义各模块之间传递的数据结构
+使用 dataclass 定义各模块之间传递的数据结构
 """
 from datetime import datetime
 from typing import Optional, Dict, Any, List
@@ -58,6 +58,7 @@ class DownloadResult:
     content: Optional[bytes] = None
     content_type: str = ""
     content_length: int = 0
+    content_hash: str = ""     # 下载内容的真实 MD5
     from_resume: bool = False  # 是否来自断点续传
     error: Optional[str] = None
     headers: Dict[str, str] = field(default_factory=dict)

@@ -70,13 +70,15 @@ class ProgressManager:
             elif status == TaskStatus.SKIPPED:
                 self.stats.skipped += 1
 
-            # 限流更新，避免频繁刷新
+            # 每个完成事件都推进进度条，保证进度计数 n 与实际完成数一致（不丢计数）
+            if self._pbar is not None:
+                self._pbar.update(1)
+
+            # 仅对右侧统计文本刷新做节流，避免频繁重绘
             now = time.time()
             if now - self._last_update > self._update_interval:
                 self._update_postfix()
                 self._last_update = now
-                if self._pbar is not None:
-                    self._pbar.update(1)
 
     def update_total(self, new_total: int):
         """更新总数量"""
@@ -108,6 +110,7 @@ class ProgressManager:
     def close(self):
         """关闭进度条"""
         self.stats.end_time = __import__('datetime').datetime.now()
+        self._update_postfix()  # 收尾时刷新一次，保证最终统计准确
         if self._pbar is not None:
             self._pbar.close()
             self._pbar = None

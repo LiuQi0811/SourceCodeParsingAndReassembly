@@ -48,6 +48,11 @@ EXTENSION_MAP = {
     '.bmp': ResourceType.IMAGE, '.ico': ResourceType.IMAGE, '.tiff': ResourceType.IMAGE,
     '.mp4': ResourceType.VIDEO, '.webm': ResourceType.VIDEO, '.avi': ResourceType.VIDEO,
     '.mov': ResourceType.VIDEO, '.mkv': ResourceType.VIDEO, '.flv': ResourceType.VIDEO,
+    '.m4v': ResourceType.VIDEO, '.wmv': ResourceType.VIDEO, '.mpg': ResourceType.VIDEO,
+    '.mpeg': ResourceType.VIDEO, '.3gp': ResourceType.VIDEO,
+    # HLS / DASH 流媒体（直链分片或清单，按视频类资源归档）
+    '.m3u8': ResourceType.VIDEO, '.ts': ResourceType.VIDEO, '.m4s': ResourceType.VIDEO,
+    '.mpd': ResourceType.VIDEO,
     '.mp3': ResourceType.AUDIO, '.wav': ResourceType.AUDIO, '.ogg': ResourceType.AUDIO,
     '.flac': ResourceType.AUDIO, '.aac': ResourceType.AUDIO, '.m4a': ResourceType.AUDIO,
     '.woff': ResourceType.FONT, '.woff2': ResourceType.FONT, '.ttf': ResourceType.FONT,
@@ -76,6 +81,7 @@ class CrawlerConfig:
     max_connections: int = 50           # 连接器最大连接数
     request_delay: float = 0.5          # 请求间隔秒数（随机浮动0~delay）
     timeout: int = 30                   # 请求超时秒数
+    download_chunk_size: int = 64 * 1024  # 流式下载分块大小（字节），大视频用更大块以提升吞吐
 
     # ---------- 重试机制 ----------
     max_retries: int = 3                # 最大重试次数
@@ -113,6 +119,16 @@ class CrawlerConfig:
     enable_decrypt: bool = False
     decrypt_handlers: Dict[str, Any] = field(default_factory=dict)
 
+    # ---------- HLS(m3u8) 流媒体 ----------
+    hls_enabled: bool = True
+    # DASH(mpd) 流媒体下载开关；分片并发/重试/上限复用上面的 hls_segment_* 配置
+    dash_enabled: bool = True             # 识别到 .m3u8 是否自动下载分片并合并成片
+    hls_segment_concurrency: int = 8     # 单个 m3u8 内部分片下载并发数
+    hls_segment_retries: int = 3         # 单个分片失败重试次数
+    hls_max_segments: int = -1           # 最多合并的分片数，-1 表示不限（防止超大直播流失控）
+    hls_merge_format: str = "auto"       # auto=有ffmpeg则转mp4否则保留ts / ts=强制ts / mp4=尽力转mp4
+    hls_prefer_variant: str = "highest"  # master 清单选变体：highest=最高码率 / lowest=最低码率
+
     # ---------- 请求头 ----------
     headers: Dict[str, str] = field(default_factory=dict)
     cookies: Dict[str, str] = field(default_factory=dict)
@@ -135,7 +151,11 @@ class CrawlerConfig:
             }
         self.output_dir = Path(self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        # 确保各资源类型子目录存在
+        # 各资源类型子目录改为下载时按需创建（见 downloader._get_local_path），
+        # 避免空跑也生成全部空目录。
+
+    def ensure_resource_dirs(self):
+        """显式创建全部资源类型子目录（可选调用）"""
         for rt in ResourceType:
             (self.output_dir / rt.value).mkdir(parents=True, exist_ok=True)
 
