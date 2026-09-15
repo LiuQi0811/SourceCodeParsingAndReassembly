@@ -518,8 +518,8 @@ class ResourceSaveObserver(Observer):
             return
         res = await self.hls.download(item.url, dest, referer=item.referer,
                                       max_segments=self.hls_segment_limit)
-        if res.error:
-            print(f"[video-fail] {item.url} -> {res.error}")
+        if res.error or res.segments == 0:
+            print(f"[video-fail] {item.url} -> {res.error or 'empty segments'}")
             return
         self.saved += 1
         print(f"[video-saved] {dest}  {res.variant or ''} "

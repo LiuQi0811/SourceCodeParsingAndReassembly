@@ -151,7 +151,8 @@ class HLSClient:
             return HLSResult(path=dest, segments=len(segments),
                              bytes=total, duration=duration, variant=variant)
         except Exception as exc:
-            return HLSResult(error=str(exc))
+            # str(TimeoutError()) 为空串, 不能当作成功
+            return HLSResult(error=str(exc) or type(exc).__name__)
 
     # ---------- 顺序写入(有界并发) ----------
     async def _write_segments(self, f, segments: list[dict],
