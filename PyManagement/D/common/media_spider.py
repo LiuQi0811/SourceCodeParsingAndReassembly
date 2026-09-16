@@ -148,9 +148,10 @@ class BaseFetcher(ABC):
 
 
 class RequestsFetcher(BaseFetcher):
-    def __init__(self, headers: Dict, timeout: int):
+    def __init__(self, headers: Dict, timeout: int, proxy: Optional[str] = None):
         self.headers = headers
         self.timeout = timeout
+        self.proxy = proxy
 
     @async_retry(max_retries=2, delay=1.2)
     async def fetch(self, url: str) -> Optional[str]:
@@ -158,6 +159,7 @@ class RequestsFetcher(BaseFetcher):
             async with session.get(
                 url,
                 headers=self.headers,
+                proxy=self.proxy or None,
                 timeout=aiohttp.ClientTimeout(total=self.timeout),
                 allow_redirects=True
             ) as resp:
@@ -170,11 +172,23 @@ class RequestsFetcher(BaseFetcher):
 
 class PlaywrightFetcher(BaseFetcher):
     """纯异步playwright，返回page对象，支持网络抓媒体请求"""
-    def __init__(self, headers: Dict, timeout: int, browser: Browser, net_media_set: Set[str]):
+    def __init__(
+        self,
+        headers: Dict,
+        timeout: int,
+        browser: Browser,
+        net_media_set: Set[str],
+        proxy: Optional[str] = None,
+        cookies: Optional[str] = None,
+        referer: Optional[str] = None,
+    ):
         self.ua = headers.get("User-Agent", "")
         self.timeout = timeout
         self.browser = browser
         self._net_media_set = net_media_set  # 外部传入集合，收集网络捕获媒体
+        self.proxy = proxy
+        self.cookie_str = cookies or ""
+        self.referer = referer
 
     async def fetch(self, url: str) -> Optional[str]:
         raise NotImplementedError("请使用 fetch_with_page 替代 fetch")
@@ -183,7 +197,23 @@ class PlaywrightFetcher(BaseFetcher):
     async def fetch_with_page(self, url: str) -> Optional[Page]:
         page: Optional[Page] = None
         try:
-            page = await self.browser.new_page(user_agent=self.ua)
+            page_args = {"user_agent": self.ua}
+            if self.proxy:
+                page_args["proxy"] = {"server": self.proxy}
+            page = await self.browser.new_page(**page_args)
+
+            # 注入 Cookie 与防盗链 Referer（登录态/来源站场景）
+            if self.cookie_str:
+                cookies = []
+                for part in self.cookie_str.split(";"):
+                    part = part.strip()
+                    if "=" in part:
+                        k, v = part.split("=", maxsplit=1)
+                        cookies.append({"name": k.strip(), "value": v.strip(), "url": url})
+                if cookies:
+                    await page.context.add_cookies(cookies)
+            if self.referer:
+                page.set_default_http_headers({"Referer": self.referer})
 
             # 注册网络响应监听，捕获媒体资源（图片/视频/音频/文档）
             def on_response(resp: Response):
@@ -235,12 +265,20 @@ class UrlManager:
 # ------------------------------
 class FetcherFactory:
     @staticmethod
-    def get_static_fetcher(headers: Dict, timeout: int) -> RequestsFetcher:
-        return RequestsFetcher(headers, timeout)
+    def get_static_fetcher(headers: Dict, timeout: int, proxy: Optional[str] = None) -> RequestsFetcher:
+        return RequestsFetcher(headers, timeout, proxy)
 
     @staticmethod
-    def get_dynamic_fetcher(headers: Dict, timeout: int, browser: Browser, net_video_set: Set[str]) -> PlaywrightFetcher:
-        return PlaywrightFetcher(headers, timeout, browser, net_video_set)
+    def get_dynamic_fetcher(
+        headers: Dict,
+        timeout: int,
+        browser: Browser,
+        net_video_set: Set[str],
+        proxy: Optional[str] = None,
+        cookies: Optional[str] = None,
+        referer: Optional[str] = None,
+    ) -> PlaywrightFetcher:
+        return PlaywrightFetcher(headers, timeout, browser, net_video_set, proxy, cookies, referer)
 
 
 # ------------------------------
@@ -360,7 +398,10 @@ class MediaDownloader:
         ffmpeg_bin: str = "ffmpeg",
         use_ffmpeg: bool = True,
         m3u8_timeout: int = 600,
-        referer: Optional[str] = None
+        referer: Optional[str] = None,
+        proxy: Optional[str] = None,
+        rate_limit: int = 0,
+        min_resource_size: int = 0,
     ):
         self.headers = headers
         if referer:
@@ -372,6 +413,11 @@ class MediaDownloader:
         self.ffmpeg_bin = ffmpeg_bin
         self.use_ffmpeg = use_ffmpeg
         self.m3u8_timeout = m3u8_timeout
+        self.proxy = proxy            # 下载代理
+        self.rate_limit = rate_limit  # 单下载限速 bytes/s，0=不限
+        self.min_resource_size = min_resource_size  # 最小资源字节，0=不限制
+        # ffmpeg -headers 参数（把 UA/Referer/Cookie 带给 m3u8 分片请求，防盗链）
+        self.ffmpeg_headers = "".join(f"{k}: {v}\r\n" for k, v in self.headers.items())
         self.stats = {"success": 0, "skipped": 0, "failed": 0}
         self.failed_urls: List[str] = []
 
@@ -384,6 +430,9 @@ class MediaDownloader:
             ext = os.path.splitext(path)[1]
             name = hashlib.md5(url.encode("utf-8")).hexdigest()[:12] + ext
         name = re.sub(r'[\\/:*?"<>|\s]+', "_", name)
+        if len(name) > 180:  # 文件名超长时降级为 hash 命名，避免路径过长
+            ext = os.path.splitext(name)[1]
+            name = hashlib.md5(url.encode("utf-8")).hexdigest()[:12] + ext
         return os.path.join(dir_path, name)
 
     @async_retry(max_retries=2, delay=1.5)
@@ -397,16 +446,23 @@ class MediaDownloader:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(
                     url,
+                    proxy=self.proxy or None,
                     timeout=aiohttp.ClientTimeout(total=self.timeout)
                 ) as resp:
                     if resp.status >= 400:
                         raise Exception(f"HTTP {resp.status}")
                     total = int(resp.headers.get("Content-Length") or 0)
+                    if self.min_resource_size and total and total < self.min_resource_size:
+                        # 小于最小资源阈值：视为已处理跳过（不落盘）
+                        self.stats["skipped"] += 1
+                        return True
                     written = 0
                     with open(tmp, "wb") as f:
                         async for chunk in resp.content.iter_chunked(65536):
                             f.write(chunk)
                             written += len(chunk)
+                            if self.rate_limit > 0:  # 限速：按已写字节数计算休眠
+                                await asyncio.sleep(len(chunk) / self.rate_limit)
                     if total and written != total:
                         raise Exception(f"长度不匹配 {written}/{total}")
             os.replace(tmp, dest)
@@ -431,7 +487,10 @@ class MediaDownloader:
         for extra in (["-bsf:a", "aac_adtstoasc"], []):
             if os.path.exists(tmp):
                 os.remove(tmp)
-            cmd = [self.ffmpeg_bin, "-y", "-i", url, "-c", "copy"] + extra + [tmp]
+            cmd = [self.ffmpeg_bin, "-y"]
+            if self.ffmpeg_headers:
+                cmd += ["-headers", self.ffmpeg_headers]  # 把 UA/Referer/Cookie 带给分片请求
+            cmd += ["-i", url, "-c", "copy"] + extra + [tmp]
             proc = await asyncio.create_subprocess_exec(
                 *cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             try:
@@ -500,7 +559,12 @@ class AsyncUniversalSpider:
         extra_pagination_patterns: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
-        download_mode: str = "after"
+        download_mode: str = "after",
+        proxy: Optional[str] = None,
+        cookies: Optional[str] = None,
+        whitelist_domains: Optional[List[str]] = None,
+        download_rate_limit: int = 0,
+        min_resource_size: int = 0,
     ):
         if download_mode not in ("after", "live"):
             raise ValueError(f"download_mode 仅支持 'after'(采集完再下载) / 'live'(边采集边下载)，收到: {download_mode!r}")
@@ -529,12 +593,19 @@ class AsyncUniversalSpider:
         self.download_mode = download_mode  # "after" 采集完再下载 / "live" 边采集边下载
         self.dl_queue: asyncio.Queue = asyncio.Queue()  # 边采集边下载模式下的下载队列
         self.downloaded: Set[str] = set()  # 已投递下载队列的 URL（去重）
+        self.proxy = proxy            # 全链路代理（抓取/浏览器/下载）
+        self.cookies = cookies        # Cookie 字符串 "k1=v1; k2=v2"（抓取/浏览器/下载）
+        self.whitelist_domains = [d.lower() for d in (whitelist_domains or [])]  # 媒体/跨域链接域名白名单
+        self.download_rate_limit = download_rate_limit  # 单下载限速 bytes/s
+        self.min_resource_size = min_resource_size      # 最小资源字节
 
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Accept-Language": "zh-CN,zh;q=0.9",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
         }
+        if self.cookies:
+            self.headers["Cookie"] = self.cookies  # 登录态/防盗链 Cookie
 
         self.url_manager = UrlManager(self.base_domain)
         self.fail_manager = FailUrlManager(self.fail_file)
@@ -552,11 +623,17 @@ class AsyncUniversalSpider:
 
     async def init_browser(self):
         # 静态抓取器始终可用；仅当启用动态兜底时才启动 playwright 浏览器
-        self.fetcher_static = FetcherFactory.get_static_fetcher(self.headers, self.timeout)
+        self.fetcher_static = FetcherFactory.get_static_fetcher(self.headers, self.timeout, self.proxy)
         if self.use_dynamic_fallback:
+            launch_args = {"headless": True}
+            if self.proxy:
+                launch_args["proxy"] = {"server": self.proxy}
             self.pw_context = await async_playwright().start()
-            self.browser = await self.pw_context.chromium.launch(headless=True)
-            self.fetcher_dynamic = FetcherFactory.get_dynamic_fetcher(self.headers, self.timeout, self.browser, self.net_capture_media)
+            self.browser = await self.pw_context.chromium.launch(**launch_args)
+            self.fetcher_dynamic = FetcherFactory.get_dynamic_fetcher(
+                self.headers, self.timeout, self.browser, self.net_capture_media,
+                self.proxy, self.cookies, self.referer,
+            )
         if self.enable_download:
             dl_conc = self.download_concurrency if self.download_concurrency else self.concurrency
             self.downloader = MediaDownloader(
@@ -567,6 +644,9 @@ class AsyncUniversalSpider:
                 ffmpeg_bin=self.ffmpeg_bin,
                 use_ffmpeg=self.use_ffmpeg,
                 referer=self.referer,
+                proxy=self.proxy,
+                rate_limit=self.download_rate_limit,
+                min_resource_size=self.min_resource_size,
             )
 
     async def close_browser(self):
@@ -601,6 +681,19 @@ class AsyncUniversalSpider:
         if any(path.startswith(p) for p in self.exclude_paths):
             return False
         return True
+
+    def _media_allowed(self, url: str) -> bool:
+        """域名白名单：whitelist_domains 为空放行；否则 host（或含端口的 netloc）须命中任一白名单。
+        子串匹配，兼容 "file.ertuba.com" 与 "127.0.0.1:18088" 两种写法。
+        用于媒体资源过滤（如只保留图床域名、剔除站内 logo）与跨域链接跟随"""
+        if not self.whitelist_domains:
+            return True
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        netloc = (parsed.netloc or "").lower()
+        if not (host or netloc):
+            return False
+        return any(w in host or w in netloc for w in self.whitelist_domains)
 
     async def worker(self):
         while True:
@@ -643,6 +736,10 @@ class AsyncUniversalSpider:
                     self.fail_manager.record_fail(url, "static+dynamic all failed")
                     continue
 
+                # 域名白名单过滤（如只保留图床域名、剔除站内 logo），过滤后计数
+                if self.whitelist_domains:
+                    for cat in media:
+                        media[cat] = {u for u in media[cat] if self._media_allowed(u)}
                 media_count = sum(len(v) for v in media.values())
                 for cat in media:
                     self.all_media[cat].update(media[cat])
@@ -663,8 +760,9 @@ class AsyncUniversalSpider:
                         continue  # 媒体资源只收集不当作页面继续爬
                     if not self._path_allowed(norm_link):
                         continue  # 路径白名单/黑名单过滤，聚焦目标栏目
-                    if not (self.url_manager.is_same_domain(norm_link)
-                            and not self.url_manager.is_visited(norm_link)):
+                    same_or_white = (self.url_manager.is_same_domain(norm_link)
+                                     or self._media_allowed(norm_link))
+                    if not (same_or_white and not self.url_manager.is_visited(norm_link)):
                         continue
                     if is_pagination_url(norm_link, self.extra_pagination_patterns):
                         if self.max_pages is not None and self.pagination_enqueued >= self.max_pages:
