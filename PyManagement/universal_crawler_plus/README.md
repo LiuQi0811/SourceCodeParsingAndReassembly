@@ -39,6 +39,11 @@
 - **HLS（m3u8）流媒体（已支持自动下载合并）**：识别到 `.m3u8` 后自动解析清单——支持 Master 多码率（默认选最高码率，`hls_prefer_variant` 可切 lowest）、相对路径补全、分片有界并发下载与失败重试、`#EXT-X-KEY:METHOD=AES-128` 解密（显式 IV 或按媒体序列号推导 IV，仅末片去 PKCS7 填充），最终按序合并为可直接播放的 `.ts`（**纯 Python、无外部依赖**）；若系统装有 ffmpeg，会再用 `-c copy` 无损转封装为 `.mp4`。相关配置：`hls_segment_concurrency`（分片并发，默认8，DASH 也复用）、`hls_segment_retries`（单片重试）、`hls_max_segments`（分片上限防失控）、`hls_merge_format`（auto/ts/mp4）。暂不支持 SAMPLE-AES、EXT-X-BYTERANGE 与 `blob:` 地址；直播流（无 `#EXT-X-ENDLIST`）只下载当前清单内分片、不持续追流。
 - **DASH（mpd）流媒体（已支持自动下载合并）**：识别到 `.mpd` 后用标准库解析 MPD（`urn:mpeg:dash` 命名空间），支持多级 BaseURL 相对补全、`SegmentTemplate`（`$Number$`/`$Number%05d$`/`$Time$`/`$RepresentationID$`）、`SegmentTimeline`（含 `S@r` 重复）、`SegmentList`；视频/音频各取最高带宽轨，fMP4 按 `[初始化段][媒体段…]` 二进制拼接。音视频同轨直接产出 `.mp4`（纯 Python）；音视频分离时分别落盘 `.video.mp4`/`.audio.m4a`，有 ffmpeg 则 `-c copy` 合流为最终 `.mp4`，无 ffmpeg 则保留两个文件。开关 `dash_enabled`（默认开）。暂不支持 ContentProtection 通用加密（CENC/CBCS）、SegmentBase(indexRange) 与多周期（Multi-Period，仅取首个 Period）；`type="dynamic"` 直播只下当前分片。
 - **外挂字幕与分片进度**：HLS Master 中的 `EXT-X-MEDIA TYPE=SUBTITLES` 字幕轨会随视频一并下载，把多个 WebVTT 分片合并为单个 `<片名>.<语言>.vtt`，并依据 `X-TIMESTAMP-MAP` 把各分片 cue 对齐到全局时间轴（字幕加密暂不支持，失败不影响主视频）。HLS/DASH 分片下载均带 tqdm 分片级进度条（未安装 tqdm 或 `show_progress=False` 时自动静默降级）。
+- **H265 备用流去重（已支持）**：页面同时给出普通流与 H265 备用流（如 DPlayer 的 `url_h265`）时，默认只下普通流、跳过 H265（开关 `skip_h265_streams`，默认开）；若页面只有 H265 流则自动降级保留，避免什么都下不到。
+- **跨域 CDN 资源（已支持）**：视频清单、分片、密钥与图床通常部署在页面域名之外，默认 `allow_cross_domain_resources=True` 放行资源跨域下载（仅限资源，页面链接仍受 `stay_in_domain` 约束，防止爬虫漫游全网）。
+- **稳定命名（已支持）**：HLS/DASH 成片文件名忽略 `auth_key` 等时效签名参数（`utils.url_utils.stable_stem`），同一视频签名刷新后仍得到相同文件名，断点续传与去重才可靠；优先使用 URL 路径中的内容 hash/文件名，`index.m3u8` 等泛化名自动附加稳定短 hash 防冲突。
+- **并发与体积防护（已支持）**：`global_segment_concurrency`（默认16）作为**所有** m3u8/mpd 任务共享的分片在途上限，多个视频同时下载时不会叠加打爆连接（单任务内仍受 `hls_segment_concurrency` 限制）；`max_file_size` 现在同样约束流媒体成片——合并结果超过上限自动删除并终止任务（之前只约束普通文件）。
+- **签名参数保真（已修复）**：URL 规范化只解码 path，**query 原样保留**——`auth_key` 中的 `%26`/`%3D` 等不再被展开（展开会把参数拆开导致服务端验签 403）。
 
 ## 📦 安装
 
@@ -141,6 +146,15 @@ universal_crawler/
 │   ├── js/
 │   ├── image/
 │   └── ...
+├── tests/                    # 离线测试（纯标准库，python3 tests/test_*.py 直接跑）
+│   ├── test_queue.py        # 队列状态机/断点/跨域资源 20 项
+│   ├── test_hls.py          # HLS 解析/AES/合并/字幕 27 项
+│   ├── test_stream.py       # DASH/字幕/进度 36 项
+│   ├── test_naming.py       # 稳定命名（忽略 auth_key 签名）8 项
+│   ├── test_h265.py         # H265 备用流识别与去重 9 项
+│   ├── test_cross.py        # 跨域 CDN 资源放行 7 项
+│   ├── test_normalize.py    # URL 规范化（签名 query 保真）11 项
+│   └── test_guard.py        # 流媒体防护（max_file_size/全局分片并发）8 项
 ├── main.py                  # 主入口 + CLI
 ├── requirements.txt         # 依赖清单
 └── README.md               # 本文件

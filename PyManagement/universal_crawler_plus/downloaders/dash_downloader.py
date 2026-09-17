@@ -356,10 +356,12 @@ def select_tracks(tracks: List[DashTrack]) -> Tuple[Optional[DashTrack], Optiona
 # ----------------------------------------------------------------------------
 class DASHDownloader:
     def __init__(self, config, fetch_bytes: FetchBytes,
-                 output_dir_getter: Callable[[], Path] = None):
+                 output_dir_getter: Callable[[], Path] = None,
+                 global_segment_semaphore_getter: Callable[[], Optional[asyncio.Semaphore]] = None):
         self.config = config
         self.fetch_bytes = fetch_bytes
         self._output_dir_getter = output_dir_getter
+        self._global_sem_getter = global_segment_semaphore_getter
         self._segment_retries = getattr(config, "hls_segment_retries", 3)
         self._segment_concurrency = getattr(config, "hls_segment_concurrency", 8)
 
@@ -425,6 +427,18 @@ class DASHDownloader:
                 result.video_path = out
                 result.local_path = out
 
+            # max_file_size 约束：成片超过上限则删除产出文件并终止
+            if self.config.max_file_size > 0:
+                _cands = {result.local_path, result.video_path, result.audio_path}
+                _too_big = [f for f in _cands if f and f.exists()
+                            and f.stat().st_size > self.config.max_file_size]
+                if _too_big:
+                    for f in _cands:
+                        if f:
+                            f.unlink(missing_ok=True)
+                    raise RuntimeError(
+                        f"成片超过 max_file_size={self.config.max_file_size}，已删除产出文件")
+
             result.success = True
             logger.info(f"DASH 合并完成: {result.local_path.name if result.local_path else ''}，"
                         f"{result.segment_count} 分片"
@@ -452,11 +466,16 @@ class DASHDownloader:
             if path.exists() and path.stat().st_size > 0:
                 pbar.update(1)
                 return
+            gsem = self._global_sem_getter() if self._global_sem_getter else None
             async with sem:
                 last_err = None
                 for attempt in range(self._segment_retries + 1):
                     try:
-                        data = await self.fetch_bytes(uri, "")
+                        if gsem is not None:
+                            async with gsem:
+                                data = await self.fetch_bytes(uri, "")
+                        else:
+                            data = await self.fetch_bytes(uri, "")
                         if not data:
                             raise IOError("空分片")
                         part = path.with_suffix(".part")

@@ -20,7 +20,7 @@ from proxies.proxy_pool import ProxyPool
 from decryptors.decryptor import get_decrypt_chain
 from downloaders.hls_downloader import HLSDownloader
 from downloaders.dash_downloader import DASHDownloader
-from utils.url_utils import url_to_filename, get_resource_type
+from utils.url_utils import url_to_filename, stable_stem, get_resource_type
 from utils.logger import get_logger
 
 logger = get_logger("Downloader")
@@ -40,17 +40,23 @@ class AsyncDownloader:
         self._ua = UserAgent(fallback=self.config.user_agent)
         self._downloaded_hashes: set = set()  # 真实内容 MD5 集合，用于内容级去重
         self._session_lock = asyncio.Lock()
+        # 全局分片在途信号量：所有 m3u8/mpd 任务共享，防止多视频并发打爆连接。
+        # init_session 中才真正创建（此时才确定 loop）；注入 getter，下载器每次取当前值。
+        self._segment_semaphore: Optional[asyncio.Semaphore] = None
+        seg_sem_getter = lambda: self._segment_semaphore
         # HLS 下载器：注入“原始字节抓取”回调，复用本下载器的会话/代理/UA
         self.hls_downloader = HLSDownloader(
             self.config,
             self.fetch_raw,
             output_dir_getter=lambda: self.config.output_dir / ResourceType.VIDEO.value,
+            global_segment_semaphore_getter=seg_sem_getter,
         )
         # DASH 下载器：同样注入原始字节抓取回调
         self.dash_downloader = DASHDownloader(
             self.config,
             self.fetch_raw,
             output_dir_getter=lambda: self.config.output_dir / ResourceType.VIDEO.value,
+            global_segment_semaphore_getter=seg_sem_getter,
         )
 
     async def init_session(self):
@@ -70,7 +76,13 @@ class AsyncDownloader:
                 cookies=self.config.cookies,
             )
             self._semaphore = asyncio.Semaphore(self.config.max_concurrent)
-            logger.debug(f"HTTP会话已初始化，最大并发: {self.config.max_concurrent}")
+            g = getattr(self.config, "global_segment_concurrency", 16)
+            if g is None or g == -1:
+                self._segment_semaphore = None
+            else:
+                self._segment_semaphore = asyncio.Semaphore(max(1, g))
+            logger.debug(f"HTTP会话已初始化，最大并发: {self.config.max_concurrent}"
+                        + (f"，全局分片并发上限: {g}" if self._segment_semaphore else ""))
 
     async def close_session(self):
         """关闭HTTP会话"""
@@ -373,7 +385,7 @@ class AsyncDownloader:
 
     async def _download_hls(self, item: UrlItem, progress_callback=None) -> DownloadResult:
         """m3u8 走 HLS 下载器：下分片并合并成片"""
-        stem = Path(url_to_filename(item.url)).stem  # 与普通文件命名保持一致，去掉 .m3u8
+        stem = stable_stem(item.url)  # 稳定命名：忽略 auth_key 等时效签名，断点/去重才可靠
         hls_res = await self.hls_downloader.download(item.url, stem)
         result = DownloadResult(
             url=item.url,
@@ -392,7 +404,7 @@ class AsyncDownloader:
 
     async def _download_dash(self, item: UrlItem, progress_callback=None) -> DownloadResult:
         """mpd 走 DASH 下载器：解析清单、下分片并拼接/合流成片"""
-        stem = Path(url_to_filename(item.url)).stem  # 去掉 .mpd
+        stem = stable_stem(item.url)  # 稳定命名：忽略 auth_key 等时效签名
         dash_res = await self.dash_downloader.download(item.url, stem)
         result = DownloadResult(
             url=item.url,

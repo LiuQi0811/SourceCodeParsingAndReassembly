@@ -335,15 +335,18 @@ def decrypt_segment(data: bytes, key: HlsKey, is_last: bool) -> bytes:
 # HLS 下载器
 # ----------------------------------------------------------------------------
 class HLSDownloader:
-    def __init__(self, config, fetch_bytes: FetchBytes, output_dir_getter: Callable[[], Path] = None):
+    def __init__(self, config, fetch_bytes: FetchBytes, output_dir_getter: Callable[[], Path] = None,
+                 global_segment_semaphore_getter: Callable[[], Optional[asyncio.Semaphore]] = None):
         """
         :param config: CrawlerConfig
         :param fetch_bytes: 异步回调 (url, referer)->bytes|None，复用主下载器会话
         :param output_dir_getter: 返回视频输出目录的可调用对象（便于动态读取 config）
+        :param global_segment_semaphore_getter: 返回全局分片信号量（所有流媒体任务共享），None 表示不限
         """
         self.config = config
         self.fetch_bytes = fetch_bytes
         self._output_dir_getter = output_dir_getter
+        self._global_sem_getter = global_segment_semaphore_getter
         self._max_master_depth = 5  # master 嵌套层级上限，防止环形引用
 
     def _video_dir(self) -> Path:
@@ -472,6 +475,16 @@ class HLSDownloader:
 
             result.local_path = out_path
 
+            # max_file_size 约束：成片超过上限则删除并终止（字幕也不再下载）
+            if self.config.max_file_size > 0 and out_path.exists():
+                _sz = out_path.stat().st_size
+                if _sz > self.config.max_file_size:
+                    out_path.unlink(missing_ok=True)
+                    ts_path.unlink(missing_ok=True)
+                    raise RuntimeError(
+                        f"成片 {_sz / 1024 / 1024:.1f}MB 超过 max_file_size="
+                        f"{self.config.max_file_size}，已删除")
+
             # 下载外挂字幕轨（WebVTT 分片合并），失败不影响主视频
             if subtitle_tracks:
                 try:
@@ -509,11 +522,16 @@ class HLSDownloader:
                 pbar.update(1)
                 return
             is_last = trust_last_pad and seg.index == last_index
+            gsem = self._global_sem_getter() if self._global_sem_getter else None
             async with sem:
                 last_err = None
                 for attempt in range(self.config.hls_segment_retries + 1):
                     try:
-                        data = await self.fetch_bytes(seg.uri, referer)
+                        if gsem is not None:
+                            async with gsem:
+                                data = await self.fetch_bytes(seg.uri, referer)
+                        else:
+                            data = await self.fetch_bytes(seg.uri, referer)
                         if not data:
                             raise IOError("空分片")
                         # 缺省 IV：用分片媒体序列号注入

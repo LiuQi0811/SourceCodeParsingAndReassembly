@@ -13,7 +13,7 @@ from lxml import etree
 
 from core.config import ParseMode, ResourceType, get_config
 from core.models import ParseResult
-from utils.url_utils import normalize_url, get_resource_type
+from utils.url_utils import normalize_url, get_resource_type, split_inline_media
 from utils.logger import get_logger
 
 logger = get_logger("Parser")
@@ -30,25 +30,13 @@ class BaseParser(ABC):
         """解析HTML内容"""
         pass
 
-    # 兜底：匹配内联脚本/属性中出现的音视频直链或 HLS/DASH 清单地址
-    _INLINE_MEDIA_RE = re.compile(
-        r'''["'](?:https?:)?//[^\s"'<>]+?\.(?:m3u8|mp4|webm|mov|mkv|avi|flv|m4v|wmv|mpg|mpeg|ts|m4s|mpd|mp3|m4a|aac|wav|ogg)(?:[?#][^\s"'<>]*)?["']''',
-        re.IGNORECASE,
-    )
-
     def _scan_inline_media(self, text: str, base_url: str) -> List[str]:
-        """从原始文本中兜底扫描内联音视频直链（覆盖 JS 动态赋值场景）"""
-        found: List[str] = []
-        if not text:
-            return found
-        # 归一化 JSON/JS 转义斜杠：DPlayer 等播放器配置常写成 https:\/\/host\/a.m3u8
-        scan_text = text.replace("\\/", "/")
-        for match in self._INLINE_MEDIA_RE.finditer(scan_text):
-            raw = match.group(0)[1:-1]  # 去掉两端引号
-            full = normalize_url(raw, base_url)
-            if full and get_resource_type(full) in (ResourceType.VIDEO, ResourceType.AUDIO):
-                found.append(full)
-        return found
+        """从原始文本中兜底扫描内联音视频直链（兼容旧签名，只返回普通资源）"""
+        return self._scan_inline_media_full(text, base_url)[0]
+
+    def _scan_inline_media_full(self, text: str, base_url: str) -> Tuple[List[str], List[str]]:
+        """扫描内联音视频直链，返回 (普通资源, H265备用流)。逻辑见 utils.url_utils.split_inline_media"""
+        return split_inline_media(text, base_url)
 
     def _extract_links_and_resources_bs4(self, soup: BeautifulSoup, base_url: str) -> Tuple[List[str], List[str]]:
         """从BS4对象提取链接和资源（通用方法）"""
@@ -188,7 +176,8 @@ class BS4Parser(BaseParser):
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_bs4(soup, url)
             # 兜底：补抓内联脚本中的音视频直链 / m3u8 清单
-            result.resources = sorted(set(result.resources + self._scan_inline_media(html_text, url)))
+            extra, extra_h265 = self._scan_inline_media_full(html_text, url)
+            result.resources = sorted(set(result.resources + extra))
 
             # 正文文本
             body = soup.find("body")
@@ -233,7 +222,8 @@ class XPathParser(BaseParser):
 
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_xpath(tree, url)
-            result.resources = sorted(set(result.resources + self._scan_inline_media(html, url)))
+            extra, extra_h265 = self._scan_inline_media_full(html, url)
+            result.resources = sorted(set(result.resources + extra))
 
             # 正文文本
             body_text = tree.xpath("//body//text()")
@@ -251,6 +241,8 @@ class XPathParser(BaseParser):
                 if name and content:
                     result.metadata["meta_tags"][name] = content
 
+            if extra_h265:
+                result.metadata["h265_resources"] = sorted(set(extra_h265))
             result.success = True
         except Exception as e:
             result.error = str(e)
@@ -274,7 +266,8 @@ class RegexParser(BaseParser):
 
             # 提取链接和资源
             result.links, result.resources = self._extract_links_and_resources_regex(html_text, url)
-            result.resources = sorted(set(result.resources + self._scan_inline_media(html_text, url)))
+            extra, extra_h265 = self._scan_inline_media_full(html_text, url)
+            result.resources = sorted(set(result.resources + extra))
 
             # 正文文本（简单去除标签）
             text = re.sub(r"<script[^>]*>.*?</script>", "", html_text, flags=re.DOTALL | re.IGNORECASE)
@@ -284,6 +277,8 @@ class RegexParser(BaseParser):
             result.text_content = text.strip()
 
             result.metadata = {"encoding": encoding}
+            if extra_h265:
+                result.metadata["h265_resources"] = sorted(set(extra_h265))
             result.success = True
         except Exception as e:
             result.error = str(e)

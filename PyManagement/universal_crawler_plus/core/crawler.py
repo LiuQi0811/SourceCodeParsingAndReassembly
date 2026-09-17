@@ -14,7 +14,7 @@ from downloaders.downloader import AsyncDownloader
 from parsers.base_parser import ParserFactory, BaseParser
 from proxies.proxy_pool import ProxyPool, ProxyRotationStrategy
 from utils.progress import ProgressManager
-from utils.url_utils import get_resource_type
+from utils.url_utils import get_resource_type, filter_h265_resources
 from utils.logger import get_logger
 
 logger = get_logger("Crawler")
@@ -92,6 +92,15 @@ class Crawler:
     def enable_resource_download(self, enable: bool = True) -> "Crawler":
         self.config.download_resources = enable
         return self
+
+    def _filter_h265(self, parse_result) -> List[str]:
+        """默认跳过 H265 备用流（如 DPlayer 的 url_h265），只下普通流；
+        若页面只有 H265 流则降级保留，避免什么都下不到。"""
+        return filter_h265_resources(
+            parse_result.resources,
+            parse_result.metadata.get("h265_resources") or [],
+            skip=getattr(self.config, "skip_h265_streams", True),
+        )
 
     def stay_in_domain(self, enable: bool = True) -> "Crawler":
         self.config.stay_in_domain = enable
@@ -181,7 +190,9 @@ class Crawler:
                     await self.queue.add_urls(parse_result.links, depth=new_depth, referer=item.url)
                     # 静态资源
                     if self.config.download_resources:
-                        res_count = await self.queue.add_urls(parse_result.resources, depth=new_depth, referer=item.url)
+                        res_count = await self.queue.add_urls(
+                            self._filter_h265(parse_result), depth=new_depth,
+                            referer=item.url, is_resource=True)
                         logger.debug(f"发现 {len(parse_result.links)} 个链接, {res_count} 个资源")
 
                     # 更新进度条总数
@@ -297,7 +308,8 @@ class Crawler:
                             await self.queue.add_url(url, depth=depth)
                             await self.queue.add_urls(result.links, depth=depth + 1, referer=url)
                             if self.config.download_resources:
-                                await self.queue.add_urls(result.resources, depth=depth + 1, referer=url)
+                                await self.queue.add_urls(self._filter_h265(result), depth=depth + 1,
+                                                          referer=url, is_resource=True)
 
         # 启动多个收集worker
         collectors = [asyncio.create_task(collect_worker()) for _ in range(min(5, self.config.max_concurrent))]

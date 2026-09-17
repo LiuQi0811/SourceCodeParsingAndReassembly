@@ -98,7 +98,10 @@ class CrawlerConfig:
     check_file_size: bool = True        # 下载时比对文件大小防重复
 
     # ---------- 范围控制 ----------
-    stay_in_domain: bool = True         # 是否限制在同域名内
+    stay_in_domain: bool = True         # 是否限制页面链接在同域名内
+    # 资源（图片/视频/媒体/静态文件）是否允许跨域下载。媒体CDN、图床几乎都在外域，
+    # 故默认放行资源、但页面链接仍受 stay_in_domain 约束，避免爬虫漫游全网。
+    allow_cross_domain_resources: bool = True
     max_depth: int = -1                 # 最大爬取深度，-1表示无限
     max_pages: int = -1                 # 最大抓取页面数，-1表示无限
     max_file_size: int = -1             # 单文件最大字节数，-1表示不限
@@ -128,6 +131,12 @@ class CrawlerConfig:
     hls_max_segments: int = -1           # 最多合并的分片数，-1 表示不限（防止超大直播流失控）
     hls_merge_format: str = "auto"       # auto=有ffmpeg则转mp4否则保留ts / ts=强制ts / mp4=尽力转mp4
     hls_prefer_variant: str = "highest"  # master 清单选变体：highest=最高码率 / lowest=最低码率
+    # 全局分片在途上限：多个 m3u8/mpd 任务并发时，所有分片请求共享此并发额度
+    # （单任务内部仍受 hls_segment_concurrency 限制），防止多视频同时下载打爆连接；-1=不限
+    global_segment_concurrency: int = 16
+    # 页面同时存在普通流与 H265 备用流（如 DPlayer 的 url_h265）时，跳过 H265 只下普通流；
+    # 若页面只有 H265 流，则自动降级保留，避免什么都下不到。
+    skip_h265_streams: bool = True
 
     # ---------- 请求头 ----------
     headers: Dict[str, str] = field(default_factory=dict)

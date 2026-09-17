@@ -71,18 +71,22 @@ class QueueManager:
             and self._inflight == 0
         )
 
-    async def add_url(self, url: str, depth: int = 0, referer: str = "", force: bool = False) -> bool:
+    async def add_url(self, url: str, depth: int = 0, referer: str = "",
+                      force: bool = False, is_resource: bool = False) -> bool:
         """
         添加单个URL到队列
         :param force: 是否强制添加（即使已存在）
+        :param is_resource: 是否为资源（图片/音视频/静态文件）。资源默认豁免同域限制，
+                            因为媒体CDN/图床通常在外域；页面链接仍受 stay_in_domain 约束。
         :return: 是否成功添加
         """
         url = clean_url(normalize_url(url))
         if not url or not is_valid_url(url):
             return False
 
-        # 域名限制
-        if self.config.stay_in_domain and self.config.domain:
+        # 域名限制：仅约束页面链接；资源跨域放行（可由开关关闭）
+        cross_resource_ok = is_resource and getattr(self.config, "allow_cross_domain_resources", True)
+        if self.config.stay_in_domain and self.config.domain and not cross_resource_ok:
             if not is_same_domain(url, self.config.domain):
                 return False
 
@@ -107,11 +111,12 @@ class QueueManager:
         logger.debug(f"URL入队: {url} (深度={depth}, 队列长度={self._queue.qsize()})")
         return True
 
-    async def add_urls(self, urls: List[str], depth: int = 0, referer: str = "") -> int:
+    async def add_urls(self, urls: List[str], depth: int = 0, referer: str = "",
+                       is_resource: bool = False) -> int:
         """批量添加URL，返回成功添加数量"""
         count = 0
         for url in urls:
-            if await self.add_url(url, depth=depth, referer=referer):
+            if await self.add_url(url, depth=depth, referer=referer, is_resource=is_resource):
                 count += 1
         return count
 
