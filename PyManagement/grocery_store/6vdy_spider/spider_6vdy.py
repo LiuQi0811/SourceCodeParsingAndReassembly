@@ -24,7 +24,8 @@ from bs4 import BeautifulSoup
 
 # ============ 配置 ============
 BASE_URL = "https://www.6vdy.org"
-OUTPUT_DIR = "/home/user/11532227387579556634/6vdy_data"
+# 输出目录：优先取环境变量 6VDY_OUTPUT，默认放在项目同级 output 目录
+OUTPUT_DIR = os.environ.get("6VDY_OUTPUT", os.path.join(os.path.dirname(os.path.abspath(__file__)), "output"))
 HTML_DIR = os.path.join(OUTPUT_DIR, "html")        # 原始HTML备份
 os.makedirs(HTML_DIR, exist_ok=True)
 
