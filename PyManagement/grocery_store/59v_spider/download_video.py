@@ -10,10 +10,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from spider import download_m3u8, safe_name, VIDEO_DIR, BASE_URL
+from spider import download_m3u8, safe_name, VIDEO_DIR, BASE_URL, setup_logging
 
 
 def main():
+    setup_logging()
     ap = argparse.ArgumentParser()
     ap.add_argument("--vod-id", help="按 vod_id 下载")
     ap.add_argument("--keyword", help="按标题关键字模糊匹配下载")
@@ -48,6 +49,8 @@ def main():
         cat = d.get("category", "其他")
         eps = [e for e in d.get("episodes", []) if e.get("sid") == args.sid and e.get("m3u8")]
         print(f"[√] 命中《{title}》共 {len(eps)} 集")
+        if args.out and len(eps) > 1:
+            print(f"  [warn] --out 仅单集时生效，本剧 {len(eps)} 集将输出到默认目录 {VIDEO_DIR / cat}")
         for i, ep in enumerate(eps, 1):
             fname = f"{safe_name(title)}_EP{ep['nid']}_{safe_name(ep.get('name',''))}.mp4"
             out = Path(args.out) if args.out and len(eps) == 1 else VIDEO_DIR / cat / fname

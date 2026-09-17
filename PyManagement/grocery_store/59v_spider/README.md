@@ -6,7 +6,7 @@
 - 播放页核心变量 `var player_aaaa = {…}` 中直接暴露真实 m3u8 地址，`encrypt=0` 表示**未加密**；
   代码内置 base64 解密逻辑，兼容后续若开启 `encrypt=1` 的加密线路。
 - 视频 m3u8 托管在第三方 CDN（如 `hn.bfvvs.com`、`y6fb.vhmzy.com` 等），以明文 ts 分片为主；
-  若遇到 AES-128 加密的 EXT-X-KEY 流，脚本自动调用 `ffmpeg`（需系统安装）进行下载。
+  存在 `ffmpeg` 时优先使用 ffmpeg 下载；否则 Python 原生下载并自动解密 AES-128 加密的 EXT-X-KEY 流（需安装 `pycryptodome`）。
 
 ## 站点结构
 - 首页：`https://tv.59v.net/`
@@ -27,6 +27,8 @@ python3 spider.py
 - `data/catalog.jsonl` — 每行一条视频，含标题/封面/简介/年份/地区/导演/演员/标签/每集m3u8
 - `data/catalog.csv`   — 扁平化总索引，可直接 Excel 打开
 - `data/visited.txt`   — 已完成的 vod_id，断点续爬
+- `data/failed.txt`    — 抓取失败的视频（下次重跑自动重试）
+- `data/crawl.log`     — 运行日志（终端 + 文件双输出）
 
 ### 2) 只爬某个分类（如电影）
 ```bash
@@ -44,14 +46,16 @@ python3 spider.py --max-pages 2
 python3 spider.py --download
 ```
 - 视频保存到 `videos/{分类名}/{剧名}_EP{n}.mp4`
-- 默认**只下载第1条播放源**的视频；如需全源：加 `--all-sources`
-- 若需要完整下载全部剧集/全部分类，直接运行 `python3 spider.py --download` 即可（站点共约 500+ 页、数万集，注意磁盘空间）
+- 会下载所抓剧集的**全部剧集**（默认只下第1条播放源；如需全源：加 `--all-sources`）
+- 已存在的 mp4 会自动跳过，可随时中断重跑
+- 注意：全站共约 500+ 页、数万集，磁盘空间和耗时都很可观
 
 ### 5) 根据 catalog.jsonl 按需下载单部视频
 ```bash
 python3 download_video.py --vod-id 126231
 # 或按关键字：
 python3 download_video.py --keyword "怒之杀"
+# 可选：--sid 2 换线路；--out xxx.mp4 指定输出路径（仅单集时生效）
 ```
 
 ## 参数总览
@@ -61,14 +65,19 @@ python3 download_video.py --keyword "怒之杀"
 | `--max-pages N` | 每类最多翻 N 页，0=全部 |
 | `--download` | 边爬边下载 mp4 |
 | `--all-sources` | 抓取全部播放线路（默认仅第1条源） |
+| `--threads N` | 并发处理视频的线程数，默认 8；下载并发固定为 2 |
 
-## 断点续爬
-- 脚本会把处理过的 vod_id 写入 `data/visited.txt`，中断后重跑会自动跳过已完成项；
+## 并发、断点与日志
+- **并发**：视频级默认 8 线程（`--threads` 调整），剧集级 m3u8 抓取每部最多 4 并发，下载并发固定为 2；
+- **断点续爬**：全部剧集 m3u8 均获取成功的视频写入 `data/visited.txt`，中断后重跑会自动跳过已完成项；
+- **失败重试**：有剧集失败的视频写入 `data/failed.txt`（不标记完成），下次重跑自动重试；
+- **日志**：终端与 `data/crawl.log` 双输出，可用 `tail -f data/crawl.log` 实时查看进度；
 - 想完全重爬：删除 `data/` 目录即可。
 
 ## 依赖
 ```bash
-pip install requests beautifulsoup4 lxml m3u8 tqdm
-# 可选：下载 AES 加密流时需要
-apt-get install -y ffmpeg
+pip install requests beautifulsoup4 lxml tqdm pycryptodome
+# 可选：有 ffmpeg 时下载更稳（推荐安装）
+brew install ffmpeg        # macOS
+apt-get install -y ffmpeg  # Debian/Ubuntu
 ```
