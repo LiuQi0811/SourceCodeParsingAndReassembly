@@ -27,12 +27,16 @@ scraper/
 ├── scraper.db              # SQLite数据库 (断点续爬)
 ├── 4kvm_all_videos.json    # 所有视频数据JSON导出
 └── scraper.log             # 运行日志
+
+4kvm_videos/                # 视频下载目录(使用--download时生成)
+└── *.mp4                   # 下载的视频文件
 ```
 
 ## 环境要求
 
 - Python 3.8+
 - Node.js 16+
+- ffmpeg（下载视频必需，macOS: `brew install ffmpeg`）
 - Python依赖: `pip install requests beautifulsoup4`
 - Node依赖: 自动安装 (node-fetch，仅测试用，服务本身无需任何依赖)
 
@@ -52,6 +56,38 @@ python3 scraper.py --max-pages 3
 ```bash
 python3 scraper.py
 ```
+
+### 下载已解密的视频到本地
+```bash
+# 下载所有已解密但未下载的视频
+python3 scraper.py --download
+
+# 指定下载目录和数量
+python3 scraper.py --download --download-dir ./videos --max-downloads 10
+```
+
+> 下载功能基于 ffmpeg，将 m3u8 流媒体地址下载合并为 mp4。需先运行爬虫获取解密地址，再用 `--download` 下载。支持断点续下，已下载的文件自动跳过。
+
+### 爬取时同步下载（两种模式切换）
+
+```bash
+# 全部采集解密完成后统一下载
+python3 scraper.py --max-pages 3 --download-mode after
+
+# 边解密边下载（后台下载线程与解密并行，避免m3u8地址过期）
+python3 scraper.py --max-pages 3 --download-mode parallel
+
+# 只爬取不下载（默认）
+python3 scraper.py --max-pages 3 --download-mode none
+```
+
+| 模式 | 说明 | 适用场景 |
+|---|---|---|
+| `none` | 只爬取解密，不下载（默认） | 先收集地址，后续单独用 `--download` 下载 |
+| `after` | 全部解密完成后统一下载 | 网络稳定、地址时效长 |
+| `parallel` | 边解密边下载，解密与下载并行 | 地址时效短，需尽快下载 |
+
+> `--download`（独立下载模式，不爬取）与 `--download-mode`（爬取流程中下载）可配合使用：先用 `--download-mode none` 爬取，再用 `--download` 批量下载。
 
 ### 自定义参数
 ```bash
@@ -108,6 +144,8 @@ python3 scraper.py \
 ✅ **多线程** - 线程池并发爬取详情和解密  
 ✅ **自动重试** - 网络错误自动重试3次  
 ✅ **自动管理** - 自动启动/停止WASM解密服务  
+✅ **视频下载** - 基于ffmpeg将m3u8下载为mp4，支持断点续下  
+✅ **下载模式切换** - 支持边采集边下载(parallel)和全部采集后下载(after)两种模式  
 ✅ **JSON导出** - 结构化数据方便二次使用  
 
 ## 注意事项

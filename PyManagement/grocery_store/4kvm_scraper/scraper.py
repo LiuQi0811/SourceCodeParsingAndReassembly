@@ -35,6 +35,11 @@ REQUEST_DELAY = (1, 2.5)
 TIMEOUT = 30
 MAX_RETRIES = 3
 
+# 下载配置
+DOWNLOAD_DIR = "4kvm_videos"
+DOWNLOAD_TIMEOUT = 3600  # 单集下载超时(秒)
+DOWNLOAD_WORKERS = 1     # 下载并发数(m3u8建议单线程避免被封)
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -190,11 +195,17 @@ class Database:
                 secret_key TEXT, title TEXT,
                 video_url TEXT, video_type TEXT, quality TEXT,
                 status TEXT DEFAULT 'pending',
+                downloaded INTEGER DEFAULT 0,
                 UNIQUE(video_vod_id, line_num, episode_num)
             )''')
             c.execute('''CREATE TABLE IF NOT EXISTS progress (
                 category TEXT PRIMARY KEY, last_page INTEGER, last_update TIMESTAMP
             )''')
+            # 兼容旧数据库：追加 downloaded 字段
+            try:
+                c.execute('ALTER TABLE episodes ADD COLUMN downloaded INTEGER DEFAULT 0')
+            except sqlite3.OperationalError:
+                pass
             self.conn.commit()
     
     def add_video(self, vod_id, secret_key, title, cover, category):
@@ -238,6 +249,42 @@ class Database:
             c.execute('SELECT id,dataid,secret_key FROM episodes WHERE status="pending" LIMIT ?', (limit,))
             return c.fetchall()
     
+    def get_pending_downloads(self, limit=100):
+        with self.lock:
+            c = self.conn.cursor()
+            c.execute('''SELECT e.id, e.title, e.episode_num, e.video_url, v.title
+                         FROM episodes e
+                         LEFT JOIN videos v ON e.video_vod_id = v.vod_id
+                         WHERE e.status="done" AND e.downloaded=0
+                           AND e.video_url IS NOT NULL AND e.video_url != ""
+                           AND e.video_url != "1"
+                         ORDER BY e.id
+                         LIMIT ?''', (limit,))
+            return c.fetchall()
+    
+    def mark_downloaded(self, ep_id):
+        with self.lock:
+            c = self.conn.cursor()
+            c.execute('UPDATE episodes SET downloaded=1 WHERE id=?', (ep_id,))
+            self.conn.commit()
+
+    def mark_download_failed(self, ep_id):
+        """标记下载失败(downloaded=2)，避免反复重试"""
+        with self.lock:
+            c = self.conn.cursor()
+            c.execute('UPDATE episodes SET downloaded=2 WHERE id=?', (ep_id,))
+            self.conn.commit()
+
+    def get_download_stats(self):
+        with self.lock:
+            c = self.conn.cursor()
+            c.execute('''SELECT COUNT(*),
+                                SUM(CASE WHEN downloaded=1 THEN 1 ELSE 0 END),
+                                SUM(CASE WHEN downloaded=2 THEN 1 ELSE 0 END)
+                         FROM episodes WHERE status="done"''')
+            total, done, failed = c.fetchone()
+            return {'downloadable': total or 0, 'downloaded': done or 0, 'download_failed': failed or 0}
+    
     def update_progress(self, cat, page):
         with self.lock:
             c = self.conn.cursor()
@@ -275,6 +322,147 @@ class Database:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
             return path
+
+# ==================== 视频下载器 ====================
+class VideoDownloader:
+    """基于 ffmpeg 的 m3u8 视频下载器，将已解密的播放地址下载为本地 mp4"""
+
+    def __init__(self, db, output_dir=DOWNLOAD_DIR):
+        self.db = db
+        self.output_dir = os.path.abspath(output_dir)
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.ffmpeg = self._find_ffmpeg()
+        logger.info(f"下载器就绪，输出目录: {self.output_dir}")
+
+    def _find_ffmpeg(self):
+        """检测 ffmpeg 是否可用"""
+        try:
+            r = subprocess.run(['ffmpeg', '-version'], capture_output=True, timeout=5)
+            if r.returncode == 0:
+                return 'ffmpeg'
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+        raise RuntimeError("未找到 ffmpeg，请先安装: brew install ffmpeg")
+
+    @staticmethod
+    def _safe_name(name):
+        """清理文件名中的非法字符"""
+        name = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', str(name))
+        return name.strip(' ._') or 'video'
+
+    def download_one(self, ep_id, ep_title, ep_num, video_url, video_title=""):
+        """下载单集视频，返回 (success: bool, message: str)"""
+        if not video_url or video_url in ('1', ''):
+            self.db.mark_download_failed(ep_id)
+            return False, "无效地址"
+
+        base = self._safe_name(video_title) if video_title else 'video'
+        ep_name = self._safe_name(ep_title) if ep_title else f'第{ep_num}集'
+        filename = f"{base}_{ep_name}.mp4"
+        filepath = os.path.join(self.output_dir, filename)
+
+        # 已存在且大小正常则跳过
+        if os.path.exists(filepath) and os.path.getsize(filepath) > 1024:
+            self.db.mark_downloaded(ep_id)
+            return True, "已存在，跳过"
+
+        # ffmpeg 请求头（Referer 防盗链 + UA）
+        headers = (
+            f"Referer: {BASE_URL}/\r\n"
+            f"User-Agent: {HEADERS['User-Agent']}\r\n"
+        )
+
+        cmd = [
+            self.ffmpeg, '-y',
+            '-headers', headers,
+            '-i', video_url,
+            '-c', 'copy',
+            '-bsf:a', 'aac_adtstoasc',
+            '-loglevel', 'error',
+            filepath
+        ]
+
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True,
+                timeout=DOWNLOAD_TIMEOUT
+            )
+            if result.returncode == 0 and os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                self.db.mark_downloaded(ep_id)
+                size_mb = os.path.getsize(filepath) / 1024 / 1024
+                return True, f"下载完成 ({size_mb:.1f}MB)"
+            else:
+                err = (result.stderr or '')[-300:].strip()
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                self.db.mark_download_failed(ep_id)
+                return False, f"ffmpeg失败: {err or '未知错误'}"
+        except subprocess.TimeoutExpired:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            self.db.mark_download_failed(ep_id)
+            return False, "下载超时"
+        except Exception as e:
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
+            self.db.mark_download_failed(ep_id)
+            return False, f"异常: {e}"
+
+    def download_all(self, max_downloads=None, max_workers=DOWNLOAD_WORKERS, stop_event=None):
+        """批量下载所有已解密但未下载的剧集。
+
+        Args:
+            stop_event: 若提供，则在没有待下载项时不立即退出，而是轮询等待新解密的地址；
+                        当 stop_event 被设置(解密完成)且仍无待下载项时才退出。
+                        用于边采集边下载模式。
+        """
+        stats = self.db.get_download_stats()
+        logger.info(f"待下载: {stats['downloadable'] - stats['downloaded']} / 已解密 {stats['downloadable']}")
+
+        done = 0
+        success = 0
+        empty_polls = 0
+        MAX_EMPTY_POLLS = 120  # 后台模式最多空轮询120次(约10分钟)
+
+        while True:
+            pending = self.db.get_pending_downloads(20)
+            if not pending:
+                if stop_event is not None and not stop_event.is_set():
+                    # 边采集边下载：解密还在进行，等待新地址
+                    empty_polls += 1
+                    if empty_polls >= MAX_EMPTY_POLLS:
+                        logger.warning("等待新解密地址超时，下载线程退出")
+                        break
+                    time.sleep(5)
+                    continue
+                break
+            empty_polls = 0
+
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = {}
+                for ep in pending:
+                    ep_id, ep_title, ep_num, video_url, video_title = ep
+                    f = ex.submit(
+                        self.download_one, ep_id, ep_title, ep_num, video_url, video_title
+                    )
+                    futures[f] = (ep_id, ep_title, ep_num)
+
+                for f in as_completed(futures):
+                    ep_id, ep_title, ep_num = futures[f]
+                    ok, msg = f.result()
+                    done += 1
+                    if ok:
+                        success += 1
+                    logger.info(f"[{done}] {ep_title or f'第{ep_num}集'}: {msg}")
+
+            if max_downloads and done >= max_downloads:
+                break
+
+        logger.info(f"下载结束: 成功 {success}/{done}")
+        return success, done
 
 # ==================== 爬虫主类 ====================
 class Scraper:
@@ -453,19 +641,27 @@ class Scraper:
                 break
             page += 1
     
-    def run(self, categories=None, max_pages=None, max_videos=None, max_eps=None):
+    def run(self, categories=None, max_pages=None, max_videos=None, max_eps=None,
+            download_mode='none', download_dir=DOWNLOAD_DIR, max_downloads=None):
+        """执行完整爬取流程。
+
+        Args:
+            download_mode: 'none' 只爬取不下载;
+                           'after' 全部解密完成后统一下载;
+                           'parallel' 边解密边下载(后台线程)。
+        """
         if categories is None:
             categories = CATEGORIES
-        
+
         # 测试解密
         logger.info("测试WASM解密...")
         test = self.decryptor.get_video_url('815', 'cgzobzuhl')
         if test and test.get('quality_urls'):
             logger.info(f"✓ 解密测试成功! 示例地址: {test['quality_urls'][0]['url'][:80]}...")
-        
+
         for cat in categories:
             self.crawl_category(cat, max_pages)
-        
+
         logger.info("开始爬取详情...")
         done = 0
         while True:
@@ -477,7 +673,25 @@ class Scraper:
             s = self.db.get_stats()
             logger.info(f"详情进度: {s['details']}/{s['videos']}, 剧集: {s['episodes']}")
             if max_videos and done >= max_videos: break
-        
+
+        # ===== 下载模式控制 =====
+        download_thread = None
+        decrypt_done_event = None
+
+        if download_mode == 'parallel':
+            logger.info("===== 边采集边下载模式: 启动后台下载线程 =====")
+            decrypt_done_event = threading.Event()
+            downloader = VideoDownloader(self.db, download_dir)
+            download_thread = threading.Thread(
+                target=downloader.download_all,
+                kwargs={'max_downloads': max_downloads, 'stop_event': decrypt_done_event},
+                daemon=True,
+                name='video-downloader'
+            )
+            download_thread.start()
+        elif download_mode == 'after':
+            logger.info("===== 下载模式: 全部解密完成后统一下载 =====")
+
         logger.info("开始解密视频地址...")
         done = 0
         succ = 0
@@ -491,17 +705,36 @@ class Scraper:
             s = self.db.get_stats()
             logger.info(f"解密进度: {succ}/{done} 完成, 总进度: {s['ep_done']}/{s['episodes']}")
             if max_eps and done >= max_eps: break
-        
+
+        # 解密完成，通知后台下载线程
+        if decrypt_done_event is not None:
+            decrypt_done_event.set()
+            logger.info("解密全部完成，等待后台下载线程收尾...")
+            download_thread.join()
+
         json_path = os.path.join(OUTPUT_DIR, "4kvm_all_videos.json")
         self.db.export_json(json_path)
-        
+
         s = self.db.get_stats()
         logger.info("="*50)
         logger.info(f"爬取完成! 视频:{s['videos']}, 详情:{s['details']}, 剧集:{s['episodes']}, 已解密:{s['ep_done']}")
         logger.info(f"导出文件: {json_path}")
+
+        # after 模式：解密完成后统一下载
+        if download_mode == 'after':
+            self.download_videos(download_dir, max_downloads)
+
+        ds = self.db.get_download_stats()
+        logger.info(f"下载统计: 已下载 {ds['downloaded']}/{ds['downloadable']}")
         logger.info("="*50)
         return json_path
-    
+
+    def download_videos(self, download_dir=DOWNLOAD_DIR, max_downloads=None):
+        """下载已解密的视频到本地"""
+        logger.info("===== 开始下载视频 =====")
+        downloader = VideoDownloader(self.db, download_dir)
+        return downloader.download_all(max_downloads)
+
     def shutdown(self):
         self.decryptor.stop()
 
@@ -512,8 +745,32 @@ def main():
     parser.add_argument('--max-videos', type=int, default=None)
     parser.add_argument('--max-episodes', type=int, default=None)
     parser.add_argument('--test', action='store_true', help='测试模式: 只爬取1页电影')
+    parser.add_argument('--download', action='store_true',
+                        help='下载模式: 将已解密的视频下载到本地(不启动爬虫，直接读数据库)')
+    parser.add_argument('--download-mode', choices=['none', 'after', 'parallel'], default='none',
+                        help='爬取时的下载策略: none=不下载(默认), after=全部解密后统一下载, parallel=边解密边下载')
+    parser.add_argument('--download-dir', type=str, default=DOWNLOAD_DIR,
+                        help=f'视频下载目录(默认: {DOWNLOAD_DIR})')
+    parser.add_argument('--max-downloads', type=int, default=None, help='最多下载数量')
     args = parser.parse_args()
-    
+
+    # ===== 下载模式：只下载，不启动爬虫和WASM解密服务 =====
+    if args.download:
+        db = Database(DATABASE_PATH)
+        stats = db.get_download_stats()
+        if stats['downloadable'] == 0:
+            logger.warning("数据库中没有已解密的视频地址，请先运行爬虫获取地址")
+            return
+        pending = stats['downloadable'] - stats['downloaded']
+        logger.info(f"已解密: {stats['downloadable']}, 已下载: {stats['downloaded']}, 待下载: {pending}")
+        if pending == 0:
+            logger.info("所有视频已下载完成")
+            return
+        downloader = VideoDownloader(db, args.download_dir)
+        downloader.download_all(max_downloads=args.max_downloads)
+        return
+
+    # ===== 正常爬取模式 =====
     scraper = Scraper()
     
     def signal_handler(sig, frame):
@@ -539,7 +796,14 @@ def main():
             s = scraper.db.get_stats()
             logger.info(f"测试完成! 视频:{s['videos']}, 剧集:{s['episodes']}")
         else:
-            scraper.run(max_pages=args.max_pages, max_videos=args.max_videos, max_eps=args.max_episodes)
+            scraper.run(
+                max_pages=args.max_pages,
+                max_videos=args.max_videos,
+                max_eps=args.max_episodes,
+                download_mode=args.download_mode,
+                download_dir=args.download_dir,
+                max_downloads=args.max_downloads
+            )
     finally:
         scraper.shutdown()
 
