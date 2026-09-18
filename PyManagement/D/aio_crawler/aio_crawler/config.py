@@ -70,7 +70,7 @@ class Config:
         p.add_argument("start", nargs="+", help="起始 URL")
         p.add_argument("--concurrency", type=int, default=8)
         p.add_argument("--download-concurrency", type=int, default=4)
-        p.add_argument("--queue", choices=["memory", "sqlite"], default="memory",
+        p.add_argument("--queues", choices=["memory", "sqlite"], default="memory",
                        help="队列类型：内存一次性加载 / SQLite 持久化断点续爬")
         p.add_argument("--db", default="crawl_queue.db", help="SQLite 队列数据库路径")
         p.add_argument("--no-resume", action="store_true", help="SQLite 队列不续爬（清空重建）")

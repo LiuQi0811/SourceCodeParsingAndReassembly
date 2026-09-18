@@ -2,8 +2,8 @@
 """命令行入口。
 
 示例：
-    python -m aio_crawler https://example.com/ --queue memory
-    python -m aio_crawler https://example.com/ --queue sqlite --db crawl.db --resume
+    python -m aio_crawler https://example.com/ --queues memory
+    python -m aio_crawler https://example.com/ --queues sqlite --db crawl.db --resume
     python -m aio_crawler https://example.com/ --parser composite:bs4,xpath,re --save-root downloads
 """
 from __future__ import annotations

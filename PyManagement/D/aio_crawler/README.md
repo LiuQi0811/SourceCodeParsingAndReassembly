@@ -54,7 +54,7 @@ ffmpeg -version                     # 视频合并可选，建议安装并加入
 python -m aio_crawler https://example.com/
 
 # SQLite 持久化队列 + 断点续爬
-python -m aio_crawler https://example.com/ --queue sqlite --db crawl.db
+python -m aio_crawler https://example.com/ --queues sqlite --db crawl.db
 
 # 指定解析器 / 限深 / 仅资源 / 覆盖保存
 python -m aio_crawler https://example.com/ --parser xpath --depth 3
