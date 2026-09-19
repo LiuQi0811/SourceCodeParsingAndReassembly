@@ -5,8 +5,10 @@
 """
 import asyncio
 import os
+import random
 import time
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse
 import aiohttp
 from crawler_framework.core.models import (
     CrawlTask,
@@ -45,6 +47,8 @@ class CrawlerEngine:
         default_parser: str = "xpath",
         concurrency: int = 10,
         request_timeout: float = 20.0,
+        request_delay: float = 1.0,
+        jitter: float = 0.5,
         user_agent: str = "Mozilla/5.0 (compatible; AsyncCrawlerEngine/1.0)",
         save_dir: str = "downloads",
         auto_save_resources: bool = True,
@@ -71,6 +75,11 @@ class CrawlerEngine:
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
         self.request_timeout = aiohttp.ClientTimeout(total=request_timeout)
+        # 域名级限速（防封禁）：同域名最小请求间隔 + 随机抖动，不同域名互不阻塞
+        self.request_delay = max(0.0, request_delay)
+        self.jitter = max(0.0, jitter)
+        self._domain_last_request: Dict[str, float] = {}
+        self._domain_lock = asyncio.Lock()
         self.default_headers = {
             "User-Agent": user_agent,
             "Accept": "*/*",
@@ -100,6 +109,7 @@ class CrawlerEngine:
         self._is_running = False
         self._start_time: float = 0.0
         self._queue_initialized = False
+        self._stop_reason: str = ""
 
     def add_observer(self, observer) -> "CrawlerEngine":
         """注册自定义观察者"""
@@ -199,6 +209,14 @@ class CrawlerEngine:
                 if await self.queue.is_empty() and len(active_workers) == 0:
                     break
 
+                # 已达到最大抓取页数：停止拉取新任务，等待 worker 收尾
+                if self.max_pages and self.pages_crawled >= self.max_pages:
+                    self._stop_reason = (
+                        f"已达到预设最大抓取页面限制 ({self.max_pages} 页)，调度器平稳收尾！"
+                    )
+                    self._is_running = False
+                    break
+
                 task = await self.queue.pop()
                 if task is None:
                     if len(active_workers) == 0 and await self.queue.is_empty():
@@ -224,10 +242,11 @@ class CrawlerEngine:
         self._is_running = False
         total_elapsed = time.time() - self._start_time
 
-        # 触发停止事件
+        # 触发停止事件（统一在此收尾触发一次，携带停止原因）
         await self.event_bus.emit(CrawlerEvent(
             event_type=EventType.ENGINE_STOPPED,
-            data={"total_elapsed": total_elapsed}
+            message=self._stop_reason,
+            data={"total_elapsed": total_elapsed, "stop_reason": self._stop_reason}
         ))
 
         # 关闭队列资源
@@ -237,8 +256,41 @@ class CrawlerEngine:
         summary = await self.metrics_observer.get_summary()
         return summary
 
+    async def _respect_domain_rate(self, url: str) -> None:
+        """域名级限速器：同一域名两次请求之间强制最小间隔并叠加随机抖动。
+
+        采用时间槽预约算法：并发的同域名任务在锁内依次预约未来的请求时间槽
+        （锁内仅做计算不睡眠），随后各自在锁外等待，因此不同域名互不阻塞。
+        """
+        if self.request_delay <= 0 and self.jitter <= 0:
+            return
+        try:
+            domain = urlparse(url).hostname or ""
+        except Exception:
+            domain = ""
+        if not domain:
+            return
+
+        async with self._domain_lock:
+            now = time.monotonic()
+            last_reserved = self._domain_last_request.get(domain)
+            if last_reserved is None:
+                # 该域名首次请求：立即放行，仅记录时间戳作为后续间隔基准
+                self._domain_last_request[domain] = now
+                wait = 0.0
+            else:
+                delay = self.request_delay + random.uniform(0, self.jitter)
+                slot = max(last_reserved, now) + delay
+                self._domain_last_request[domain] = slot
+                wait = slot - now
+
+        if wait > 0:
+            await asyncio.sleep(wait)
+
     async def _process_task(self, task: CrawlTask) -> None:
         """处理单条任务的完整生命周期"""
+        # 域名级限速：先预约请求时间槽再进入并发槽位，避免同域名任务占用并发额度时阻塞其他域名
+        await self._respect_domain_rate(task.url)
         async with self.semaphore:
             await self.event_bus.emit(CrawlerEvent(
                 event_type=EventType.TASK_STARTED,
@@ -256,6 +308,8 @@ class CrawlerEngine:
                     data=task.data,
                     json=task.json_data,
                 ) as resp:
+                    # 非 2xx/3xx 状态码按失败处理（触发重试），避免 404/500 页面被当作成功解析
+                    resp.raise_for_status()
                     raw_bytes = await resp.read()
                     elapsed = time.time() - start_t
                     content_type = resp.headers.get("Content-Type", "")
@@ -297,7 +351,13 @@ class CrawlerEngine:
                                     data={"decrypt_type": decrypt_type, "result": decrypted_data}
                                 ))
                             except Exception as de:
-                                print(f"[Decrypt Error] 逆向解密失败: {de}")
+                                await self.event_bus.emit(CrawlerEvent(
+                                    event_type=EventType.REQUEST_FAILED,
+                                    task=task,
+                                    response=crawl_res,
+                                    message=f"[Decrypt Error] 逆向解密失败: {de}",
+                                    data={"decrypt_type": decrypt_type, "error": str(de)}
+                                ))
 
                     # 5. 自动分类持久化存储
                     if self.auto_save_resources and category != ResourceCategory.PAGE:
@@ -366,10 +426,7 @@ class CrawlerEngine:
                     if self.auto_follow_links and task.depth < task.max_depth:
                         # 检查是否已达到用户配置的最大抓取页数
                         if self.pages_crawled >= self.max_pages:
-                            await self.event_bus.emit(CrawlerEvent(
-                                event_type=EventType.ENGINE_STOPPED,
-                                message=f"已达到预设最大抓取页面限制 ({self.max_pages} 页)，调度器平稳收尾！"
-                            ))
+                            self._stop_reason = f"已达到预设最大抓取页面限制 ({self.max_pages} 页)，调度器平稳收尾！"
                             self._is_running = False
                         else:
                             # 7.1 翻页链接入队（最高优先级，保证连续翻页推进）
@@ -413,9 +470,6 @@ class CrawlerEngine:
                     # 8. 自动下载当前页面的真实资源（图片/音视频），带 Referer 防盗链
                     if self.auto_save_resources and page_resources:
                         asyncio.create_task(self._download_page_resources(page_resources[:15], crawl_res.url))
-
-                    # 标记当前任务成功完成
-                    await self.queue.complete(task)
 
                     # 标记当前任务成功完成
                     await self.queue.complete(task)
@@ -466,8 +520,18 @@ class CrawlerEngine:
                             },
                             message=f"↳ [SAVED] 自动归档资源: {saved_path} ({fsize} 字节)"
                         ))
-            except Exception:
-                pass
+                    else:
+                        await self.event_bus.emit(CrawlerEvent(
+                            event_type=EventType.REQUEST_FAILED,
+                            data={"url": res_url, "category": cat_name, "status_code": resp.status},
+                            message=f"↳ [FAILED] 资源下载失败: HTTP {resp.status} | {res_url}"
+                        ))
+            except Exception as e:
+                await self.event_bus.emit(CrawlerEvent(
+                    event_type=EventType.REQUEST_FAILED,
+                    data={"url": res_url, "category": cat_name, "error": str(e)},
+                    message=f"↳ [FAILED] 资源下载异常: {res_url} ({e})"
+                ))
 
     def _is_domain_allowed(self, url: str) -> bool:
         if not self.allowed_domains:
@@ -476,7 +540,18 @@ class CrawlerEngine:
         hostname = urlparse(url).hostname
         if not hostname:
             return False
-        return any(d in hostname for d in self.allowed_domains)
+        hostname = hostname.lower()
+        for d in self.allowed_domains:
+            d = str(d).strip().lower()
+            if not d:
+                continue
+            # 允许传入带协议/端口的域名，归一化为 hostname
+            if "://" in d:
+                d = (urlparse(d).hostname or d).lower()
+            # 边界匹配：完全相等或为主域名的子域，避免 evil169tp.com 命中 169tp.com
+            if hostname == d or hostname.endswith("." + d):
+                return True
+        return False
 
     def stop(self) -> None:
         """手动请求停止爬虫"""

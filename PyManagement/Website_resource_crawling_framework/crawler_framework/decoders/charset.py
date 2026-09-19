@@ -3,7 +3,7 @@
 支持 HTTP Header、HTML Meta、charset-normalizer 字节分析以及 GB18030/GBK/GB2312/UTF-8 多级回退
 """
 import re
-from typing import Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 import charset_normalizer
 
 
@@ -71,7 +71,7 @@ class SmartCharsetDecoder:
         if detected_charset:
             detected_charset = cls.ENCODING_ALIASES.get(detected_charset, detected_charset)
 
-        # 4. 尝试根据检测到的编码解码
+        # 3.5 声明编码优先尝试（声明是最强信号）
         if detected_charset:
             try:
                 text = raw_bytes.decode(detected_charset)
@@ -79,29 +79,63 @@ class SmartCharsetDecoder:
             except (UnicodeDecodeError, LookupError):
                 pass
 
-        # 5. 使用 charset-normalizer 探测真实编码
+        # 4. 多候选解码评分：normalizer 全部候选 + 中文回退链，按文本质量选优
+        candidates: List[Tuple[str, str]] = []
         try:
             results = charset_normalizer.from_bytes(raw_bytes)
-            best_match = results.best()
-            if best_match:
-                encoding_name = best_match.encoding.lower()
-                encoding_name = cls.ENCODING_ALIASES.get(encoding_name, encoding_name)
-                try:
-                    text = raw_bytes.decode(encoding_name)
-                    return text, encoding_name
-                except Exception:
-                    pass
+            norm_encs = []
+            for m in results:
+                if m.encoding:
+                    enc = cls.ENCODING_ALIASES.get(m.encoding.lower(), m.encoding.lower())
+                    norm_encs.append(enc)
+            candidates.extend(cls._collect_candidates(raw_bytes, norm_encs))
         except Exception:
             pass
+        candidates.extend(cls._collect_candidates(
+            raw_bytes, ["utf-8", "gb18030", "big5", "windows-1252", "latin-1"]
+        ))
+        if candidates:
+            text, enc = max(candidates, key=lambda t: cls._score_text(t[0]))
+            return text, enc
 
-        # 6. 多级回退尝试链：优先针对中文网页（UTF-8 -> GB18030 -> BIG5 -> CP1252）
-        fallback_encodings = ["utf-8", "gb18030", "big5", "windows-1252", "latin-1"]
-        for enc in fallback_encodings:
+        # 5. 终极容错保障：utf-8 replace 模式，避免程序抛出异常崩溃
+        return raw_bytes.decode("utf-8", errors="replace"), "utf-8-lossy"
+
+    @classmethod
+    def _collect_candidates(cls, raw_bytes: bytes, encodings: List[str]) -> List[Tuple[str, str]]:
+        """收集解码成功且 round-trip 校验一致的候选 (text, encoding)"""
+        seen: Dict[str, Tuple[str, str]] = {}
+        for enc in encodings:
+            if not enc:
+                continue
             try:
                 text = raw_bytes.decode(enc)
-                return text, enc
-            except UnicodeDecodeError:
+            except (UnicodeDecodeError, LookupError):
                 continue
+            # round-trip 校验：重编码必须还原原始字节，排除错乱映射
+            try:
+                if text.encode(enc) != raw_bytes:
+                    continue
+            except Exception:
+                continue
+            seen.setdefault(enc, (text, enc))
+        return list(seen.values())
 
-        # 7. 终极容错保障：utf-8 replace 模式，避免程序抛出异常崩溃
-        return raw_bytes.decode("utf-8", errors="replace"), "utf-8-lossy"
+    @classmethod
+    def _score_text(cls, text: str) -> float:
+        """文本质量评分：CJK 汉字加权，日文假名/韩文音节降权，替换字符重罚。
+        用于在编码混淆（如 big5 内容被 normalizer 误判为 cp949）时选出正确编码。"""
+        score = 0.0
+        for ch in text:
+            o = ord(ch)
+            if 0x4E00 <= o <= 0x9FFF:      # CJK 统一汉字
+                score += 3
+            elif 0x3040 <= o <= 0x30FF:    # 日文假名
+                score -= 5
+            elif 0xAC00 <= o <= 0xD7AF:    # 韩文音节
+                score -= 5
+            elif ch == "\ufffd":           # 替换字符
+                score -= 10
+            elif ch.isascii() and (ch.isalnum() or ch.isspace()):
+                score += 1
+        return score

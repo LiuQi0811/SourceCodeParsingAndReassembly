@@ -100,7 +100,7 @@ class RC4Decryptor(BaseDecryptorStrategy):
         params: Optional[Dict[str, Any]] = None
     ) -> Union[str, bytes, Dict[str, Any]]:
         params = params or {}
-        key = params.get("key", "")
+        key = params.get("key") or "default_key"
         key_bytes = key.encode("utf-8") if isinstance(key, str) else bytes(key)
 
         if isinstance(encrypted_data, str):

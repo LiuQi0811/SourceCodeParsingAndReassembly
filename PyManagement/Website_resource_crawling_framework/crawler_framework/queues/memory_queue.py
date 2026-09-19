@@ -38,7 +38,13 @@ class MemoryQueueStrategy(BaseQueueStrategy):
                 return False
             self._seen_urls.add(task.url)
             self._tasks_map[task.url] = task
-            await self._queue.put(task)
+            try:
+                self._queue.put_nowait(task)
+            except asyncio.QueueFull:
+                # 队列达到 maxsize：非阻塞拒绝（避免调用方在无人消费时永久挂起）
+                self._seen_urls.discard(task.url)
+                self._tasks_map.pop(task.url, None)
+                return False
             return True
 
     async def push_batch(self, tasks: List[CrawlTask]) -> int:

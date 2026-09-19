@@ -59,13 +59,22 @@ class ResourceStorageSaver:
         """
         ct_header = content_type or content_type_header
 
-        # 兼容签名 2: category 传入的是 content 字节流
+        # 兼容签名 2: category 传入的是 content 字节流 -> 返回 (category, saved_path, size)
         if isinstance(category, bytes):
             actual_content = category
             actual_category = ResourceClassifier.classify(url, ct_header, actual_content)
-        else:
-            actual_category = category or ResourceClassifier.classify(url, ct_header, content or b"")
-            actual_content = content or b""
+            _, ext = os.path.splitext(urlparse(url).path)
+            filename = self.generate_safe_filename(url, ext, actual_content)
+            target_dir = os.path.join(self.base_download_dir, actual_category.value)
+            os.makedirs(target_dir, exist_ok=True)
+            file_path = os.path.join(target_dir, filename)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._write_file, file_path, actual_content)
+            return actual_category, file_path, len(actual_content)
+
+        # 签名 1: save_resource(url, category, content, content_type) -> (saved_path, size)
+        actual_category = category or ResourceClassifier.classify(url, ct_header, content or b"")
+        actual_content = content or b""
 
         _, ext = os.path.splitext(urlparse(url).path)
         filename = self.generate_safe_filename(url, ext, actual_content)
