@@ -5,8 +5,10 @@
 """
 import asyncio
 import os
+import random
 import time
 from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse
 import aiohttp
 from crawler_framework.core.models import (
     CrawlTask,
@@ -45,6 +47,8 @@ class CrawlerEngine:
         default_parser: str = "xpath",
         concurrency: int = 10,
         request_timeout: float = 20.0,
+        request_delay: float = 1.0,
+        jitter: float = 0.5,
         user_agent: str = "Mozilla/5.0 (compatible; AsyncCrawlerEngine/1.0)",
         save_dir: str = "downloads",
         auto_save_resources: bool = True,
@@ -71,6 +75,11 @@ class CrawlerEngine:
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
         self.request_timeout = aiohttp.ClientTimeout(total=request_timeout)
+        # 域名级限速（防封禁）：同域名最小请求间隔 + 随机抖动，不同域名互不阻塞
+        self.request_delay = max(0.0, request_delay)
+        self.jitter = max(0.0, jitter)
+        self._domain_last_request: Dict[str, float] = {}
+        self._domain_lock = asyncio.Lock()
         self.default_headers = {
             "User-Agent": user_agent,
             "Accept": "*/*",
@@ -237,8 +246,41 @@ class CrawlerEngine:
         summary = await self.metrics_observer.get_summary()
         return summary
 
+    async def _respect_domain_rate(self, url: str) -> None:
+        """域名级限速器：同一域名两次请求之间强制最小间隔并叠加随机抖动。
+
+        采用时间槽预约算法：并发的同域名任务在锁内依次预约未来的请求时间槽
+        （锁内仅做计算不睡眠），随后各自在锁外等待，因此不同域名互不阻塞。
+        """
+        if self.request_delay <= 0 and self.jitter <= 0:
+            return
+        try:
+            domain = urlparse(url).hostname or ""
+        except Exception:
+            domain = ""
+        if not domain:
+            return
+
+        async with self._domain_lock:
+            now = time.monotonic()
+            last_reserved = self._domain_last_request.get(domain)
+            if last_reserved is None:
+                # 该域名首次请求：立即放行，仅记录时间戳作为后续间隔基准
+                self._domain_last_request[domain] = now
+                wait = 0.0
+            else:
+                delay = self.request_delay + random.uniform(0, self.jitter)
+                slot = max(last_reserved, now) + delay
+                self._domain_last_request[domain] = slot
+                wait = slot - now
+
+        if wait > 0:
+            await asyncio.sleep(wait)
+
     async def _process_task(self, task: CrawlTask) -> None:
         """处理单条任务的完整生命周期"""
+        # 域名级限速：先预约请求时间槽再进入并发槽位，避免同域名任务占用并发额度时阻塞其他域名
+        await self._respect_domain_rate(task.url)
         async with self.semaphore:
             await self.event_bus.emit(CrawlerEvent(
                 event_type=EventType.TASK_STARTED,
@@ -413,9 +455,6 @@ class CrawlerEngine:
                     # 8. 自动下载当前页面的真实资源（图片/音视频），带 Referer 防盗链
                     if self.auto_save_resources and page_resources:
                         asyncio.create_task(self._download_page_resources(page_resources[:15], crawl_res.url))
-
-                    # 标记当前任务成功完成
-                    await self.queue.complete(task)
 
                     # 标记当前任务成功完成
                     await self.queue.complete(task)
