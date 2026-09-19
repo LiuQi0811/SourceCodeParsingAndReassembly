@@ -42,8 +42,8 @@ export default function DecryptTab({
                 onClick={() => setDecryptAlgo(algo)}
                 className={`h-7 px-2 text-xs uppercase font-bold ${
                   decryptAlgo === algo
-                    ? 'bg-accent text-background hover:bg-accent'
-                    : 'text-muted-foreground hover:text-accent'
+                    ? 'bg-accent text-accent-foreground hover:bg-accent'
+                    : 'text-muted-foreground hover:text-accent-foreground'
                 }`}
               >
                 {algo}

@@ -9,8 +9,9 @@ import os
 import shutil
 import time
 import uuid
+from collections import deque
 from typing import Any, Dict, List
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 import aiohttp
 from aiohttp import web
 from crawler_framework.core.models import CrawlTask, ResourceCategory
@@ -38,8 +39,15 @@ async def cors_middleware(request: web.Request, handler):
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
 
-# 全局内存事件历史缓冲区
-EVENT_HISTORY: List[Dict[str, Any]] = []
+# 全局内存事件历史缓冲区（deque 固定上限，超限自动淘汰，避免 O(n) 弹出）
+EVENT_HISTORY: deque = deque(maxlen=300)
+# 已下载资源根目录（静态服务与资源接口共用）
+DOWNLOADS_DIR = os.path.abspath("downloads")
+# 资源列表扫描缓存：前端 1s 轮询，TTL 内直接复用，避免全量扫盘；key 绑定 DOWNLOADS_DIR 防测试串扰
+_RESOURCES_TTL = 2.0
+_resources_cache: Dict[str, tuple] = {}  # dir -> (scanned_at, result_list)
+# 临时/系统文件后缀与隐藏文件：不进入资源列表
+_TEMP_SUFFIXES = (".crdownload", ".part", ".tmp", ".download", ".opdownload")
 # 多引擎实例注册表：engine_id -> {engine, task, started_at, params, final_state, stop_requested}
 ENGINES: Dict[str, Dict[str, Any]] = {}
 MAX_RUNNING_ENGINES = 5   # 最大并行引擎数守卫上限
@@ -66,8 +74,6 @@ class WebEventObserver(BaseObserver):
             "engine_id": self.engine_id,
         }
         EVENT_HISTORY.append(rec)
-        if len(EVENT_HISTORY) > 300:
-            EVENT_HISTORY.pop(0)
 
 
 def _engine_state(engine_id: str) -> str:
@@ -180,42 +186,92 @@ async def handle_status(request: web.Request) -> web.Response:
 
 
 async def handle_resources(request: web.Request) -> web.Response:
-    """扫描本地 downloads 目录，返回分类资源清单（供前端预览/播放）"""
-    downloads_dir = os.path.abspath("downloads")
+    """扫描本地 downloads 目录，返回分类资源清单（供前端预览/播放）
+
+    - TTL 缓存：前端 1s 轮询，2s 内复用上次扫描结果，避免高频全量扫盘
+    - 过滤隐藏文件与下载临时文件（.crdownload/.part/.tmp 等）
+    - category 过滤在请求层进行，缓存保存全量结果
+    """
+    downloads_dir = DOWNLOADS_DIR
     category = request.query.get("category", "").strip().lower()
-    result = []
 
-    if os.path.isdir(downloads_dir):
-        for cat in os.listdir(downloads_dir):
-            cat_path = os.path.join(downloads_dir, cat)
-            if not os.path.isdir(cat_path):
-                continue
-            if category and cat.lower() != category:
-                continue
-            for fname in os.listdir(cat_path):
-                fpath = os.path.join(cat_path, fname)
-                if not os.path.isfile(fpath):
+    now = time.monotonic()
+    cached = _resources_cache.get(downloads_dir)
+    if cached is not None and now - cached[0] < _RESOURCES_TTL:
+        result = cached[1]
+    else:
+        result = []
+        if os.path.isdir(downloads_dir):
+            for cat in os.listdir(downloads_dir):
+                cat_path = os.path.join(downloads_dir, cat)
+                if not os.path.isdir(cat_path):
                     continue
-                try:
-                    size = os.path.getsize(fpath)
-                except OSError:
-                    size = 0
-                ext = os.path.splitext(fname)[1].lower().lstrip(".")
-                result.append({
-                    "name": fname,
-                    "category": cat,
-                    "ext": ext,
-                    "size": size,
-                    "url": f"/downloads/{cat}/{fname}",
-                    "preview_type": _preview_type(cat, ext),
-                })
+                for fname in os.listdir(cat_path):
+                    # 过滤隐藏文件与下载中的临时文件
+                    if fname.startswith(".") or fname.lower().endswith(_TEMP_SUFFIXES):
+                        continue
+                    fpath = os.path.join(cat_path, fname)
+                    if not os.path.isfile(fpath):
+                        continue
+                    try:
+                        size = os.path.getsize(fpath)
+                    except OSError:
+                        size = 0
+                    ext = os.path.splitext(fname)[1].lower().lstrip(".")
+                    result.append({
+                        "name": fname,
+                        "category": cat,
+                        "ext": ext,
+                        "size": size,
+                        "url": f"/downloads/{cat}/{fname}",
+                        "preview_type": _preview_type(cat, ext),
+                    })
+        # 按分类、名称排序
+        result.sort(key=lambda x: (x["category"], x["name"]))
+        _resources_cache[downloads_dir] = (now, result)
 
-    # 按分类、名称排序
-    result.sort(key=lambda x: (x["category"], x["name"]))
+    if category:
+        result = [r for r in result if r["category"].lower() == category]
     return web.json_response({
         "status": "success",
         "count": len(result),
         "resources": result,
+    })
+
+
+async def handle_resource_content(request: web.Request) -> web.Response:
+    """读取 downloads 目录下文本资源的真实内容（供前端预览），含路径穿越防护"""
+    downloads_dir = DOWNLOADS_DIR
+    rel = unquote(request.query.get("path", "")).strip().lstrip("/\\")
+    if not rel:
+        return web.json_response({"status": "error", "message": "缺少 path 参数"}, status=400)
+    # 二次解码防御：拦截 %2F/%5C/%2e 等编码变体的路径穿越
+    rel = unquote(rel)
+    # 安全校验：解析后必须仍位于 downloads 目录内
+    fpath = os.path.realpath(os.path.join(downloads_dir, rel))
+    if not fpath.startswith(os.path.realpath(downloads_dir) + os.sep):
+        return web.json_response({"status": "error", "message": "非法路径"}, status=400)
+    if not os.path.isfile(fpath):
+        return web.json_response({"status": "error", "message": "文件不存在"}, status=404)
+    size_limit = 2 * 1024 * 1024  # 2MB 上限，防止超大文件拖垮前端
+    if os.path.getsize(fpath) > size_limit:
+        return web.json_response({"status": "error", "message": "文件过大，仅支持预览 2MB 以内的文本"}, status=413)
+    try:
+        with open(fpath, "rb") as fh:
+            raw = fh.read()
+    except OSError as exc:
+        return web.json_response({"status": "error", "message": f"读取失败: {exc}"}, status=500)
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        # 爬虫抓取的文本常为 GBK/GB18030，UTF-8 严格解码失败时回退 GB18030（其超集覆盖 GBK/GB2312）
+        text = raw.decode("gb18030", errors="replace")
+    return web.json_response({
+        "status": "success",
+        "name": os.path.basename(fpath),
+        "category": os.path.basename(os.path.dirname(fpath)),
+        "size": len(raw),
+        "content": text,
     })
 
 
@@ -240,7 +296,7 @@ async def handle_events(request: web.Request) -> web.Response:
     limit = int(request.query.get("limit", 100))
     return web.json_response({
         "status": "success",
-        "events": EVENT_HISTORY[-limit:]
+        "events": list(EVENT_HISTORY)[-limit:]
     })
 
 
@@ -723,7 +779,7 @@ async def handle_cleanup(request: web.Request) -> web.Response:
             "allowed": ["all"] + sorted(CLEANUP_CATEGORIES),
         }, status=400)
 
-    downloads_dir = os.path.abspath("downloads")
+    downloads_dir = DOWNLOADS_DIR
     if category != "all":
         targets = [os.path.join(downloads_dir, category)]
     else:
@@ -766,6 +822,7 @@ def make_app() -> web.Application:
     app.router.add_get("/api/status", handle_status)
     app.router.add_get("/api/events", handle_events)
     app.router.add_get("/api/resources", handle_resources)
+    app.router.add_get("/api/resources/content", handle_resource_content)
     app.router.add_post("/api/start", handle_start)
     app.router.add_post("/api/stop", handle_stop)
     app.router.add_post("/api/resume", handle_resume)
@@ -781,7 +838,11 @@ def make_app() -> web.Application:
     app.router.add_post("/api/m3u8/task/{task_id}/cancel", handle_m3u8_cancel)
 
     # 静态资源服务：将本地 downloads 目录暴露给前端预览/播放
-    downloads_dir = os.path.abspath("downloads")
+    downloads_dir = DOWNLOADS_DIR
+    os.makedirs(downloads_dir, exist_ok=True)
+    app.router.add_static("/downloads", downloads_dir, show_index=False)
+    # 已下载资源静态服务：图片/视频/音频预览与下载
+    downloads_dir = DOWNLOADS_DIR
     os.makedirs(downloads_dir, exist_ok=True)
     app.router.add_static("/downloads", downloads_dir, show_index=False)
     return app

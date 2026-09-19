@@ -253,7 +253,7 @@ export default function EngineCards({ engines, onStop, onResume }: Props) {
               return (
                 <div
                   key={e.engine_id}
-                  className={`rounded border bg-secondary p-3 space-y-2.5 min-w-0 ${meta.cardCls}`}
+                  className={`rounded-md border bg-secondary p-3 space-y-2.5 min-w-0 transition-all duration-200 hover:shadow-md hover:border-primary/30 ${meta.cardCls}`}
                 >
                   {/* 头部：engine_id + 状态徽标 */}
                   <div className="flex items-center justify-between gap-2">

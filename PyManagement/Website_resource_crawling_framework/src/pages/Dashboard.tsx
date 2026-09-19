@@ -195,6 +195,16 @@ export default function Dashboard() {
   }, [backendUrl]);
 
   useEffect(() => {
+    (async () => {
+      // 后端在线时页面加载即拉取一次状态/事件/资源列表（资源预览不依赖抓取运行状态）
+      const ok = await checkBackend();
+      if (ok) await pollStatus();
+    })();
+    // 仅挂载时执行一次：依赖的稳定引用通过闭包捕获，不放入依赖数组避免重复轮询
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
       if (simTimerRef.current) window.clearInterval(simTimerRef.current);
@@ -952,12 +962,13 @@ export default function Dashboard() {
     },
     theme: {
       description: '切换界面主题',
-      usage: 'theme <terminal|clean|space>',
-      completions: () => ['terminal', 'clean', 'space'],
+      usage: 'theme <antd|tdesign|clean|warm|space|midnight|violet|terminal>',
+      completions: () => ['antd', 'tdesign', 'clean', 'warm', 'space', 'midnight', 'violet', 'terminal'],
       run: (args) => {
         const t = args[0];
-        if (!['terminal', 'clean', 'space'].includes(t))
-          return ['用法: theme <terminal|clean|space>', 'terminal=极客终端 clean=简洁亮色 space=深空蓝'];
+        const VALID = ['antd', 'tdesign', 'clean', 'warm', 'space', 'midnight', 'violet', 'terminal'];
+        if (!VALID.includes(t))
+          return ['用法: theme <antd|tdesign|clean|warm|space|midnight|violet|terminal>', 'antd=企业蓝 tdesign=商务蓝 clean=晨雾绿 warm=暖阳橙 space=深空蓝 midnight=午夜黑 violet=暗夜紫 terminal=极客终端'];
         setTheme(t as ThemeId);
         return `主题已切换为: ${t}`;
       },
@@ -994,7 +1005,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`min-h-screen ${customImage ? 'bg-transparent' : 'bg-background'} text-foreground font-mono selection:bg-primary selection:text-background flex flex-col`}>
+    <div className={`min-h-screen ${customImage ? 'bg-transparent' : 'bg-background'} text-foreground selection:bg-primary selection:text-background flex flex-col`}>
       {/* 极客终端扫描线微纹理效果 */}
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent z-10" />
 
@@ -1069,7 +1080,7 @@ export default function Dashboard() {
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
         {/* 指标看板条 */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">抓取网页 (Pages)</div>
               <div className="text-xl font-bold text-primary mt-0.5">
@@ -1077,25 +1088,25 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">待抓队列 (Pending)</div>
               <div className="text-xl font-bold text-accent mt-0.5">{stats.pending}</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">抓取中 (Processing)</div>
               <div className="text-xl font-bold text-info mt-0.5">{stats.processing}</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">已完成 (Completed)</div>
               <div className="text-xl font-bold text-primary mt-0.5">{stats.completed}</div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">翻页识别状态</div>
               <div className="text-sm font-bold text-foreground mt-1.5 flex items-center gap-1">
@@ -1104,7 +1115,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-card border-primary/20 shadow-none">
+          <Card className="bg-card border-primary/20 shadow-none transition-shadow duration-200 hover:shadow-md hover:border-primary/40">
             <CardContent className="p-3">
               <div className="text-[11px] text-muted-foreground">下载吞吐量</div>
               <div className="text-xl font-bold text-primary mt-0.5">{stats.downloadedKb} KB</div>
@@ -1258,6 +1269,7 @@ export default function Dashboard() {
               setPreviewResource={setPreviewResource}
               categoryIcons={categoryIcons}
               previewLabel={previewLabel}
+              backendUrl={backendUrl}
             />
           </TabsContent>
         </Tabs>

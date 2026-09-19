@@ -36,6 +36,18 @@ class SQLiteQueueStrategy(BaseQueueStrategy):
             self._conn.execute("PRAGMA synchronous = NORMAL;")
         return self._conn
 
+    def _read_connection(self):
+        """只读查询连接：
+        - 队列存活时复用持久连接（零额外开销）；
+        - 队列已 close（_conn 为 None）时使用短连接自开自关，
+          避免 close 后 get_stats 等查询重建连接却无人关闭（连接泄漏 / 文件锁）。
+        """
+        if self._conn is not None:
+            return self._conn, False
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        return conn, True
+
     async def initialize(self) -> None:
         async with self._lock:
             loop = asyncio.get_running_loop()
@@ -234,9 +246,13 @@ class SQLiteQueueStrategy(BaseQueueStrategy):
             return await loop.run_in_executor(None, self._sync_is_empty)
 
     def _sync_is_empty(self) -> bool:
-        conn = self._get_connection()
-        cur = conn.execute("SELECT COUNT(*) AS c FROM crawl_queue WHERE status IN ('pending', 'processing')")
-        return cur.fetchone()["c"] == 0
+        conn, own = self._read_connection()
+        try:
+            cur = conn.execute("SELECT COUNT(*) AS c FROM crawl_queue WHERE status IN ('pending', 'processing')")
+            return cur.fetchone()["c"] == 0
+        finally:
+            if own:
+                conn.close()
 
     async def pending_count(self) -> int:
         async with self._lock:
@@ -244,9 +260,13 @@ class SQLiteQueueStrategy(BaseQueueStrategy):
             return await loop.run_in_executor(None, self._sync_pending_count)
 
     def _sync_pending_count(self) -> int:
-        conn = self._get_connection()
-        cur = conn.execute("SELECT COUNT(*) AS c FROM crawl_queue WHERE status = 'pending'")
-        return cur.fetchone()["c"]
+        conn, own = self._read_connection()
+        try:
+            cur = conn.execute("SELECT COUNT(*) AS c FROM crawl_queue WHERE status = 'pending'")
+            return cur.fetchone()["c"]
+        finally:
+            if own:
+                conn.close()
 
     async def get_stats(self) -> Dict[str, Any]:
         async with self._lock:
@@ -254,26 +274,30 @@ class SQLiteQueueStrategy(BaseQueueStrategy):
             return await loop.run_in_executor(None, self._sync_get_stats)
 
     def _sync_get_stats(self) -> Dict[str, Any]:
-        conn = self._get_connection()
-        cur = conn.execute("""
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
-            FROM crawl_queue
-        """)
-        row = cur.fetchone()
-        return {
-            "mode": "sqlite",
-            "db_path": self.db_path,
-            "total_seen": row["total"] or 0,
-            "pending": row["pending"] or 0,
-            "processing": row["processing"] or 0,
-            "completed": row["completed"] or 0,
-            "failed": row["failed"] or 0,
-        }
+        conn, own = self._read_connection()
+        try:
+            cur = conn.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+                FROM crawl_queue
+            """)
+            row = cur.fetchone()
+            return {
+                "mode": "sqlite",
+                "db_path": self.db_path,
+                "total_seen": row["total"] or 0,
+                "pending": row["pending"] or 0,
+                "processing": row["processing"] or 0,
+                "completed": row["completed"] or 0,
+                "failed": row["failed"] or 0,
+            }
+        finally:
+            if own:
+                conn.close()
 
     async def close(self) -> None:
         async with self._lock:

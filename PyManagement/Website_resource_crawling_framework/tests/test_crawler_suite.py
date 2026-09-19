@@ -12,6 +12,7 @@ import asyncio
 import os
 import shutil
 import unittest
+from pathlib import Path
 from crawler_framework.core.models import (
     CrawlTask,
     ResourceCategory,
@@ -38,8 +39,9 @@ from crawler_framework.core.engine import CrawlerEngine
 class TestCrawlerFramework(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
-        self.test_dir = "/workspace/app-efej0zprkmwx/tests/tmp_downloads"
-        self.test_db = "/workspace/app-efej0zprkmwx/tests/test_tasks.db"
+        # 测试临时目录动态指向 tests/ 目录下，兼容 Windows / Linux 路径
+        self.test_dir = str(Path(__file__).resolve().parent / "tmp_downloads")
+        self.test_db = str(Path(__file__).resolve().parent / "test_tasks.db")
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
         if os.path.exists(self.test_db):
@@ -200,7 +202,7 @@ class TestCrawlerFramework(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cat_img, ResourceCategory.IMAGE)
         path_img, _ = await saver.save_resource("https://test.com/logo.png", cat_img, img_bytes, "image/png")
         self.assertTrue(os.path.exists(path_img))
-        self.assertIn("/images/", path_img)
+        self.assertIn(os.path.join("images", ""), path_img)
 
         # 2. 视频类型识别并保存
         vid_bytes = b"\x00\x00\x00 ftypmp42" + b"\x00" * 30
@@ -208,7 +210,7 @@ class TestCrawlerFramework(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cat_vid, ResourceCategory.VIDEO)
         path_vid, _ = await saver.save_resource("https://test.com/trailer.mp4", cat_vid, vid_bytes, "video/mp4")
         self.assertTrue(os.path.exists(path_vid))
-        self.assertIn("/videos/", path_vid)
+        self.assertIn(os.path.join("videos", ""), path_vid)
 
         # 3. 文档类型识别并保存
         doc_bytes = b"%PDF-1.5 test pdf document content"
@@ -216,7 +218,7 @@ class TestCrawlerFramework(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cat_doc, ResourceCategory.DOCUMENT)
         path_doc, _ = await saver.save_resource("https://test.com/report.pdf", cat_doc, doc_bytes, "application/pdf")
         self.assertTrue(os.path.exists(path_doc))
-        self.assertIn("/documents/", path_doc)
+        self.assertIn(os.path.join("documents", ""), path_doc)
 
     # ─────────────────────────────────────────────────────────────
     # 测试 5: 逆向解密扩展（Base64, XOR, RC4, AES, Custom Hook）

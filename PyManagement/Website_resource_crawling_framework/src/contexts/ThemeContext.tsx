@@ -1,6 +1,25 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
-export type ThemeId = 'terminal' | 'clean' | 'space';
+export type ThemeId =
+  | 'antd'
+  | 'tdesign'
+  | 'clean'
+  | 'warm'
+  | 'space'
+  | 'midnight'
+  | 'violet'
+  | 'terminal';
+
+export const THEME_IDS: ThemeId[] = [
+  'antd',
+  'tdesign',
+  'clean',
+  'warm',
+  'space',
+  'midnight',
+  'violet',
+  'terminal',
+];
 
 interface ThemeState {
   theme: ThemeId;
@@ -19,14 +38,14 @@ function loadInitial(): { theme: ThemeId; customImage: string | null } {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        theme: ['terminal', 'clean', 'space'].includes(parsed.theme) ? parsed.theme : 'terminal',
+        theme: THEME_IDS.includes(parsed.theme) ? parsed.theme : 'antd',
         customImage: typeof parsed.customImage === 'string' ? parsed.customImage : null,
       };
     }
   } catch {
     // 忽略损坏的本地配置
   }
-  return { theme: 'terminal', customImage: null };
+  return { theme: 'antd', customImage: null };
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

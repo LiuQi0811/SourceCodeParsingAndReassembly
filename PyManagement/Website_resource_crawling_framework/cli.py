@@ -67,8 +67,26 @@ async def run_cli():
 
         # 3. RC4
         rc4_dec = DecryptorFactory.create_decryptor("rc4")
-        rc4_res = rc4_dec.decrypt("rc4_cipher", {"key": "secret", "format": "base64"})
-        print(f"{C.NEON_GREEN}✓ RC4 流密码逆向解密接口就绪{C.RESET}")
+        rc4_key = "cyberpunk"
+        rc4_msg = "Hello, Crawler! RC4 中文逆向解密"
+        # 标准 RC4 加密（KSA + PRGA）生成 hex 密文后解密验证
+        _S = list(range(256))
+        _j = 0
+        _k = rc4_key.encode()
+        for _i in range(256):
+            _j = (_j + _S[_i] + _k[_i % len(_k)]) % 256
+            _S[_i], _S[_j] = _S[_j], _S[_i]
+        _i = _j = 0
+        _cipher = bytearray()
+        for _b in rc4_msg.encode():
+            _i = (_i + 1) % 256
+            _j = (_j + _S[_i]) % 256
+            _S[_i], _S[_j] = _S[_j], _S[_i]
+            _cipher.append(_b ^ _S[(_S[_i] + _S[_j]) % 256])
+        rc4_res = rc4_dec.decrypt(_cipher.hex(), {"key": rc4_key, "format": "hex"})
+        print(f"{C.NEON_GREEN}✓ RC4 流密码逆向解密结果:{C.RESET} {rc4_res}")
+        if rc4_res != rc4_msg:
+            print(f"{C.AMBER_ORANGE}[!] RC4 解密校验不一致，预期: {rc4_msg}{C.RESET}")
 
         print(f"\n{C.NEON_GREEN}所有逆向解密扩展策略校验通过!{C.RESET}")
         return

@@ -6,21 +6,56 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTheme, ThemeId } from '@/contexts/ThemeContext';
 import { toast } from 'sonner';
 
-const PRESETS: { id: ThemeId; name: string; swatch: string }[] = [
+const PRESET_GROUPS: { label: string; items: { id: ThemeId; name: string; swatch: string }[] }[] = [
   {
-    id: 'terminal',
-    name: '极客终端',
-    swatch: 'linear-gradient(135deg, hsl(152 100% 50%), hsl(135 55% 4%))',
+    label: '企业风格（浅色）',
+    items: [
+      {
+        id: 'antd',
+        name: '企业蓝',
+        swatch: 'linear-gradient(135deg, hsl(213 100% 55%), hsl(0 0% 97%))',
+      },
+      {
+        id: 'tdesign',
+        name: '商务蓝',
+        swatch: 'linear-gradient(135deg, hsl(217 100% 43%), hsl(0 0% 95%))',
+      },
+      {
+        id: 'clean',
+        name: '晨雾绿',
+        swatch: 'linear-gradient(135deg, hsl(168 64% 38%), hsl(210 25% 97%))',
+      },
+      {
+        id: 'warm',
+        name: '暖阳橙',
+        swatch: 'linear-gradient(135deg, hsl(25 95% 53%), hsl(38 40% 97%))',
+      },
+    ],
   },
   {
-    id: 'clean',
-    name: '简洁亮色',
-    swatch: 'linear-gradient(135deg, hsl(168 64% 38%), hsl(210 25% 97%))',
-  },
-  {
-    id: 'space',
-    name: '深空蓝',
-    swatch: 'linear-gradient(135deg, hsl(213 94% 58%), hsl(222 47% 6%))',
+    label: '深色主题',
+    items: [
+      {
+        id: 'space',
+        name: '深空蓝',
+        swatch: 'linear-gradient(135deg, hsl(213 94% 58%), hsl(222 47% 6%))',
+      },
+      {
+        id: 'midnight',
+        name: '午夜黑',
+        swatch: 'linear-gradient(135deg, hsl(213 100% 60%), hsl(0 0% 8%))',
+      },
+      {
+        id: 'violet',
+        name: '暗夜紫',
+        swatch: 'linear-gradient(135deg, hsl(262 85% 66%), hsl(262 42% 7%))',
+      },
+      {
+        id: 'terminal',
+        name: '极客终端',
+        swatch: 'linear-gradient(135deg, hsl(152 100% 50%), hsl(135 55% 4%))',
+      },
+    ],
   },
 ];
 
@@ -73,23 +108,30 @@ export default function ThemeSwitcher() {
         <div className="space-y-4">
           <div>
             <p className="text-xs font-semibold text-foreground mb-2">预设主题</p>
-            <div className="grid grid-cols-3 gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setTheme(p.id)}
-                  className={`relative rounded-md border p-1.5 transition-all ${
-                    theme === p.id ? 'border-primary' : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <div className="h-10 w-full rounded" style={{ background: p.swatch }} />
-                  <span className="mt-1 block text-[11px] text-muted-foreground">{p.name}</span>
-                  {theme === p.id && (
-                    <Check className="absolute right-1 top-1 h-3.5 w-3.5 text-primary" />
-                  )}
-                </button>
-              ))}
-            </div>
+            {PRESET_GROUPS.map((group) => (
+              <div key={group.label} className="mb-3 last:mb-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {group.items.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setTheme(p.id)}
+                      className={`relative rounded-md border p-1.5 transition-all ${
+                        theme === p.id ? 'border-primary' : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="h-10 w-full rounded" style={{ background: p.swatch }} />
+                      <span className="mt-1 block text-[11px] text-muted-foreground">{p.name}</span>
+                      {theme === p.id && (
+                        <Check className="absolute right-1 top-1 h-3.5 w-3.5 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
           <div className="border-t border-border pt-3">
             <p className="text-xs font-semibold text-foreground mb-2">自定义背景图片</p>
