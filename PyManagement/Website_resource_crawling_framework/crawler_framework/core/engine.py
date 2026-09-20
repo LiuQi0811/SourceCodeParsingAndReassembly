@@ -7,7 +7,7 @@ import asyncio
 import os
 import random
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 from urllib.parse import urlparse
 import aiohttp
 from crawler_framework.core.models import (
@@ -19,6 +19,7 @@ from crawler_framework.core.models import (
     TaskStatus,
 )
 from crawler_framework.parsers.pagination_detector import PaginationDetector
+from crawler_framework.adapters import get_adapter
 from crawler_framework.queues.base import BaseQueueStrategy
 from crawler_framework.queues.factory import QueueFactory
 from crawler_framework.parsers.base import BaseParser
@@ -59,6 +60,7 @@ class CrawlerEngine:
         same_domain_only: bool = True,
         allowed_domains: Optional[List[str]] = None,
         enable_console_log: bool = True,
+        on_m3u8_found: Optional[Callable[[str, str], Awaitable[None]]] = None,
     ):
         # 1. 队列策略实例（若未传则通过工厂创建）
         self.queue_mode = queue_mode
@@ -107,6 +109,9 @@ class CrawlerEngine:
 
         self._session: Optional[aiohttp.ClientSession] = None
         self._is_running = False
+        self._download_tasks: Set[asyncio.Task] = set()
+        # m3u8 自动下载钩子：发现 .m3u8 时回调 (url, referer)，由上层接管分片下载+合并
+        self.on_m3u8_found = on_m3u8_found
         self._start_time: float = 0.0
         self._queue_initialized = False
         self._stop_reason: str = ""
@@ -238,6 +243,10 @@ class CrawlerEngine:
             # 等待所有剩余工作协程完成
             if active_workers:
                 await asyncio.gather(*active_workers, return_exceptions=True)
+
+            # 等待所有后台资源下载任务完成，避免 session 关闭后报 "Session is closed"
+            if self._download_tasks:
+                await asyncio.gather(*self._download_tasks, return_exceptions=True)
 
         self._is_running = False
         total_elapsed = time.time() - self._start_time
@@ -400,6 +409,20 @@ class CrawlerEngine:
                     content_links = extracted_pack.get("content_links", [])
                     page_resources = extracted_pack.get("resource_urls", [])
 
+                    # 视频站适配器：对 JS 动态渲染的站点（m3u8 不在静态 HTML 里），按 URL 匹配适配器
+                    adapter = get_adapter(crawl_res.url)
+                    if adapter:
+                        try:
+                            ad_m3u8 = await adapter.extract_m3u8(crawl_res.url, self._session)
+                            if ad_m3u8:
+                                page_resources.insert(0, {
+                                    "url": ad_m3u8,
+                                    "category": "videos",
+                                    "alt": f"adapter-{adapter.name}",
+                                })
+                        except Exception:
+                            pass
+
                     await self.event_bus.emit(CrawlerEvent(
                         event_type=EventType.REQUEST_SUCCESS,
                         task=task,
@@ -469,7 +492,9 @@ class CrawlerEngine:
 
                     # 8. 自动下载当前页面的真实资源（图片/音视频），带 Referer 防盗链
                     if self.auto_save_resources and page_resources:
-                        asyncio.create_task(self._download_page_resources(page_resources[:15], crawl_res.url))
+                        dl_task = asyncio.create_task(self._download_page_resources(page_resources[:15], crawl_res.url))
+                        self._download_tasks.add(dl_task)
+                        dl_task.add_done_callback(self._download_tasks.discard)
 
                     # 标记当前任务成功完成
                     await self.queue.complete(task)
@@ -494,6 +519,15 @@ class CrawlerEngine:
         for item in resources:
             res_url = item.get("url")
             cat_name = item.get("category", "images")
+
+            # m3u8 直链：若注册了自动下载钩子，则交给钩子做分片下载+合并，跳过普通文本下载
+            if self.on_m3u8_found and res_url and res_url.lower().split("?")[0].endswith(".m3u8"):
+                try:
+                    await self.on_m3u8_found(res_url, page_url)
+                except Exception:
+                    pass
+                continue
+
             try:
                 cat_enum = ResourceCategory(cat_name)
             except Exception:

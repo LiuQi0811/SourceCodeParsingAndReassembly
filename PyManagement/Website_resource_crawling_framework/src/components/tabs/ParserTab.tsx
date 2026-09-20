@@ -42,7 +42,7 @@ export default function ParserTab({
                   onClick={() => setParserTestType(mode)}
                   className={`h-7 px-2 text-xs uppercase font-bold ${
                     parserTestType === mode
-                      ? 'bg-primary text-background hover:bg-primary'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary'
                       : 'text-muted-foreground hover:text-primary'
                   }`}
                 >
@@ -71,7 +71,7 @@ export default function ParserTab({
               className="bg-background border-primary/30 font-mono text-[11px] text-primary"
             />
           </div>
-          <Button onClick={runParserTest} className="w-full bg-primary hover:bg-primary/90 text-background font-bold">
+          <Button onClick={runParserTest} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
             执行当前解析策略 ({parserTestType.toUpperCase()})
           </Button>
         </CardContent>

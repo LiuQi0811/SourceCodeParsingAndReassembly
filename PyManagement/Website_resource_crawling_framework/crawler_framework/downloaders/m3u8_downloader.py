@@ -171,23 +171,32 @@ class M3U8Downloader:
         async def download_one(seg: M3U8Segment) -> None:
             async with semaphore:
                 filename = os.path.join(output_dir, f"seg_{seg.index:06d}.ts")
-                try:
-                    async with session.get(seg.url, headers=headers, timeout=self.timeout) as resp:
-                        if resp.status != 200:
-                            return
-                        data = await resp.read()
-                    if seg.key_uri:
-                        key = await fetch_key_cached(seg.key_uri)
-                        if key:
-                            data = decrypt_aes128(data, key, seg.iv)
-                    with open(filename, "wb") as f:
-                        f.write(data)
+                # 断点续传：分片已存在且非空则跳过
+                if os.path.exists(filename) and os.path.getsize(filename) > 0:
                     results[seg.index] = filename
-                except Exception:
-                    pass
-                finally:
                     if on_progress:
                         on_progress(len(results), len(segments))
+                    return
+                for attempt in range(3):
+                    try:
+                        async with session.get(seg.url, headers=headers, timeout=self.timeout) as resp:
+                            if resp.status != 200:
+                                await asyncio.sleep(0.5 * (attempt + 1))
+                                continue
+                            data = await resp.read()
+                        if seg.key_uri:
+                            key = await fetch_key_cached(seg.key_uri)
+                            if key:
+                                data = decrypt_aes128(data, key, seg.iv)
+                        with open(filename, "wb") as f:
+                            f.write(data)
+                        results[seg.index] = filename
+                        await asyncio.sleep(0.2)  # 限速：每片后歇 200ms
+                        break
+                    except Exception:
+                        await asyncio.sleep(0.5 * (attempt + 1))
+                if on_progress:
+                    on_progress(len(results), len(segments))
 
         await asyncio.gather(*[download_one(s) for s in segments])
         return [results[i] for i in sorted(results.keys())]

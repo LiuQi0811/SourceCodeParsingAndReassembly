@@ -55,6 +55,16 @@ MAX_ENGINE_HISTORY = 20   # 已结束引擎的历史保留条数（先进先出�
 DOWNLOAD_MANAGER = DownloadManager(concurrency=8, max_segments=1000)
 
 
+async def auto_m3u8_download_hook(m3u8_url: str, referer: str = "") -> None:
+    """引擎发现 m3u8 直链时的回调：自动创建分片下载+合并任务（后台执行，不阻塞爬取）"""
+    try:
+        task = DOWNLOAD_MANAGER.create_task(m3u8_url, referer=referer)
+        asyncio.create_task(DOWNLOAD_MANAGER.run_task(task))
+        print(f"[auto-m3u8] 自动触发分片下载合并: {m3u8_url} -> task {task.task_id}")
+    except Exception as e:
+        print(f"[auto-m3u8] 触发失败: {e}")
+
+
 class WebEventObserver(BaseObserver):
     """专门为 Web 收集事件的观察者（附带 engine_id 标识事件来源）"""
 
@@ -355,6 +365,7 @@ async def handle_start(request: web.Request) -> web.Response:
         allowed_domains=allowed_domains,
         request_delay=request_delay,
         enable_console_log=True,
+        on_m3u8_found=auto_m3u8_download_hook,
     )
     engine.add_observer(WebEventObserver(engine_id))
 
@@ -515,6 +526,7 @@ async def handle_resume(request: web.Request) -> web.Response:
         allowed_domains=params.get("allowed_domains") or [],
         request_delay=params.get("request_delay", 1.0),
         enable_console_log=True,
+        on_m3u8_found=auto_m3u8_download_hook,
     )
     engine.add_observer(WebEventObserver(new_id))
 
@@ -725,11 +737,12 @@ async def handle_m3u8_download(request: web.Request) -> web.Response:
     data = await request.json()
     url = (data.get("url") or "").strip()
     referer = (data.get("referer") or "").strip()
+    output_dir = (data.get("output_dir") or "downloads/videos").strip()
     if not url:
         return web.json_response({"status": "error", "message": "缺少 url 参数"}, status=400)
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-    task = DOWNLOAD_MANAGER.create_task(url=url, referer=referer)
+    task = DOWNLOAD_MANAGER.create_task(url=url, referer=referer, output_dir=output_dir)
     asyncio.create_task(DOWNLOAD_MANAGER.run_task(task))
     return web.json_response({"status": "success", "task": task.to_dict()})
 
@@ -756,6 +769,42 @@ async def handle_m3u8_cancel(request: web.Request) -> web.Response:
     return web.json_response({
         "status": "success" if ok else "error",
         "message": "已取消" if ok else "任务不存在或当前状态不可取消",
+    })
+
+
+async def handle_m3u8_pause(request: web.Request) -> web.Response:
+    """暂停下载任务（保留已下分片）"""
+    task_id = request.match_info.get("task_id")
+    ok = DOWNLOAD_MANAGER.pause_task(task_id)
+    return web.json_response({
+        "status": "success" if ok else "error",
+        "message": "已暂停" if ok else "任务不存在或当前状态不可暂停",
+    })
+
+
+async def handle_m3u8_resume(request: web.Request) -> web.Response:
+    """继续下载任务（已下分片自动跳过，断点续传）"""
+    task_id = request.match_info.get("task_id")
+    dl_task = DOWNLOAD_MANAGER.resume_task(task_id)
+    if dl_task:
+        return web.json_response({
+            "status": "success",
+            "message": "已继续下载（断点续传）",
+            "task_id": task_id,
+        })
+    return web.json_response({
+        "status": "error",
+        "message": "任务不存在或当前状态不可继续",
+    })
+
+
+async def handle_m3u8_delete(request: web.Request) -> web.Response:
+    """删除任务记录（不删已下载文件）"""
+    task_id = request.match_info.get("task_id")
+    ok = DOWNLOAD_MANAGER.delete_task(task_id)
+    return web.json_response({
+        "status": "success" if ok else "error",
+        "message": "已删除" if ok else "任务不存在",
     })
 
 
@@ -836,6 +885,9 @@ def make_app() -> web.Application:
     app.router.add_get("/api/m3u8/tasks", handle_m3u8_tasks)
     app.router.add_get("/api/m3u8/task/{task_id}", handle_m3u8_task)
     app.router.add_post("/api/m3u8/task/{task_id}/cancel", handle_m3u8_cancel)
+    app.router.add_post("/api/m3u8/task/{task_id}/pause", handle_m3u8_pause)
+    app.router.add_post("/api/m3u8/task/{task_id}/resume", handle_m3u8_resume)
+    app.router.add_delete("/api/m3u8/task/{task_id}", handle_m3u8_delete)
 
     # 静态资源服务：将本地 downloads 目录暴露给前端预览/播放
     downloads_dir = DOWNLOADS_DIR

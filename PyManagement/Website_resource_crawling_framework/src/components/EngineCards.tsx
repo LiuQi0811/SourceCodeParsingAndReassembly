@@ -188,7 +188,7 @@ export default function EngineCards({ engines, onStop, onResume }: Props) {
                   onClick={() => setStateFilter(f.key)}
                   className={`h-6 px-2 rounded text-[10px] font-semibold border transition-colors ${
                     active
-                      ? 'bg-primary text-background border-primary'
+                      ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
                   }`}
                 >
@@ -335,7 +335,7 @@ export default function EngineCards({ engines, onStop, onResume }: Props) {
                       <Button
                         size="sm"
                         onClick={() => onResume(e.engine_id)}
-                        className="h-6 px-2 text-[10px] bg-primary/80 hover:bg-primary text-background font-bold"
+                        className="h-6 px-2 text-[10px] bg-primary/80 hover:bg-primary/90 text-primary-foreground font-bold"
                       >
                         <RotateCcw className="h-3 w-3 mr-1" />
                         一键续爬

@@ -4,7 +4,7 @@
 """
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
-from urllib.parse import urljoin, urlparse, urldefrag
+from urllib.parse import unquote, urljoin, urlparse, urldefrag
 from bs4 import BeautifulSoup
 
 
@@ -174,6 +174,59 @@ class PaginationDetector:
                         "category": "audios",
                         "alt": "audio"
                     })
+
+        # 4. JS 内媒体地址提取（MacCMS 等模板：m3u8/mp4 藏在 player_aaaa.link 等 JS 对象里，非 HTML 标签）
+        #    覆盖 "link":"...m3u8"、"url":"...mp4" 以及裸 m3u8 直链，处理 JS 转义 \/
+        # 常见播放器对象字段名（覆盖 MacCMS player_aaaa / mac_player_info / 各类自定义模板）
+        _media_keys = r'(?:link|url|src|file|play|source|video|play_url|stream|main|source_url)'
+        js_media_patterns = [
+            # "url":"...xxx.m3u8" / 'file': '...xxx.mp4' 等 JSON 对象字段（通配外层变量名）
+            re.compile(r'["\']' + _media_keys + r'["\']\s*:\s*["\']([^"\']+\.m3u8[^"\']*)["\']', re.I),
+            re.compile(r'["\']' + _media_keys + r'["\']\s*:\s*["\']([^"\']+\.mp4[^"\']*)["\']', re.I),
+            # 裸 https://...xxx.m3u8 直链（处理 JS 转义 \/）
+            re.compile(r'(https?:\\?/\\?/[^"\'\s]+\.m3u8[^"\'\s]*)', re.I),
+            # 裸 var playUrl = "https://...m3u8" / var url = "xxx.mp4" 等 JS 变量直接赋值
+            re.compile(r'(?:var|let|const)\s+\w*[Uu]rl\w*\s*=\s*["\']([^"\']+\.(?:m3u8|mp4)[^"\']*)["\']', re.I),
+        ]
+        for pat in js_media_patterns:
+            for m in pat.finditer(html):
+                raw = m.group(1).replace("\\/", "/")
+                clean = cls.clean_url(raw, base_url)
+                if clean and clean not in seen_res:
+                    seen_res.add(clean)
+                    resource_urls.insert(0, {
+                        "url": clean,
+                        "category": "videos",
+                        "alt": "js-media"
+                    })
+
+        # 5. MacCMS 加密播放对象解密：同时匹配 encrypt 字段与 url/link 字段
+        #    encrypt=1 -> unescape(url)  (URL 解码)
+        #    encrypt=2 -> unescape(atob(url))  (base64 解码后再 URL 解码)
+        _enc_obj = re.compile(
+            r'\{[^{}]*?"encrypt"\s*:\s*["\']?(\d)["\']?[^{}]*?"(?:link|url|src|file)"\s*:\s*["\']([^"\']{4,})["\']',
+            re.I,
+        )
+        for m in _enc_obj.finditer(html):
+            enc_flag = m.group(1)
+            raw = m.group(2).replace("\\/", "/")
+            try:
+                if enc_flag == "1":
+                    raw = unquote(raw)
+                elif enc_flag == "2":
+                    raw = unquote(__import__("base64").b64decode(raw).decode("utf-8", "replace"))
+            except Exception:
+                pass
+            if not re.search(r"\.(?:m3u8|mp4)", raw, re.I):
+                continue
+            clean = cls.clean_url(raw, base_url)
+            if clean and clean not in seen_res:
+                seen_res.add(clean)
+                resource_urls.insert(0, {
+                    "url": clean,
+                    "category": "videos",
+                    "alt": f"js-media-enc{enc_flag}"
+                })
 
         return {
             "pagination_links": pagination_links,

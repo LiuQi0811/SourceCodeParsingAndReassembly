@@ -1005,7 +1005,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`min-h-screen ${customImage ? 'bg-transparent' : 'bg-background'} text-foreground selection:bg-primary selection:text-background flex flex-col`}>
+    <div className={`min-h-screen ${customImage ? 'bg-transparent' : 'bg-background'} text-foreground selection:bg-primary selection:text-primary-foreground flex flex-col`}>
       {/* 极客终端扫描线微纹理效果 */}
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent z-10" />
 
@@ -1058,7 +1058,7 @@ export default function Dashboard() {
           <Button
             size="sm"
             onClick={toggleEngine}
-            className={isRunning ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0 font-bold' : 'bg-primary hover:bg-primary/90 text-background font-bold border-0'}
+            className={isRunning ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0 font-bold' : 'bg-primary hover:bg-primary/90 text-primary-foreground font-bold border-0'}
           >
             {isRunning ? (
               <>
@@ -1129,39 +1129,39 @@ export default function Dashboard() {
         {/* 核心控制选项卡 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="bg-card border border-primary/20 p-1 flex flex-wrap h-auto gap-1">
-            <TabsTrigger value="control" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="control" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <Layers className="h-3.5 w-3.5 mr-1.5" />
               1. 调度与双队列
             </TabsTrigger>
-            <TabsTrigger value="parser" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="parser" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <FileCode className="h-3.5 w-3.5 mr-1.5" />
               2. 解析器实验室
             </TabsTrigger>
-            <TabsTrigger value="charset" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="charset" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <FileText className="h-3.5 w-3.5 mr-1.5" />
               3. 字符集转码
             </TabsTrigger>
-            <TabsTrigger value="storage" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="storage" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <FolderTree className="h-3.5 w-3.5 mr-1.5" />
               4. 资源分类存储
             </TabsTrigger>
-            <TabsTrigger value="decrypt" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="decrypt" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <Shield className="h-3.5 w-3.5 mr-1.5" />
               5. 逆向解密扩展
             </TabsTrigger>
-            <TabsTrigger value="observer" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="observer" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <Radio className="h-3.5 w-3.5 mr-1.5" />
               6. 观察者事件流
             </TabsTrigger>
-            <TabsTrigger value="resources" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="resources" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
               7. 资源预览播放
             </TabsTrigger>
-            <TabsTrigger value="streaming" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="streaming" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <Film className="h-3.5 w-3.5 mr-1.5" />
               8. 流媒体下载
             </TabsTrigger>
-            <TabsTrigger value="console" className="data-[state=active]:bg-primary data-[state=active]:text-background text-xs py-1.5 font-bold">
+            <TabsTrigger value="console" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1.5 font-bold">
               <Terminal className="h-3.5 w-3.5 mr-1.5" />
               9. 命令控制台
             </TabsTrigger>

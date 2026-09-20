@@ -4,6 +4,8 @@ import {
   Download,
   Play,
   X,
+  Pause,
+  Trash2,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -24,7 +26,8 @@ export type M3U8Status =
   | 'merging'
   | 'completed'
   | 'failed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'paused';
 
 export interface M3U8Task {
   task_id: string;
@@ -33,6 +36,7 @@ export interface M3U8Task {
   total_segments: number;
   downloaded_segments: number;
   progress: number;
+  speed: number;
   merged_file: string | null;
   file_size: number;
   error: string | null;
@@ -48,9 +52,10 @@ const STATUS_META: Record<M3U8Status, { label: string; color: string; dot: strin
   completed: { label: '已完成', color: 'text-primary', dot: 'bg-primary' },
   failed: { label: '失败', color: 'text-destructive', dot: 'bg-destructive' },
   cancelled: { label: '已取消', color: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  paused: { label: '已暂停', color: 'text-accent', dot: 'bg-accent' },
 };
 
-const ACTIVE_STATUSES: M3U8Status[] = ['pending', 'parsing', 'downloading', 'merging'];
+const ACTIVE_STATUSES: M3U8Status[] = ['pending', 'parsing', 'downloading', 'merging', 'paused'];
 
 function formatSize(bytes: number): string {
   if (!bytes) return '0 B';
@@ -69,6 +74,9 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
   const [tasks, setTasks] = useState<M3U8Task[]>([]);
   const [m3u8Url, setM3u8Url] = useState('');
   const [referer, setReferer] = useState('');
+  const [outputDir, setOutputDir] = useState('downloads/videos');
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchUrls, setBatchUrls] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const pollRef = useRef<number | null>(null);
 
@@ -95,6 +103,7 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
   }, [backendOnline, refreshTasks]);
 
   // 有活跃任务时轮询进度
+  const prevStatusRef = useRef<Record<string, M3U8Status>>({});
   useEffect(() => {
     const hasActive = tasks.some((t) => ACTIVE_STATUSES.includes(t.status));
     if (hasActive && backendOnline) {
@@ -105,6 +114,19 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
       window.clearInterval(pollRef.current);
       pollRef.current = null;
     }
+    // 完成/失败通知
+    tasks.forEach((t) => {
+      const prev = prevStatusRef.current[t.task_id];
+      if (prev && prev !== t.status && (t.status === 'completed' || t.status === 'failed')) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(
+            t.status === 'completed' ? '下载完成' : '下载失败',
+            { body: `${t.downloaded_segments}/${t.total_segments} 切片 · ${formatSize(t.file_size)}` },
+          );
+        }
+      }
+      prevStatusRef.current[t.task_id] = t.status;
+    });
     return () => {
       if (pollRef.current) {
         window.clearInterval(pollRef.current);
@@ -112,6 +134,13 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
       }
     };
   }, [tasks, backendOnline, refreshTasks]);
+
+  // 请求通知权限
+  useEffect(() => {
+    if (backendOnline && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [backendOnline]);
 
   const startDownload = async () => {
     const url = m3u8Url.trim();
@@ -128,7 +157,7 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
       const data = await api('/api/m3u8/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, referer: referer.trim() }),
+        body: JSON.stringify({ url, referer: referer.trim(), output_dir: outputDir.trim() }),
       });
       if (data.status === 'success' && data.task) {
         toast.success('M3U8 下载任务已创建，正在解析切片清单...');
@@ -181,6 +210,88 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
     }
   };
 
+  const startBatch = async () => {
+    const urls = batchUrls.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (urls.length === 0) {
+      toast.error('请填写至少一个 m3u8 地址（每行一个）');
+      return;
+    }
+    if (!backendOnline) {
+      toast.error('后端未运行');
+      return;
+    }
+    setSubmitting(true);
+    let ok = 0;
+    for (const url of urls) {
+      try {
+        const data = await api('/api/m3u8/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, output_dir: outputDir.trim() }),
+        });
+        if (data.status === 'success' && data.task) {
+          setTasks((prev) => [data.task as M3U8Task, ...prev]);
+          ok++;
+        }
+      } catch { /* skip */ }
+    }
+    toast.success(`批量创建 ${ok}/${urls.length} 个任务`);
+    setBatchUrls('');
+    setSubmitting(false);
+  };
+
+  const pauseTask = async (taskId: string) => {
+    try {
+      await api(`/api/m3u8/task/${taskId}/pause`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      toast.info('已暂停（已下分片保留）');
+      refreshTasks();
+    } catch {
+      toast.error('暂停失败');
+    }
+  };
+
+  const resumeTask = async (taskId: string) => {
+    try {
+      await api(`/api/m3u8/task/${taskId}/resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      toast.success('已继续（断点续传）');
+      refreshTasks();
+    } catch {
+      toast.error('继续失败');
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      await api(`/api/m3u8/task/${taskId}`, { method: 'DELETE' });
+      toast.info('已删除任务记录');
+      setTasks((prev) => prev.filter((t) => t.task_id !== taskId));
+    } catch {
+      toast.error('删除失败');
+    }
+  };
+
+  const exportCsv = () => {
+    const header = 'task_id,url,status,total,downloaded,progress,size,error\n';
+    const rows = tasks.map((t) =>
+      [t.task_id, t.url, t.status, t.total_segments, t.downloaded_segments, t.progress, t.file_size, (t.error || '').replace(/,/g, ' ')].join(','),
+    );
+    const blob = new Blob([header + rows.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'm3u8_tasks.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast.success('已导出 CSV');
+  };
+
   const playUrl = (taskId: string) => `${backendUrl}/downloads/videos/${taskId}.ts`;
 
   const activeCount = tasks.filter((t) => ACTIVE_STATUSES.includes(t.status)).length;
@@ -200,30 +311,61 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 text-xs">
+            <Button
+              size="sm"
+              variant={batchMode ? 'default' : 'outline'}
+              onClick={() => setBatchMode(!batchMode)}
+              className="h-7 text-xs"
+            >
+              {batchMode ? '单条模式' : '批量模式'}
+            </Button>
+            <span className="text-muted-foreground text-[11px]">
+              {batchMode ? '每行一个 m3u8 地址' : '粘贴单个 m3u8 地址'}
+            </span>
+          </div>
+          {batchMode ? (
+            <textarea
+              value={batchUrls}
+              onChange={(e) => setBatchUrls(e.target.value)}
+              placeholder={'https://a.com/1.m3u8\nhttps://b.com/2.m3u8'}
+              rows={4}
+              className="w-full bg-secondary border-primary/30 text-xs font-mono rounded-md p-2.5 resize-y"
+            />
+          ) : (
+            <div className="flex flex-col md:flex-row gap-2">
+              <Input
+                value={m3u8Url}
+                onChange={(e) => setM3u8Url(e.target.value)}
+                placeholder="https://example.com/path/index.m3u8"
+                className="bg-secondary border-primary/30 text-xs font-mono h-9 flex-1 min-w-0"
+              />
+              <Input
+                value={referer}
+                onChange={(e) => setReferer(e.target.value)}
+                placeholder="Referer（可选，防盗链绕过）"
+                className="bg-secondary border-primary/30 text-xs font-mono h-9 md:w-64 shrink-0"
+              />
+            </div>
+          )}
           <div className="flex flex-col md:flex-row gap-2">
             <Input
-              value={m3u8Url}
-              onChange={(e) => setM3u8Url(e.target.value)}
-              placeholder="https://example.com/path/index.m3u8"
+              value={outputDir}
+              onChange={(e) => setOutputDir(e.target.value)}
+              placeholder="输出目录（默认 downloads/videos）"
               className="bg-secondary border-primary/30 text-xs font-mono h-9 flex-1 min-w-0"
             />
-            <Input
-              value={referer}
-              onChange={(e) => setReferer(e.target.value)}
-              placeholder="Referer（可选，防盗链绕过）"
-              className="bg-secondary border-primary/30 text-xs font-mono h-9 md:w-64 shrink-0"
-            />
             <Button
-              onClick={startDownload}
+              onClick={batchMode ? startBatch : startDownload}
               disabled={submitting}
-              className="bg-primary hover:bg-primary/90 text-background font-bold text-xs h-9 shrink-0"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 shrink-0"
             >
               {submitting ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
               ) : (
                 <Download className="h-3.5 w-3.5 mr-1.5" />
               )}
-              开始下载
+              {batchMode ? '批量下载' : '开始下载'}
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
@@ -266,7 +408,7 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
                   size="sm"
                   onClick={() => startDownloadUrl(s.url)}
                   disabled={!backendOnline}
-                  className="bg-accent hover:bg-accent/90 text-background font-bold text-xs h-8 shrink-0"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs h-8 shrink-0"
                 >
                   <Download className="h-3.5 w-3.5 mr-1" />
                   一键下载
@@ -354,6 +496,9 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-muted-foreground">
                           切片进度：{task.downloaded_segments} / {task.total_segments || '?'}
+                          {task.status === 'downloading' && task.speed > 0 && (
+                            <span className="ml-2 text-accent">{task.speed.toFixed(1)} 片/s</span>
+                          )}
                         </span>
                         <span className={`font-semibold ${meta.color}`}>
                           {task.status === 'merging' ? '合并中…' : `${task.progress}%`}
@@ -395,7 +540,28 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {isActive && (
+                        {(task.status === 'downloading' || task.status === 'parsing') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => pauseTask(task.task_id)}
+                            className="border-accent/40 text-accent hover:bg-accent/10 text-[11px] h-7"
+                          >
+                            <Pause className="h-3 w-3 mr-1" />
+                            暂停
+                          </Button>
+                        )}
+                        {task.status === 'paused' && (
+                          <Button
+                            size="sm"
+                            onClick={() => resumeTask(task.task_id)}
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[11px] h-7"
+                          >
+                            <Play className="h-3 w-3 mr-1" />
+                            继续
+                          </Button>
+                        )}
+                        {(isActive && task.status !== 'paused') && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -410,7 +576,7 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
                           <Button
                             size="sm"
                             asChild
-                            className="bg-primary hover:bg-primary/90 text-background font-bold text-[11px] h-7"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[11px] h-7"
                           >
                             <a href={playUrl(task.task_id)} target="_blank" rel="noreferrer">
                               <Play className="h-3 w-3 mr-1" />
@@ -418,6 +584,15 @@ export default function StreamingDownloadPanel({ backendUrl, backendOnline, dete
                             </a>
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteTask(task.task_id)}
+                          className="text-muted-foreground hover:text-destructive text-[11px] h-7 px-2"
+                          title="删除任务记录"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
                   </div>

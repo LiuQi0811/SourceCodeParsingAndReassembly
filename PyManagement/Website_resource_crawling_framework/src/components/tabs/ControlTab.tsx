@@ -118,7 +118,7 @@ export default function ControlTab(props: Props) {
           <Button
             size="sm"
             onClick={checkBackend}
-            className="bg-primary hover:bg-primary/90 text-background font-bold text-xs h-8 shrink-0"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-8 shrink-0"
           >
             检测连接
           </Button>

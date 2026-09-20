@@ -75,7 +75,7 @@ export default function DecryptTab({
                 className="bg-background border-primary/30 font-mono text-xs text-foreground"
               />
             </div>
-            <Button onClick={runDecryptTest} className="w-full bg-accent hover:bg-accent/90 text-background font-bold">
+            <Button onClick={runDecryptTest} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
               执行逆向解密 ({decryptAlgo.toUpperCase()})
             </Button>
           </div>

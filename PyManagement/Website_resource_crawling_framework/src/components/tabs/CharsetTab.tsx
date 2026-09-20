@@ -56,7 +56,7 @@ export default function CharsetTab({
               </Button>
             ))}
           </div>
-          <Button size="sm" onClick={runCharsetTest} className="ml-auto bg-primary text-background font-bold">
+          <Button size="sm" onClick={runCharsetTest} className="ml-auto bg-primary text-primary-foreground font-bold">
             模拟自动探测转码
           </Button>
         </div>
