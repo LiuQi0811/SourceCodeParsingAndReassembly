@@ -35,3 +35,4 @@ def list_adapters() -> List[str]:
 
 # 自动导入所有内置适配器（触发 @register_adapter）
 from crawler_framework.adapters import xgcartoon  # noqa: E402,F401
+from crawler_framework.adapters import ytdlp  # noqa: E402,F401

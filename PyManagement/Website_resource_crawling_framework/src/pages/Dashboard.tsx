@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import StreamingDownloadPanel from '@/components/StreamingDownloadPanel';
+import YtDlpPanel from '@/components/YtDlpPanel';
 import EngineCards, { type EngineInfo } from '@/components/EngineCards';
 import CommandConsole, { type CommandRegistry } from '@/components/CommandConsole';
 import ControlTab from '@/components/tabs/ControlTab';
@@ -1170,6 +1171,7 @@ export default function Dashboard() {
           {/* TAB 8: 流媒体下载监控 */}
           <TabsContent value="streaming" className="space-y-4">
             <StreamingDownloadPanel backendUrl={backendUrl} backendOnline={backendOnline ?? false} detectedStreams={detectedStreams} />
+            <YtDlpPanel backendUrl={backendUrl} backendOnline={backendOnline ?? false} />
           </TabsContent>
 
           {/* TAB 9: 命令控制台 */}

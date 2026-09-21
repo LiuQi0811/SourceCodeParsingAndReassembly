@@ -808,6 +808,150 @@ async def handle_m3u8_delete(request: web.Request) -> web.Response:
     })
 
 
+YTDLP_TASKS: Dict[str, Dict] = {}
+
+
+async def handle_ytdlp_download(request: web.Request) -> web.Response:
+    """yt-dlp 下载：抖音/快手/B站/YouTube 等"""
+    data = await request.json()
+    url = (data.get("url") or "").strip()
+    output_dir = (data.get("output_dir") or "downloads/videos").strip()
+    format_id = (data.get("format_id") or "").strip()
+    audio_only = bool(data.get("audio_only"))
+    write_subs = bool(data.get("write_subs"))
+    if not url:
+        return web.json_response({"status": "error", "message": "缺少 url"}, status=400)
+    import uuid as _uuid
+    task_id = _uuid.uuid4().hex[:12]
+    YTDLP_TASKS[task_id] = {
+        "task_id": task_id, "url": url, "status": "downloading",
+        "filepath": "", "title": "", "progress": 0,
+    }
+
+    async def run():
+        from crawler_framework.downloaders.ytdlp_downloader import YtDlpDownloader
+        def on_progress(stage, done, total):
+            t = YTDLP_TASKS.get(task_id)
+            if not t:
+                return
+            if stage == "downloading" and total:
+                t["progress"] = round(done / total * 100, 1)
+                t["done_bytes"] = done
+                t["total_bytes"] = total
+            elif stage == "finished":
+                t["filepath"] = done
+                t["status"] = "completed"
+        result = await YtDlpDownloader.download(url, output_dir, on_progress, format_id, audio_only, write_subs)
+        t = YTDLP_TASKS.get(task_id)
+        if t:
+            if result.get("success"):
+                t["status"] = "completed"
+                t["filepath"] = result["filepath"]
+                t["title"] = result.get("title", "")
+            else:
+                t["status"] = "failed"
+                t["error"] = result.get("error", "未知错误")
+
+    asyncio.create_task(run())
+    return web.json_response({"status": "success", "task_id": task_id})
+
+
+async def handle_ytdlp_task(request: web.Request) -> web.Response:
+    task_id = request.match_info.get("task_id")
+    t = YTDLP_TASKS.get(task_id)
+    if not t:
+        return web.json_response({"status": "error", "message": "任务不存在"}, status=404)
+    return web.json_response({"status": "success", "task": t})
+
+
+COOKIE_FILE = "cookies/yt-dlp.txt"
+
+
+async def handle_upload_cookie(request: web.Request) -> web.Response:
+    """上传 cookie 文件（Netscape 格式 .txt）"""
+    import os
+    reader = await request.multipart()
+    field = await reader.next()
+    if not field:
+        return web.json_response({"status": "error", "message": "无文件"}, status=400)
+    os.makedirs("cookies", exist_ok=True)
+    with open(COOKIE_FILE, "wb") as f:
+        while True:
+            chunk = await field.read_chunk()
+            if not chunk:
+                break
+            f.write(chunk)
+    return web.json_response({"status": "success", "message": "cookie 已保存"})
+
+
+async def handle_cookie_status(request: web.Request) -> web.Response:
+    import os
+    exists = os.path.exists(COOKIE_FILE)
+    return web.json_response({"status": "success", "has_cookie": exists})
+
+
+async def handle_open_dir(request: web.Request) -> web.Response:
+    """打开本地下载目录（资源管理器）"""
+    data = await request.json()
+    d = (data.get("dir") or "downloads/videos").strip()
+    try:
+        import subprocess, os
+        full = os.path.abspath(d)
+        if os.path.isdir(full):
+            subprocess.Popen(["explorer", full])
+            return web.json_response({"status": "success"})
+        return web.json_response({"status": "error", "message": "目录不存在"})
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)})
+
+
+async def handle_ytdlp_info(request: web.Request) -> web.Response:
+    """解析 URL，返回标题/封面/可选画质列表"""
+    data = await request.json()
+    url = (data.get("url") or "").strip()
+    if not url:
+        return web.json_response({"status": "error", "message": "缺少 url"}, status=400)
+    from crawler_framework.downloaders.ytdlp_downloader import YtDlpDownloader
+    try:
+        import yt_dlp
+        opts = {"quiet": True, "no_warnings": True}
+        def _run():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                formats = []
+                for f in info.get("formats") or []:
+                    if f.get("url") and f.get("format_id"):
+                        formats.append({
+                            "format_id": f["format_id"],
+                            "ext": f.get("ext", ""),
+                            "resolution": f.get("resolution") or f"{f.get('height', '')}p",
+                            "fps": f.get("fps", 0),
+                            "filesize": f.get("filesize") or f.get("filesize_approx") or 0,
+                            "vcodec": f.get("vcodec", ""),
+                            "acodec": f.get("acodec", ""),
+                        })
+                # 去重 + 按 height 降序
+                seen = set()
+                uniq = []
+                for f in formats:
+                    key = (f["resolution"], f["ext"])
+                    if key not in seen and f["vcodec"] != "none":
+                        seen.add(key)
+                        uniq.append(f)
+                uniq.sort(key=lambda x: int(''.join(c for c in x["resolution"] if c.isdigit()) or 0), reverse=True)
+                return {
+                    "title": info.get("title", ""),
+                    "uploader": info.get("uploader", ""),
+                    "duration": info.get("duration", 0),
+                    "thumbnail": info.get("thumbnail", ""),
+                    "formats": uniq[:20],
+                }
+        result = await asyncio.to_thread(_run)
+        return web.json_response({"status": "success", **result})
+    except Exception as e:
+        return web.json_response({"status": "error", "message": str(e)})
+
+
 CLEANUP_CATEGORIES = {
     "images", "videos", "audios", "documents", "archives", "code", "data", "others",
 }
@@ -888,6 +1032,12 @@ def make_app() -> web.Application:
     app.router.add_post("/api/m3u8/task/{task_id}/pause", handle_m3u8_pause)
     app.router.add_post("/api/m3u8/task/{task_id}/resume", handle_m3u8_resume)
     app.router.add_delete("/api/m3u8/task/{task_id}", handle_m3u8_delete)
+    app.router.add_post("/api/ytdlp/download", handle_ytdlp_download)
+    app.router.add_post("/api/ytdlp/cookie", handle_upload_cookie)
+    app.router.add_get("/api/ytdlp/cookie", handle_cookie_status)
+    app.router.add_post("/api/open-dir", handle_open_dir)
+    app.router.add_post("/api/ytdlp/info", handle_ytdlp_info)
+    app.router.add_get("/api/ytdlp/task/{task_id}", handle_ytdlp_task)
 
     # 静态资源服务：将本地 downloads 目录暴露给前端预览/播放
     downloads_dir = DOWNLOADS_DIR
