@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Terminal,
   Play,
@@ -77,6 +77,7 @@ export default function Dashboard() {
   const [maxPages, setMaxPages] = useState(20);
   const [autoFollowPagination, setAutoFollowPagination] = useState(true);
   const [sameDomainOnly, setSameDomainOnly] = useState(true);
+  const [renderMode, setRenderMode] = useState(false);
   const [pagesCrawled, setPagesCrawled] = useState(0);
   const [defaultParser, setDefaultParser] = useState('xpath');
   const [isRunning, setIsRunning] = useState(false);
@@ -601,6 +602,7 @@ export default function Dashboard() {
           max_pages: maxPages,
           auto_follow_pagination: autoFollowPagination,
           same_domain_only: sameDomainOnly,
+          render_mode: renderMode,
           db_path: 'crawler_tasks.db',
         }),
       });
@@ -1205,6 +1207,8 @@ export default function Dashboard() {
               setAutoFollowPagination={setAutoFollowPagination}
               sameDomainOnly={sameDomainOnly}
               setSameDomainOnly={setSameDomainOnly}
+              renderMode={renderMode}
+              setRenderMode={setRenderMode}
               copied={copied}
               copyCode={copyCode}
             />

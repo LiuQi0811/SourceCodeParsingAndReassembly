@@ -61,6 +61,7 @@ class CrawlerEngine:
         allowed_domains: Optional[List[str]] = None,
         enable_console_log: bool = True,
         on_m3u8_found: Optional[Callable[[str, str], Awaitable[None]]] = None,
+        render_mode: bool = False,
     ):
         # 1. 队列策略实例（若未传则通过工厂创建）
         self.queue_mode = queue_mode
@@ -112,6 +113,8 @@ class CrawlerEngine:
         self._download_tasks: Set[asyncio.Task] = set()
         # m3u8 自动下载钩子：发现 .m3u8 时回调 (url, referer)，由上层接管分片下载+合并
         self.on_m3u8_found = on_m3u8_found
+        self.render_mode = render_mode
+        self._renderer = None
         self._start_time: float = 0.0
         self._queue_initialized = False
         self._stop_reason: str = ""
@@ -308,7 +311,62 @@ class CrawlerEngine:
 
             start_t = time.time()
             try:
-                # 1. 异步发送 HTTP 请求
+                # 1. 渲染模式：用 Playwright 代替纯 HTTP
+                if self.render_mode:
+                    from crawler_framework.renderers import get_renderer
+                    if not self._renderer:
+                        self._renderer = get_renderer("playwright")
+                    if self._renderer:
+                        html = await self._renderer.render(task.url)
+                        if html:
+                            raw_bytes = html.encode("utf-8")
+                            text = html
+                            content_type = "text/html"
+                            category = ResourceClassifier.classify(task.url, content_type, raw_bytes)
+                            crawl_res = CrawlResponse(
+                                task=task, status_code=200, url=task.url,
+                                headers={}, content_type=content_type,
+                                raw_content=raw_bytes, text=text, encoding="utf-8",
+                                category=category,
+                                file_size=len(raw_bytes), elapsed=time.time()-start_t,
+                            )
+                            # same flow as normal: save + parse
+                            if self.auto_save_resources and category != ResourceCategory.PAGE:
+                                saved_path, fsize = await self.saver.save_resource(
+                                    url=crawl_res.url, category=category, content=raw_bytes,
+                                    content_type=content_type,
+                                )
+                                crawl_res.saved_path = saved_path
+                            parser_name = task.parser_type or self.default_parser_type
+                            parser = ParserFactory.get_parser(parser_name)
+                            parse_result = parser.parse(html_or_text=text, base_url=crawl_res.url, rules=task.parser_rules)
+                            crawl_res.parsed_data = parse_result.data
+                            crawl_res.extracted_urls = parse_result.extracted_urls
+                            pack = PaginationDetector.extract_links_and_pagination(
+                                html=text, base_url=crawl_res.url,
+                                same_domain=self.same_domain_only, allowed_domains=self.allowed_domains,
+                            )
+                            page_resources = pack.get("resource_urls", [])
+                            if self.auto_save_resources and page_resources:
+                                dl = asyncio.create_task(self._download_page_resources(page_resources[:15], crawl_res.url))
+                                self._download_tasks.add(dl)
+                                dl.add_done_callback(self._download_tasks.discard)
+                            for u in pack.get("content_links", []) + pack.get("pagination_links", []):
+                                if self._is_domain_allowed(u):
+                                    nt = CrawlTask(url=u, depth=task.depth+1, max_depth=task.max_depth, parser_type=task.parser_type)
+                                    await self.queue.push(nt)
+                            await self.event_bus.emit(CrawlerEvent(
+                                event_type=EventType.REQUEST_SUCCESS, task=task, response=crawl_res,
+                            ))
+                            await self.event_bus.emit(CrawlerEvent(
+                                event_type=EventType.DATA_EXTRACTED, task=task, response=crawl_res,
+                                data={"fields": parse_result.data, "links_found": len(pack.get("content_links",[])), "pagination_found": len(pack.get("pagination_links",[])), "resources_found": len(pack.get("resource_urls",[]))},
+                            ))
+                            if category == ResourceCategory.PAGE or text:
+                                self.pages_crawled += 1
+                            return
+
+                # 2. 异步发送 HTTP 请求
                 async with self._session.request(
                     method=task.method,
                     url=task.url,

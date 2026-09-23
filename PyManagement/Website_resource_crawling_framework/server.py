@@ -314,6 +314,7 @@ async def handle_start(request: web.Request) -> web.Response:
     """创建新的抓取引擎实例（支持多引擎并行，带最大并行数守卫）"""
     data = await request.json()
     urls = data.get("urls", ["https://www.169tp.com/"])
+    render_mode = bool(data.get("render_mode", False))
     queue_mode = data.get("queue_mode", "memory")
     default_parser = data.get("default_parser", "xpath")
     concurrency = int(data.get("concurrency", 5))
@@ -357,6 +358,7 @@ async def handle_start(request: web.Request) -> web.Response:
         db_path=db_path,
         default_parser=default_parser,
         concurrency=concurrency,
+        render_mode=render_mode,
         max_depth=max_depth,
         max_pages=max_pages,
         auto_follow_links=True,

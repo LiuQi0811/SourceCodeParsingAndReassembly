@@ -36,6 +36,8 @@ interface Props {
   setAutoFollowPagination: (v: boolean) => void;
   sameDomainOnly: boolean;
   setSameDomainOnly: (v: boolean) => void;
+  renderMode: boolean;
+  setRenderMode: (v: boolean) => void;
   copied: boolean;
   copyCode: (code: string) => void;
 }
@@ -65,6 +67,8 @@ export default function ControlTab(props: Props) {
     setAutoFollowPagination,
     sameDomainOnly,
     setSameDomainOnly,
+    renderMode,
+    setRenderMode,
     copied,
     copyCode,
   } = props;
@@ -281,6 +285,13 @@ export default function ControlTab(props: Props) {
                   type="checkbox"
                   checked={sameDomainOnly}
                   onChange={(e) => setSameDomainOnly(e.target.checked)}
+                  className="rounded accent-[hsl(var(--primary))] h-4 w-4"
+                />
+                <label className="text-xs">SPA 渲染（Playwright）</label>
+                <input
+                  type="checkbox"
+                  checked={renderMode}
+                  onChange={(e) => setRenderMode(e.target.checked)}
                   className="rounded accent-[hsl(var(--primary))] h-4 w-4"
                 />
                 <div>
