@@ -1,7 +1,6 @@
 import {memoize} from 'lodash-es/lodash.js';
 import {homedir} from 'os';
 import {join} from 'path';
-import * as process from "node:process";
 
 // Memoized: 150+ callers, many on hot paths. Keyed off RUNNER_CLAUDE_CONFIG_DIR so
 // tests that change the env var get a fresh value without explicit cache.clear.
@@ -243,7 +242,4 @@ export function getVertexRegionForModel(model: string | undefined): string | und
     }
     return getDefaultVertexRegion();
 }
-
-const result = getVertexRegionForModel("claude-sonnet-4-5");
-console.log(result)
 
