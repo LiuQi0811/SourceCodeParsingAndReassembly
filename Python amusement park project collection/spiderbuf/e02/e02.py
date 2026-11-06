@@ -47,7 +47,6 @@ def generate_excel(tr_list: str) -> None:
 def obtain_parsing() -> None:
 	content = get_content("https://spiderbuf.cn/challenge/web-scraping-with-captcha/list")
 	generate_html(content)
-	print(content)
 	root = etree.HTML(content)
 	trs = root.xpath("//table//tr")
 	generate_excel(trs)
