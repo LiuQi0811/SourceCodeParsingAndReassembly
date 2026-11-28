@@ -93,6 +93,9 @@ const auditLoading = ref(false)
 const assetsLoading = ref(false)
 const assetUploading = ref(false)
 const assetRemovingId = ref('')
+/** 当前通过「素材库」按钮选图的回填动作；为 null 时素材库只做管理 */
+const assetPickHandler = ref<((url: string) => void) | null>(null)
+const assetPicking = computed(() => Boolean(assetPickHandler.value))
 const savingTemplate = ref(false)
 const usingTemplateId = ref('')
 const removingTemplateId = ref('')
@@ -216,7 +219,7 @@ const reloadWorkspace = async () => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
-  showAssets.value = false
+  closeAssets()
   page.value = blankPage(t('deco.untitledPage'))
   savedPageSnapshot.value = pageSnapshot(page.value)
   selectedId.value = ''
@@ -528,7 +531,7 @@ const switchPage = async (value: string | number | (string | number)[]) => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
-  showAssets.value = false
+  closeAssets()
   try {
     await openPage(id)
   } catch (error) {
@@ -617,7 +620,7 @@ const toggleTemplates = async () => {
   if (!showTemplates.value) return
   showVersions.value = false
   showAudit.value = false
-  showAssets.value = false
+  closeAssets()
   await loadTemplates()
 }
 
@@ -632,7 +635,7 @@ const saveAsTemplate = async () => {
     showTemplates.value = true
     showVersions.value = false
     showAudit.value = false
-    showAssets.value = false
+    closeAssets()
     uni.showToast({ title: t('deco.templateSaved'), icon: 'success' })
   } catch (error) {
     // request 层已提示错误
@@ -701,7 +704,7 @@ const toggleVersions = async () => {
   if (!showVersions.value) return
   showTemplates.value = false
   showAudit.value = false
-  showAssets.value = false
+  closeAssets()
   await loadVersions()
 }
 
@@ -722,7 +725,7 @@ const toggleAudit = async () => {
   if (!showAudit.value) return
   showTemplates.value = false
   showVersions.value = false
-  showAssets.value = false
+  closeAssets()
   await loadAudit()
 }
 
@@ -740,13 +743,39 @@ const loadAssets = async () => {
   }
 }
 
+const closeAssets = () => {
+  showAssets.value = false
+  assetPickHandler.value = null
+}
+
 const toggleAssets = async () => {
-  showAssets.value = !showAssets.value
-  if (!showAssets.value) return
+  if (showAssets.value) {
+    closeAssets()
+    return
+  }
+  assetPickHandler.value = null
+  showAssets.value = true
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
   await loadAssets()
+}
+
+/** 图片字段点「素材库」时打开面板，选中素材后回填到该字段 */
+const openAssetPick = async (apply: (url: string) => void) => {
+  assetPickHandler.value = apply
+  showAssets.value = true
+  showTemplates.value = false
+  showVersions.value = false
+  showAudit.value = false
+  await loadAssets()
+}
+
+const selectAsset = (asset: DecoAssetSummary) => {
+  if (!assetPickHandler.value) return
+  assetPickHandler.value(asset.url)
+  closeAssets()
+  uni.showToast({ title: t('deco.assetApplied'), icon: 'success' })
 }
 
 const uploadAsset = async () => {
@@ -1055,12 +1084,13 @@ onLoad(async () => {
         <view class="asset-head-main">
           <text class="panel-title">{{ t('deco.assetLibrary') }}</text>
           <text class="asset-counter">{{ assets.length }} / {{ assetLimit }}</text>
+          <text v-if="assetPicking" class="asset-pick-hint">{{ t('deco.assetPickHint') }}</text>
         </view>
         <view class="aux-actions">
           <app-button size="sm" type="primary" :loading="assetUploading" @click="uploadAsset">
             {{ t('deco.assetUpload') }}
           </app-button>
-          <app-button size="sm" type="text" @click="showAssets = false">
+          <app-button size="sm" type="text" @click="closeAssets">
             {{ t('common.close') }}
           </app-button>
         </view>
@@ -1080,15 +1110,26 @@ onLoad(async () => {
               }}
             </text>
           </view>
-          <app-button
-            size="sm"
-            type="text"
-            :disabled="asset.usageCount > 0"
-            :loading="assetRemovingId === asset.id"
-            @click="askRemoveAsset(asset)"
-          >
-            {{ asset.usageCount ? t('deco.assetInUse') : t('common.remove') }}
-          </app-button>
+          <view class="asset-actions">
+            <app-button
+              v-if="assetPicking"
+              size="sm"
+              type="primary"
+              class="asset-pick"
+              @click="selectAsset(asset)"
+            >
+              {{ t('deco.assetSelect') }}
+            </app-button>
+            <app-button
+              size="sm"
+              type="text"
+              :disabled="asset.usageCount > 0"
+              :loading="assetRemovingId === asset.id"
+              @click="askRemoveAsset(asset)"
+            >
+              {{ asset.usageCount ? t('deco.assetInUse') : t('common.remove') }}
+            </app-button>
+          </view>
         </view>
       </view>
     </app-card>
@@ -1207,7 +1248,7 @@ onLoad(async () => {
             />
           </view>
 
-          <deco-props-panel :component="selected" />
+          <deco-props-panel :component="selected" @request-asset="openAssetPick" />
         </view>
       </app-card>
     </view>
@@ -1418,6 +1459,14 @@ onLoad(async () => {
   color: var(--app-text-3);
 }
 
+.asset-pick-hint {
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--app-primary);
+  background: var(--app-primary-weak);
+  border-radius: 10px;
+}
+
 .asset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -1460,7 +1509,15 @@ onLoad(async () => {
 }
 
 .asset-card .app-btn {
-  margin-left: 10px;
+  margin-left: 0;
+}
+
+.asset-actions {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 10px 8px;
 }
 
 .aux-row {

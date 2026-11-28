@@ -287,6 +287,40 @@ test.describe('页面装修编辑器', () => {
     )
   })
 
+  test('素材库可以直接选择已有素材回填图片字段', async ({ page }) => {
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    await page.locator('.page-bar .app-btn', { hasText: '素材库' }).click()
+    const panel = page.locator('.aux-panel')
+    const chooserPromise = page.waitForEvent('filechooser')
+    await panel.locator('.app-btn', { hasText: '上传素材' }).click()
+    const chooser = await chooserPromise
+    await chooser.setFiles({ name: 'picker.png', mimeType: 'image/png', buffer: pixel })
+    await expect(page.getByText('素材已上传').first()).toBeVisible()
+    await expect(panel.locator('.asset-card')).toContainText('picker.png')
+
+    await panel.locator('.app-btn', { hasText: '关闭' }).click()
+    await expect(panel).toBeHidden()
+
+    // 图片字段点「素材库」，打开选择模式后点素材的「选择」回填 URL
+    await page.locator('.comp-item').first().click()
+    await page.locator('.panel-props .image-picker .asset-pick').first().click()
+    await expect(panel).toContainText('点「选择」填入当前图片字段')
+    await panel.locator('.asset-card .asset-pick').click()
+    await expect(page.getByText('素材已填入').first()).toBeVisible()
+    await expect(panel).toBeHidden()
+    await expect(page.locator('.panel-props .image-picker input').first()).toHaveValue(
+      /^data:image\/png;base64,/i
+    )
+
+    await page.locator('.app-layout .app-btn', { hasText: '保存草稿' }).click()
+    await expect(page.getByText('草稿已保存').first()).toBeVisible()
+    await page.locator('.page-bar .app-btn', { hasText: '素材库' }).click()
+    await expect(panel.locator('.asset-card')).toContainText('被 1 处引用')
+  })
+
   test('新建页面、保存、切换与删除', async ({ page }) => {
     await expect(page.locator('.page-bar .app-tag')).toContainText('首页')
     await expect(page.locator('.comp-item')).toHaveCount(4)
