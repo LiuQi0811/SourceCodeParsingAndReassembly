@@ -246,6 +246,20 @@ try {
   const detail = await request('GET', `/deco/pages/${copyId}`)
   assert(detail.data.page.title === '第二版', '回滚后的标题不正确')
 
+  const audit = await request('GET', '/deco/audit', undefined, token)
+  assert(audit.code === 0 && audit.data.records.length >= 3, '操作日志缺失')
+  assert(audit.data.records[0].action === 'rollback', '最近一条操作应为回滚发布')
+  assert(audit.data.records[0].actor === 'admin', '操作日志应记录操作人')
+  assert(audit.data.records[0].pageTitle === '第二版', '回滚日志页面标题不正确')
+  assert(
+    audit.data.records.some((item) => item.action === 'publish'),
+    '发布操作未进入日志'
+  )
+  assert(
+    audit.data.records.some((item) => item.action === 'page-copy' && item.pageTitle === '副本页'),
+    '复制页面操作未进入日志'
+  )
+
   const templates = await request('GET', '/deco/templates', undefined, token)
   assert(templates.data.templates.length === 1, '内置模板缺失')
   const saveTemplate = await request(
@@ -301,7 +315,7 @@ try {
   assert(removedTenant.code === 404, '已删除应用不应再可访问')
 
   console.log(
-    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / templates / upload / published'
+    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / audit / templates / upload / published'
   )
 } finally {
   await stop()
