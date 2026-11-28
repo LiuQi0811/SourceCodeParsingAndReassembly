@@ -168,6 +168,7 @@ const pageMap = [
 	{ name: '商品详情', desc: '相册 / 规格选择 / 优惠券 / 底部操作', url: '/pages/detail/index?id=1', tab: false },
 	{ name: '购物车', desc: '勾选 / 全选 / 数量 / 左滑删除 / 合计', url: '/pages/cart/index', tab: false },
 	{ name: '确认订单', desc: '地址 / 配送 / 优惠券 / 支付 / 下单结果', url: '/pages/checkout/index', tab: false },
+	{ name: '搜索筛选', desc: '关键词 / 历史 / 分类 / 价格 / 排序 / 空态', url: '/pages/search/index', tab: false },
 	{ name: '进阶 API', desc: '类型化实例 / validateField / 返回拦截 / 事件全集 / 组件文案 i18n', url: '/pages/advanced/index', tab: false },
 	{ name: '跨端与系统 API', desc: '生命周期 / 网络监听 / 分享 / 扫码 / 定位 / easycom custom / hooks', url: '/pages/cross-platform/index', tab: false },
 	{ name: '业务闭环', desc: 'Pinia / 请求封装 / 登录态 / 购物车 / 分页', url: '/pages/business/index', tab: false },

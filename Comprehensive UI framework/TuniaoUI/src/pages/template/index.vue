@@ -43,7 +43,10 @@ function toDetail(item: any) {
 }
 
 function toSearch() {
-	uni.showToast({ title: navSearch.value ? `搜索：${navSearch.value}` : '点击了搜索', icon: 'none' })
+	const keyword = navSearch.value.trim()
+	uni.navigateTo({
+		url: keyword ? `/pages/search/index?keyword=${encodeURIComponent(keyword)}` : '/pages/search/index',
+	})
 }
 
 function cartPayload(item: any) {
@@ -95,7 +98,9 @@ function onBannerClick(index: number) {
 			</view>
 			<template #right>
 				<view class="nav-right">
-					<tn-icon name="search" :size="34" color="tn-grey-dark" @click="toSearch" />
+					<view class="nav-search" @click="toSearch">
+						<tn-icon name="search" :size="34" color="tn-grey-dark" />
+					</view>
 					<view class="nav-cart" @click="toCart">
 						<tn-badge v-if="cart.totalCount" :value="cart.totalCount" type="danger" class="nav-badge">
 							<tn-icon name="cart" :size="34" color="tn-grey-dark" />
@@ -251,6 +256,12 @@ function onBannerClick(index: number) {
 .nav-right {
 	display: flex;
 	align-items: center;
+}
+
+.nav-search {
+	display: flex;
+	align-items: center;
+	padding: 8rpx;
 }
 
 .nav-cart {
