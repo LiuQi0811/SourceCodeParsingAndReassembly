@@ -61,6 +61,7 @@ src/
 - 示例卡默认是「效果预览」，里面的按钮、弹层、输入框都是真实运行的组件；绿色圆点表示当前是可交互预览。
 - 「源码」不再是代表性片段，而是该卡的**完整可复制示例**：构建期从页面 SFC 中提取这张卡的完整模板、按表达式依赖闭包收集所需状态/方法/类型与 import，再带上该卡用到的 scoped 样式；页面根部的弹层宿主（Picker / Modal / Popup 等）也会按绑定关系自动拼进模板。每张卡片另有「完整源码」入口，跳到 `pages/source/index` 查看当前页面的整份 `.vue` 源码。
 - 卡片源码与页面源码都由 `npm run gen:sources` 在 `dev` / `build` 前自动生成：页面全文写入 `src/utils/page-source.generated.ts`，每卡完整示例写入 `src/utils/demo-code.generated.ts`。修改示例页后重新构建即可同步，不需要手工维护 84 份代码；动态标题卡用 `code-key` 固定注册键，避免标题插值导致查找失效。
+- 为避免 84 张卡的完整源码把小程序包体顶到 2MB，`demo-code.generated.ts` 不再展开成可读对象，而是用 `lz-string` 压缩成一条字符串；`DemoBlock` 首次切到「源码」时才解压并缓存。压缩后注册表约 103KB（原约 241KB），小程序整包从约 1.98MB 降到约 1.86MB，H5 从约 2.00MB 降到约 1.88MB。
 - `TnActionSheet.show({ select })` 的 `select` 回调需要返回 `true`（或 resolve 为 `true` 的 Promise）才会关闭操作菜单；只弹 Toast 不返回值时菜单会保持打开并继续挡住页面点击。
 - `TnModal` / `TnNotify` / `TnActionSheet` / `TnPopup` / `TnOverlay` 这类层叠组件建议放在页面根节点，不要放进 `demo-block` 卡片；卡片的 `overflow` 与圆角会让小程序里的 fixed 弹层被裁剪。示例卡已移除 `overflow: hidden`，反馈 / 表单 / 进阶页的弹层宿主也已统一移到页面根节点。
 - **小程序“点了没反应”的根因是组件没有注册**：`pages.json` 必须提供 `^tn-(.*)` 的 easycom 规则，否则构建产物里 `<tn-*>` 只是未知节点。微信会把未知节点当普通容器渲染子内容，于是文字看得见、点击也能触发页面事件，但组件行为（弹层、选择器、开关）完全不存在。`src/pages.json` 现已配置 `^tn-(.*) → @tuniao/tnui-vue3-uniapp/components/$1/src/$1.vue`，并为 `avatar-group`、`checkbox-group`、`collapse-item`、`form-item`、`list-item`、`radio-group`、`steps-item`、`subsection-item`、`swipe-action-item`、`tabbar-item`、`tabs-item` 补了显式映射。验证方式：构建后查看 `dist/build/mp-weixin/pages/form/index.json` 的 `usingComponents`，表单页应包含 `tn-picker`、`tn-date-time-picker`、`tn-region-picker` 等 19 个组件。

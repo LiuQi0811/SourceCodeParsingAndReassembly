@@ -5,7 +5,8 @@
  * 交互：效果预览 / 源码 双视图，源码支持横向滑动与一键复制
  */
 import { computed, onMounted, ref } from 'vue'
-import { demoCodeMap } from '@/utils/demo-code.generated'
+import * as LZString from 'lz-string'
+import { demoCodePacked } from '@/utils/demo-code.generated'
 
 const props = defineProps<{
 	title?: string
@@ -31,10 +32,23 @@ onMounted(() => {
 	if (!route.value) route.value = readRoute()
 })
 
+/** 源码表按 LZ 压缩保存，首次切到源码视图时才解压，并复用结果 */
+let demoCodes: Record<string, string> | null = null
+function getDemoCodes(): Record<string, string> {
+	if (demoCodes) return demoCodes
+	try {
+		const parsed = JSON.parse(LZString.decompressFromEncodedURIComponent(demoCodePacked) || '{}')
+		demoCodes = parsed && typeof parsed === 'object' ? parsed : {}
+	} catch {
+		demoCodes = {}
+	}
+	return demoCodes || {}
+}
+
 const generatedCode = computed(() => {
 	if (!route.value) return ''
 	const key = props.codeKey || props.title || ''
-	return demoCodeMap[`${route.value}#${key}`] || ''
+	return getDemoCodes()[`${route.value}#${key}`] || ''
 })
 
 /** 构建器生成成功时优先用完整代码，抽取失败才退回旧的手写片段 */

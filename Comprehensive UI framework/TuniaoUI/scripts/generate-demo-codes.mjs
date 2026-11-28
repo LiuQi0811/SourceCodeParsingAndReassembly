@@ -12,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { parse } from '@vue/compiler-sfc'
+import LZString from 'lz-string'
 
 const root = process.cwd()
 const sourceRoot = path.join(root, 'src')
@@ -396,9 +397,17 @@ for (const [route, file] of routeToFile) {
 	}
 }
 
+const packed = LZString.compressToEncodedURIComponent(JSON.stringify(map))
+const restored = JSON.parse(LZString.decompressFromEncodedURIComponent(packed) || '{}')
+if (JSON.stringify(restored) !== JSON.stringify(map)) {
+	throw new Error('demo-code 压缩回读校验失败')
+}
 const output = `// 由 scripts/generate-demo-codes.mjs 生成，请勿手改。
-export const demoCodeMap: Record<string, string> = ${JSON.stringify(map, null, '\t')}\n`
+// 为控制小程序包体，源码表以 LZ 压缩字符串保存，运行时按需解压。
+export const demoCodePacked: string = ${JSON.stringify(packed)}
+`
+
 fs.writeFileSync(outputPath, output, 'utf8')
 
-console.log(`[demo-codes] ${Object.keys(map).length} cards -> src/utils/demo-code.generated.ts`)
+console.log(`[demo-codes] ${Object.keys(map).length} cards -> src/utils/demo-code.generated.ts (${(Buffer.byteLength(packed, 'utf8') / 1024).toFixed(1)} KB packed)`)
 for (const warning of warnings) console.warn(`[demo-codes] ${warning}`)
