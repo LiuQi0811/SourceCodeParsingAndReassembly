@@ -1,0 +1,528 @@
+<script lang="ts" setup>
+import { computed, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { useI18n } from 'vue-i18n'
+import { tnIcons } from '@/data/icons'
+import { localeOptions, setLocale } from '@/i18n'
+
+const { t, locale } = useI18n()
+const statusBarHeight = ref(0)
+
+onLoad(() => {
+	statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+})
+
+/* ---------------- 1. CSS 变量换肤 ---------------- */
+const primaryPresets = [
+	{ name: '图鸟蓝', value: '#01beff' },
+	{ name: '紫罗兰', value: '#5f4fd9' },
+	{ name: '薄荷绿', value: '#00d886' },
+	{ name: '活力橙', value: '#ff7043' },
+	{ name: '玫瑰红', value: '#ff444f' },
+	{ name: '曜石黑', value: '#2f3542' },
+]
+
+const primaryColor = ref(primaryPresets[0].value)
+
+function hexToRgb(hex: string) {
+	const h = hex.replace('#', '')
+	const r = parseInt(h.substring(0, 2), 16)
+	const g = parseInt(h.substring(2, 4), 16)
+	const b = parseInt(h.substring(4, 6), 16)
+	return `${r},${g},${b}`
+}
+
+/** 关键：同时覆盖主色与 rgb 版本，组件里的 rgba(var(--tn-color-primary-rgb), .x) 才会一起变 */
+const themeStyle = computed(() => ({
+	'--tn-color-primary': primaryColor.value,
+	'--tn-color-primary-rgb': hexToRgb(primaryColor.value),
+}))
+
+/* ---------------- 2. 色板 ---------------- */
+const colors = [
+	'red', 'purplered', 'purple', 'bluepurple', 'aquablue', 'blue', 'indigo', 'cyan',
+	'teal', 'green', 'yellowgreen', 'lime', 'yellow', 'orangeyellow', 'orange',
+	'orangered', 'brown', 'grey', 'gray', 'black',
+]
+
+/* ---------------- 3. 渐变 ---------------- */
+const coolGradients = Array.from({ length: 16 }, (_, i) => i + 1)
+
+/* ---------------- 4. 图标检索 ---------------- */
+const iconKeyword = ref('')
+const iconPageSize = ref(120)
+
+const filteredIcons = computed(() => {
+	const kw = iconKeyword.value.trim().toLowerCase()
+	if (!kw) return tnIcons
+	return tnIcons.filter((name) => name.includes(kw))
+})
+const visibleIcons = computed(() => filteredIcons.value.slice(0, iconPageSize.value))
+const hasMoreIcons = computed(() => visibleIcons.value.length < filteredIcons.value.length)
+
+function loadMoreIcons() {
+	iconPageSize.value += 120
+}
+
+function copyIcon(name: string) {
+	uni.setClipboardData({
+		data: `<tn-icon name="${name}" />`,
+		success: () => uni.showToast({ title: '已复制图标名', icon: 'none' }),
+	})
+}
+
+/* ---------------- 5. 多语言 ---------------- */
+const langIndex = computed(() => localeOptions.findIndex((o) => o.value === locale.value))
+
+function switchLang(index: number) {
+	setLocale(localeOptions[index].value)
+}
+
+/* ---------------- 6. 条件编译 ---------------- */
+let platform = '其他平台'
+// #ifdef H5
+platform = 'H5（浏览器）'
+// #endif
+// #ifdef MP-WEIXIN
+platform = '微信小程序'
+// #endif
+// #ifdef APP-PLUS
+platform = 'App（Android / iOS）'
+// #endif
+</script>
+
+<template>
+	<view class="page" :style="{ paddingTop: statusBarHeight ? `${statusBarHeight + 12}px` : '24rpx' }">
+		<view class="page-header">
+			<text class="page-header__eyebrow">DESIGN SYSTEM</text>
+			<text class="page-header__title">主题 · 图标 · 多语言</text>
+			<text class="page-header__desc">
+				CSS 变量换肤、21 色板、渐变库、838 个图标检索、vue-i18n 多语言与条件编译，这一页把「非组件」的知识点补齐
+			</text>
+		</view>
+
+		<!-- 换肤 -->
+		<demo-block
+			title="CSS 变量换肤"
+			desc="组件内部颜色全部走 --tn-color-* 变量。改 2 个变量即可全局换肤，不用重新编译 sass"
+			code=":style=&quot;{ '--tn-color-primary': color, '--tn-color-primary-rgb': rgb }&quot;"
+		>
+			<view class="theme-scope" :style="themeStyle">
+				<view class="tn-demo-row">
+					<tn-button type="primary" icon="check">主色按钮</tn-button>
+					<tn-button type="primary" plain>朴素</tn-button>
+					<tn-tag type="primary">标签</tn-tag>
+					<tn-switch :model-value="true" />
+					<tn-badge value="12" type="primary" />
+				</view>
+				<view class="tn-demo-row section-gap">
+					<tn-line-progress :percent="68" show-percent />
+				</view>
+				<view class="tn-demo-row section-gap">
+					<tn-avatar icon="ai" bg-color="var(--tn-color-primary)" :size="44" />
+					<tn-loading show mode="circle" color="var(--tn-color-primary)" :size="36" />
+				</view>
+			</view>
+
+			<view class="preset-row section-gap">
+				<view
+					v-for="item in primaryPresets"
+					:key="item.value"
+					class="preset"
+					:class="{ 'preset--active': primaryColor === item.value }"
+					:style="{ backgroundColor: item.value }"
+					@click="primaryColor = item.value"
+				>
+					<tn-icon v-if="primaryColor === item.value" name="check" :size="26" color="#ffffff" />
+				</view>
+			</view>
+			<text class="tn-gray_text tn-mt-sm">当前主色：{{ primaryColor }}，rgb：{{ hexToRgb(primaryColor) }}</text>
+		</demo-block>
+
+		<!-- 色板 -->
+		<demo-block
+			title="21 种内置色板"
+			desc="命名规则 tn-{颜色}_{属性}，属性有 bg / text / border / shadow；内置色还有 light / dark / disabled 三档"
+			code="<text class=&quot;tn-red_text&quot;>  <view class=&quot;tn-blue_light_bg&quot;>"
+		>
+			<view class="palette-grid">
+				<view v-for="color in colors" :key="color" class="palette-cell">
+					<view class="palette-cell__block" :class="[`tn-${color}_bg`]" />
+					<text class="palette-cell__name">{{ color }}</text>
+				</view>
+			</view>
+
+			<view class="tn-mt-sm">
+				<view v-for="color in ['blue', 'purple', 'green', 'orange']" :key="color" class="tn-demo-row tn-mt-xs">
+					<tn-tag :bg-color="`tn-${color}-light`" :text-color="`tn-${color}-dark`">light</tn-tag>
+					<tn-tag :bg-color="`tn-${color}`" text-color="tn-white">{{ color }}</tn-tag>
+					<tn-tag :bg-color="`tn-${color}-dark`" text-color="tn-white">dark</tn-tag>
+					<tn-tag :bg-color="`tn-${color}-disabled`" text-color="tn-white">disabled</tn-tag>
+				</view>
+			</view>
+		</demo-block>
+
+		<!-- 渐变 -->
+		<demo-block
+			title="渐变库"
+			desc="cool-1 ~ cool-16 通用渐变，以及 tn-gradient-bg__{颜色} 双色渐变"
+			code="<view class=&quot;tn-gradient-bg__cool-8&quot; />"
+		>
+			<view class="gradient-grid">
+				<view v-for="n in coolGradients" :key="n" class="gradient-cell" :class="[`tn-gradient-bg__cool-${n}`]">
+					<text class="gradient-cell__text">cool-{{ n }}</text>
+				</view>
+			</view>
+		</demo-block>
+
+		<!-- 图标 -->
+		<demo-block
+			title="图标库（{{ tnIcons.length }} 个）"
+			desc="支持关键字过滤，点击任意图标会把 <tn-icon> 用法复制到剪贴板"
+			code="<tn-icon name=&quot;home&quot; :size=&quot;40&quot; color=&quot;tn-blue&quot; />"
+		>
+			<tn-search-box v-model="iconKeyword" placeholder="搜索图标名，如 home、cart、arrow" @change="iconPageSize = 120" />
+
+			<text class="tn-gray_text tn-mt-sm">共 {{ filteredIcons.length }} 个匹配结果，已展示 {{ visibleIcons.length }} 个</text>
+
+			<view class="icon-grid">
+				<view v-for="name in visibleIcons" :key="name" class="icon-item" @click="copyIcon(name)">
+					<tn-icon :name="name" :size="38" color="tn-blue" />
+					<text class="icon-item__name">{{ name }}</text>
+				</view>
+			</view>
+
+			<view v-if="hasMoreIcons" class="tn-flex tn-flex-center-center tn-mt-sm">
+				<tn-button size="sm" plain @click="loadMoreIcons">加载更多</tn-button>
+			</view>
+		</demo-block>
+
+		<!-- 多语言 -->
+		<demo-block
+			title="vue-i18n 多语言"
+			desc="语言包在 src/i18n/locales，切换后写入本地缓存；组件文案可配合 t() 输出"
+			code="const { t, locale } = useI18n(); setLocale('en')"
+		>
+			<tn-switch-tab
+				:tabs="localeOptions.map((o) => o.label)"
+				:model-value="langIndex"
+				active-bg-color="tn-purple"
+				active-text-color="tn-white"
+				@change="switchLang"
+			/>
+
+			<view class="i18n-card section-gap">
+				<text class="i18n-card__title">{{ t('app.name') }}</text>
+				<text class="i18n-card__desc">{{ t('app.desc') }}</text>
+				<text class="i18n-card__slogan">{{ t('app.slogan') }}</text>
+			</view>
+
+			<view class="tn-demo-row section-gap">
+				<tn-button type="primary">{{ t('common.confirm') }}</tn-button>
+				<tn-button plain>{{ t('common.cancel') }}</tn-button>
+				<tn-button text>{{ t('common.more') }}</tn-button>
+			</view>
+		</demo-block>
+
+		<!-- 条件编译 -->
+		<demo-block
+			title="条件编译"
+			desc="用条件编译指令在编译期裁剪平台代码，JS / 模板 / 样式均支持；当前编译平台：{{ platform }}"
+			code="条件编译：H5 专属代码写在 ifdef H5 与 endif 之间，小程序写 MP-WEIXIN"
+		>
+			<view class="compile-card">
+				<text class="compile-card__label">当前运行平台</text>
+				<text class="compile-card__value">{{ platform }}</text>
+			</view>
+
+			<!-- #ifdef H5 -->
+			<view class="compile-h5">
+				<tn-icon name="global" :size="28" color="tn-blue" />
+				<text class="tn-ml-xs">这段内容只在 H5 编译时出现</text>
+			</view>
+			<!-- #endif -->
+
+			<!-- #ifdef MP-WEIXIN -->
+			<view class="compile-mp">
+				<text>这段内容只在微信小程序编译时出现</text>
+			</view>
+			<!-- #endif -->
+		</demo-block>
+
+		<!-- 设计变量 -->
+		<demo-block
+			title="设计变量（Design Token）"
+			desc="间距、圆角、边框、阴影全部由 --tn-* 变量控制，改一个值整套组件同步变化"
+			code="--tn-pm-size-sm / --tn-border-radius / --tn-shadow"
+		>
+			<view class="token-row">
+				<view class="token-item">
+					<text class="token-item__label">xs</text>
+					<view class="token-bar" style="width: 24rpx" />
+				</view>
+				<view class="token-item">
+					<text class="token-item__label">sm</text>
+					<view class="token-bar" style="width: 40rpx" />
+				</view>
+				<view class="token-item">
+					<text class="token-item__label">lg</text>
+					<view class="token-bar" style="width: 80rpx" />
+				</view>
+				<view class="token-item">
+					<text class="token-item__label">xl</text>
+					<view class="token-bar" style="width: 120rpx" />
+				</view>
+			</view>
+
+			<view class="tn-demo-row section-gap">
+				<view class="radius-item tn-radius-sm">radius-sm</view>
+				<view class="radius-item tn-radius">radius</view>
+				<view class="radius-item tn-radius-round">round</view>
+			</view>
+			<view class="tn-demo-row section-gap">
+				<view class="radius-item tn-shadow-sm">shadow-sm</view>
+				<view class="radius-item tn-shadow">shadow</view>
+				<view class="radius-item tn-shadow-lg">shadow-lg</view>
+			</view>
+		</demo-block>
+
+		<view class="tip">换肤只影响当前容器的子元素；如果要全局生效，把 themeStyle 绑到页面根节点即可</view>
+	</view>
+</template>
+
+<style lang="scss" scoped>
+.page {
+	padding-top: 24rpx;
+}
+
+.page-header {
+	margin: 0 24rpx 24rpx;
+	padding: 30rpx 32rpx;
+	border-radius: 28rpx;
+	background: linear-gradient(145deg, #0b1220 0%, #172554 58%, #312e81 100%);
+	box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.16);
+}
+
+.page-header__eyebrow {
+	display: block;
+	font-size: 18rpx;
+	font-weight: 600;
+	letter-spacing: 3rpx;
+	color: #c4b5fd;
+}
+
+.page-header__title {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 36rpx;
+	font-weight: 800;
+	letter-spacing: -1rpx;
+	color: #ffffff;
+}
+
+.page-header__desc {
+	display: block;
+	margin-top: 10rpx;
+	font-size: 23rpx;
+	line-height: 1.65;
+	color: rgba(226, 232, 240, 0.76);
+}
+
+.section-gap {
+	margin-top: 20rpx;
+}
+
+.theme-scope {
+	padding: 20rpx;
+	border-radius: 16rpx;
+	background-color: #f7f9fc;
+}
+
+.preset-row {
+	display: flex;
+	gap: 18rpx;
+}
+
+.preset {
+	width: 64rpx;
+	height: 64rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	border: 4rpx solid #ffffff;
+	box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12);
+}
+
+.preset--active {
+	border-color: #303133;
+}
+
+.palette-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12rpx;
+}
+
+.palette-cell {
+	width: 78rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.palette-cell__block {
+	width: 100%;
+	height: 56rpx;
+	border-radius: 10rpx;
+}
+
+.palette-cell__name {
+	margin-top: 6rpx;
+	font-size: 18rpx;
+	color: #909399;
+	text-align: center;
+	word-break: break-all;
+}
+
+.gradient-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12rpx;
+}
+
+.gradient-cell {
+	width: 22%;
+	height: 96rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 12rpx;
+}
+
+.gradient-cell__text {
+	font-size: 18rpx;
+	color: #ffffff;
+}
+
+.icon-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 16rpx;
+}
+
+.icon-item {
+	width: 22%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 16rpx 6rpx;
+	border-radius: 12rpx;
+	background-color: #f7f9fc;
+}
+
+.icon-item__name {
+	margin-top: 8rpx;
+	font-size: 18rpx;
+	color: #909399;
+	text-align: center;
+	word-break: break-all;
+}
+
+.i18n-card {
+	padding: 24rpx;
+	border-radius: 16rpx;
+	background: linear-gradient(135deg, rgba(95, 79, 217, 0.08), rgba(1, 190, 255, 0.08));
+}
+
+.i18n-card__title {
+	display: block;
+	font-size: 32rpx;
+	font-weight: 600;
+}
+
+.i18n-card__desc {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 24rpx;
+	color: #606266;
+}
+
+.i18n-card__slogan {
+	display: block;
+	margin-top: 12rpx;
+	font-size: 22rpx;
+	color: #909399;
+}
+
+.compile-card {
+	padding: 20rpx 24rpx;
+	border-radius: 12rpx;
+	background-color: #f7f9fc;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.compile-card__label {
+	font-size: 24rpx;
+	color: #909399;
+}
+
+.compile-card__value {
+	font-size: 26rpx;
+	font-weight: 600;
+	color: #01beff;
+}
+
+.compile-h5,
+.compile-mp {
+	margin-top: 16rpx;
+	display: flex;
+	align-items: center;
+	font-size: 24rpx;
+	color: #606266;
+}
+
+.token-row {
+	display: flex;
+	flex-direction: column;
+	gap: 14rpx;
+}
+
+.token-item {
+	display: flex;
+	align-items: center;
+}
+
+.token-item__label {
+	width: 60rpx;
+	font-size: 22rpx;
+	color: #909399;
+}
+
+.token-bar {
+	height: 20rpx;
+	border-radius: 10rpx;
+	background: linear-gradient(90deg, #01beff, #5f4fd9);
+}
+
+.radius-item {
+	flex: 1;
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #ffffff;
+	font-size: 20rpx;
+	color: #606266;
+	border-radius: 12rpx;
+}
+
+.tip {
+	margin: 8rpx 32rpx 40rpx;
+	font-size: 22rpx;
+	color: #909399;
+}
+</style>
