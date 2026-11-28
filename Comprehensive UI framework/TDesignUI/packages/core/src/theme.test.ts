@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   THEME_ATTRIBUTE,
+  THEME_STORAGE_KEY,
   THEMES,
   applyTheme,
   createThemeStore,
   isThemeName,
   nextTheme,
+  persistTheme,
+  readStoredTheme,
+  resolveInitialTheme,
+  resolveSystemTheme,
   resolveThemeTarget,
   themeLabel,
 } from './';
@@ -105,5 +110,107 @@ describe('applyTheme', () => {
   it('Node 环境没有 document 时不报错', () => {
     expect(resolveThemeTarget()).toBeNull();
     expect(() => applyTheme('dark')).not.toThrow();
+  });
+});
+
+/** 极简假存储，模拟 localStorage 的同步接口 */
+function makeFakeStorage(seed: Record<string, string> = {}) {
+  const data: Record<string, string> = { ...seed };
+  return {
+    data,
+    getItem: (key: string) => (key in data ? data[key] : null),
+    setItem: (key: string, value: string) => {
+      data[key] = value;
+    },
+  };
+}
+
+describe('主题持久化', () => {
+  it('存过深色就读回深色', () => {
+    expect(readStoredTheme(makeFakeStorage({ [THEME_STORAGE_KEY]: 'dark' }))).toBe('dark');
+  });
+
+  it('没存过返回 null', () => {
+    expect(readStoredTheme(makeFakeStorage())).toBeNull();
+  });
+
+  it('存了非法值当作没存过', () => {
+    expect(readStoredTheme(makeFakeStorage({ [THEME_STORAGE_KEY]: 'blue' }))).toBeNull();
+  });
+
+  it('没有存储环境时不报错', () => {
+    expect(readStoredTheme(null)).toBeNull();
+    expect(() => persistTheme('dark', null)).not.toThrow();
+  });
+
+  it('persistTheme 写入固定 key', () => {
+    const storage = makeFakeStorage();
+    persistTheme('dark', storage);
+    expect(storage.data[THEME_STORAGE_KEY]).toBe('dark');
+  });
+
+  it('存储抛错（隐私模式）不影响主流程', () => {
+    const throwing = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+    };
+    expect(readStoredTheme(throwing)).toBeNull();
+    expect(() => persistTheme('dark', throwing)).not.toThrow();
+  });
+
+  it('切换后自动写回存储', () => {
+    const storage = makeFakeStorage();
+    const store = createThemeStore('light', storage);
+    store.toggle();
+    expect(storage.data[THEME_STORAGE_KEY]).toBe('dark');
+    store.set('light');
+    expect(storage.data[THEME_STORAGE_KEY]).toBe('light');
+  });
+
+  it('set 到相同值不写存储', () => {
+    const storage = makeFakeStorage();
+    const store = createThemeStore('light', storage);
+    store.set('light');
+    expect(storage.data[THEME_STORAGE_KEY]).toBeUndefined();
+  });
+});
+
+describe('初始主题解析', () => {
+  it('有存储优先用存储', () => {
+    const storage = makeFakeStorage({ [THEME_STORAGE_KEY]: 'dark' });
+    expect(resolveInitialTheme(storage)).toBe('dark');
+  });
+
+  it('没存储且无 matchMedia 时回退浅色', () => {
+    expect(resolveInitialTheme(makeFakeStorage())).toBe('light');
+  });
+
+  it('没存储时跟随系统深色偏好', () => {
+    const original = (globalThis as { matchMedia?: unknown }).matchMedia;
+    (globalThis as { matchMedia?: unknown }).matchMedia = (query: string) => ({
+      matches: query.includes('dark'),
+    });
+    try {
+      expect(resolveSystemTheme()).toBe('dark');
+      expect(resolveInitialTheme(null)).toBe('dark');
+    } finally {
+      (globalThis as { matchMedia?: unknown }).matchMedia = original;
+    }
+  });
+
+  it('matchMedia 抛错时回退浅色', () => {
+    const original = (globalThis as { matchMedia?: unknown }).matchMedia;
+    (globalThis as { matchMedia?: unknown }).matchMedia = () => {
+      throw new Error('unsupported');
+    };
+    try {
+      expect(resolveSystemTheme()).toBe('light');
+    } finally {
+      (globalThis as { matchMedia?: unknown }).matchMedia = original;
+    }
   });
 });

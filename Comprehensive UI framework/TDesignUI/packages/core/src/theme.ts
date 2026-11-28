@@ -26,7 +26,64 @@ export interface ThemeStore {
   toggle: () => void;
 }
 
-export function createThemeStore(initial: ThemeName = 'light'): ThemeStore {
+/** 最小存储接口：core 不依赖 DOM lib，测试里传一个假对象就能验 */
+export interface KeyValueStorage {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+}
+
+export const THEME_STORAGE_KEY = 'tds-theme';
+
+export function resolveStorage(): KeyValueStorage | null {
+  const storage = (globalThis as { localStorage?: KeyValueStorage }).localStorage;
+  return storage ?? null;
+}
+
+export function readStoredTheme(
+  storage: KeyValueStorage | null = resolveStorage(),
+): ThemeName | null {
+  if (!storage) return null;
+  try {
+    const value = storage.getItem(THEME_STORAGE_KEY);
+    return value !== null && isThemeName(value) ? value : null;
+  } catch {
+    // 隐私模式等场景读不到就当作没存过
+    return null;
+  }
+}
+
+export function persistTheme(
+  theme: ThemeName,
+  storage: KeyValueStorage | null = resolveStorage(),
+): void {
+  if (!storage) return;
+  try {
+    storage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // 配额写满或存储被禁用：不影响本次切换
+  }
+}
+
+/** 没存过偏好时跟随系统，纯结构类型读取 matchMedia */
+export function resolveSystemTheme(): ThemeName {
+  const matchMedia = (globalThis as { matchMedia?: (query: string) => { matches: boolean } })
+    .matchMedia;
+  if (!matchMedia) return 'light';
+  try {
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+export function resolveInitialTheme(storage: KeyValueStorage | null = resolveStorage()): ThemeName {
+  return readStoredTheme(storage) ?? resolveSystemTheme();
+}
+
+export function createThemeStore(
+  initial: ThemeName = 'light',
+  storage: KeyValueStorage | null = resolveStorage(),
+): ThemeStore {
   let current = initial;
   const listeners = new Set<(theme: ThemeName) => void>();
 
@@ -43,10 +100,12 @@ export function createThemeStore(initial: ThemeName = 'light'): ThemeStore {
     set: (theme) => {
       if (!isThemeName(theme) || theme === current) return;
       current = theme;
+      persistTheme(current, storage);
       emit();
     },
     toggle: () => {
       current = nextTheme(current);
+      persistTheme(current, storage);
       emit();
     },
   };
@@ -70,5 +129,5 @@ export function applyTheme(
   target?.setAttribute(THEME_ATTRIBUTE, theme);
 }
 
-/** 应用级共享单例：导航栏切一次，所有已订阅的界面同步更新 */
-export const themeStore = createThemeStore();
+/** 应用级共享单例：导航栏切一次，所有已订阅的界面同步更新；初始值优先读上次的选择 */
+export const themeStore = createThemeStore(resolveInitialTheme());

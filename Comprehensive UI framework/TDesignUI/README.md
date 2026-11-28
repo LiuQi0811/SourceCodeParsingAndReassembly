@@ -28,7 +28,7 @@ npm run dev:vue                   # 只起 Vue 端 → http://localhost:5180
 npm run dev:react                 # 只起 React 端 → http://localhost:5190
 npm run build:all                 # 两端分别构建
 npm run typecheck                 # 两端各跑一次 tsc --noEmit
-npm test                          # 跑 core 单测（vitest，80 个用例）
+npm test                          # 跑 core 单测（vitest，92 个用例）
 npm run test:watch                # 单测监听模式
 npm run lint                      # ESLint（Vue / React / TS 全量）
 npm run lint:fix                  # ESLint 自动修可修的
@@ -161,17 +161,48 @@ useEffect(() => applyTheme(theme), [theme]);
 
 `index.html` 里预置了 `<html theme-mode="light">` 和 `<meta name="color-scheme" content="light dark">`，避免首屏闪白。
 
+## 主题偏好怎么记住
+
+刷新不该丢掉用户的选择，所以 core 里给了三样东西（仍然不碰框架、不依赖 DOM lib）：
+
+- `resolveStorage()` —— 从 `globalThis` 取 `localStorage`，取不到返回 `null`
+- `readStoredTheme(storage)` / `persistTheme(theme, storage)` —— 读写 `tds-theme`，非法值当没存过；读写在 `try/catch` 里，隐私模式、配额写满都不影响切换
+- `resolveSystemTheme()` / `resolveInitialTheme(storage)` —— 没存过就跟随系统 `prefers-color-scheme`，读不到或抛错回退浅色
+
+单例创建时就用 `resolveInitialTheme()`：`createThemeStore()` 的 `set` / `toggle` 会自动写回存储，所以两端壳的代码**一句没改**，持久化是透明加上的。
+
+还有一处细节：`index.html` 里加了一段首帧内联脚本，在 CSS 和 JS 加载前就把 `theme-mode` 定好。否则深色用户每次刷新都会先看到一帧白色 —— 这种闪白是纯 CSS 方案最容易漏掉的坑。
+
+```html
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem('tds-theme');
+      var preferred =
+        saved === 'dark' || saved === 'light'
+          ? saved
+          : matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+      document.documentElement.setAttribute('theme-mode', preferred);
+    } catch (e) {}
+  })();
+</script>
+```
+
+`main.ts` / `main.tsx` 里也有一句 `applyTheme(themeStore.get())`，作为 JS 侧的第二道保险。
+
 ## 双壳重复率实测（三个页面 + 主题 + 测试到位后）
 
 | 部分                                                       | 行数 | 重复情况                            |
 | ---------------------------------------------------------- | ---- | ----------------------------------- |
-| core（index / counter / routes / apps / app-form / theme） | 503  | 单一来源                            |
-| core 单测（5 个 test 文件，80 个用例）                     | 488  | 只测 core，两端共用                 |
+| core（index / counter / routes / apps / app-form / theme） | 555  | 单一来源                            |
+| core 单测（5 个 test 文件，92 个用例）                     | 582  | 只测 core，两端共用                 |
 | theme（tokens / layout / index）                           | 240  | 单一来源                            |
-| Vue 壳（App / router / main / 三个页面）                   | 378  | 模板结构与 React 近似，语法必须两套 |
-| React 壳（App / main / 三个页面 tsx）                      | 405  | 同上                                |
+| Vue 壳（App / router / main / 三个页面）                   | 381  | 模板结构与 React 近似，语法必须两套 |
+| React 壳（App / main / 三个页面 tsx）                      | 408  | 同上                                |
 
-结论：业务逻辑、校验规则、主题状态机、样式、路由表五项重复为 **0**；两端壳合计 783 行，全是「模板 vs JSX」的语法差异 + 各页面的组合方式。共享部分（core + theme）743 行 + 488 行测试，是同一份真相只写一次的直接成本。
+结论：业务逻辑、校验规则、主题状态机与持久化、样式、路由表五项重复为 **0**；两端壳合计 789 行，全是「模板 vs JSX」的语法差异 + 各页面组合方式。共享部分（core + theme）795 行 + 582 行测试，是同一份真相只写一次的直接成本。
 
 ## 代码规范与 CI
 
@@ -196,7 +227,7 @@ npm ci → npm run lint → npm test → npm run typecheck → npm run build:all
 
 ## 待办
 
-- 主题偏好持久化：现在刷新回到浅色，可把 `themeStore` 的初始值接到 `localStorage`（core 里加一个可注入的 storage 适配即可，仍不碰框架）。
+- 列表 CRUD 补齐：`removeApp` + 卡片删除按钮 + 二次确认，core 补测试。
 - Vue 端 `typecheck` 目前是 `tsc --noEmit`，不校验 `.vue` 模板；`vue-tsc` 与当前 TypeScript 7 尚不兼容，模板层类型错误暂时靠 `vite build` 与浏览器发现。
 - 部署到静态站点要配 history fallback（把 `/apps`、`/create` 这类路径回落到 `index.html`），`vite preview` 已内置该行为。
 
