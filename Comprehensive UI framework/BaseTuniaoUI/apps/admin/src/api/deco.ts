@@ -61,6 +61,7 @@ export interface DecoTenantSummary {
  * GET    /deco/tenants               小程序应用列表
  * POST   /deco/tenants               新增小程序应用 { id?, name, appId }
  * PUT    /deco/tenants/:id           修改应用名称 / AppID
+ * DELETE /deco/tenants/:id           删除小程序应用（默认应用不可删）
  */
 export const decoApi = {
   tenants: () =>
@@ -69,6 +70,7 @@ export const decoApi = {
     decoPost<DecoTenantSummary>('/deco/tenants', payload),
   updateTenant: (id: string, payload: { name: string; appId: string }) =>
     decoPut<DecoTenantSummary>(`/deco/tenants/${id}`, payload),
+  removeTenant: (id: string) => decoDel<{ id: string }>(`/deco/tenants/${id}`),
   pages: () => decoGet<{ pages: DecoPageSummary[] }>('/deco/pages'),
   createPage: (title: string) => decoPost<DecoPageSummary>('/deco/pages', { title }),
   copyPage: (id: string, title: string) =>

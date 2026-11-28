@@ -5,7 +5,7 @@
  * - 所有响应统一 { code, msg, data }，与后台 Mock / 小程序请求层保持一致
  */
 import { createServer as createHttpServer } from 'node:http'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { existsSync, createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -512,6 +512,19 @@ const route = async (req, res, url) => {
       tenant.appId = appId
       await saveState()
       return ok(res, tenantSummary(tenant))
+    }
+
+    if (parts.length === 3 && req.method === 'DELETE') {
+      if (claims.role !== 'admin') throw new HttpError('只有管理员可以删除小程序应用', 403)
+      const tenant = state.tenants.find((item) => item.id === parts[2])
+      if (!tenant) throw new HttpError(`装修应用不存在：${parts[2]}`, 404)
+      if (tenant.id === state.defaultTenantId) {
+        throw new HttpError('默认小程序应用不能删除', 400)
+      }
+      state.tenants = state.tenants.filter((item) => item.id !== tenant.id)
+      await saveState()
+      await rm(path.join(UPLOAD_DIR, tenant.id), { recursive: true, force: true })
+      return ok(res, { id: tenant.id })
     }
 
     throw new HttpError('方法不支持', 405)

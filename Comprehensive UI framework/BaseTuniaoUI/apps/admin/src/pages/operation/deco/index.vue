@@ -54,6 +54,7 @@ const page = ref<DecoPage>(createDemoPage())
 const selectedId = ref(page.value.components[0]?.id ?? '')
 const publishedAt = ref<string>('')
 const tenants = ref<DecoTenantSummary[]>([])
+const defaultTenantId = ref('')
 const tenantId = ref(getDecoTenantId())
 const tenantDialogVisible = ref(false)
 const tenantEditingId = ref('')
@@ -131,6 +132,7 @@ const refreshPages = async () => {
 const loadTenants = async () => {
   const result = await decoApi.tenants()
   tenants.value = result.tenants
+  defaultTenantId.value = result.defaultTenantId
   const stored = getDecoTenantId()
   const fallback =
     result.tenants.find((item) => item.id === result.defaultTenantId)?.id ||
@@ -231,6 +233,37 @@ const saveTenant = async () => {
   } finally {
     tenantSaving.value = false
   }
+}
+
+const removeTenant = () => {
+  const target = tenants.value.find((item) => item.id === tenantEditingId.value)
+  if (!target || tenantSaving.value) return
+  if (target.id === defaultTenantId.value) {
+    uni.showToast({ title: t('deco.tenantDefaultCannotDelete'), icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: t('deco.tenantDeleteTitle'),
+    content: t('deco.tenantDeleteConfirm', { name: target.name }),
+    confirmText: t('deco.tenantDelete'),
+    cancelText: t('common.cancel'),
+    confirmColor: '#f5455c',
+    success: async (res) => {
+      if (!res.confirm) return
+      tenantSaving.value = true
+      try {
+        await decoApi.removeTenant(target.id)
+        await loadTenants()
+        await reloadWorkspace()
+        tenantDialogVisible.value = false
+        uni.showToast({ title: t('deco.tenantDeleted'), icon: 'success' })
+      } catch (error) {
+        // request 层已提示错误
+      } finally {
+        tenantSaving.value = false
+      }
+    },
+  })
 }
 
 const openPage = async (id: string) => {
@@ -1154,6 +1187,14 @@ onLoad(async () => {
         <text class="tenant-dialog-tip">
           {{ tenantEditingId ? t('deco.tenantEditTip') : t('deco.tenantCodeTip') }}
         </text>
+        <view
+          v-if="tenantEditingId && tenantEditingId !== defaultTenantId"
+          class="tenant-delete-row"
+        >
+          <app-button type="danger" plain size="sm" :loading="tenantSaving" @click="removeTenant">
+            {{ t('deco.tenantDelete') }}
+          </app-button>
+        </view>
       </view>
     </app-dialog>
   </app-layout>
@@ -1209,6 +1250,11 @@ onLoad(async () => {
   font-size: 12px;
   line-height: 1.6;
   color: var(--app-text-3);
+}
+
+.tenant-delete-row {
+  flex-direction: row;
+  padding-top: 4px;
 }
 
 .page-bar-row {

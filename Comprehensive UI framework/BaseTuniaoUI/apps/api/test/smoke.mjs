@@ -221,6 +221,18 @@ try {
   const appImage = await fetch(appUpload.data.url)
   assert(appImage.headers.get('content-type') === 'image/png', '指定应用上传文件不可访问')
 
+  const deleteDefault = await request('DELETE', '/deco/tenants/btn-mall', undefined, token)
+  assert(deleteDefault.code === 400, '默认应用不允许删除')
+
+  const deleteApp = await request('DELETE', '/deco/tenants/app-smoke', undefined, token)
+  assert(deleteApp.code === 0, '删除非默认应用失败')
+  const removedImage = await fetch(appUpload.data.url)
+  assert(removedImage.status === 404, '删除应用后其上传目录应被清理')
+  const afterDelete = await request('GET', '/deco/tenants', undefined, token)
+  assert(afterDelete.data.tenants.length === 1, '删除后应用列表数量不正确')
+  const removedTenant = await request('GET', '/deco/home', undefined, undefined, 'app-smoke')
+  assert(removedTenant.code === 404, '已删除应用不应再可访问')
+
   console.log(
     'api smoke passed: auth / tenants / pages / copy / publish / versions / rollback / templates / upload / published'
   )

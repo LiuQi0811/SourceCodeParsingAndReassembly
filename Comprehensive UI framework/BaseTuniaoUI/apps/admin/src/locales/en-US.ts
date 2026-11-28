@@ -387,6 +387,12 @@ export default {
     tenantDiscardContent:
       'Switching the mini program will discard unsaved changes on this page. Continue?',
     tenantDiscardConfirm: 'Discard and switch',
+    tenantDelete: 'Delete app',
+    tenantDeleteTitle: 'Delete mini program',
+    tenantDeleteConfirm:
+      'Delete "{name}"? Its pages, templates, versions and uploaded images will be removed permanently.',
+    tenantDeleted: 'Mini program deleted',
+    tenantDefaultCannotDelete: 'The default mini program cannot be deleted',
     catalog: 'Mini Program',
     componentList: 'Components',
     preview: 'Live preview',

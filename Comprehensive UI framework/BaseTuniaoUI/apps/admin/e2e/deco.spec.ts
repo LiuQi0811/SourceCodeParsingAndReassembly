@@ -112,6 +112,31 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item')).toHaveCount(4)
   })
 
+  test('可以删除非默认小程序应用', async ({ page }) => {
+    await page.locator('.tenant-bar .app-btn', { hasText: '新增小程序' }).click()
+    const dialog = page.locator('.dialog-panel')
+    const inputs = dialog.locator('.app-input input')
+    await inputs.nth(0).fill('待删除小程序')
+    await inputs.nth(1).fill('wx0123456789abcdef')
+    await inputs.nth(2).fill('app-delete')
+    await dialog.locator('.app-btn', { hasText: '确定' }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('待删除小程序')
+
+    await page.locator('.tenant-bar .app-btn', { hasText: '编辑应用' }).click()
+    await expect(page.locator('.tenant-delete-row')).toContainText('删除应用')
+    await page.locator('.tenant-delete-row .app-btn').click()
+
+    const modal = page.locator('.uni-modal')
+    await expect(modal).toContainText('删除「待删除小程序」')
+    await modal.getByText('删除应用', { exact: true }).click()
+    await expect(page.getByText('小程序应用已删除').first()).toBeVisible()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
+
+    await page.locator('.tenant-select .select-trigger').click()
+    await expect(page.locator('.select-panel')).toBeVisible()
+    await expect(page.locator('.select-panel')).not.toContainText('待删除小程序')
+  })
+
   test('保存草稿后刷新仍然保留', async ({ page }) => {
     await page.locator('.comp-item').first().click()
     await page.locator('.panel-props .app-input input').first().fill('24')

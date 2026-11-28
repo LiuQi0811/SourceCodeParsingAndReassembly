@@ -311,6 +311,18 @@ defineMock('PUT', '/deco/tenants/:id', ({ pathParams, body }) => {
   return tenantSummary(target)
 })
 
+defineMock('DELETE', '/deco/tenants/:id', ({ pathParams }) => {
+  const tenants = loadTenants()
+  const target = tenants.find((item) => item.id === pathParams.id)
+  if (!target) throw new MockError(`装修应用不存在：${pathParams.id}`, 404)
+  if (target.id === DEFAULT_TENANT) throw new MockError('默认小程序应用不能删除', 400)
+  saveTenants(tenants.filter((item) => item.id !== target.id))
+  storage.remove(pagesKey(target.id))
+  storage.remove(pagesVersionKey(target.id))
+  storage.remove(templatesKey(target.id))
+  return { id: target.id }
+})
+
 const summary = (item: PageRecord) => ({
   id: item.id,
   title: item.draft?.title || item.published?.title || item.title,
