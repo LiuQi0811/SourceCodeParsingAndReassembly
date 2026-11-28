@@ -452,7 +452,7 @@ export default {
     goodsName: '商品名称',
     goodsPrice: '价格',
     goodsTag: '角标（可空）',
-    tip: '一期支持上移 / 下移 / 增删 / 改属性，不支持自由拖拽',
+    tip: '按住左侧手柄拖拽排序，也可用上移 / 下移调整',
     previewTip: '预览与小程序共用同一套渲染器',
     publishedAt: '最近发布：{time}',
     unpublished: '尚未发布',

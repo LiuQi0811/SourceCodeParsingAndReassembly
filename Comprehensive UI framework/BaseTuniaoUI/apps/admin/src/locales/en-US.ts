@@ -452,7 +452,7 @@ export default {
     goodsName: 'Product name',
     goodsPrice: 'Price',
     goodsTag: 'Badge (optional)',
-    tip: 'Phase 1 supports move up / down, add / remove and property edits, no free dragging',
+    tip: 'Drag the left handle to reorder, or use move up / down',
     previewTip: 'Preview and the mini program share the same renderer',
     publishedAt: 'Last published: {time}',
     unpublished: 'Not published yet',

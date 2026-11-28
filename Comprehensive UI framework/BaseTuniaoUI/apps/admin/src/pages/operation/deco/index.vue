@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
 import {
@@ -28,6 +28,13 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTag from '@/components/ui/AppTag.vue'
 import AppEmpty from '@/components/ui/AppEmpty.vue'
 import ImagePicker from '@/components/ui/ImagePicker.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
+import {
+  insertIndexToMoveIndex,
+  moveItem,
+  resolveInsertIndex,
+  type DragRect,
+} from '@/utils/decoDrag'
 
 const { t } = useI18n()
 const user = useUserStore()
@@ -60,6 +67,10 @@ const savingTemplate = ref(false)
 const usingTemplateId = ref('')
 const removingTemplateId = ref('')
 const rollingVersionId = ref('')
+const dragIndex = ref(-1)
+const dragInsertIndex = ref(-1)
+let originalUserSelect = ''
+let originalCursor = ''
 
 const currentPage = computed<DecoPageSummary | null>(
   () => pages.value.find((item) => item.id === currentId.value) ?? null
@@ -188,6 +199,78 @@ const move = (index: number, offset: number) => {
   const [item] = list.splice(index, 1)
   list.splice(target, 0, item)
 }
+
+/** 拖拽排序：只绑定 H5 的鼠标 / 触摸事件，小程序端仍用上移、下移 */
+const readDragRects = (): DragRect[] => {
+  if (typeof document === 'undefined') return []
+  const list = document.querySelector('.comp-list')
+  if (!list) return []
+  return Array.from(list.querySelectorAll('.comp-item')).map((element) => {
+    const rect = element.getBoundingClientRect()
+    return { top: rect.top, height: rect.height }
+  })
+}
+
+const eventClientY = (event: Event): number | null => {
+  if ('touches' in event) {
+    const touchEvent = event as TouchEvent
+    const touch = touchEvent.touches[0] ?? touchEvent.changedTouches[0]
+    return touch ? touch.clientY : null
+  }
+  const mouseEvent = event as MouseEvent
+  return typeof mouseEvent.clientY === 'number' ? mouseEvent.clientY : null
+}
+
+const stopDrag = () => {
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('mousemove', onDragMove)
+    document.removeEventListener('mouseup', onDragEnd)
+    document.removeEventListener('touchmove', onDragMove)
+    document.removeEventListener('touchend', onDragEnd)
+    document.removeEventListener('touchcancel', onDragEnd)
+    document.body.style.userSelect = originalUserSelect
+    document.body.style.cursor = originalCursor
+  }
+  dragIndex.value = -1
+  dragInsertIndex.value = -1
+}
+
+const onDragEnd = () => {
+  const from = dragIndex.value
+  const insertIndex = dragInsertIndex.value
+  stopDrag()
+  if (from < 0 || insertIndex < 0) return
+  const target = insertIndexToMoveIndex(from, insertIndex)
+  if (target === from) return
+  page.value.components = moveItem(page.value.components, from, target)
+}
+
+const onDragMove = (event: Event) => {
+  if (dragIndex.value < 0) return
+  const pointerY = eventClientY(event)
+  if (pointerY === null) return
+  event.preventDefault()
+  dragInsertIndex.value = resolveInsertIndex(pointerY, readDragRects())
+}
+
+const startDrag = (index: number, event: Event) => {
+  if ('button' in event && (event as MouseEvent).button !== 0) return
+  if (eventClientY(event) === null || typeof document === 'undefined') return
+  dragIndex.value = index
+  dragInsertIndex.value = index
+  selectedId.value = page.value.components[index]?.id ?? selectedId.value
+  originalUserSelect = document.body.style.userSelect
+  originalCursor = document.body.style.cursor
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'grabbing'
+  document.addEventListener('mousemove', onDragMove)
+  document.addEventListener('mouseup', onDragEnd)
+  document.addEventListener('touchmove', onDragMove, { passive: false })
+  document.addEventListener('touchend', onDragEnd)
+  document.addEventListener('touchcancel', onDragEnd)
+}
+
+onUnmounted(stopDrag)
 
 const askRemove = (id: string) => {
   uni.showModal({
@@ -632,32 +715,51 @@ onLoad(async () => {
         <app-empty v-if="page.components.length === 0" :text="t('deco.emptyList')" />
 
         <view class="comp-list">
-          <view
-            v-for="(item, index) in page.components"
-            :key="item.id"
-            class="comp-item"
-            :class="{ 'is-active': item.id === selectedId }"
-            @click="select(item.id)"
-          >
-            <view class="comp-main">
-              <text class="comp-type">{{ typeLabel(item.type) }}</text>
-              <text class="comp-sub">{{ summary(item) }}</text>
-            </view>
-            <view class="comp-ops">
-              <app-button type="text" size="sm" :disabled="index === 0" @click="move(index, -1)">
-                上移
-              </app-button>
-              <app-button
-                type="text"
-                size="sm"
-                :disabled="index === page.components.length - 1"
-                @click="move(index, 1)"
+          <template v-for="(item, index) in page.components" :key="item.id">
+            <view
+              v-if="dragIndex !== -1 && dragInsertIndex === index && dragInsertIndex !== dragIndex"
+              class="drop-line"
+            />
+            <view
+              class="comp-item"
+              :class="{
+                'is-active': item.id === selectedId,
+                'is-dragging': dragIndex === index,
+              }"
+              @click="select(item.id)"
+            >
+              <view
+                class="drag-handle"
+                title="按住拖动排序"
+                @mousedown.stop.prevent="startDrag(index, $event)"
+                @touchstart.stop.prevent="startDrag(index, $event)"
               >
-                下移
-              </app-button>
-              <app-button type="text" size="sm" icon="delete" @click="askRemove(item.id)" />
+                <app-icon name="sort" :size="14" />
+              </view>
+              <view class="comp-main">
+                <text class="comp-type">{{ typeLabel(item.type) }}</text>
+                <text class="comp-sub">{{ summary(item) }}</text>
+              </view>
+              <view class="comp-ops">
+                <app-button type="text" size="sm" :disabled="index === 0" @click="move(index, -1)">
+                  上移
+                </app-button>
+                <app-button
+                  type="text"
+                  size="sm"
+                  :disabled="index === page.components.length - 1"
+                  @click="move(index, 1)"
+                >
+                  下移
+                </app-button>
+                <app-button type="text" size="sm" icon="delete" @click="askRemove(item.id)" />
+              </view>
             </view>
-          </view>
+          </template>
+          <view
+            v-if="dragIndex !== -1 && dragInsertIndex === page.components.length"
+            class="drop-line"
+          />
         </view>
       </app-card>
 
@@ -1017,6 +1119,37 @@ onLoad(async () => {
 .comp-item.is-active {
   border-color: var(--app-primary);
   background: var(--app-primary-weak-2);
+}
+
+.comp-item.is-dragging {
+  opacity: 0.55;
+  border-style: dashed;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.drag-handle {
+  flex: none;
+  width: 22px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--app-text-3);
+  cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle:hover {
+  color: var(--app-primary);
+  background: var(--app-primary-weak-2);
+}
+
+.drop-line {
+  height: 2px;
+  margin: 1px 8px;
+  border-radius: 2px;
+  background: var(--app-primary);
+  box-shadow: 0 0 0 2px var(--app-primary-weak-2);
 }
 
 .comp-main {

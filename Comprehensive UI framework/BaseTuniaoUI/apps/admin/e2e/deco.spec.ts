@@ -26,6 +26,28 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item').nth(3)).toContainText('轮播')
   })
 
+  test('拖拽左侧手柄可以调整组件顺序', async ({ page }) => {
+    await expect(page.locator('.comp-item').first()).toContainText('轮播')
+    await expect(page.locator('.comp-item').last()).toContainText('商品')
+
+    const handle = page.locator('.comp-item .drag-handle').first()
+    const target = page.locator('.comp-item').last()
+    const handleBox = await handle.boundingBox()
+    const targetBox = await target.boundingBox()
+    if (!handleBox || !targetBox) throw new Error('拖拽元素没有渲染尺寸')
+
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height - 2, {
+      steps: 12,
+    })
+    await expect(page.locator('.drop-line')).toBeVisible()
+    await page.mouse.up()
+
+    await expect(page.locator('.comp-item').last()).toContainText('轮播')
+    await expect(page.locator('.comp-item').first()).toContainText('公告')
+  })
+
   test('保存草稿后刷新仍然保留', async ({ page }) => {
     await page.locator('.comp-item').first().click()
     await page.locator('.panel-props .app-input input').first().fill('24')

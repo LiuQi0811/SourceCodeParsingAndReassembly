@@ -24,8 +24,8 @@ npm run dev:h5       # 后台端调试，默认 http://localhost:5173
 npm run build:h5     # 后台端生产构建，产物在 apps/admin/dist/build/h5
 npm run dev:mp       # 小程序端调试（微信开发者工具导入 apps/mp/dist/dev/mp-weixin）
 npm run build:mp     # 小程序端构建，产物在 apps/mp/dist/build/mp-weixin
-npm test             # 单元测试（Vitest，目前 92 条）
-npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 26 条）
+npm test             # 单元测试（Vitest，目前 96 条）
+npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 27 条）
 npm run smoke:api    # 装修后端冒烟：临时目录跑复制/发布/回滚/模板/上传
 npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 + H5 构建（提交前建议）
 ```
@@ -58,9 +58,9 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 - **多语言**：`vue-i18n`（Composition API，`legacy: false`），文案按命名空间放在 `src/locales/{zh-CN,en-US}.ts`：`common`（通用词）、`layout`、`login`、`home` 与各业务页各自的命名空间（含 `deco`）。`src/locales/index.ts` 从 `BTN_locale` 读语言、`setLocale()` 写回；页面里 `const { t } = useI18n()` 后直接 `t('user.title')`。切换入口两处：登录页右上角「EN / 中文」、头像菜单「语言 / Language」面板。因为文案在 setup 时求值，切换语言后统一 `reLaunch` 当前页生效；通用控件（`AppDialog` / `AppTable` / `AppSelect` / `AppInput` / `AppEmpty` / `AppPagination`）的默认文案自己兜 `t()`，页面不传也不会出现中文残留。
 - **业务数据的英文层**：Mock 种子只存中文（它同时是新增/编辑后的真实数据），`src/mock/i18n.ts` 在 `en-US` 下把接口返回体深拷贝一份，按「中文原值 → 英文译文」翻译 `name` / `deptName` / `roleNames` / `label` / `remark` / `module` / `action` 这几个字段，覆盖菜单名、部门名、角色名与说明、字典标签、日志模块与动作；账号、昵称、手机号、路径、权限码不动，表里查不到的文案（用户自己输入的名称）原样保留。**译文绝不写回 db**，否则切回中文会看到英文。角色名、菜单树来自落在本地的 `profile`，所以切换语言时会先 `user.refreshProfile()` 再 `reLaunch`，避免侧边栏仍显示旧语言。Mock 抛出的业务错误（`MockError`）也走同一层：`localizeMockMessage()` 把「账号已存在」「该角色已被 N 个用户使用」这类提示翻成英文，未登记的开发期提示（如 Mock 接口未定义）保留中文方便排查。
 - **代码规范**：`npm run lint`（ESLint 9 flat config）、`npm run format`（Prettier）；`npm run type-check` 用 `vue-tsc --noEmit`；`npm run format:check` 只检查不改写。
-- **CI**：`.github/workflows/ci.yml` 两个 job —— `quality`（ESLint → 两端类型检查 → 格式检查 → 92 条单测 → `build:h5` → `build:mp`）与 `e2e`（`needs: quality`，安装 Chromium 后跑 26 条 Playwright 用例，失败上传 `apps/admin/test-results` / `apps/admin/playwright-report`）。CI 上设 `PW_BROWSER=chromium`，`playwright.config.ts` 据此从「系统 Chrome」切到 Playwright 自带 Chromium；本机仍复用系统 Chrome，不额外下载。提交前本地跑 `npm run verify` 等价于 `quality` job（但不含 `build:mp`，改小程序端时单独跑一次）。
-- **单元测试**：`npm test`（Vitest，配置在 `vitest.config.ts`，`src/**/*.spec.ts` 自动收集，目前 92 条）。覆盖权限判断（`utils/permission.ts`）、页面注册校验（`config/routes.ts`）、树工具、格式化工具、表单规则（`utils/validate.ts`）、`useCrudForm` 的打开/校验短路/新增/编辑/失败保留弹窗、主题外观与密度/圆角的读写与非法值回落（`store/app`）、Mock 业务数据英文层（各字段翻译、未命中保留原文、深拷贝不改 db、错误提示翻译、走真实请求链路验证）、删除确认的按钮文案与失败兜底（`utils/dialog.ts`）、装修协议校验（版本号、id 重复、轮播/公告/导航必填项、未知组件类型，`utils/deco.spec.ts`），以及请求层 + Mock 的契约（登录成功/失败、401 清理与 `auth:expired` 广播、404、`showError`、loading 成对调用、图片上传回显 base64 与非法格式拦截、装修多页面的新建/存草稿/发布/读取/删除与首页保护）。测试里用内存 Map 替身扮演 `uni` 存储，无需浏览器或 HBuilderX。
-- **端到端测试**：`npm run test:e2e`（Playwright，`e2e/*.spec.ts`，目前 6 个文件 26 条）。直接复用本机 Chrome（`channel: 'chrome'`，不额外下载浏览器），`playwright.config.ts` 里配了 `webServer`：没有 dev server 时自动 `npm run dev:h5`，已在跑则复用 5173 端口，单 worker 顺序执行。分两个 project：`desktop`（1280×800，跑 auth / permission / theme / user-crud / deco）与 `mobile`（660×570，命中 `<768` 断点，只跑 `mobile.spec.ts`）。装修用例覆盖组件联动、草稿持久化、发布状态、图片回填、多页增删切换、复制与模板复用、发布历史回滚。
+- **CI**：`.github/workflows/ci.yml` 两个 job —— `quality`（ESLint → 两端类型检查 → 格式检查 → 96 条单测 → `build:h5` → `build:mp`）与 `e2e`（`needs: quality`，安装 Chromium 后跑 27 条 Playwright 用例，失败上传 `apps/admin/test-results` / `apps/admin/playwright-report`）。CI 上设 `PW_BROWSER=chromium`，`playwright.config.ts` 据此从「系统 Chrome」切到 Playwright 自带 Chromium；本机仍复用系统 Chrome，不额外下载。提交前本地跑 `npm run verify` 等价于 `quality` job（但不含 `build:mp`，改小程序端时单独跑一次）。
+- **单元测试**：`npm test`（Vitest，配置在 `vitest.config.ts`，`src/**/*.spec.ts` 自动收集，目前 96 条）。覆盖权限判断（`utils/permission.ts`）、页面注册校验（`config/routes.ts`）、树工具、格式化工具、表单规则（`utils/validate.ts`）、`useCrudForm` 的打开/校验短路/新增/编辑/失败保留弹窗、主题外观与密度/圆角的读写与非法值回落（`store/app`）、Mock 业务数据英文层（各字段翻译、未命中保留原文、深拷贝不改 db、错误提示翻译、走真实请求链路验证）、删除确认的按钮文案与失败兜底（`utils/dialog.ts`）、装修协议校验（版本号、id 重复、轮播/公告/导航必填项、未知组件类型，`utils/deco.spec.ts`）、组件拖拽排序的插入点与索引换算（`utils/decoDrag.spec.ts`），以及请求层 + Mock 的契约（登录成功/失败、401 清理与 `auth:expired` 广播、404、`showError`、loading 成对调用、图片上传回显 base64 与非法格式拦截、装修多页面的新建/存草稿/发布/读取/删除与首页保护）。测试里用内存 Map 替身扮演 `uni` 存储，无需浏览器或 HBuilderX。
+- **端到端测试**：`npm run test:e2e`（Playwright，`e2e/*.spec.ts`，目前 6 个文件 27 条）。直接复用本机 Chrome（`channel: 'chrome'`，不额外下载浏览器），`playwright.config.ts` 里配了 `webServer`：没有 dev server 时自动 `npm run dev:h5`，已在跑则复用 5173 端口，单 worker 顺序执行。分两个 project：`desktop`（1280×800，跑 auth / permission / theme / user-crud / deco）与 `mobile`（660×570，命中 `<768` 断点，只跑 `mobile.spec.ts`）。装修用例覆盖组件联动、拖拽手柄排序、草稿持久化、发布状态、图片回填、多页增删切换、复制与模板复用、发布历史回滚。
   - 桌面覆盖登录与会话（未登录拦截、空账号、密码错误、admin 进工作台）、权限拦截（chenmo 无菜单管理、zhouye 无用户管理、admin 有新增按钮）、主题外观与语言（深色落 class + 落 storage、紧凑密度叠大圆角、切英文再切回中文且菜单名/角色名/日志模块同步变英文、英文列表页部门与角色列已翻译而昵称保持中文、英文环境重复账号得到英文错误提示）、用户 CRUD（空表单必填、手机号格式、新增→检索→删除，且删除确认框取消键为「取消」而非 `Cancel`）、装修编辑器（组件列表 4 项、预览渲染轮播、新增轮播后计数变 5、上移生效、改间距后保存草稿并刷新仍保留数值、选图后图片地址回填为 base64 且保存刷新仍在、发布后状态标签显示最近发布时间且刷新后仍在、新建页面后空白页可保存/切回首页/再切回/删除并自动回首页）。
   - 移动覆盖侧边栏不渲染 / 顶栏标题替面包屑、菜单按钮开抽屉且点菜单项后自动收起、用户列表渲染为卡片（`.table-cards` 且无 `.table-wrap`）、头像菜单收起昵称但仍可切深色。
   - 失败会留存 `test-results/` 下的截图、trace 与 `error-context.md`，`npm run test:e2e:report` 打开 HTML 报告。
@@ -69,7 +69,7 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 ## 页面装修（一期）
 
 - 入口：侧边栏「小程序运营 → 页面装修」，页面路径 `/pages/operation/deco/index`，权限码 `operation:deco:edit`，按钮另有 `operation:deco:save` / `operation:deco:publish`。
-- 三栏布局：左侧组件列表（新增、上移/下移、删除），中间 375px 手机预览，右侧属性面板（间距、高度、圆角、文案、图片地址、商品价格等），底部是页面标题与主色。
+- 三栏布局：左侧组件列表（新增、拖拽排序、上移/下移、删除），中间 375px 手机预览，右侧属性面板（间距、高度、圆角、文案、图片地址、商品价格等），底部是页面标题与主色。桌面端按住组件左侧手柄拖动即可调整顺序，拖动时显示插入位置提示；小程序管理端保留上移/下移作为兜底。
 - 预览与小程序端共用 `packages/deco` 的 `DecoRenderer`，改一处两端同时生效。发布前会跑 `validateDecoPage()`，脏数据（版本不对、id 重复、组件缺必填项）直接拦下并提示具体原因。
 - 多页面：顶部「装修页面」下拉可切换、新建、删除页面（首页由第一个页面固定担任、不允许删除，最多 20 个）。每页有独立的草稿与已发布数据，互不影响；新页面从空白开始，标题改完保存即同步到下拉。
 - 复制与模板复用：页面栏可「复制当前页」（默认标题加「副本」，组件与图片整体带过去，最多 20 个页面）、「存为模板」（快照存进模板库，最多 20 个）、打开「模板库」用已有模板新建页面或删除模板。首次打开模板库会种入一个内置「电商首页模板」（`tpl-demo`），可直接拿来起新页。
@@ -77,7 +77,7 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 - 草稿与发布走 Mock 接口（契约与真实后端一致）：`GET /deco/pages`（列表，含 `isHome` / `path` / 时间戳）、`POST /deco/pages`（新建）、`POST /deco/pages/:id/copy`（复制，body 可带 `title`）、`DELETE /deco/pages/:id`、`GET|PUT /deco/pages/:id/draft`（草稿）、`PUT /deco/pages/:id/publish`（发布）、`GET /deco/pages/:id`（C 端读某页）、`GET /deco/pages/:id/versions`（历史摘要）、`POST /deco/pages/:id/versions/:versionId/rollback`（回滚）、`GET|POST /deco/templates`（模板列表/存模板）、`DELETE /deco/templates/:id`、`POST /deco/templates/:id/use`（用模板建页，body 可带 `title`）、`GET|PUT /deco/home`（首页快捷读写）。Mock 实现落在 `src/mock/handlers/deco.ts`，数据存 `BTN_deco_pages` / `BTN_deco_templates`（`BTN_deco_pages_version` 当前为 2，老数据会自动补 `versions: []`）；老的单页键 `deco_home_draft` / `deco_home_published` 会一次性迁移成首页记录。
 - 小程序端 `apps/mp/src/api/deco.ts`：默认 `GET /deco/home`；首页支持 `?pageId=xxx` 时改读 `GET /deco/pages/:id`。后端可用且存在多个页面时，首页左下角出现「装修页面」入口，点开可切换其他已发布页面。`apps/mp/.env` 的 `VITE_API_BASE` 为空时用内置示例（`packages/deco` 的 `createDemoPage()`），填了地址就拉后台发布的页面，校验不过或请求失败也回落示例，保证页面永远能渲染。
 - 图片上传：属性面板的图片字段（轮播图、商品图）支持「选择图片 / 更换 / 移除」，也可继续手贴外部图片地址。前端把图读成 base64 后走 `POST /upload`，Mock 返回同一个 data URL（`inline: true`），单图上限 600KB；真实后端把这里换成 OSS 上传并返回 CDN 地址即可，协议与渲染器不用动。
-- 一期边界：只做上移/下移、增删、改属性，不做自由拖拽；组件固定 4 种；页面之间通过「复制页面 / 存为模板」复用，不设自定义首页以外的入口页策略。图片在演示环境是 base64 内联，多张大图会顶到 localStorage 容量上限；Mock 数据只存在当前浏览器（含版本历史与模板），真机要看到后台发布的内容必须配置真实后端。
+- 一期边界：支持拖拽排序、上下移、增删、改属性，不做画布自由拖拽；组件固定 4 种；页面之间通过「复制页面 / 存为模板」复用，不设自定义首页以外的入口页策略。图片在演示环境是 base64 内联，多张大图会顶到 localStorage 容量上限；Mock 数据只存在当前浏览器（含版本历史与模板），真机要看到后台发布的内容必须配置真实后端。
 
 ### 装修真实后端（apps/api）
 
