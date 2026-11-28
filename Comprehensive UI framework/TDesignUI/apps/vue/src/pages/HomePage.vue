@@ -3,7 +3,6 @@
 import { APP_SPEC, createCounter, formatCount } from '@tdesignui/core';
 
 const name = ref('TDesign');
-const dark = ref(false);
 const tags = ref(['Vue 3', 'Vite', 'TypeScript', 'TDesign']);
 
 // 计数器来自 packages/core，与 React 端共用同一份实现
@@ -18,7 +17,7 @@ const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请
 </script>
 
 <template>
-  <div class="tds-page" :class="{ 'tds-page--dark': dark }">
+  <div class="tds-page">
     <header class="tds-hero">
       <h1>{{ APP_SPEC.product }}</h1>
       <p>{{ APP_SPEC.tagline }} · Vue 版</p>
@@ -40,17 +39,16 @@ const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请
         </t-space>
       </t-card>
 
-      <t-card title="主题与状态" :bordered="true">
-        <t-space align="center" size="16px">
-          <t-switch v-model="dark" />
-          <span>深色模式</span>
-        </t-space>
-        <t-divider />
+      <t-card title="状态与标记" :bordered="true">
         <t-space>
           <t-tag v-for="tag in tags" :key="tag" variant="outline" theme="default">
             {{ tag }}
           </t-tag>
         </t-space>
+        <t-divider />
+        <span class="tds-hint">
+          深色主题已改为全站开关：在顶部导航栏切换，同时影响本页、列表页、新建页与 TDesign 组件
+        </span>
       </t-card>
     </div>
   </div>

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Divider, Input, Space, Switch, Tag } from 'tdesign-react';
+import { Alert, Button, Card, Divider, Input, Space, Tag } from 'tdesign-react';
 import { APP_SPEC, createCounter, formatCount } from '@tdesignui/core';
 
 export default function HomePage() {
   const [name, setName] = useState('TDesign');
-  const [dark, setDark] = useState(false);
   const tags = ['React 19', 'Vite 7', 'TypeScript', 'TDesign'];
 
-  // 计数器来自 packages/core，与 Vue 端共用同一份实现
+  // 计数器来自 packages/core，与 React 端共用同一份实现
   const counter = useMemo(() => createCounter(), []);
   const [count, setCount] = useState(counter.get());
   useEffect(() => counter.subscribe(setCount), [counter]);
@@ -15,7 +14,7 @@ export default function HomePage() {
   const greeting = name ? `你好，${name}！` : '请输入名字';
 
   return (
-    <div className={dark ? 'tds-page tds-page--dark' : 'tds-page'}>
+    <div className="tds-page">
       <header className="tds-hero">
         <h1>{APP_SPEC.product}</h1>
         <p>{APP_SPEC.tagline} · React 版 · Fast Refresh 已启用</p>
@@ -49,12 +48,7 @@ export default function HomePage() {
           </Space>
         </Card>
 
-        <Card title="主题与状态" bordered>
-          <Space align="center" size={16}>
-            <Switch value={dark} onChange={(value) => setDark(Boolean(value))} />
-            <span>深色模式</span>
-          </Space>
-          <Divider />
+        <Card title="状态与标记" bordered>
           <Space>
             {tags.map((tag) => (
               <Tag key={tag} variant="outline">
@@ -62,6 +56,10 @@ export default function HomePage() {
               </Tag>
             ))}
           </Space>
+          <Divider />
+          <span className="tds-hint">
+            深色主题已改为全站开关：在顶部导航栏切换，同时影响本页、列表页、新建页与 TDesign 组件
+          </span>
         </Card>
       </div>
     </div>

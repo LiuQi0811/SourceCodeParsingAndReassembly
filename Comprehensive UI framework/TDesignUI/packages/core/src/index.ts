@@ -11,3 +11,4 @@ export * from './counter';
 export * from './routes';
 export * from './apps';
 export * from './app-form';
+export * from './theme';

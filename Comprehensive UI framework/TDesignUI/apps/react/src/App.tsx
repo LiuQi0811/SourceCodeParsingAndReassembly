@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
+import { Switch } from 'tdesign-react';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import type { ComponentType } from 'react';
-import { APP_SPEC, ROUTES } from '@tdesignui/core';
+import { APP_SPEC, ROUTES, applyTheme, themeLabel, themeStore } from '@tdesignui/core';
 import HomePage from './pages/HomePage';
 import AppsPage from './pages/AppsPage';
 import CreatePage from './pages/CreatePage';
@@ -13,6 +15,11 @@ const pages: Record<string, ComponentType> = {
 };
 
 export default function App() {
+  // 主题状态来自 core 的共享单例，切一次全站生效（含 TDesign 组件）
+  const [theme, setTheme] = useState(themeStore.get());
+  useEffect(() => themeStore.subscribe(setTheme), []);
+  useEffect(() => applyTheme(theme), [theme]);
+
   return (
     <div className="tds-shell">
       <header className="tds-nav">
@@ -29,6 +36,11 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
+        <span className="tds-theme-label">{themeLabel(theme)}</span>
+        <Switch
+          value={theme === 'dark'}
+          onChange={(value) => themeStore.set(value ? 'dark' : 'light')}
+        />
         <span className="tds-badge">React 版</span>
       </header>
 

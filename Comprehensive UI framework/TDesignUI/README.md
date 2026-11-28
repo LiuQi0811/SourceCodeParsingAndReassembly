@@ -28,7 +28,7 @@ npm run dev:vue                   # 只起 Vue 端 → http://localhost:5180
 npm run dev:react                 # 只起 React 端 → http://localhost:5190
 npm run build:all                 # 两端分别构建
 npm run typecheck                 # 两端各跑一次 tsc --noEmit
-npm test                          # 跑 core 单测（vitest，66 个用例）
+npm test                          # 跑 core 单测（vitest，80 个用例）
 npm run test:watch                # 单测监听模式
 npm run lint                      # ESLint（Vue / React / TS 全量）
 npm run lint:fix                  # ESLint 自动修可修的
@@ -126,17 +126,52 @@ import '@tdesignui/theme/styles.css';
 
 改一个颜色只动 `tokens.css`，两版同时变。
 
-## 双壳重复率实测（三个页面 + 测试到位后）
+## 主题怎么切换（浅色 / 深色）
 
-| 部分                                               | 行数 | 重复情况                            |
-| -------------------------------------------------- | ---- | ----------------------------------- |
-| core（index / counter / routes / apps / app-form） | 365  | 单一来源                            |
-| core 单测（4 个 test 文件，66 个用例）             | 365  | 只测 core，两端共用                 |
-| theme（tokens / layout / index）                   | 225  | 单一来源                            |
-| Vue 壳（App / router / main / 三个页面）           | 362  | 模板结构与 React 近似，语法必须两套 |
-| React 壳（App / main / 三个页面 tsx）              | 397  | 同上                                |
+深色主题没有各写一套，而是复用 TDesign 自己的开关：在 `<html>` 上设置 `theme-mode` 属性。TDesign 两端组件库的 CSS 里本来就是 `:root[theme-mode='dark']` 这一组变量，我们把自己的 `--tds-*` 暗色覆盖写在**同一个选择器**下，于是切一次属性，自建界面和组件库同时变。
 
-结论：业务逻辑、校验规则、样式、路由表四项重复为 **0**；两端壳合计 759 行，全部是「模板 vs JSX」的语法差异 + 各页面的组合方式。共享部分（core + theme）590 行，加上 365 行测试，是同一份真相只写一次的直接成本。
+```css
+:root {
+  --tds-color-bg: #f5f7fa; /* …浅色 */
+}
+:root[theme-mode='dark'] {
+  --tds-color-bg: #181818; /* …深色 */
+}
+```
+
+状态本身也放 core（`packages/core/src/theme.ts`）：`themeStore` 单例 + `toggle/set/get/subscribe`，外加一个 `applyTheme()`，它是全项目唯一碰 DOM 的地方 —— 用结构类型而不是 DOM 类型实现，core 的测试在 Node 里也能跑。
+
+两端壳（`App.vue` / `App.tsx`）只做三件事：
+
+```ts
+// Vue
+const theme = ref(themeStore.get());
+themeStore.subscribe((next) => {
+  theme.value = next;
+  applyTheme(next);
+});
+
+// React
+const [theme, setTheme] = useState(themeStore.get());
+useEffect(() => themeStore.subscribe(setTheme), []);
+useEffect(() => applyTheme(theme), [theme]);
+```
+
+导航栏右侧一个 `Switch` + 当前主题文案。切换后首页、列表页、新建页、表格、卡片、输入框一起变 —— 因为这些组件全部读 token 或 TDesign 变量，没有一处写死颜色。
+
+`index.html` 里预置了 `<html theme-mode="light">` 和 `<meta name="color-scheme" content="light dark">`，避免首屏闪白。
+
+## 双壳重复率实测（三个页面 + 主题 + 测试到位后）
+
+| 部分                                                       | 行数 | 重复情况                            |
+| ---------------------------------------------------------- | ---- | ----------------------------------- |
+| core（index / counter / routes / apps / app-form / theme） | 503  | 单一来源                            |
+| core 单测（5 个 test 文件，80 个用例）                     | 488  | 只测 core，两端共用                 |
+| theme（tokens / layout / index）                           | 240  | 单一来源                            |
+| Vue 壳（App / router / main / 三个页面）                   | 378  | 模板结构与 React 近似，语法必须两套 |
+| React 壳（App / main / 三个页面 tsx）                      | 405  | 同上                                |
+
+结论：业务逻辑、校验规则、主题状态机、样式、路由表五项重复为 **0**；两端壳合计 783 行，全是「模板 vs JSX」的语法差异 + 各页面的组合方式。共享部分（core + theme）743 行 + 488 行测试，是同一份真相只写一次的直接成本。
 
 ## 代码规范与 CI
 
@@ -161,6 +196,7 @@ npm ci → npm run lint → npm test → npm run typecheck → npm run build:all
 
 ## 待办
 
+- 主题偏好持久化：现在刷新回到浅色，可把 `themeStore` 的初始值接到 `localStorage`（core 里加一个可注入的 storage 适配即可，仍不碰框架）。
 - Vue 端 `typecheck` 目前是 `tsc --noEmit`，不校验 `.vue` 模板；`vue-tsc` 与当前 TypeScript 7 尚不兼容，模板层类型错误暂时靠 `vite build` 与浏览器发现。
 - 部署到静态站点要配 history fallback（把 `/apps`、`/create` 这类路径回落到 `index.html`），`vite preview` 已内置该行为。
 
