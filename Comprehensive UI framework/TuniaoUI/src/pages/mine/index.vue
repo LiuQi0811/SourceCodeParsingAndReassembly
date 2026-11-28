@@ -30,8 +30,17 @@ const quickActions = [
 	{ icon: 'service', text: '联系客服', color: 'tn-green', url: '/pages/feedback/index', tab: false },
 ]
 
-const cells = [
-	{ icon: 'order', title: '我的订单', value: '分页 / 上拉加载', url: '/pages/business/index', tab: false, badge: '2' },
+interface MineCell {
+	icon: string
+	title: string
+	value: string
+	url: string
+	tab: boolean
+	badge?: string
+}
+
+const cells: MineCell[] = [
+	{ icon: 'order', title: '我的订单', value: '本地订单记录', url: '/pages-sub/orders/index', tab: false },
 	{ icon: 'location', title: '收货地址', value: '江苏省 徐州市', url: '/pages/form/index', tab: false },
 	{ icon: 'image-text', title: '我的收藏', value: '12 件商品', url: '/pages/data/index', tab: false },
 	{ icon: 'code', title: '进阶 API', value: '类型 / 拦截 / 事件', url: '/pages/advanced/index', tab: false },

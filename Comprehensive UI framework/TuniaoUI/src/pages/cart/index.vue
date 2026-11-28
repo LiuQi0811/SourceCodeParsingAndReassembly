@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useI18n } from 'vue-i18n'
 import { cartKey, useCartStore } from '@/stores/cart'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
+const { t } = useI18n()
 
 
 const cart = useCartStore()
@@ -47,10 +49,10 @@ function toggleAll() {
 }
 
 function onSwipe(option: any, key: string) {
-	if (!option || option.text !== '删除') return
+	if (!option || option.text !== t('cartPage.remove')) return
 	cart.removeKey(key)
 	selectedKeys.value = selectedKeys.value.filter((item) => item !== key)
-	uni.showToast({ title: '已移除商品', icon: 'none' })
+	uni.showToast({ title: t('cartPage.removed'), icon: 'none' })
 }
 
 function goShopping() {
@@ -59,7 +61,7 @@ function goShopping() {
 
 function checkout() {
 	if (!selectedLines.value.length) {
-		uni.showToast({ title: '请先勾选商品', icon: 'none' })
+		uni.showToast({ title: t('cartPage.selectFirst'), icon: 'none' })
 		return
 	}
 	const keys = selectedLines.value.map((line) => line.key).join('|')
@@ -72,17 +74,17 @@ function checkout() {
 		<view class="cart-head">
 			<view>
 				<text class="cart-head__eyebrow">CART</text>
-				<text class="cart-head__title">购物车</text>
-				<text class="cart-head__desc">勾选商品后统一结算，本地缓存自动恢复</text>
+				<text class="cart-head__title">{{ t('cartPage.title') }}</text>
+				<text class="cart-head__desc">{{ t('cartPage.desc') }}</text>
 			</view>
-			<tn-tag type="primary" size="sm" shape="round">{{ cart.totalCount }} 件</tn-tag>
+			<tn-tag type="primary" size="sm" shape="round">{{ t('cartPage.count', { n: cart.totalCount }) }}</tn-tag>
 		</view>
 
 		<view v-if="cart.items.length" class="cart-list">
 			<tn-swipe-action-item
 				v-for="line in cart.lines"
 				:key="line.key"
-				:options="[{ text: '删除', bgColor: 'tn-red', textColor: 'tn-white', icon: 'delete' }]"
+				:options="[{ text: t('cartPage.remove'), bgColor: 'tn-red', textColor: 'tn-white', icon: 'delete' }]"
 				@click="onSwipe($event, line.key)"
 			>
 				<view class="cart-line">
@@ -112,27 +114,27 @@ function checkout() {
 
 		<view v-else class="empty-card">
 			<tn-empty mode="cart" />
-			<tn-button type="primary" shape="round" class="empty-card__btn" @click="goShopping">去逛逛</tn-button>
+			<tn-button type="primary" shape="round" class="empty-card__btn" @click="goShopping">{{ t('cartPage.browse') }}</tn-button>
 		</view>
 
-		<view class="cart-tip">左滑商品可删除；数量减到 1 后再减会自动移除。</view>
+		<view class="cart-tip">{{ t('cartPage.tip') }}</view>
 	</view>
 
-	<view v-if="cart.items.length" class="checkout-bar">
+	<view v-if="cart.items.length" class="checkout-bar" :style="{ backgroundColor: theme.isDark ? '#101827' : '#ffffff' }">
 		<view class="checkout-bar__select" @click="toggleAll">
 			<view class="cart-check" :class="{ 'cart-check--active': allSelected }">
 				<tn-icon v-if="allSelected" name="check" :size="22" color="tn-white" />
 			</view>
-			<text class="checkout-bar__select-text">全选</text>
+			<text class="checkout-bar__select-text">{{ t('cartPage.selectAll') }}</text>
 		</view>
 		<view class="checkout-bar__total">
-			<text class="checkout-bar__count">已选 {{ selectedCount }} 件</text>
+			<text class="checkout-bar__count">{{ t('cartPage.selected', { n: selectedCount }) }}</text>
 			<view class="checkout-bar__amount">
-				<text class="checkout-bar__label">合计</text>
+				<text class="checkout-bar__label">{{ t('cartPage.total') }}</text>
 				<text class="checkout-bar__value">¥{{ selectedTotal }}</text>
 			</view>
 		</view>
-		<tn-button type="primary" shape="round" class="checkout-bar__btn" @click="checkout">去结算</tn-button>
+		<tn-button type="primary" shape="round" class="checkout-bar__btn" @click="checkout">{{ t('cartPage.checkout') }}</tn-button>
 	</view>
 </template>
 

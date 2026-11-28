@@ -1,37 +1,47 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useI18n } from 'vue-i18n'
 import { goods, type GoodsItem } from '@/data/mock'
 import { useCartStore } from '@/stores/cart'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
-
+const { t } = useI18n()
 
 const HISTORY_KEY = 'tn-demo-search-history'
+const ALL_CATEGORY = '全部'
 
 const sortOptions = [
-	{ label: '综合', value: 'default' },
-	{ label: '销量', value: 'sales' },
-	{ label: '价格升', value: 'priceAsc' },
-	{ label: '价格降', value: 'priceDesc' },
+	{ key: 'searchPage.sortDefault', value: 'default' },
+	{ key: 'searchPage.sortSales', value: 'sales' },
+	{ key: 'searchPage.sortPriceAsc', value: 'priceAsc' },
+	{ key: 'searchPage.sortPriceDesc', value: 'priceDesc' },
 ] as const
 type SortKey = (typeof sortOptions)[number]['value']
 
 const priceOptions = [
-	{ label: '不限', value: 'all' },
-	{ label: '¥0-99', value: '0-99' },
-	{ label: '¥100-199', value: '100-199' },
-	{ label: '¥200+', value: '200+' },
+	{ key: 'searchPage.priceAll', label: '', value: 'all' },
+	{ key: '', label: '¥0-99', value: '0-99' },
+	{ key: '', label: '¥100-199', value: '100-199' },
+	{ key: '', label: '¥200+', value: '200+' },
 ] as const
 type PriceKey = (typeof priceOptions)[number]['value']
 
 const hotKeywords = ['源码', '模板', '图标', '组件', '表单', '跨端']
-const categories = ['全部', '源码', '模板', '图标', '组件', '文档', '插件']
+const categoryOptions = [
+	{ key: 'searchPage.categoryAll', value: ALL_CATEGORY },
+	{ key: 'searchPage.categorySource', value: '源码' },
+	{ key: 'searchPage.categoryTemplate', value: '模板' },
+	{ key: 'searchPage.categoryIcon', value: '图标' },
+	{ key: 'searchPage.categoryComponent', value: '组件' },
+	{ key: 'searchPage.categoryDocs', value: '文档' },
+	{ key: 'searchPage.categoryPlugin', value: '插件' },
+]
 
 const cart = useCartStore()
 const keyword = ref('')
-const category = ref('全部')
+const category = ref(ALL_CATEGORY)
 const priceBand = ref<PriceKey>('all')
 const sort = ref<SortKey>('default')
 const history = ref<string[]>([])
@@ -57,7 +67,7 @@ const results = computed(() => {
 		return !kw || text.includes(kw)
 	})
 
-	if (category.value !== '全部') {
+	if (category.value !== ALL_CATEGORY) {
 		list = list.filter((item) => item.tags.includes(category.value))
 	}
 
@@ -74,10 +84,10 @@ const results = computed(() => {
 
 const resultLabel = computed(() => {
 	const kw = keyword.value.trim()
-	return kw ? `“${kw}” 的搜索结果` : '全部商品'
+	return kw ? t('searchPage.resultFor', { kw }) : t('searchPage.allProducts')
 })
 const filterActive = computed(
-	() => category.value !== '全部' || priceBand.value !== 'all' || sort.value !== 'default',
+	() => category.value !== ALL_CATEGORY || priceBand.value !== 'all' || sort.value !== 'default',
 )
 
 function remember(word: string) {
@@ -111,7 +121,7 @@ function setPrice(value: PriceKey) {
 }
 
 function resetFilters() {
-	category.value = '全部'
+	category.value = ALL_CATEGORY
 	priceBand.value = 'all'
 	sort.value = 'default'
 }
@@ -124,7 +134,7 @@ function resetAll() {
 function clearHistory() {
 	history.value = []
 	uni.removeStorageSync(HISTORY_KEY)
-	uni.showToast({ title: '搜索历史已清空', icon: 'none' })
+	uni.showToast({ title: t('searchPage.clearedHistory'), icon: 'none' })
 }
 
 function removeHistory(word: string) {
@@ -144,7 +154,7 @@ function addCart(item: GoodsItem) {
 		image: item.image,
 		tag: item.tags[0] || '',
 	})
-	uni.showToast({ title: '已加入购物车', icon: 'success' })
+	uni.showToast({ title: t('searchPage.added'), icon: 'success' })
 }
 
 function goCart() {
@@ -158,28 +168,28 @@ function goCart() {
 			<view class="hero__top">
 				<view>
 					<text class="hero__eyebrow">SEARCH & FILTER</text>
-					<text class="hero__title">{{ keyword ? `“${keyword}”` : '发现好物' }}</text>
+					<text class="hero__title">{{ keyword ? `“${keyword}”` : t('searchPage.foundTitle') }}</text>
 				</view>
 				<view class="hero__cart" @click="goCart">
 					<tn-badge v-if="cart.totalCount" :value="cart.totalCount" type="danger">
 						<tn-icon name="cart" :size="32" color="#ffffff" />
 					</tn-badge>
 					<tn-icon v-else name="cart" :size="32" color="#ffffff" />
-					<text class="hero__cart-text">购物车</text>
+					<text class="hero__cart-text">{{ t('searchPage.cart') }}</text>
 				</view>
 			</view>
-			<text class="hero__desc">关键词、分类、价格三层筛选即时生效，结果可直接加购或进入详情</text>
+			<text class="hero__desc">{{ t('searchPage.desc') }}</text>
 		</view>
 
 		<view class="search-card">
 			<view class="search-line">
 				<view class="search-line__box">
-					<tn-search-box v-model="keyword" shape="round" placeholder="搜索商品、模板、源码" :search-button="false" @search="onSearch" />
+					<tn-search-box v-model="keyword" shape="round" :placeholder="t('searchPage.placeholder')" :search-button="false" @search="onSearch" />
 				</view>
-				<text class="search-line__btn" @click="onSearch">搜索</text>
+				<text class="search-line__btn" @click="onSearch">{{ t('searchPage.search') }}</text>
 			</view>
 			<view v-if="keyword" class="keyword-line">
-				<text class="keyword-line__tip">当前关键词</text>
+				<text class="keyword-line__tip">{{ t('searchPage.currentKeyword') }}</text>
 				<view class="keyword-pill">
 					<text>{{ keyword }}</text>
 					<view class="keyword-pill__close" @click="clearKeyword">
@@ -189,7 +199,7 @@ function goCart() {
 			</view>
 
 			<view class="chip-block">
-				<text class="chip-block__label">热门</text>
+				<text class="chip-block__label">{{ t('searchPage.hot') }}</text>
 				<view class="chip-wrap">
 					<text v-for="word in hotKeywords" :key="word" class="chip chip--hot" @click="useKeyword(word)">{{ word }}</text>
 				</view>
@@ -197,8 +207,8 @@ function goCart() {
 
 			<view v-if="history.length" class="history-block">
 				<view class="history-head">
-					<text class="chip-block__label">搜索历史</text>
-					<text class="history-head__clear" @click="clearHistory">清空</text>
+					<text class="chip-block__label">{{ t('searchPage.history') }}</text>
+					<text class="history-head__clear" @click="clearHistory">{{ t('searchPage.clear') }}</text>
 				</view>
 				<view class="chip-wrap">
 					<view v-for="word in history" :key="word" class="history-chip" @click="useKeyword(word)">
@@ -213,7 +223,7 @@ function goCart() {
 
 		<view class="filter-card">
 			<view class="filter-row">
-				<text class="filter-label">排序</text>
+				<text class="filter-label">{{ t('searchPage.sort') }}</text>
 				<view class="chip-wrap">
 					<text
 						v-for="option in sortOptions"
@@ -222,26 +232,26 @@ function goCart() {
 						:class="{ 'chip--active': sort === option.value }"
 						@click="setSort(option.value)"
 					>
-						{{ option.label }}
+						{{ t(option.key) }}
 					</text>
 				</view>
 			</view>
 			<view class="filter-row">
-				<text class="filter-label">分类</text>
+				<text class="filter-label">{{ t('searchPage.category') }}</text>
 				<view class="chip-wrap">
 					<text
-						v-for="item in categories"
-						:key="item"
+						v-for="item in categoryOptions"
+						:key="item.value"
 						class="chip"
-						:class="{ 'chip--active': category === item }"
-						@click="category = item"
+						:class="{ 'chip--active': category === item.value }"
+						@click="category = item.value"
 					>
-						{{ item }}
+						{{ t(item.key) }}
 					</text>
 				</view>
 			</view>
 			<view class="filter-row">
-				<text class="filter-label">价格</text>
+				<text class="filter-label">{{ t('searchPage.price') }}</text>
 				<view class="chip-wrap">
 					<text
 						v-for="option in priceOptions"
@@ -250,7 +260,7 @@ function goCart() {
 						:class="{ 'chip--active': priceBand === option.value }"
 						@click="setPrice(option.value)"
 					>
-						{{ option.label }}
+						{{ option.key ? t(option.key) : option.label }}
 					</text>
 				</view>
 			</view>
@@ -259,9 +269,9 @@ function goCart() {
 		<view class="result-head">
 			<view class="result-head__left">
 				<text class="result-head__title">{{ resultLabel }}</text>
-				<text class="result-head__count">{{ results.length }} 件</text>
+				<text class="result-head__count">{{ t('searchPage.count', { n: results.length }) }}</text>
 			</view>
-			<text v-if="filterActive" class="result-head__reset" @click="resetFilters">重置筛选</text>
+			<text v-if="filterActive" class="result-head__reset" @click="resetFilters">{{ t('searchPage.reset') }}</text>
 		</view>
 
 		<view v-if="results.length" class="result-list">
@@ -280,7 +290,7 @@ function goCart() {
 						<view class="goods-row__price-wrap">
 							<text class="goods-row__price">¥{{ item.price }}</text>
 							<text class="goods-row__origin">¥{{ item.originPrice }}</text>
-							<text class="goods-row__sales">已售 {{ item.sales }}</text>
+							<text class="goods-row__sales">{{ t('searchPage.sold', { n: item.sales }) }}</text>
 						</view>
 						<view class="goods-row__add" @click.stop="addCart(item)">
 							<tn-icon name="cart" :size="26" color="#ffffff" />
@@ -292,11 +302,11 @@ function goCart() {
 
 		<view v-else class="empty-card">
 			<tn-empty mode="search" />
-			<text class="empty-card__desc">试试更短的关键词，或清空分类与价格条件</text>
-			<tn-button type="primary" shape="round" class="empty-card__btn" @click="resetAll">清空条件</tn-button>
+			<text class="empty-card__desc">{{ t('searchPage.emptyDesc') }}</text>
+			<tn-button type="primary" shape="round" class="empty-card__btn" @click="resetAll">{{ t('searchPage.clearAll') }}</tn-button>
 		</view>
 
-		<view class="tip">搜索历史只保存在本机，最多保留 8 条；筛选结果由前端计算，接入接口时可替换成服务端查询。</view>
+		<view class="tip">{{ t('searchPage.tip') }}</view>
 	</view>
 </template>
 

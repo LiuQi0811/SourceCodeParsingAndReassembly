@@ -76,6 +76,20 @@ html.theme-dark page,
 html.theme-dark uni-page-body {
 	background-color: #070b14 !important;
 }
+
+/* H5 原生标题栏不跟随 setNavigationBarColor，暗色下单独覆盖 */
+html.theme-dark .uni-page-head {
+	background-color: #0b1220 !important;
+	border-bottom-color: #23324b !important;
+}
+
+html.theme-dark .uni-page-head .uni-page-head__title,
+html.theme-dark .uni-page-head .uni-page-head-btn,
+html.theme-dark .uni-page-head .uni-btn-icon,
+html.theme-dark .uni-page-head .uni-page-head-hd,
+html.theme-dark .uni-page-head .uni-page-head-ft {
+	color: #ffffff !important;
+}
 /* #endif */
 
 .page {

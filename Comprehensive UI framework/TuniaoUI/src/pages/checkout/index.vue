@@ -1,11 +1,15 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useI18n } from 'vue-i18n'
 import { cartKey, useCartStore } from '@/stores/cart'
+import { useOrdersStore } from '@/stores/orders'
 import { request } from '@/utils/request'
+import { discountFor, expressFeeFor, freightFor, payableFor, type Coupon } from '@/utils/pricing'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
+const { t } = useI18n()
 
 
 interface Address {
@@ -15,12 +19,8 @@ interface Address {
 	detail: string
 }
 
-interface Coupon {
-	value: number
-	min: number
-}
-
 const cart = useCartStore()
+const ordersStore = useOrdersStore()
 
 const selectedKeys = ref<string[]>([])
 const address = ref<Address>({
@@ -46,6 +46,14 @@ const coupons: Coupon[] = [
 const selectedCoupon = ref<Coupon | null>(null)
 const delivery = ref<'express' | 'pickup'>('express')
 const payment = ref<'wechat' | 'balance'>('wechat')
+const deliveryOptions = computed(() => [
+	{ value: 'express', title: t('checkoutPage.express'), desc: t('checkoutPage.expressDesc') },
+	{ value: 'pickup', title: t('checkoutPage.pickup'), desc: t('checkoutPage.pickupDesc') },
+])
+const paymentOptions = computed(() => [
+	{ value: 'wechat', title: t('checkoutPage.wechat'), desc: t('checkoutPage.wechatDesc') },
+	{ value: 'balance', title: t('checkoutPage.balance'), desc: t('checkoutPage.balanceDesc') },
+])
 const remark = ref('')
 const submitting = ref(false)
 const successOpen = ref(false)
@@ -75,24 +83,18 @@ const items = computed(() =>
 )
 const totalCount = computed(() => items.value.reduce((sum, item) => sum + item.count, 0))
 const goodsTotal = computed(() => items.value.reduce((sum, item) => sum + item.price * item.count, 0))
-const discount = computed(() => {
-	if (!selectedCoupon.value) return 0
-	return goodsTotal.value >= selectedCoupon.value.min ? selectedCoupon.value.value : 0
-})
-const expressFee = computed(() => (goodsTotal.value >= 99 ? 0 : 8))
-const freight = computed(() => {
-	if (delivery.value === 'pickup') return 0
-	return expressFee.value
-})
-const payable = computed(() => Math.max(0, goodsTotal.value - discount.value + freight.value).toFixed(2))
+const discount = computed(() => discountFor(goodsTotal.value, selectedCoupon.value))
+const expressFee = computed(() => expressFeeFor(goodsTotal.value))
+const freight = computed(() => freightFor(goodsTotal.value, delivery.value))
+const payable = computed(() => payableFor(goodsTotal.value, selectedCoupon.value, delivery.value))
 const couponText = computed(() => {
-	if (!selectedCoupon.value) return '选择优惠券'
-	return `满 ${selectedCoupon.value.min} 减 ${selectedCoupon.value.value}`
+	if (!selectedCoupon.value) return t('checkoutPage.chooseCoupon')
+	return t('checkoutPage.couponRule', { min: selectedCoupon.value.min, value: selectedCoupon.value.value })
 })
 
 function chooseAddress() {
 	addressSheetRef.value?.show({
-		title: '选择收货地址',
+		title: t('checkoutPage.chooseAddress'),
 		actions: addresses.map((item) => ({
 			text: `${item.name}  ${item.phone}`,
 			desc: item.detail,
@@ -108,16 +110,19 @@ function chooseAddress() {
 
 function chooseCoupon() {
 	const actions = [
-		{ text: '不使用优惠券', desc: '按原价结算', value: 'none' },
+		{ text: t('checkoutPage.noCoupon'), desc: t('checkoutPage.noCouponDesc'), value: 'none' },
 		...coupons.map((item) => ({
-			text: `满 ${item.min} 减 ${item.value}`,
-			desc: goodsTotal.value >= item.min ? '当前订单可用' : `还差 ¥${(item.min - goodsTotal.value).toFixed(2)}`,
+			text: t('checkoutPage.couponRuleShort', { min: item.min, value: item.value }),
+			desc:
+				goodsTotal.value >= item.min
+					? t('checkoutPage.couponAvailable')
+					: t('checkoutPage.couponShort', { amount: (item.min - goodsTotal.value).toFixed(2) }),
 			value: String(item.value),
 			disabled: goodsTotal.value < item.min,
 		})),
 	]
 	couponSheetRef.value?.show({
-		title: '选择优惠券',
+		title: t('checkoutPage.chooseCoupon'),
 		actions,
 		select: (index: number, value: string) => {
 			if (index === 0 || value === 'none') {
@@ -133,7 +138,7 @@ function chooseCoupon() {
 
 async function submitOrder() {
 	if (!items.value.length) {
-		uni.showToast({ title: '订单中没有商品', icon: 'none' })
+		uni.showToast({ title: t('checkoutPage.noItems'), icon: 'none' })
 		return
 	}
 	if (submitting.value) return
@@ -158,12 +163,25 @@ async function submitOrder() {
 		paidAmount.value = payable.value
 		paidCount.value = totalCount.value
 		orderNo.value = result.orderNo
+		ordersStore.add({
+			orderNo: result.orderNo,
+			items: items.value.map((item) => ({
+				id: item.id,
+				title: item.title,
+				price: item.price,
+				count: item.count,
+				variant: item.variant,
+			})),
+			amount: payable.value,
+			delivery: delivery.value,
+			payment: payment.value,
+		})
 		const keys = [...selectedKeys.value]
 		keys.forEach((key) => cart.removeKey(key))
 		selectedKeys.value = []
 		successOpen.value = true
 	} catch (error: any) {
-		uni.showToast({ title: error?.message || '提交订单失败，请重试', icon: 'none' })
+		uni.showToast({ title: error?.message || t('checkoutPage.submitFail'), icon: 'none' })
 	} finally {
 		submitting.value = false
 	}
@@ -176,7 +194,7 @@ function backToMall() {
 
 function viewOrder() {
 	successOpen.value = false
-	uni.navigateTo({ url: '/pages/business/index' })
+	uni.navigateTo({ url: '/pages-sub/orders/index' })
 }
 </script>
 
@@ -184,8 +202,8 @@ function viewOrder() {
 	<view class="page" :style="theme.vars">
 		<view class="page-head">
 			<text class="page-head__eyebrow">CHECKOUT</text>
-			<text class="page-head__title">确认订单</text>
-			<text class="page-head__desc">地址、配送、优惠券与支付方式都在这一页闭环</text>
+			<text class="page-head__title">{{ t('checkoutPage.title') }}</text>
+			<text class="page-head__desc">{{ t('checkoutPage.desc') }}</text>
 		</view>
 
 		<view v-if="items.length" class="checkout-body">
@@ -197,7 +215,7 @@ function viewOrder() {
 					<view class="address-card__top">
 						<text class="address-card__name">{{ address.name }}</text>
 						<text class="address-card__phone">{{ address.phone }}</text>
-						<tn-tag type="primary" size="sm" shape="round">默认</tn-tag>
+						<tn-tag type="primary" size="sm" shape="round">{{ t('checkoutPage.defaultTag') }}</tn-tag>
 					</view>
 					<text class="address-card__detail">{{ address.detail }}</text>
 				</view>
@@ -206,8 +224,8 @@ function viewOrder() {
 
 			<view class="card">
 				<view class="section-head">
-					<text class="section-head__title">商品清单</text>
-					<text class="section-head__extra">{{ totalCount }} 件</text>
+					<text class="section-head__title">{{ t('checkoutPage.goods') }}</text>
+					<text class="section-head__extra">{{ t('checkoutPage.count', { n: totalCount }) }}</text>
 				</view>
 				<view v-for="item in items" :key="item.key" class="order-line">
 					<image class="order-line__img" :src="item.image" mode="aspectFill" />
@@ -225,14 +243,11 @@ function viewOrder() {
 
 			<view class="card">
 				<view class="section-head">
-					<text class="section-head__title">配送方式</text>
+					<text class="section-head__title">{{ t('checkoutPage.delivery') }}</text>
 				</view>
 				<view class="option-list">
 					<view
-						v-for="option in [
-							{ value: 'express', title: '快递配送', desc: '预计 2-3 天送达' },
-							{ value: 'pickup', title: '到店自提', desc: '徐州图鸟科技园 · 今日可提' },
-						]"
+						v-for="option in deliveryOptions"
 						:key="option.value"
 						class="option"
 						:class="{ 'option--active': delivery === option.value }"
@@ -245,7 +260,7 @@ function viewOrder() {
 							<text class="option__title">{{ option.title }}</text>
 							<text class="option__desc">{{ option.desc }}</text>
 						</view>
-						<text class="option__extra">{{ option.value === 'express' ? (expressFee === 0 ? '免运费' : `¥${expressFee}`) : '免运费' }}</text>
+						<text class="option__extra">{{ option.value === 'express' ? (expressFee === 0 ? t('checkoutPage.freeShipping') : `¥${expressFee}`) : t('checkoutPage.freeShipping') }}</text>
 					</view>
 				</view>
 			</view>
@@ -254,7 +269,7 @@ function viewOrder() {
 				<view class="link-row" @click="chooseCoupon">
 					<view class="link-row__left">
 						<tn-icon name="coupon" :size="28" color="tn-orange" />
-						<text class="link-row__title">优惠券</text>
+						<text class="link-row__title">{{ t('checkoutPage.coupon') }}</text>
 					</view>
 					<view class="link-row__right">
 						<text class="link-row__value" :class="{ 'link-row__value--active': selectedCoupon }">{{ couponText }}</text>
@@ -263,14 +278,11 @@ function viewOrder() {
 				</view>
 
 				<view class="section-head section-head--gap">
-					<text class="section-head__title">支付方式</text>
+					<text class="section-head__title">{{ t('checkoutPage.payment') }}</text>
 				</view>
 				<view class="option-list">
 					<view
-						v-for="option in [
-							{ value: 'wechat', title: '微信支付', desc: '推荐使用，安全快捷' },
-							{ value: 'balance', title: '余额支付', desc: '演示余额 ¥ 1,280.00' },
-						]"
+						v-for="option in paymentOptions"
 						:key="option.value"
 						class="option"
 						:class="{ 'option--active': payment === option.value }"
@@ -289,48 +301,48 @@ function viewOrder() {
 
 			<view class="card">
 				<view class="section-head">
-					<text class="section-head__title">订单备注</text>
+					<text class="section-head__title">{{ t('checkoutPage.remark') }}</text>
 				</view>
-				<tn-input v-model="remark" placeholder="选填，例如：工作日送货 / 需要发票" />
+				<tn-input v-model="remark" :placeholder="t('checkoutPage.remarkPlaceholder')" />
 			</view>
 
 			<view class="card summary-card">
 				<view class="summary-row">
-					<text>商品金额</text>
+					<text>{{ t('checkoutPage.goodsAmount') }}</text>
 					<text>¥{{ goodsTotal.toFixed(2) }}</text>
 				</view>
 				<view class="summary-row">
-					<text>优惠券</text>
+					<text>{{ t('checkoutPage.coupon') }}</text>
 					<text class="summary-row__discount">-¥{{ discount.toFixed(2) }}</text>
 				</view>
 				<view class="summary-row">
-					<text>运费</text>
-					<text>{{ freight ? `¥${freight.toFixed(2)}` : '免运费' }}</text>
+					<text>{{ t('checkoutPage.freight') }}</text>
+					<text>{{ freight ? `¥${freight.toFixed(2)}` : t('checkoutPage.freeShipping') }}</text>
 				</view>
 				<view class="summary-row summary-row--total">
-					<text>应付合计</text>
+					<text>{{ t('checkoutPage.payable') }}</text>
 					<text>¥{{ payable }}</text>
 				</view>
 			</view>
 
-			<text class="checkout-tip">演示订单走 request mock，提交后会从购物车移除已购商品。</text>
+			<text class="checkout-tip">{{ t('checkoutPage.tip') }}</text>
 		</view>
 
 		<view v-else-if="!successOpen" class="empty-card">
 			<tn-empty mode="cart" />
-			<tn-button type="primary" shape="round" class="empty-card__btn" @click="backToMall">返回商城</tn-button>
+			<tn-button type="primary" shape="round" class="empty-card__btn" @click="backToMall">{{ t('checkoutPage.backMall') }}</tn-button>
 		</view>
 	</view>
 
-	<view v-if="items.length" class="submit-bar">
+	<view v-if="items.length" class="submit-bar" :style="{ backgroundColor: theme.isDark ? '#101827' : '#ffffff' }">
 		<view class="submit-bar__total">
-			<text class="submit-bar__count">共 {{ totalCount }} 件</text>
+			<text class="submit-bar__count">{{ t('checkoutPage.count', { n: totalCount }) }}</text>
 			<view class="submit-bar__amount">
-				<text class="submit-bar__label">应付</text>
+				<text class="submit-bar__label">{{ t('checkoutPage.payable') }}</text>
 				<text class="submit-bar__value">¥{{ payable }}</text>
 			</view>
 		</view>
-		<tn-button type="primary" shape="round" :loading="submitting" class="submit-bar__btn" @click="submitOrder">提交订单</tn-button>
+		<tn-button type="primary" shape="round" :loading="submitting" class="submit-bar__btn" @click="submitOrder">{{ t('checkoutPage.submit') }}</tn-button>
 	</view>
 
 	<tn-action-sheet ref="addressSheetRef" />
@@ -340,20 +352,21 @@ function viewOrder() {
 		open-direction="center"
 		:width="620"
 		:radius="28"
+		:bg-color="theme.isDark ? '#101827' : '#ffffff'"
 		:overlay-closeable="false"
 	>
 		<view class="success-card">
 			<view class="success-card__icon">
 				<tn-icon name="check" :size="52" color="tn-white" />
 			</view>
-			<text class="success-card__title">支付成功</text>
-			<text class="success-card__desc">订单已提交，仓库正在准备你的商品</text>
+			<text class="success-card__title" :style="{ color: theme.isDark ? '#f1f5f9' : '#0f172a' }">{{ t('checkoutPage.successTitle') }}</text>
+			<text class="success-card__desc">{{ t('checkoutPage.successDesc') }}</text>
 			<view class="success-card__meta">
-				<text>订单号 {{ orderNo }}</text>
-				<text>{{ paidCount }} 件 · 实付 ¥{{ paidAmount }}</text>
+				<text>{{ t('checkoutPage.orderNo', { no: orderNo }) }}</text>
+				<text>{{ t('checkoutPage.paid', { n: paidCount, amount: paidAmount }) }}</text>
 			</view>
-			<tn-button type="primary" shape="round" class="success-card__btn" @click="backToMall">返回商城</tn-button>
-			<tn-button plain shape="round" class="success-card__btn" @click="viewOrder">查看订单</tn-button>
+			<tn-button type="primary" shape="round" class="success-card__btn" @click="backToMall">{{ t('checkoutPage.backMall') }}</tn-button>
+			<tn-button plain shape="round" class="success-card__btn" :text-color="theme.isDark ? '#65a3ff' : '#2f6bff'" @click="viewOrder">{{ t('checkoutPage.viewOrder') }}</tn-button>
 		</view>
 	</tn-popup>
 </template>

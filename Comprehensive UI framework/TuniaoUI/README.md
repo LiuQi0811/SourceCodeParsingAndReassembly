@@ -1,6 +1,6 @@
 # TuniaoUI 全知识点示例工程
 
-基于 `@tuniao/tnui-vue3-uniapp 1.0.23`（内含 `@tuniao/tn-icon` 838 图标）与 uni-app（Vue3 + TypeScript + Vite + Sass）搭建的可运行示例项目，覆盖 55 个组件模块、进阶 API、主题换肤、原子类、图标、表单校验、命令式调用、多语言、工程化分包、跨端生命周期与系统 API、请求超时 / 取消 / 重试 / 上传下载进度，以及 Pinia 登录态 / 请求封装 / 购物车 / 订单分页的业务闭环，并附带「搜索筛选 → 商品详情 → 购物车 → 确认订单」四页组成的下单闭环。
+基于 `@tuniao/tnui-vue3-uniapp 1.0.23`（内含 `@tuniao/tn-icon` 838 图标）与 uni-app（Vue3 + TypeScript + Vite + Sass）搭建的可运行示例项目，覆盖 55 个组件模块、进阶 API、主题换肤、原子类、图标、表单校验、命令式调用、多语言、工程化分包、跨端生命周期与系统 API、请求超时 / 取消 / 重试 / 上传下载进度，以及 Pinia 登录态 / 请求封装 / 购物车 / 订单分页的业务闭环，并附带「搜索筛选 → 商品详情 → 购物车 → 确认订单 → 订单记录」五页组成的下单闭环。
 
 ## 快速开始
 
@@ -11,7 +11,11 @@ npm run dev:mp-weixin # 微信小程序（需在微信开发者工具中导入 d
 npm run build:h5      # 生产构建，产物在 dist/build/h5
 npm run build:mp-weixin
 npm run build:app     # HBuilderX 导入 dist/build/app 运行到 App 基座
-npm run type-check    # vue-tsc 检查 src（示例代码 0 错误；组件库源码会有上游类型报错）
+npm run type-check    # vue-tsc 全量检查（组件库源码会有上游类型报错）
+npm run type-check:src # 只拦截 src 内的类型错误，上游噪音单独统计
+npm run test          # Vitest：结算金额规则 + 订单记录 store（9 条用例）
+npm run check         # test + type-check:src，提交前跑这一条
+npm run ci            # check + H5 / 小程序双端构建
 ```
 
 > 微信小程序端需要在 `src/manifest.json` 的 `mp-weixin.appid` 填入自己的 AppID。
@@ -28,8 +32,10 @@ src/
 ├── i18n/                       # vue-i18n 实例与中英文语言包
 ├── stores/
 │   ├── user.ts                 # 登录态：token / profile / login / logout / expire
-│   └── cart.ts                 # 购物车：增删改、合计、watch 持久化
+│   ├── cart.ts                 # 购物车：增删改、合计、watch 持久化
+│   └── orders.ts               # 订单记录：下单写入、删除、清空、冷启动恢复
 ├── utils/request.ts            # uni.request 封装：.env 地址、token、401、业务码、超时 / 取消 / 重试、上传下载进度、Mock
+├── utils/pricing.ts            # 结算金额纯函数：免运费门槛 / 自提 / 优惠券门槛 / 应付合计
 ├── data/
 │   ├── icons.ts                # 838 个内置图标名（自动提取）
 │   └── mock.ts                 # 轮播 / 商品 / 相册 / 瀑布流 / 联系人等演示数据
@@ -56,9 +62,10 @@ src/
 │   └── mine/index.vue          # 我的：用户卡 / 功能列表 / FAQ / 技术栈 / 知识点清单
 └── pages-sub/
     ├── engineering/index.vue   # 分包页：按需引入 / subPackages / 字体本地化 / 小程序检查清单
+    ├── orders/index.vue        # 订单记录：本地持久化订单、累计实付、删除 / 清空、空态
     └── source/
         ├── index.vue           # 完整源码查看器：按路由展示整份 .vue 源码
-        └── page-source.generated.ts # 构建期生成的 20 页源码注册表，随分包加载
+        └── page-source.generated.ts # 构建期生成的 21 页源码注册表，随分包加载
 ```
 
 ## 示例卡交互说明
@@ -213,6 +220,13 @@ const data = await request<{ name: string }>({
 
   base64 版本约 178KB，woff2 内嵌。`App.vue` 的全局声明负责 H5 页面里直接写的 `tn-icon-*` 类；小程序端组件 `icon.wxss` 由 Vite 别名单独指向 base64，避免回退到 CDN。H5 主 CSS 约 315KB，小程序主包约 1.60MB。
 - **小程序上线清单**：安全区（`safe-area-inset-bottom`）、自定义导航栏胶囊高度（`uni.getMenuButtonBoundingClientRect()`）、字体离线、tabBar 必须在主包、分包不能跨包引用资源、主包 < 2MB / 总包 < 20MB、iOS/Android 真机各验一次。
+
+## 质量基线
+
+- **单元测试**：`vitest.config.ts` 独立于 `vite.config.ts`，避免加载 uni-app 插件；`tests/pricing.spec.ts` 固定结算规则（99 免运费、自提免运、优惠券门槛、应付兜底 0），`tests/orders.spec.ts` 覆盖订单新增 / 删除 / 清空 / 冷启动恢复。当前 2 个文件、9 条用例全部通过。
+- **src 类型闸门**：`scripts/check-src-types.mjs` 调用 `vue-tsc` 后只把 `src/` 下的错误判为失败，把 `@tuniao` 自带的 88 行上游类型噪音单独计数。这样 `npm run check` 可以进 CI，又不会被组件库的 dayjs 双实例问题永久卡红。
+- **提交前命令**：本地跑 `npm run check`；需要完整验收时跑 `npm run ci`（单测 + src 类型 + H5 构建 + 小程序构建）。
+- **尚未接入**：ESLint / Prettier / stylelint 与 Playwright 端到端用例。当前以“单测 + 类型闸门 + 双端构建”作为最小质量基线，后续可以在此之上加 lint 和浏览器回归。
 
 ## 小程序构建与真机验证
 
