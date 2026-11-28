@@ -210,6 +210,7 @@ platform = 'App（Android / iOS）'
 		<!-- 图标 -->
 		<demo-block
 			:title="`图标库（${tnIcons.length} 个）`"
+			code-key="icon-library"
 			desc="支持关键字过滤，点击任意图标会把 &lt;tn-icon&gt; 用法复制到剪贴板"
 			code="<tn-icon name=&quot;home&quot; :size=&quot;40&quot; color=&quot;tn-blue&quot; />"
 		>

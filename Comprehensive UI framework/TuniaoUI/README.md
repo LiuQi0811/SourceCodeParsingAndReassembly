@@ -59,8 +59,8 @@ src/
 
 - 布局页新增「布局实验室」：方向 / 交叉轴 / 主轴 / wrap / gap 五组切换会实时更新 `tn-flex-*` 类名与预览，支持复制 class；「真实页面布局」可切换 1/2/3 列与侧栏显隐，用来观察内容区自适应。
 - 示例卡默认是「效果预览」，里面的按钮、弹层、输入框都是真实运行的组件；绿色圆点表示当前是可交互预览。
-- 「源码」是卡片对应的代表性用法片段，属于只读文本；每张卡片另有「完整源码」入口，跳到 `pages/source/index` 查看当前页面的整份 `.vue` 源码，并可一键复制全文。
-- 页面源码由 `npm run gen:sources`（`scripts/generate-page-sources.mjs`）在 `dev` / `build` 前生成到 `src/utils/page-source.generated.ts`，修改页面后重新运行构建即可刷新。
+- 「源码」不再是代表性片段，而是该卡的**完整可复制示例**：构建期从页面 SFC 中提取这张卡的完整模板、按表达式依赖闭包收集所需状态/方法/类型与 import，再带上该卡用到的 scoped 样式；页面根部的弹层宿主（Picker / Modal / Popup 等）也会按绑定关系自动拼进模板。每张卡片另有「完整源码」入口，跳到 `pages/source/index` 查看当前页面的整份 `.vue` 源码。
+- 卡片源码与页面源码都由 `npm run gen:sources` 在 `dev` / `build` 前自动生成：页面全文写入 `src/utils/page-source.generated.ts`，每卡完整示例写入 `src/utils/demo-code.generated.ts`。修改示例页后重新构建即可同步，不需要手工维护 84 份代码；动态标题卡用 `code-key` 固定注册键，避免标题插值导致查找失效。
 - `TnActionSheet.show({ select })` 的 `select` 回调需要返回 `true`（或 resolve 为 `true` 的 Promise）才会关闭操作菜单；只弹 Toast 不返回值时菜单会保持打开并继续挡住页面点击。
 - `TnModal` / `TnNotify` / `TnActionSheet` / `TnPopup` / `TnOverlay` 这类层叠组件建议放在页面根节点，不要放进 `demo-block` 卡片；卡片的 `overflow` 与圆角会让小程序里的 fixed 弹层被裁剪。示例卡已移除 `overflow: hidden`，反馈 / 表单 / 进阶页的弹层宿主也已统一移到页面根节点。
 - **小程序“点了没反应”的根因是组件没有注册**：`pages.json` 必须提供 `^tn-(.*)` 的 easycom 规则，否则构建产物里 `<tn-*>` 只是未知节点。微信会把未知节点当普通容器渲染子内容，于是文字看得见、点击也能触发页面事件，但组件行为（弹层、选择器、开关）完全不存在。`src/pages.json` 现已配置 `^tn-(.*) → @tuniao/tnui-vue3-uniapp/components/$1/src/$1.vue`，并为 `avatar-group`、`checkbox-group`、`collapse-item`、`form-item`、`list-item`、`radio-group`、`steps-item`、`subsection-item`、`swipe-action-item`、`tabbar-item`、`tabs-item` 补了显式映射。验证方式：构建后查看 `dist/build/mp-weixin/pages/form/index.json` 的 `usingComponents`，表单页应包含 `tn-picker`、`tn-date-time-picker`、`tn-region-picker` 等 19 个组件。
@@ -230,8 +230,8 @@ App 平台最初因 `@dcloudio/uni-app-plus` / `uni-app-vite` / `uni-app-vue` �
 
 - 视觉统一为「深墨色 Hero + 蓝青强调 + 白色圆角卡片 + 深色代码块」：页面背景 `#f4f7fb`，卡片 24–28rpx 圆角、1rpx 边框与柔和阴影，标题使用 `DEMO` / `EXPLORE` 这类小号字距标签建立层次。
 - 首页用双列入口 + 编号专题卡 + 精简列表，替代长列表；组件总览、业务闭环、我的都复用同一套卡片节奏。
-- 代码块统一深色底 + 三色圆点 + 「左右滑动查看完整代码」提示；长行不换行，用 `scroll-view scroll-x` 横向查看，避免把 `icon="right"` 这类属性从中间断词。小程序端同样走 `scroll-view`。
-- `demo-block` 默认展示真实运行的效果，顶部可切换到「源码」查看用法片段，并提供「复制」按钮；代码示例按文档片段定位，不承诺单段复制即为独立可运行工程。
+- 代码块统一深色底 + 三色圆点 + 「完整示例 · 上下左右滑动」提示；源码区同时开启 `scroll-x` / `scroll-y`，长行横向查看、长代码纵向浏览，避免把 `icon="right"` 这类属性从中间断词。小程序端同样走 `scroll-view`。
+- `demo-block` 默认展示真实运行的效果，顶部可切换到「源码」查看该卡完整示例，并提供「复制」按钮；生成失败时保留手写 `code` 作为兜底片段，但正常构建下复制内容即为可独立运行的单卡示例。
 - 颜色、间距、圆角优先使用原子类（`tn-flex-*`、`tn-mt-sm`、`tn-radius`、`tn-shadow` 等），scoped 样式只处理卡片类布局。
 - 演示数据集中在 `src/data/mock.ts`，业务页的面包与订单是页面内 mock，替换为真实接口时改 `utils/request.ts` 的 `BASE_URL` 即可。
 - 页面内不写 TS 类型标注（模板表达式会被 uni-app 编译器拒绝），需要类型时在 `<script setup>` 中定义具名函数；`uni.*` 调用也放在脚本里，模板只绑定函数。

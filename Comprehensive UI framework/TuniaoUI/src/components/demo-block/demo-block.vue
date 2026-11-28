@@ -4,23 +4,51 @@
  * 知识点：easycom 自动引入（目录名/文件名一致，页面里写 <demo-block> 即可，无需 import）
  * 交互：效果预览 / 源码 双视图，源码支持横向滑动与一键复制
  */
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { demoCodeMap } from '@/utils/demo-code.generated'
 
 const props = defineProps<{
 	title?: string
 	desc?: string
-	/** 可选的用法代码片段，展示在源码视图中 */
+	/** 兜底的手写代码片段：优先展示构建期自动提取的完整示例 */
 	code?: string
+	/** 标题是动态插值时，用稳定 key 关联自动提取的源码 */
+	codeKey?: string
 }>()
+
+function readRoute() {
+	try {
+		const pages = getCurrentPages()
+		const current = pages[pages.length - 1] as { route?: string } | undefined
+		return current?.route || ''
+	} catch {
+		return ''
+	}
+}
+
+const route = ref(readRoute())
+onMounted(() => {
+	if (!route.value) route.value = readRoute()
+})
+
+const generatedCode = computed(() => {
+	if (!route.value) return ''
+	const key = props.codeKey || props.title || ''
+	return demoCodeMap[`${route.value}#${key}`] || ''
+})
+
+/** 构建器生成成功时优先用完整代码，抽取失败才退回旧的手写片段 */
+const codeText = computed(() => generatedCode.value || props.code || '')
+const isGenerated = computed(() => !!generatedCode.value)
 
 /** 默认展示真实运行的效果，源码按需切换 */
 const activeTab = ref<'preview' | 'code'>('preview')
 const copyLabel = ref('复制')
 
 function copyCode() {
-	if (!props.code) return
+	if (!codeText.value) return
 	uni.setClipboardData({
-		data: props.code,
+		data: codeText.value,
 		success: () => {
 			copyLabel.value = '已复制'
 			uni.showToast({ title: '源码已复制', icon: 'none' })
@@ -61,7 +89,7 @@ function openFullSource() {
 			<text v-if="desc" class="demo-block__desc">{{ desc }}</text>
 		</view>
 
-		<view v-if="code" class="demo-block__tabs">
+		<view v-if="codeText" class="demo-block__tabs">
 			<view
 				class="demo-block__tab"
 				:class="{ 'demo-block__tab--active': activeTab === 'preview' }"
@@ -81,21 +109,23 @@ function openFullSource() {
 			<text class="demo-block__copy" @click="copyCode">{{ copyLabel }}</text>
 		</view>
 
-		<text v-if="code && activeTab === 'code'" class="demo-block__readonly">这段是代表性用法片段；点“完整源码”可查看当前页面全文</text>
+		<text v-if="codeText && activeTab === 'code'" class="demo-block__readonly">
+			{{ isGenerated ? '本卡完整示例：模板 + 所需脚本 + 相关样式，可直接复制到页面运行' : '这段是代表性用法片段；点“完整源码”可查看当前页面全文' }}
+		</text>
 
-		<view v-if="!code || activeTab === 'preview'" class="demo-block__body">
+		<view v-if="!codeText || activeTab === 'preview'" class="demo-block__body">
 			<slot />
 		</view>
 
-		<view v-if="code && activeTab === 'code'" class="demo-block__code-wrap">
+		<view v-if="codeText && activeTab === 'code'" class="demo-block__code-wrap">
 			<view class="demo-block__code-bar">
 				<view class="demo-block__code-dot demo-block__code-dot--red" />
 				<view class="demo-block__code-dot demo-block__code-dot--amber" />
 				<view class="demo-block__code-dot demo-block__code-dot--green" />
-				<text class="demo-block__code-hint">代表性用法片段 · 左右滑动</text>
+				<text class="demo-block__code-hint">{{ isGenerated ? '完整示例 · 上下左右滑动' : '代表性用法片段 · 左右滑动' }}</text>
 			</view>
-			<scroll-view class="demo-block__code-scroll" scroll-x :show-scrollbar="false">
-				<text class="demo-block__code">{{ code }}</text>
+			<scroll-view class="demo-block__code-scroll" scroll-x scroll-y :show-scrollbar="false">
+				<text class="demo-block__code">{{ codeText }}</text>
 			</scroll-view>
 		</view>
 	</view>
@@ -261,6 +291,7 @@ function openFullSource() {
 
 .demo-block__code-scroll {
 	width: 100%;
+	height: 520rpx;
 }
 
 .demo-block__code {
