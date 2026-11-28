@@ -39,7 +39,7 @@ src/
 │   ├── index/index.vue         # 首页：Hero、数据统计、快捷入口、通知
 │   ├── components/index.vue    # 组件总览：分类入口 + 55 个组件清单 + 页面地图
 │   ├── basic/index.vue         # Button / Icon / Avatar / AvatarGroup / Badge / Tag / Title
-│   ├── layout/index.vue        # Flex / 宽高 / 间距 / 圆角 / 阴影 / 文本 / 边框 / 色板 / 渐变 / ListItem / Sticky
+│   ├── layout/index.vue        # 布局实验室 / 真实页面布局 / 宽高 / 间距 / 圆角 / 阴影 / 文本 / 边框 / 色板 / 渐变 / ListItem / Sticky
 │   ├── form/index.vue          # Form 校验 + 全部输入类组件 + 三种 Picker + 键盘 + 图片上传
 │   ├── feedback/index.vue      # Modal / Notify / ActionSheet / Popup / Overlay / 进度 / 倒计时 / 通知栏
 │   ├── nav/index.vue           # Navbar / Tabs / Tabbar / SwitchTab / Steps / Collapse / Subsection / SwipeAction
@@ -57,6 +57,7 @@ src/
 
 ## 示例卡交互说明
 
+- 布局页新增「布局实验室」：方向 / 交叉轴 / 主轴 / wrap / gap 五组切换会实时更新 `tn-flex-*` 类名与预览，支持复制 class；「真实页面布局」可切换 1/2/3 列与侧栏显隐，用来观察内容区自适应。
 - 示例卡默认是「效果预览」，里面的按钮、弹层、输入框都是真实运行的组件；绿色圆点表示当前是可交互预览。
 - 「源码」是卡片对应的代表性用法片段，属于只读文本；每张卡片另有「完整源码」入口，跳到 `pages/source/index` 查看当前页面的整份 `.vue` 源码，并可一键复制全文。
 - 页面源码由 `npm run gen:sources`（`scripts/generate-page-sources.mjs`）在 `dev` / `build` 前生成到 `src/utils/page-source.generated.ts`，修改页面后重新运行构建即可刷新。
