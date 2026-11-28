@@ -1,97 +1,85 @@
 <script setup lang="ts">
-// ref / computed / onUnmounted 由 unplugin-auto-import 自动注入，无需手动 import
-import { APP_SPEC, createCounter, formatCount } from '@tdesignui/core';
-
-const name = ref('TDesign');
-const dark = ref(false);
-const tags = ref(['Vue 3', 'Vite', 'TypeScript', 'TDesign']);
-
-// 计数器来自 packages/core，与 React 端共用同一份实现
-const counter = createCounter();
-const count = ref(counter.get());
-const stopCount = counter.subscribe((value) => {
-  count.value = value;
-});
-onUnmounted(stopCount);
-
-const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请输入名字'));
+import { APP_SPEC, ROUTES } from '@tdesignui/core';
 </script>
 
 <template>
-  <div class="page" :class="{ 'page--dark': dark }">
-    <header class="hero">
-      <h1>{{ APP_SPEC.product }}</h1>
-      <p>{{ APP_SPEC.tagline }} · Vue 版</p>
+  <div class="shell">
+    <header class="nav">
+      <div class="brand">{{ APP_SPEC.product }}</div>
+      <nav class="links">
+        <router-link v-for="route in ROUTES" :key="route.key" :to="route.path" class="link">
+          {{ route.navLabel }}
+        </router-link>
+      </nav>
+      <span class="badge">Vue 版</span>
     </header>
 
-    <t-space direction="vertical" size="24px" style="width: 100%">
-      <t-card title="基础交互" :bordered="true" hover-shadow>
-        <t-space direction="vertical" size="16px" style="width: 100%">
-          <t-input v-model="name" label="名字" placeholder="输入你的名字" clearable />
-          <t-space align="center">
-            <t-button theme="primary" @click="counter.increment()">点我 +1</t-button>
-            <t-button theme="default" variant="outline" @click="counter.increment(5)">一次 +5</t-button>
-            <t-button theme="default" variant="text" @click="counter.reset()">重置</t-button>
-            <t-tag theme="primary" variant="light">{{ formatCount(count) }}</t-tag>
-          </t-space>
-          <t-alert theme="success" :message="greeting" />
-        </t-space>
-      </t-card>
-
-      <t-card title="主题与状态" :bordered="true">
-        <t-space align="center" size="16px">
-          <t-switch v-model="dark" />
-          <span>深色模式</span>
-        </t-space>
-        <t-divider />
-        <t-space>
-          <t-tag v-for="tag in tags" :key="tag" variant="outline" theme="default">
-            {{ tag }}
-          </t-tag>
-        </t-space>
-      </t-card>
-    </t-space>
+    <main class="main">
+      <router-view />
+    </main>
   </div>
 </template>
 
 <style scoped>
-.page {
+.shell {
   min-height: 100vh;
-  padding: 48px 24px;
-  box-sizing: border-box;
   background: #f5f7fa;
-  transition: background 0.3s ease;
 }
 
-.page--dark {
-  background: #1a1a1a;
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #e7e7e7;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.page--dark .hero h1,
-.page--dark .hero p {
-  color: #e8e8e8;
-}
-
-.hero {
-  max-width: 720px;
-  margin: 0 auto 32px;
-  text-align: center;
-}
-
-.hero h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
+.brand {
+  font-weight: 600;
+  font-size: 16px;
   color: #1f2329;
 }
 
-.hero p {
-  margin: 0;
-  color: #646a73;
+.links {
+  display: flex;
+  gap: 4px;
+  flex: 1;
 }
 
-.page :deep(.t-space),
-.page > :deep(*) {
-  max-width: 720px;
-  margin: 0 auto;
+.link {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #646a73;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.link:hover {
+  color: #0052d9;
+  background: #f2f3f5;
+}
+
+.link.router-link-active {
+  color: #0052d9;
+  background: #ecf2fe;
+  font-weight: 500;
+}
+
+.badge {
+  font-size: 12px;
+  color: #0052d9;
+  background: #ecf2fe;
+  border-radius: 10px;
+  padding: 2px 10px;
+}
+
+.main {
+  padding: 24px;
 }
 </style>

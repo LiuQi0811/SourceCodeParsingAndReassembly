@@ -50,6 +50,40 @@ useEffect(() => counter.subscribe(setCount), [counter]);
 
 `formatCount` 这类文案也归 core，避免两端各写一份字符串导致走样。
 
+## 页面与路由
+
+路由表在 core（`ROUTES`），两端各自把路径映射到自己的组件，所以 URL 完全一致、指向同一个业务概念：
+
+```ts
+// packages/core/src/routes.ts
+export const ROUTES = [
+  { key: 'home', path: '/', title: '首页', navLabel: '首页' },
+  { key: 'apps', path: '/apps', title: '应用列表', navLabel: '应用列表' },
+];
+```
+
+- Vue：`apps/vue/src/router.ts` 用 vue-router 4，`App.vue` 是壳（顶部导航 + `<router-view />`）
+- React：`apps/react/src/App.tsx` 用 react-router-dom 7，壳是 `<NavLink>` + `<Routes>`
+
+第二个页面「应用列表」的全部业务规则在 `packages/core/src/apps.ts`：目录数据、`filterApps`、`paginate`、`summarizeApps`、状态文案与 tag 主题，以及 `createAppListStore()` 状态机（筛选条件 + 页码 + 派生结果，订阅一次拿到完整快照）。两端只负责把快照画出来，没有任何一行筛选或分页代码重复。
+
+## 双壳重复率实测（第 2 个页面完成时）
+
+| 部分 | 行数 | 重复情况 |
+|---|---|---|
+| core（index / counter / routes / apps） | 243 | 单一来源 |
+| Vue 壳（App / router / main / 两个页面） | 389 | 模板结构与 React 近似，语法必须两套 |
+| React 壳（App / main / 两个页面 tsx） | 256 | 同上 |
+| React 样式（styles.css） | 168 | **全量重复**：Vue 端写在 SFC 的 scoped style 里 |
+
+结论：业务逻辑重复为 0（筛选、分页、统计、文案、路由表都在 core）；剩下的重复只有样式和模板/JSX 结构。样式是下一块值得下沉的部分。
+
+## 待办
+
+- 把两端共用的视觉规范抽成 `packages/theme`（一份 CSS + 设计 token，两端各自 import），消掉上表 168 行 ×2 的重复。
+- Vue 端 `typecheck` 目前是 `tsc --noEmit`，不校验 `.vue` 模板；`vue-tsc` 与当前 TypeScript 7 尚不兼容，模板层类型错误暂时靠 `vite build` 与浏览器发现。
+- 部署到静态站点要配 history fallback（把 `/apps` 这类路径回落到 `index.html`），`vite preview` 已内置该行为。
+
 ## 依赖版本隔离
 
 两端刻意使用不同的 Vite 大版本，理由：React 侧只能用 `@vitejs/plugin-react@5`（v6 需要 `@babel/core@8`，与现有依赖冲突），而 v5 的 peer 只到 Vite 7；Vue 侧用 Vite 8 才能配 `@vitejs/plugin-vue@6`。

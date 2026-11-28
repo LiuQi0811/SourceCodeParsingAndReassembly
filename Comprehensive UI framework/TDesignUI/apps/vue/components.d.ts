@@ -12,11 +12,15 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
     TAlert: typeof import('tdesign-vue-next')['Alert']
     TButton: typeof import('tdesign-vue-next')['Button']
     TCard: typeof import('tdesign-vue-next')['Card']
     TDivider: typeof import('tdesign-vue-next')['Divider']
+    TEmpty: typeof import('tdesign-vue-next')['Empty']
     TInput: typeof import('tdesign-vue-next')['Input']
+    TPagination: typeof import('tdesign-vue-next')['Pagination']
     TSpace: typeof import('tdesign-vue-next')['Space']
     TSwitch: typeof import('tdesign-vue-next')['Switch']
     TTag: typeof import('tdesign-vue-next')['Tag']
@@ -25,11 +29,15 @@ declare module 'vue' {
 
 // For TSX support
 declare global {
+  const RouterLink: typeof import('vue-router')['RouterLink']
+  const RouterView: typeof import('vue-router')['RouterView']
   const TAlert: typeof import('tdesign-vue-next')['Alert']
   const TButton: typeof import('tdesign-vue-next')['Button']
   const TCard: typeof import('tdesign-vue-next')['Card']
   const TDivider: typeof import('tdesign-vue-next')['Divider']
+  const TEmpty: typeof import('tdesign-vue-next')['Empty']
   const TInput: typeof import('tdesign-vue-next')['Input']
+  const TPagination: typeof import('tdesign-vue-next')['Pagination']
   const TSpace: typeof import('tdesign-vue-next')['Space']
   const TSwitch: typeof import('tdesign-vue-next')['Switch']
   const TTag: typeof import('tdesign-vue-next')['Tag']
