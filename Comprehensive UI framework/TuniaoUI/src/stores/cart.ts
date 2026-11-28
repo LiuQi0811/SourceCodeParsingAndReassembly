@@ -9,6 +9,8 @@ export interface CartItem {
 	price: number
 	image: string
 	count: number
+	/** 规格等附加信息；同一商品不同规格按 key 分开 */
+	variant?: string
 }
 
 export interface GoodsItem {
@@ -17,6 +19,11 @@ export interface GoodsItem {
 	price: number
 	image: string
 	tag: string
+	variant?: string
+}
+
+export function cartKey(item: Pick<CartItem, 'id' | 'variant'>) {
+	return `${item.id}::${item.variant || ''}`
 }
 
 export const useCartStore = defineStore('cart', () => {
@@ -29,6 +36,7 @@ export const useCartStore = defineStore('cart', () => {
 	const lines = computed(() =>
 		items.value.map((item) => ({
 			...item,
+			key: cartKey(item),
 			subtotal: (item.price * item.count).toFixed(2),
 		})),
 	)
@@ -42,19 +50,51 @@ export const useCartStore = defineStore('cart', () => {
 		{ deep: true },
 	)
 
-	function add(goods: GoodsItem) {
-		const existed = items.value.find((item) => item.id === goods.id)
+	function add(goods: GoodsItem, count = 1) {
+		const key = cartKey(goods)
+		const existed = items.value.find((item) => cartKey(item) === key)
 		if (existed) {
-			existed.count += 1
-			return
+			existed.count += count
+			return key
 		}
 		items.value.push({
 			id: goods.id,
 			title: goods.title,
 			price: goods.price,
 			image: goods.image,
-			count: 1,
+			count,
+			variant: goods.variant,
 		})
+		return key
+	}
+
+	function updateCount(key: string, count: number) {
+		const target = items.value.find((item) => cartKey(item) === key)
+		if (!target) return
+		if (count <= 0) {
+			removeKey(key)
+			return
+		}
+		target.count = count
+	}
+
+	function decreaseKey(key: string) {
+		const target = items.value.find((item) => cartKey(item) === key)
+		if (!target) return
+		if (target.count <= 1) {
+			removeKey(key)
+			return
+		}
+		target.count -= 1
+	}
+
+	function increaseKey(key: string) {
+		const target = items.value.find((item) => cartKey(item) === key)
+		if (target) target.count += 1
+	}
+
+	function removeKey(key: string) {
+		items.value = items.value.filter((item) => cartKey(item) !== key)
 	}
 
 	function decrease(id: number) {
@@ -87,6 +127,10 @@ export const useCartStore = defineStore('cart', () => {
 		totalPrice,
 		totalText,
 		add,
+		updateCount,
+		decreaseKey,
+		increaseKey,
+		removeKey,
 		decrease,
 		increase,
 		remove,

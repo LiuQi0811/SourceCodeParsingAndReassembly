@@ -2,8 +2,10 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { banners, goods, noticeList } from '@/data/mock'
+import { useCartStore } from '@/stores/cart'
 
 const { t } = useI18n()
+const cart = useCartStore()
 
 const navSearch = ref('')
 const tabIndex = ref(0)
@@ -44,8 +46,34 @@ function toSearch() {
 	uni.showToast({ title: navSearch.value ? `搜索：${navSearch.value}` : '点击了搜索', icon: 'none' })
 }
 
+function cartPayload(item: any) {
+	return {
+		id: item.id,
+		title: item.name,
+		price: item.price,
+		image: item.image,
+		tag: item.tags?.[0] || '',
+	}
+}
+
 function addCart(item: any) {
+	if (!item) return
+	cart.add(cartPayload(item))
 	uni.showToast({ title: `已加入购物车：${item.name}`, icon: 'success' })
+}
+
+function buyNow(item: any) {
+	if (!item) return
+	const key = cart.add(cartPayload(item))
+	uni.navigateTo({ url: `/pages/checkout/index?keys=${encodeURIComponent(key)}` })
+}
+
+function toService() {
+	uni.showToast({ title: '客服会话为演示入口，可接入企业客服', icon: 'none' })
+}
+
+function toCart() {
+	uni.navigateTo({ url: '/pages/cart/index' })
 }
 
 function onBannerChange(index: number) {
@@ -54,10 +82,6 @@ function onBannerChange(index: number) {
 
 function onBannerClick(index: number) {
 	toDetail(goods[index] || goods[0])
-}
-
-function toComponents() {
-	uni.switchTab({ url: '/pages/components/index' })
 }
 </script>
 
@@ -72,9 +96,12 @@ function toComponents() {
 			<template #right>
 				<view class="nav-right">
 					<tn-icon name="search" :size="34" color="tn-grey-dark" @click="toSearch" />
-					<tn-badge value="3" type="danger" class="nav-badge">
-						<tn-icon name="cart" :size="34" color="tn-grey-dark" />
-					</tn-badge>
+					<view class="nav-cart" @click="toCart">
+						<tn-badge v-if="cart.totalCount" :value="cart.totalCount" type="danger" class="nav-badge">
+							<tn-icon name="cart" :size="34" color="tn-grey-dark" />
+						</tn-badge>
+						<tn-icon v-else name="cart" :size="34" color="tn-grey-dark" />
+					</view>
 				</view>
 			</template>
 		</tn-navbar>
@@ -187,16 +214,19 @@ function toComponents() {
 		/>
 
 		<view class="action-bar">
-			<view class="action-bar__btn" @click="addCart(goods[1])">
+			<view class="action-bar__btn" @click="toService">
 				<tn-icon name="service" :size="36" color="tn-grey-dark" />
 				<text class="action-bar__text">客服</text>
 			</view>
-			<view class="action-bar__btn" @click="toComponents">
-				<tn-icon name="cart" :size="36" color="tn-grey-dark" />
+			<view class="action-bar__btn" @click="toCart">
+				<tn-badge v-if="cart.totalCount" :value="cart.totalCount" type="danger">
+					<tn-icon name="cart" :size="36" color="tn-grey-dark" />
+				</tn-badge>
+				<tn-icon v-else name="cart" :size="36" color="tn-grey-dark" />
 				<text class="action-bar__text">购物车</text>
 			</view>
-			<tn-button :plain="true" type="primary" width="30%" @click="toComponents">{{ t('template.addCart') }}</tn-button>
-			<tn-button type="danger" width="30%" @click="toDetail(goods[2])">立即购买</tn-button>
+			<tn-button :plain="true" type="primary" width="30%" @click="addCart(goods[0])">{{ t('template.addCart') }}</tn-button>
+			<tn-button type="danger" width="30%" @click="buyNow(goods[2])">立即购买</tn-button>
 		</view>
 
 		<view class="page-bottom-space" />
@@ -221,6 +251,12 @@ function toComponents() {
 .nav-right {
 	display: flex;
 	align-items: center;
+}
+
+.nav-cart {
+	display: flex;
+	align-items: center;
+	margin-left: 24rpx;
 }
 
 .nav-badge {
@@ -458,7 +494,7 @@ function toComponents() {
 	position: fixed;
 	left: 0;
 	right: 0;
-	bottom: 0;
+	bottom: var(--window-bottom, 0);
 	z-index: 100;
 	display: flex;
 	align-items: center;

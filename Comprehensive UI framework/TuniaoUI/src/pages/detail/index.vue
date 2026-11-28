@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goods, gallery } from '@/data/mock'
+import { useCartStore } from '@/stores/cart'
+
+const cart = useCartStore()
 
 const actionSheetRef = ref<any>(null)
 const popupRef = ref<any>(null)
@@ -69,18 +72,35 @@ function toggleCollect() {
 	uni.showToast({ title: collected.value ? '已收藏' : '已取消收藏', icon: 'none' })
 }
 
+function specExtra(name: string) {
+	if (name === '豪华版') return 200
+	if (name === '尊享版') return 500
+	return 0
+}
+
+function currentCartItem() {
+	return {
+		id: detail.value.id,
+		title: detail.value.name,
+		price: detail.value.price + specExtra(spec.value),
+		image: detail.value.image,
+		tag: detail.value.tags?.[0] || '',
+		variant: spec.value,
+	}
+}
+
 function addCart() {
+	cart.add(currentCartItem(), count.value)
 	uni.showToast({ title: `已加入购物车（${spec.value} x${count.value}）`, icon: 'success' })
 }
 
 function buyNow() {
-	uni.showModal({
-		title: '确认下单',
-		content: `规格：${spec.value}\n数量：${count.value}\n合计：¥${detail.value.price * count.value}`,
-		success: (res) => {
-			if (res.confirm) uni.showToast({ title: '下单成功', icon: 'success' })
-		},
-	})
+	const key = cart.add(currentCartItem(), count.value)
+	uni.navigateTo({ url: `/pages/checkout/index?keys=${encodeURIComponent(key)}` })
+}
+
+function toCart() {
+	uni.navigateTo({ url: '/pages/cart/index' })
 }
 
 function copyLink() {
@@ -226,8 +246,15 @@ function copyLink() {
 				<tn-icon name="share" :size="38" color="tn-grey-dark" />
 				<text class="action-text">分享</text>
 			</view>
-			<tn-button :plain="true" type="warning" width="30%" @click="addCart">加入购物车</tn-button>
-			<tn-button type="danger" width="30%" @click="buyNow">立即购买</tn-button>
+			<view class="action-icon" @click="toCart">
+				<tn-badge v-if="cart.totalCount" :value="cart.totalCount" type="danger">
+					<tn-icon name="cart" :size="38" color="tn-grey-dark" />
+				</tn-badge>
+				<tn-icon v-else name="cart" :size="38" color="tn-grey-dark" />
+				<text class="action-text">购物车</text>
+			</view>
+			<tn-button :plain="true" type="warning" width="28%" @click="addCart">加入购物车</tn-button>
+			<tn-button type="danger" width="28%" @click="buyNow">立即购买</tn-button>
 		</view>
 
 		<view class="bottom-space" />

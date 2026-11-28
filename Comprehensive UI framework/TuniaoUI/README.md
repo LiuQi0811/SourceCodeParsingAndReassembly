@@ -1,6 +1,6 @@
 # TuniaoUI 全知识点示例工程
 
-基于 `@tuniao/tnui-vue3-uniapp 1.0.23`（内含 `@tuniao/tn-icon` 838 图标）与 uni-app（Vue3 + TypeScript + Vite + Sass）搭建的可运行示例项目，覆盖 55 个组件模块、进阶 API、主题换肤、原子类、图标、表单校验、命令式调用、多语言、工程化分包、跨端生命周期与系统 API、请求超时 / 取消 / 重试 / 上传下载进度，以及 Pinia 登录态 / 请求封装 / 购物车 / 订单分页的业务闭环，并附带「商城列表 / 商品详情」两个实战模板页。
+基于 `@tuniao/tnui-vue3-uniapp 1.0.23`（内含 `@tuniao/tn-icon` 838 图标）与 uni-app（Vue3 + TypeScript + Vite + Sass）搭建的可运行示例项目，覆盖 55 个组件模块、进阶 API、主题换肤、原子类、图标、表单校验、命令式调用、多语言、工程化分包、跨端生命周期与系统 API、请求超时 / 取消 / 重试 / 上传下载进度，以及 Pinia 登录态 / 请求封装 / 购物车 / 订单分页的业务闭环，并附带「商城列表 → 商品详情 → 购物车 → 确认订单」四页组成的下单闭环。
 
 ## 快速开始
 
@@ -22,7 +22,7 @@ npm run type-check    # vue-tsc 检查 src（示例代码 0 错误；组件库�
 src/
 ├── App.vue                     # 全局样式、base64 图标字体、i18n 语言还原、生命周期
 ├── main.ts                     # 全量安装组件库 + Pinia + vue-i18n
-├── pages.json                  # 主包 15 页 + 分包 1 页 + 5 项 tabBar + easycom custom
+├── pages.json                  # 主包 18 页 + 分包 1 页 + 5 项 tabBar + easycom custom
 ├── manifest.json               # 应用配置（H5 hash 路由 / 小程序 AppID）
 ├── uni.scss / env.d.ts         # 全局 scss 变量、TS 声明
 ├── i18n/                       # vue-i18n 实例与中英文语言包
@@ -50,6 +50,9 @@ src/
 │   ├── business/index.vue      # 业务闭环：Pinia / 登录态 / 购物车 / 请求封装 / 401 / 订单分页
 │   ├── template/index.vue      # 实战模板：商城列表页（自定义导航栏 + 搜索 + 轮播 + 秒杀 + 商品网格）
 │   ├── detail/index.vue        # 商品详情：相册 / 规格选择 / 优惠券弹窗 / 物流步骤 / 图文详情
+│   ├── cart/index.vue          # 购物车：全选 / 数量增减 / 左滑删除 / 空态 / 合计结算栏
+│   ├── checkout/index.vue      # 确认订单：地址 / 配送 / 优惠券 / 支付 / mock 下单与成功弹窗
+│   ├── source/index.vue        # 完整源码：按页面读取构建期生成的整份 .vue 源码
 │   └── mine/index.vue          # 我的：用户卡 / 功能列表 / FAQ / 技术栈 / 知识点清单
 └── pages-sub/
     └── engineering/index.vue   # 分包页：按需引入 / subPackages / 字体本地化 / 小程序检查清单
@@ -86,11 +89,11 @@ src/
 | 数据展示 | 日历三模式、周历标记、Swiper 3 种指示器 × 6 个位置、瀑布流 normal / calc、索引列表、横向滚动、懒加载 |
 | 交互 | Tabs / Tabbar（凸起 bulge、角标 badge、禁用 disabled）/ Steps / Collapse（手风琴与 number[] 多开）/ Subsection / SwipeAction（open、select、round、disabled）/ NoticeBar 横向与纵向 |
 | 第三方 | vue-i18n 中英切换并写入 Storage；Pinia setup store；sass 主题编译 |
-| 业务闭环 | `uni.login` 换 code、token 持久化、`uni.request` 统一封装与 401 兜底、购物车 `watch` 持久化、`onReachBottom` 分页、`onPullDownRefresh` 重置、`uni.setTabBarBadge` 角标 |
+| 业务闭环 | `uni.login` 换 code、token 持久化、`uni.request` 统一封装与 401 兜底、购物车 `watch` 持久化、按「商品 + 规格」合并与勾选结算、地址 / 配送 / 优惠券 / 支付方式、mock 下单后移除已购商品、`onReachBottom` 分页、`onPullDownRefresh` 重置、`uni.setTabBarBadge` 角标 |
 | 请求封装 | `.env` 基础地址、Bearer token、`{ code, data, message }` 解包、`BusinessError`、401 清 token、10s 超时、`AbortController` 取消、5xx / 408 指数退避重试、`uploadFile` / `downloadFile` 进度 |
 | 跨端 | 页面生命周期 `onLoad / onReady / onShow / onHide / onUnload / onPageScroll / onTabItemTap`、`onShareAppMessage` / `onShareTimeline`、`uni.onNetworkStatusChange` / `onWindowResize`、`chooseImage` / `previewImage` / `scanCode` / `chooseLocation` / `openSetting` / `makePhoneCall`、能力探测、`#ifdef` 条件编译 |
 | 二次开发 | `easycom.custom` 把 `tnx-button` 映射到组件库源码；`useNamespace` / `useComponentColor` / `useComponentSize` hooks 实际渲染 |
-| 实战 | 商城列表页 + 商品详情页，串起导航、轮播、卡片、按钮、弹层、页脚等组合用法 |
+| 实战 | 商城列表 → 商品详情 → 购物车 → 确认订单 → 支付成功，串起导航、轮播、卡片、按钮、滑动操作、弹层、地址与优惠券选择的完整链路 |
 
 ### 模式与状态矩阵
 
@@ -172,6 +175,16 @@ const data = await request<{ name: string }>({
 
 业务闭环页新增了「请求封装进阶」卡片，可分别点「业务码解包」「业务错误」「取消请求」验证三条分支。
 
+## 商城下单闭环
+
+从「模板 → 任一商品」进入详情，底部提供收藏、分享、购物车、加入购物车、立即购买五个入口：
+
+1. **加入购物车**：详情页按「商品 ID + 规格」写入 Pinia，同一商品切换规格会生成独立行；模板页和业务页共用同一个 Store，角标实时显示总件数。
+2. **购物车**：支持单选 / 全选、数量加减、左滑删除和空态提示；数量减到 1 后再减会直接移除。勾选行通过 `keys` 参数传给结算页，返回时保留原勾选。
+3. **确认订单**：可选收货地址、快递 / 自提、满减优惠券和微信 / 余额支付；运费规则为快递满 99 免运费，否则 8 元，自提免运费。
+4. **提交订单**：通过 `request` 的 mock 生成 `TN` 订单号，成功后从购物车移除已购行，并弹出实付金额、件数和「返回商城 / 查看订单」。
+5. **入口**：模板页导航栏和底部操作栏都能进购物车；业务闭环页的「去购物车」可继续结算；组件总览新增「购物车 / 确认订单」两张页面卡。
+
 ## 工程化与分包
 
 - **真实分包**：`pages.json` 中声明 `subPackages: [{ root: 'pages-sub', pages: ['engineering/index'] }]`，本页从进阶页 `navigateTo('/pages-sub/engineering/index')` 进入。H5 构建会产出独立的 `pages-sub-engineering-*.js` 懒加载 chunk；小程序构建会生成独立分包目录。
@@ -183,12 +196,12 @@ const data = await request<{ name: string }>({
   @import '@tuniao/tn-icon/dist/base64/index.css';
   ```
 
-  base64 版本约 178KB，woff2 内嵌。`App.vue` 的全局声明负责 H5 页面里直接写的 `tn-icon-*` 类；小程序端组件 `icon.wxss` 由 Vite 别名单独指向 base64，避免回退到 CDN。H5 主 CSS 约 314KB，小程序总包约 1.71MB。
+  base64 版本约 178KB，woff2 内嵌。`App.vue` 的全局声明负责 H5 页面里直接写的 `tn-icon-*` 类；小程序端组件 `icon.wxss` 由 Vite 别名单独指向 base64，避免回退到 CDN。H5 主 CSS 约 315KB，小程序主包约 1.90MB。
 - **小程序上线清单**：安全区（`safe-area-inset-bottom`）、自定义导航栏胶囊高度（`uni.getMenuButtonBoundingClientRect()`）、字体离线、tabBar 必须在主包、分包不能跨包引用资源、主包 < 2MB / 总包 < 20MB、iOS/Android 真机各验一次。
 
 ## 小程序构建与真机验证
 
-已通过 `npm run build:mp-weixin` 实测，产物在 `dist/build/mp-weixin`：188 个文件、约 1.33MB；主包约 1.31MB（低于 2MB 限制），`pages-sub/engineering` 为独立分包目录，`app.json` 中的 `subPackages` 已正确写入。
+已通过 `npm run build:mp-weixin` 实测，产物在 `dist/build/mp-weixin`：372 个文件、约 1.92MB；主包约 1.90MB（低于 2MB 限制，余量约 80KB），`pages-sub/engineering` 为独立分包目录，`app.json` 中的 `subPackages` 已正确写入。新增购物车、确认订单两页后，主包余量已经不大，后续加页需优先压缩源码注册表或迁入分包。
 
 构建前必须对齐 `@dcloudio/*` 版本：组件库会把 2023 alpha 版 `@dcloudio/uni-mp-*` 带进依赖树，与 2024 版 `@dcloudio/uni-app` 跨代不匹配，报 `"isInSSRComponentSetup" is not exported`。本项目已在根 `dependencies` 显式声明 `@dcloudio/uni-mp-weixin` / `uni-mp-vue` / `uni-mp-compiler`，并在 `overrides` 中把组件库子树统一钉到 `3.0.0-4020920240930001`，重装后构建通过。
 

@@ -9,9 +9,9 @@ const cart = useCartStore()
 const user = useUserStore()
 
 const goodsList: GoodsItem[] = [
-	{ id: 1, title: 'Tuniao 极简保温杯', price: 89, image: '/static/demo/goods-1.jpg', tag: '热卖' },
-	{ id: 2, title: '蓝青渐变帆布袋', price: 49, image: '/static/demo/goods-2.jpg', tag: '新款' },
-	{ id: 3, title: '桌面理线收纳盒', price: 39, image: '/static/demo/goods-3.jpg', tag: '包邮' },
+	{ id: 201, title: 'Tuniao 极简保温杯', price: 89, image: '/static/demo/goods-1.jpg', tag: '热卖' },
+	{ id: 202, title: '蓝青渐变帆布袋', price: 49, image: '/static/demo/goods-2.jpg', tag: '新款' },
+	{ id: 203, title: '桌面理线收纳盒', price: 39, image: '/static/demo/goods-3.jpg', tag: '包邮' },
 ]
 
 interface OrderItem {
@@ -114,6 +114,10 @@ async function handleLogin() {
 function addGoods(goods: GoodsItem) {
 	cart.add(goods)
 	uni.showToast({ title: '已加入购物车', icon: 'none' })
+}
+
+function goCart() {
+	uni.navigateTo({ url: '/pages/cart/index' })
 }
 
 async function simulate401() {
@@ -355,6 +359,7 @@ watch(
 			<view v-if="cart.lines.length" class="cart-total">
 				<text class="cart-total__label">合计</text>
 				<text class="cart-total__value">¥{{ cart.totalText }}</text>
+				<tn-button type="primary" size="sm" shape="round" @click="goCart">去购物车</tn-button>
 				<tn-button type="info" size="sm" plain shape="round" @click="cart.clear()">清空</tn-button>
 			</view>
 
