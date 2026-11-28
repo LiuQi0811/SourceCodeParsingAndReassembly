@@ -4,13 +4,13 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
 import {
   createDemoPage,
+  createDecoComponent,
+  DECO_COMPONENT_REGISTRY,
   DecoRenderer,
+  getDecoComponentDefinition,
   validateDecoPage,
-  type DecoBanner,
   type DecoComponent,
-  type DecoGoods,
-  type DecoNav,
-  type DecoNotice,
+  type DecoComponentType,
   type DecoPage,
 } from '@btn/deco'
 import {
@@ -29,8 +29,8 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTag from '@/components/ui/AppTag.vue'
 import AppEmpty from '@/components/ui/AppEmpty.vue'
 import AppDialog from '@/components/ui/AppDialog.vue'
-import ImagePicker from '@/components/ui/ImagePicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import DecoPropsPanel from '@/components/deco/DecoPropsPanel.vue'
 import { getDecoTenantId, setDecoTenantId } from '@/utils/decoTenant'
 import {
   insertIndexToMoveIndex,
@@ -277,86 +277,28 @@ const selected = computed<DecoComponent | null>(
   () => page.value.components.find((item) => item.id === selectedId.value) ?? null
 )
 
-const banner = computed<DecoBanner | null>(() =>
-  selected.value?.type === 'banner' ? selected.value : null
-)
-const notice = computed<DecoNotice | null>(() =>
-  selected.value?.type === 'notice' ? selected.value : null
-)
-const nav = computed<DecoNav | null>(() => (selected.value?.type === 'nav' ? selected.value : null))
-const goods = computed<DecoGoods | null>(() =>
-  selected.value?.type === 'goods' ? selected.value : null
-)
-
-const typeLabel = (type: DecoComponent['type']): string =>
-  t(`deco.add${type.charAt(0).toUpperCase()}${type.slice(1)}`)
+const typeLabel = (type: DecoComponent['type']): string => {
+  const definition = getDecoComponentDefinition(type)
+  return definition ? t(definition.labelKey) : type
+}
 
 const summary = (item: DecoComponent): string => {
-  switch (item.type) {
-    case 'banner':
-      return `${item.items.length} slides`
-    case 'notice':
-      return item.text
-    case 'nav':
-      return `${item.items.length} × ${item.columns}`
-    case 'goods':
-      return `${item.items.length} products`
-    default:
-      return ''
-  }
+  const definition = getDecoComponentDefinition(item.type)
+  return definition ? definition.summary(item, (key, params) => String(t(key, params ?? {}))) : ''
+}
+
+const addComponent = (type: DecoComponentType) => {
+  const item = createDecoComponent(type, {
+    id: uid,
+    t: (key) => String(t(key)),
+  })
+  if (!item) return
+  page.value.components.push(item)
+  selectedId.value = item.id
 }
 
 const select = (id: string) => {
   selectedId.value = id
-}
-
-const addBanner = () => {
-  const item: DecoBanner = {
-    id: uid('banner'),
-    type: 'banner',
-    height: 170,
-    radius: 14,
-    items: [{ id: uid('slide'), title: '新增轮播图' }],
-  }
-  page.value.components.push(item)
-  selectedId.value = item.id
-}
-
-const addNotice = () => {
-  const item: DecoNotice = {
-    id: uid('notice'),
-    type: 'notice',
-    tag: t('deco.addNotice'),
-    text: '在这里填写公告内容',
-  }
-  page.value.components.push(item)
-  selectedId.value = item.id
-}
-
-const addNav = () => {
-  const item: DecoNav = {
-    id: uid('nav'),
-    type: 'nav',
-    columns: 4,
-    items: [
-      { id: uid('navitem'), text: '入口一' },
-      { id: uid('navitem'), text: '入口二' },
-    ],
-  }
-  page.value.components.push(item)
-  selectedId.value = item.id
-}
-
-const addGoods = () => {
-  const item: DecoGoods = {
-    id: uid('goods'),
-    type: 'goods',
-    title: '商品推荐',
-    columns: 2,
-    items: [{ id: uid('good'), name: '新商品', price: 99 }],
-  }
-  page.value.components.push(item)
-  selectedId.value = item.id
 }
 
 const move = (index: number, offset: number) => {
@@ -907,10 +849,15 @@ onLoad(async () => {
         </view>
 
         <view class="add-row">
-          <app-button size="sm" plain @click="addBanner">+ {{ t('deco.addBanner') }}</app-button>
-          <app-button size="sm" plain @click="addNotice">+ {{ t('deco.addNotice') }}</app-button>
-          <app-button size="sm" plain @click="addNav">+ {{ t('deco.addNav') }}</app-button>
-          <app-button size="sm" plain @click="addGoods">+ {{ t('deco.addGoods') }}</app-button>
+          <app-button
+            v-for="item in DECO_COMPONENT_REGISTRY"
+            :key="item.type"
+            size="sm"
+            plain
+            @click="addComponent(item.type)"
+          >
+            + {{ t(item.labelKey) }}
+          </app-button>
         </view>
 
         <app-empty v-if="page.components.length === 0" :text="t('deco.emptyList')" />
@@ -1008,148 +955,7 @@ onLoad(async () => {
             />
           </view>
 
-          <template v-if="selected.type === 'banner' && banner">
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.bannerHeight') }}</text>
-              <app-input
-                :model-value="String(banner.height ?? 170)"
-                type="number"
-                @update:model-value="banner.height = toNum($event)"
-              />
-            </view>
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.bannerRadius') }}</text>
-              <app-input
-                :model-value="String(banner.radius ?? 14)"
-                type="number"
-                @update:model-value="banner.radius = toNum($event)"
-              />
-            </view>
-
-            <text class="prop-label block">{{ t('deco.slides') }}</text>
-            <view v-for="(slide, index) in banner.items" :key="slide.id" class="sub-block">
-              <view class="sub-head">
-                <text class="sub-title">{{ index + 1 }}</text>
-                <app-button
-                  type="text"
-                  size="sm"
-                  icon="delete"
-                  @click="banner.items.splice(index, 1)"
-                />
-              </view>
-              <app-input v-model="slide.title" :placeholder="t('deco.slideTitle')" />
-              <text class="prop-label">{{ t('deco.slideImage') }}</text>
-              <image-picker v-model="slide.image" />
-            </view>
-            <app-button
-              size="sm"
-              plain
-              block
-              @click="
-                banner.items.push({
-                  id: uid('slide'),
-                  title: '新轮播图',
-                })
-              "
-            >
-              {{ t('deco.addSlide') }}
-            </app-button>
-          </template>
-
-          <template v-if="selected.type === 'notice' && notice">
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.noticeTag') }}</text>
-              <app-input v-model="notice.tag" />
-            </view>
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.noticeText') }}</text>
-              <app-input v-model="notice.text" textarea :min-height="70" />
-            </view>
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.noticeLink') }}</text>
-              <app-input v-model="notice.link" />
-            </view>
-          </template>
-
-          <template v-if="selected.type === 'nav' && nav">
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.navColumns') }}</text>
-              <app-input
-                :model-value="String(nav.columns ?? 4)"
-                type="number"
-                @update:model-value="nav.columns = toNum($event)"
-              />
-            </view>
-
-            <text class="prop-label block">{{ t('deco.navItems') }}</text>
-            <view v-for="(entry, index) in nav.items" :key="entry.id" class="sub-block">
-              <view class="sub-head">
-                <text class="sub-title">{{ index + 1 }}</text>
-                <app-button
-                  type="text"
-                  size="sm"
-                  icon="delete"
-                  @click="nav.items.splice(index, 1)"
-                />
-              </view>
-              <app-input v-model="entry.text" :placeholder="t('deco.navText')" />
-              <app-input v-model="entry.icon" :placeholder="t('deco.navIcon')" />
-            </view>
-            <app-button
-              size="sm"
-              plain
-              block
-              @click="nav.items.push({ id: uid('navitem'), text: '新入口' })"
-            >
-              {{ t('deco.addNav') }}
-            </app-button>
-          </template>
-
-          <template v-if="selected.type === 'goods' && goods">
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.goodsTitle') }}</text>
-              <app-input v-model="goods.title" />
-            </view>
-            <view class="prop-item">
-              <text class="prop-label">{{ t('deco.goodsColumns') }}</text>
-              <app-input
-                :model-value="String(goods.columns ?? 2)"
-                type="number"
-                @update:model-value="goods.columns = toNum($event)"
-              />
-            </view>
-
-            <text class="prop-label block">{{ t('deco.goodsItems') }}</text>
-            <view v-for="(product, index) in goods.items" :key="product.id" class="sub-block">
-              <view class="sub-head">
-                <text class="sub-title">{{ index + 1 }}</text>
-                <app-button
-                  type="text"
-                  size="sm"
-                  icon="delete"
-                  @click="goods.items.splice(index, 1)"
-                />
-              </view>
-              <app-input v-model="product.name" :placeholder="t('deco.goodsName')" />
-              <text class="prop-label">{{ t('deco.goodsCover') }}</text>
-              <image-picker v-model="product.cover" />
-              <app-input
-                :model-value="String(product.price)"
-                type="number"
-                :placeholder="t('deco.goodsPrice')"
-                @update:model-value="product.price = toNum($event)"
-              />
-              <app-input v-model="product.tag" :placeholder="t('deco.goodsTag')" />
-            </view>
-            <app-button
-              size="sm"
-              plain
-              block
-              @click="goods.items.push({ id: uid('good'), name: '新商品', price: 99 })"
-            >
-              {{ t('deco.addGoods') }}
-            </app-button>
-          </template>
+          <deco-props-panel :component="selected" />
         </view>
       </app-card>
     </view>
