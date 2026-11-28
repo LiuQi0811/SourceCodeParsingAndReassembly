@@ -16,6 +16,8 @@ import {
 import {
   decoApi,
   type DecoAccountSummary,
+  type DecoApprovalRecord,
+  type DecoApprovalStatus,
   type DecoAssetSummary,
   type DecoAuditAction,
   type DecoAuditRecord,
@@ -72,6 +74,8 @@ const tenantCode = ref('')
 const tenantSaving = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
+const submittingApproval = ref(false)
+const decidingApprovalId = ref('')
 const workspaceLoading = ref(false)
 const pages = ref<DecoPageSummary[]>([])
 const currentId = ref('')
@@ -81,15 +85,18 @@ const copying = ref(false)
 const templates = ref<DecoTemplateSummary[]>([])
 const versions = ref<DecoVersionSummary[]>([])
 const auditRecords = ref<DecoAuditRecord[]>([])
+const approvals = ref<DecoApprovalRecord[]>([])
 const assets = ref<DecoAssetSummary[]>([])
 const assetLimit = ref(200)
 const showTemplates = ref(false)
 const showVersions = ref(false)
 const showAudit = ref(false)
 const showAssets = ref(false)
+const showApprovals = ref(false)
 const templatesLoading = ref(false)
 const versionsLoading = ref(false)
 const auditLoading = ref(false)
+const approvalsLoading = ref(false)
 const assetsLoading = ref(false)
 const assetUploading = ref(false)
 const assetRemovingId = ref('')
@@ -135,8 +142,30 @@ const auditActionLabel = (action: DecoAuditAction): string => {
     'page-copy': t('deco.auditPageCopy'),
     'page-delete': t('deco.auditPageDelete'),
     'template-use': t('deco.auditTemplateUse'),
+    'approval-submit': t('deco.auditApprovalSubmit'),
+    'approval-approve': t('deco.auditApprovalApprove'),
+    'approval-reject': t('deco.auditApprovalReject'),
   }
   return labels[action] || action
+}
+
+const pendingApprovalCount = computed(
+  () => approvals.value.filter((item) => item.status === 'pending').length
+)
+
+const approvalStatusLabel = (status: DecoApprovalStatus): string => {
+  const labels: Record<DecoApprovalStatus, string> = {
+    pending: t('deco.approvalPending'),
+    approved: t('deco.approvalApproved'),
+    rejected: t('deco.approvalRejected'),
+  }
+  return labels[status] || status
+}
+
+const approvalStatusType = (status: DecoApprovalStatus): 'warning' | 'success' | 'danger' => {
+  if (status === 'approved') return 'success'
+  if (status === 'rejected') return 'danger'
+  return 'warning'
 }
 
 const formatAssetSize = (size: number): string => {
@@ -215,10 +244,13 @@ const reloadWorkspace = async () => {
   templates.value = []
   versions.value = []
   auditRecords.value = []
+  approvals.value = []
   assets.value = []
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showAssets.value = false
+  showApprovals.value = false
   closeAssets()
   page.value = blankPage(t('deco.untitledPage'))
   savedPageSnapshot.value = pageSnapshot(page.value)
@@ -229,6 +261,7 @@ const reloadWorkspace = async () => {
     pages.value = result.pages
     const first = result.pages[0]
     if (first) await openPage(first.id)
+    await loadApprovals()
   } finally {
     workspaceLoading.value = false
   }
@@ -524,6 +557,34 @@ const publish = async () => {
   }
 }
 
+const submitApproval = async () => {
+  if (submittingApproval.value || !currentId.value) return
+  const result = validateDecoPage(page.value)
+  if (!result.valid) {
+    uni.showToast({ title: t('deco.invalid', { message: result.message }), icon: 'none' })
+    return
+  }
+  submittingApproval.value = true
+  const payload = JSON.parse(JSON.stringify(page.value)) as DecoPage
+  try {
+    await decoApi.saveDraft(currentId.value, payload)
+    await decoApi.submitApproval(currentId.value, payload)
+    savedPageSnapshot.value = pageSnapshot(payload)
+    await refreshPages()
+    await loadApprovals()
+    showTemplates.value = false
+    showVersions.value = false
+    showAudit.value = false
+    closeAssets()
+    showApprovals.value = true
+    uni.showToast({ title: t('deco.approvalSubmitted'), icon: 'success' })
+  } catch (error) {
+    // request 层已提示错误
+  } finally {
+    submittingApproval.value = false
+  }
+}
+
 const switchPage = async (value: string | number | (string | number)[]) => {
   const picked = Array.isArray(value) ? value[0] : value
   const id = picked === undefined ? '' : String(picked)
@@ -531,6 +592,7 @@ const switchPage = async (value: string | number | (string | number)[]) => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showApprovals.value = false
   closeAssets()
   try {
     await openPage(id)
@@ -620,6 +682,7 @@ const toggleTemplates = async () => {
   if (!showTemplates.value) return
   showVersions.value = false
   showAudit.value = false
+  showApprovals.value = false
   closeAssets()
   await loadTemplates()
 }
@@ -704,6 +767,7 @@ const toggleVersions = async () => {
   if (!showVersions.value) return
   showTemplates.value = false
   showAudit.value = false
+  showApprovals.value = false
   closeAssets()
   await loadVersions()
 }
@@ -720,11 +784,86 @@ const loadAudit = async () => {
   }
 }
 
+const loadApprovals = async () => {
+  if (!tenantId.value) return
+  approvalsLoading.value = true
+  try {
+    approvals.value = (await decoApi.approvals()).approvals
+  } catch (error) {
+    // request 层已提示错误
+  } finally {
+    approvalsLoading.value = false
+  }
+}
+
+const toggleApprovals = async () => {
+  showApprovals.value = !showApprovals.value
+  if (!showApprovals.value) return
+  showTemplates.value = false
+  showVersions.value = false
+  showAudit.value = false
+  closeAssets()
+  await loadApprovals()
+}
+
+const approveApproval = (item: DecoApprovalRecord) => {
+  if (item.status !== 'pending' || decidingApprovalId.value) return
+  uni.showModal({
+    title: t('deco.approvalApproveTitle'),
+    content: t('deco.approvalApproveConfirm', { title: item.pageTitle }),
+    confirmText: t('deco.approvalApprove'),
+    cancelText: t('common.cancel'),
+    confirmColor: '#18b566',
+    success: async (res) => {
+      if (!res.confirm) return
+      decidingApprovalId.value = item.id
+      try {
+        await decoApi.approveApproval(item.id)
+        await loadApprovals()
+        await refreshPages()
+        if (item.pageId === currentId.value) await openPage(item.pageId)
+        if (showAudit.value) await loadAudit()
+        uni.showToast({ title: t('deco.approvalApprovedDone'), icon: 'success' })
+      } catch (error) {
+        // request 层已提示错误
+      } finally {
+        decidingApprovalId.value = ''
+      }
+    },
+  })
+}
+
+const rejectApproval = (item: DecoApprovalRecord) => {
+  if (item.status !== 'pending' || decidingApprovalId.value) return
+  uni.showModal({
+    title: t('deco.approvalRejectTitle'),
+    content: t('deco.approvalRejectConfirm', { title: item.pageTitle }),
+    confirmText: t('deco.approvalReject'),
+    cancelText: t('common.cancel'),
+    confirmColor: '#f5455c',
+    success: async (res) => {
+      if (!res.confirm) return
+      decidingApprovalId.value = item.id
+      try {
+        await decoApi.rejectApproval(item.id, t('deco.approvalRejectDefault'))
+        await loadApprovals()
+        if (showAudit.value) await loadAudit()
+        uni.showToast({ title: t('deco.approvalRejectedDone'), icon: 'none' })
+      } catch (error) {
+        // request 层已提示错误
+      } finally {
+        decidingApprovalId.value = ''
+      }
+    },
+  })
+}
+
 const toggleAudit = async () => {
   showAudit.value = !showAudit.value
   if (!showAudit.value) return
   showTemplates.value = false
   showVersions.value = false
+  showApprovals.value = false
   closeAssets()
   await loadAudit()
 }
@@ -758,6 +897,7 @@ const toggleAssets = async () => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showApprovals.value = false
   await loadAssets()
 }
 
@@ -768,6 +908,7 @@ const openAssetPick = async (apply: (url: string) => void) => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showApprovals.value = false
   await loadAssets()
 }
 
@@ -890,7 +1031,16 @@ onLoad(async () => {
         {{ t('deco.saveDraft') }}
       </app-button>
       <app-button
-        v-if="user.hasPerm('operation:deco:publish')"
+        v-if="!canManageTenants && user.hasPerm('operation:deco:save')"
+        type="primary"
+        :loading="submittingApproval"
+        :disabled="!currentId"
+        @click="submitApproval"
+      >
+        {{ t('deco.submitApproval') }}
+      </app-button>
+      <app-button
+        v-if="canManageTenants && user.hasPerm('operation:deco:publish')"
         :loading="publishing"
         :disabled="!currentId"
         @click="publish"
@@ -992,6 +1142,12 @@ onLoad(async () => {
         <app-button size="sm" type="text" :disabled="!currentId" @click="toggleVersions">
           {{ t('deco.versionHistory') }}
         </app-button>
+        <app-button size="sm" type="text" @click="toggleApprovals">
+          {{ t('deco.approvalQueue') }}
+          <text v-if="pendingApprovalCount" class="approval-badge">
+            {{ pendingApprovalCount }}
+          </text>
+        </app-button>
         <app-button size="sm" type="text" @click="toggleAudit">
           {{ t('deco.auditLog') }}
         </app-button>
@@ -1075,6 +1231,58 @@ onLoad(async () => {
           <text class="aux-sub">
             {{ t('deco.auditBy', { actor: item.actor, time: item.at }) }}
           </text>
+        </view>
+      </view>
+    </app-card>
+
+    <app-card v-if="showApprovals" padding="14" class="aux-panel">
+      <view class="aux-head">
+        <view class="approval-head-main">
+          <text class="panel-title">{{ t('deco.approvalQueue') }}</text>
+          <text class="approval-counter">
+            {{ t('deco.approvalPendingCount', { count: pendingApprovalCount }) }}
+          </text>
+        </view>
+        <app-button size="sm" type="text" @click="showApprovals = false">
+          {{ t('common.close') }}
+        </app-button>
+      </view>
+      <app-empty v-if="!approvals.length && !approvalsLoading" :text="t('deco.approvalEmpty')" />
+      <view v-for="item in approvals" :key="item.id" class="aux-row approval-row">
+        <view class="aux-main">
+          <view class="approval-title">
+            <text class="aux-title">{{ item.pageTitle }}</text>
+            <app-tag size="sm" :type="approvalStatusType(item.status)">
+              {{ approvalStatusLabel(item.status) }}
+            </app-tag>
+          </view>
+          <text class="aux-sub">
+            {{ t('deco.approvalSubmittedBy', { actor: item.submittedBy, time: item.submittedAt }) }}
+          </text>
+          <text v-if="item.reviewedAt" class="aux-sub">
+            {{ t('deco.approvalReviewedBy', { actor: item.reviewedBy, time: item.reviewedAt }) }}
+          </text>
+          <text v-if="item.reason" class="approval-reason">
+            {{ t('deco.approvalReason', { reason: item.reason }) }}
+          </text>
+        </view>
+        <view v-if="item.status === 'pending' && canManageTenants" class="approval-actions">
+          <app-button
+            size="sm"
+            type="primary"
+            :loading="decidingApprovalId === item.id"
+            @click="approveApproval(item)"
+          >
+            {{ t('deco.approvalApprove') }}
+          </app-button>
+          <app-button
+            size="sm"
+            type="text"
+            :disabled="Boolean(decidingApprovalId)"
+            @click="rejectApproval(item)"
+          >
+            {{ t('deco.approvalReject') }}
+          </app-button>
         </view>
       </view>
     </app-card>
@@ -1431,6 +1639,19 @@ onLoad(async () => {
   border-top: 1px dashed var(--app-border);
 }
 
+.approval-badge {
+  min-width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--app-danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
 .aux-panel {
   margin-bottom: 14px;
 }
@@ -1452,6 +1673,17 @@ onLoad(async () => {
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+.approval-head-main {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-counter {
+  font-size: 12px;
+  color: var(--app-text-3);
 }
 
 .asset-counter {
@@ -1545,6 +1777,29 @@ onLoad(async () => {
 .aux-sub {
   font-size: 12px;
   color: var(--app-text-3);
+}
+
+.approval-row {
+  align-items: flex-start;
+}
+
+.approval-title {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.approval-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.approval-reason {
+  font-size: 12px;
+  color: var(--app-danger);
 }
 
 @media (max-width: 1199px) {

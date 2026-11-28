@@ -48,7 +48,15 @@ export interface DecoAccountSummary {
 }
 
 export type DecoAuditAction =
-  'publish' | 'rollback' | 'page-create' | 'page-copy' | 'page-delete' | 'template-use'
+  | 'publish'
+  | 'rollback'
+  | 'page-create'
+  | 'page-copy'
+  | 'page-delete'
+  | 'template-use'
+  | 'approval-submit'
+  | 'approval-approve'
+  | 'approval-reject'
 
 export interface DecoAuditRecord {
   id: string
@@ -61,10 +69,10 @@ export interface DecoAuditRecord {
 }
 
 export interface DecoAssetUsage {
-  type: 'page' | 'template'
+  type: 'page' | 'template' | 'approval'
   id: string
   title: string
-  state: 'draft' | 'published' | 'history' | 'template'
+  state: 'draft' | 'published' | 'history' | 'template' | 'pending'
 }
 
 export interface DecoAssetSummary {
@@ -76,6 +84,20 @@ export interface DecoAssetSummary {
   createdBy: string
   usageCount: number
   usedBy: DecoAssetUsage[]
+}
+
+export type DecoApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface DecoApprovalRecord {
+  id: string
+  pageId: string
+  pageTitle: string
+  status: DecoApprovalStatus
+  submittedBy: string
+  submittedAt: string
+  reviewedBy: string
+  reviewedAt: string
+  reason: string
 }
 
 /**
@@ -98,6 +120,10 @@ export interface DecoAssetSummary {
  * GET    /deco/tenants               小程序应用列表（按登录账号的应用授权过滤）
  * GET    /deco/accounts              可分配应用成员的装修账号（admin）
  * GET    /deco/audit                 当前应用的操作日志（发布/回滚/页面与模板操作）
+ * GET    /deco/approvals             当前应用的发布审批记录（含待审、通过、驳回）
+ * POST   /deco/pages/:id/approval    提交发布审核 { page }
+ * POST   /deco/approvals/:id/approve 管理员通过并上线
+ * POST   /deco/approvals/:id/reject  管理员驳回 { reason? }
  * GET    /deco/assets                当前应用的素材库（含引用统计）
  * DELETE /deco/assets/:id            删除未被引用的素材
  * POST   /deco/tenants               新增小程序应用 { id?, name, appId }
@@ -113,6 +139,15 @@ export const decoApi = {
     }>('/deco/tenants'),
   accounts: () => decoGet<{ accounts: DecoAccountSummary[] }>('/deco/accounts'),
   audit: () => decoGet<{ records: DecoAuditRecord[] }>('/deco/audit'),
+  approvals: () => decoGet<{ approvals: DecoApprovalRecord[] }>('/deco/approvals'),
+  submitApproval: (id: string, page: DecoPage) =>
+    decoPost<DecoApprovalRecord>(`/deco/pages/${id}/approval`, { page }),
+  approveApproval: (id: string) =>
+    decoPost<{ publishedAt: string; approval: DecoApprovalRecord }>(
+      `/deco/approvals/${id}/approve`
+    ),
+  rejectApproval: (id: string, reason: string) =>
+    decoPost<{ approval: DecoApprovalRecord }>(`/deco/approvals/${id}/reject`, { reason }),
   assets: () => decoGet<{ assets: DecoAssetSummary[]; limit: number }>('/deco/assets'),
   deleteAsset: (id: string) => decoDel<{ id: string }>(`/deco/assets/${id}`),
   createTenant: (payload: { id?: string; name: string; appId: string; members?: string[] }) =>

@@ -1,5 +1,6 @@
 import { MockError } from '../adapter'
 import { storage } from '@/utils/storage'
+import { pendingApprovalSnapshots } from './decoApprovalStore'
 
 const ASSETS_KEY = 'deco_assets'
 const PAGE_KEYS: Record<string, string> = {
@@ -19,10 +20,10 @@ export interface MockAssetRecord {
 }
 
 export interface MockAssetUsage {
-  type: 'page' | 'template'
+  type: 'page' | 'template' | 'approval'
   id: string
   title: string
-  state: 'draft' | 'published' | 'history' | 'template'
+  state: 'draft' | 'published' | 'history' | 'template' | 'pending'
 }
 
 export interface MockAssetSummary extends MockAssetRecord {
@@ -57,7 +58,7 @@ const tenantKey = (base: string, tenant: string): string =>
 
 const collectSources = (tenant: string) => {
   const sources: Array<{
-    type: 'page' | 'template'
+    type: MockAssetUsage['type']
     id: string
     title: string
     state: MockAssetUsage['state']
@@ -65,7 +66,7 @@ const collectSources = (tenant: string) => {
   }> = []
 
   const push = (
-    type: 'page' | 'template',
+    type: MockAssetUsage['type'],
     id: string,
     title: string,
     state: MockAssetUsage['state'],
@@ -100,6 +101,10 @@ const collectSources = (tenant: string) => {
     ) || []
   templates.forEach((template) => {
     push('template', template.id, template.name, 'template', template.page)
+  })
+
+  pendingApprovalSnapshots(tenant).forEach((approval) => {
+    push('approval', approval.id, approval.title, 'pending', approval.page)
   })
 
   return sources
@@ -154,7 +159,10 @@ export const deleteMockAsset = (
   if (!asset) throw new MockError('素材不存在', 404)
   const usedBy = usageOf(asset, collectSources(tenant))
   if (usedBy.length) {
-    throw new MockError(`素材仍被 ${usedBy.length} 处页面、历史版本或模板引用，请先移除引用`, 409)
+    throw new MockError(
+      `素材仍被 ${usedBy.length} 处页面、历史版本、模板或待审申请引用，请先移除引用`,
+      409
+    )
   }
   map[tenant] = list.filter((item) => item.id !== asset.id)
   saveMap(map)

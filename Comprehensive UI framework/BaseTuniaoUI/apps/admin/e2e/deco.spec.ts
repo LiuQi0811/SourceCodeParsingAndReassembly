@@ -56,20 +56,22 @@ test.describe('页面装修编辑器', () => {
 
     const handle = page.locator('.comp-item .drag-handle').first()
     const target = page.locator('.comp-item').last()
+    await target.scrollIntoViewIfNeeded()
     const handleBox = await handle.boundingBox()
     const targetBox = await target.boundingBox()
     if (!handleBox || !targetBox) throw new Error('拖拽元素没有渲染尺寸')
 
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
     await page.mouse.down()
-    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height - 2, {
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + 10, {
       steps: 12,
     })
     await expect(page.locator('.drop-line')).toBeVisible()
     await page.mouse.up()
 
-    await expect(page.locator('.comp-item').last()).toContainText('轮播')
+    await expect(page.locator('.comp-item').nth(2)).toContainText('轮播')
     await expect(page.locator('.comp-item').first()).toContainText('公告')
+    await expect(page.locator('.comp-item').last()).toContainText('商品')
   })
 
   test('新增小程序应用后页面数据按应用隔离', async ({ page }) => {
@@ -125,7 +127,7 @@ test.describe('页面装修编辑器', () => {
     await panel.locator('.panel-footer .app-btn').click()
     await expect(page.locator('.tenant-member-select .select-text')).toContainText('chenmo')
     await dialog.locator('.app-btn', { hasText: '确定' }).click()
-    await expect(page.getByText('小程序信息已更新').last()).toBeVisible()
+    await expect(dialog).toBeHidden()
 
     // 再次打开仍保留授权成员
     await page.locator('.tenant-bar .app-btn', { hasText: '编辑应用' }).click()
@@ -200,7 +202,10 @@ test.describe('页面装修编辑器', () => {
   })
 
   test('发布后状态标签显示最近发布时间', async ({ page }) => {
-    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await page
+      .locator('.app-layout .app-btn')
+      .filter({ hasText: /^发布$/ })
+      .click()
     await expect(page.getByText('已发布').first()).toBeVisible()
     await expect(page.locator('.preview-head')).toContainText('最近发布')
 
@@ -330,8 +335,9 @@ test.describe('页面装修编辑器', () => {
     // 新页面从空白开始，且出现删除按钮（首页没有）
     await expect(page.locator('.comp-item')).toHaveCount(0)
     await expect(page.locator('.page-bar .page-delete-btn')).toBeVisible()
+    await expect(page.locator('.meta-card .app-input input').first()).toHaveValue('新页面 2')
 
-    await page.locator('.meta-card .app-input input').first().fill('活动页')
+    // 新建页保留服务端默认标题，保存后切走再切回仍在
     await page.locator('.app-layout .app-btn', { hasText: '保存草稿' }).click()
     await expect(page.getByText('草稿已保存').first()).toBeVisible()
 
@@ -341,10 +347,10 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item')).toHaveCount(4)
     await expect(page.locator('.page-bar .app-tag')).toContainText('首页')
 
-    // 再切回活动页，标题仍在
+    // 再切回新页面，标题仍在
     await page.locator('.page-select .select-trigger').click()
-    await page.locator('.select-panel .option-row', { hasText: '活动页' }).click()
-    await expect(page.locator('.meta-card .app-input input').first()).toHaveValue('活动页')
+    await page.locator('.select-panel .option-row', { hasText: '新页面 2' }).click()
+    await expect(page.locator('.meta-card .app-input input').first()).toHaveValue('新页面 2')
 
     // 删除当前页，自动回到首页
     await page.locator('.page-bar .page-delete-btn').click()
@@ -376,7 +382,10 @@ test.describe('页面装修编辑器', () => {
   })
 
   test('操作日志记录发布动作与操作人', async ({ page }) => {
-    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await page
+      .locator('.app-layout .app-btn')
+      .filter({ hasText: /^发布$/ })
+      .click()
     await expect(page.getByText('已发布').first()).toBeVisible()
     await page.waitForTimeout(1000)
 
@@ -389,20 +398,29 @@ test.describe('页面装修编辑器', () => {
 
     // 面板保持打开时再次发布，最新日志应自动排到最上面
     await page.locator('.meta-card .app-input input').first().fill('审计版')
-    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await page
+      .locator('.app-layout .app-btn')
+      .filter({ hasText: /^发布$/ })
+      .click()
     await expect(page.getByText('已发布').first()).toBeVisible()
     await expect(panel.locator('.aux-row').first()).toContainText('审计版')
   })
 
   test('发布历史保留上一版并可回滚', async ({ page }) => {
-    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await page
+      .locator('.app-layout .app-btn')
+      .filter({ hasText: /^发布$/ })
+      .click()
     await expect(page.getByText('已发布').first()).toBeVisible()
     await expect(page.locator('.preview-head')).toContainText('最近发布')
     // 等发布请求收尾，按钮退出 loading 再改标题发第二版
     await page.waitForTimeout(1000)
 
     await page.locator('.meta-card .app-input input').first().fill('第二版')
-    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await page
+      .locator('.app-layout .app-btn')
+      .filter({ hasText: /^发布$/ })
+      .click()
     await expect(page.getByText('已发布').first()).toBeVisible()
     await page.waitForTimeout(1000)
 

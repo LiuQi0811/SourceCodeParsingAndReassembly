@@ -168,6 +168,8 @@ const logout = () => {
   uni.showModal({
     title: t('layout.logout'),
     content: t('layout.logoutContent'),
+    confirmText: t('common.confirm'),
+    cancelText: t('common.cancel'),
     confirmColor: accentColor.value,
     success: async (res) => {
       if (!res.confirm) return

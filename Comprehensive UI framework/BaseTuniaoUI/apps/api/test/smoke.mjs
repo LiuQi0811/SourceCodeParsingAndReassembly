@@ -260,6 +260,110 @@ try {
     '复制页面操作未进入日志'
   )
 
+  const editorPublish = await request(
+    'PUT',
+    `/deco/pages/${copyId}/publish`,
+    { page: next },
+    editorToken
+  )
+  assert(editorPublish.code === 403, '编辑账号不应能绕过审批直接发布')
+
+  const approvalPage = { ...next, title: '待审版' }
+  const submitApproval = await request(
+    'POST',
+    `/deco/pages/${copyId}/approval`,
+    { page: approvalPage },
+    editorToken
+  )
+  assert(submitApproval.code === 0 && submitApproval.data.status === 'pending', '编辑提交审核失败')
+  const duplicateApproval = await request(
+    'POST',
+    `/deco/pages/${copyId}/approval`,
+    { page: approvalPage },
+    editorToken
+  )
+  assert(duplicateApproval.code === 409, '同一页面重复提交待审申请应被拒绝')
+
+  const pendingApprovals = await request('GET', '/deco/approvals', undefined, editorToken)
+  assert(
+    pendingApprovals.code === 0 &&
+      pendingApprovals.data.approvals.some(
+        (item) => item.pageId === copyId && item.status === 'pending'
+      ),
+    '待审申请未进入审批列表'
+  )
+  const editorApprove = await request(
+    'POST',
+    `/deco/approvals/${submitApproval.data.id}/approve`,
+    undefined,
+    editorToken
+  )
+  assert(editorApprove.code === 403, '编辑账号不应能审批发布申请')
+  const approve = await request(
+    'POST',
+    `/deco/approvals/${submitApproval.data.id}/approve`,
+    undefined,
+    token
+  )
+  assert(approve.code === 0, '管理员通过发布申请失败')
+  const approvedDetail = await request('GET', `/deco/pages/${copyId}`)
+  assert(approvedDetail.data.page.title === '待审版', '审批通过后未按提交快照上线')
+  const approvalAudit = await request('GET', '/deco/audit', undefined, token)
+  assert(
+    approvalAudit.data.records[0].action === 'approval-approve',
+    '审批通过未写入操作日志'
+  )
+  assert(
+    approvalAudit.data.records.some((item) => item.action === 'approval-submit'),
+    '提交审核未写入操作日志'
+  )
+
+  const rejectSubmit = await request(
+    'POST',
+    `/deco/pages/${copyId}/approval`,
+    { page: { ...next, title: '待审第二版' } },
+    editorToken
+  )
+  assert(rejectSubmit.code === 0, '第二次提交审核失败')
+  const reject = await request(
+    'POST',
+    `/deco/approvals/${rejectSubmit.data.id}/reject`,
+    { reason: '按钮文案需要调整' },
+    token
+  )
+  assert(reject.code === 0 && reject.data.approval.status === 'rejected', '管理员驳回答复失败')
+  assert(reject.data.approval.reason === '按钮文案需要调整', '驳回原因未保存')
+  const rejectedDetail = await request('GET', `/deco/pages/${copyId}`)
+  assert(rejectedDetail.data.page.title === '待审版', '驳回后不应改变线上页面')
+
+  const closeSubmit = await request(
+    'POST',
+    `/deco/pages/${copyId}/approval`,
+    { page: { ...next, title: '待审第三版' } },
+    editorToken
+  )
+  assert(closeSubmit.code === 0, '第三次提交审核失败')
+  const directPublish = await request(
+    'PUT',
+    `/deco/pages/${copyId}/publish`,
+    { page: { ...next, title: '管理员直发版' } },
+    token
+  )
+  assert(directPublish.code === 0, '管理员直接发布失败')
+  const closedApprovals = await request('GET', '/deco/approvals', undefined, token)
+  assert(
+    closedApprovals.data.approvals.every(
+      (item) => item.pageId !== copyId || item.status !== 'pending'
+    ),
+    '管理员直接发布后仍残留待审申请'
+  )
+  assert(
+    closedApprovals.data.approvals.some(
+      (item) => item.id === closeSubmit.data.id && item.reason.includes('直接发布')
+    ),
+    '管理员直接发布后未自动关闭待审申请'
+  )
+
   const templates = await request('GET', '/deco/templates', undefined, token)
   assert(templates.data.templates.length === 1, '内置模板缺失')
   const saveTemplate = await request(
@@ -346,7 +450,7 @@ try {
   assert(removedTenant.code === 404, '已删除应用不应再可访问')
 
   console.log(
-    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / audit / templates / upload / assets / published'
+    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / approval / audit / templates / upload / assets / published'
   )
 } finally {
   await stop()

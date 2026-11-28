@@ -24,6 +24,7 @@ const MAX_TEMPLATES = 20
 const MAX_VERSIONS = 10
 const MAX_AUDIT = 100
 const MAX_ASSETS = 200
+const MAX_APPROVALS = 50
 const BODY_LIMIT = 30 * 1024 * 1024
 const TOKEN_SECRET = process.env.DECO_TOKEN_SECRET || 'btn-deco-dev-secret'
 const TOKEN_TTL = 8 * 60 * 60 * 1000
@@ -60,7 +61,12 @@ const AUDIT_ACTIONS = new Set([
   'page-copy',
   'page-delete',
   'template-use',
+  'approval-submit',
+  'approval-approve',
+  'approval-reject',
 ])
+
+const APPROVAL_STATUSES = new Set(['pending', 'approved', 'rejected'])
 
 const IMAGE_FILE_PATTERN = /\.(png|jpe?g|webp|gif)$/i
 
@@ -112,6 +118,37 @@ const normalizeAudit = (value) =>
       at: String(item.at),
     }))
     .slice(0, MAX_AUDIT)
+
+/** 发布审批：保留提交时的页面快照，管理员通过后按该快照上线 */
+const normalizeApprovals = (value) =>
+  (Array.isArray(value) ? value : [])
+    .filter(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        String(item.id || '') &&
+        String(item.pageId || '') &&
+        APPROVAL_STATUSES.has(String(item.status || '')) &&
+        item.page &&
+        typeof item.page === 'object' &&
+        item.page.version === 1 &&
+        Array.isArray(item.page.components) &&
+        String(item.submittedBy || '') &&
+        String(item.submittedAt || '')
+    )
+    .map((item) => ({
+      id: String(item.id),
+      pageId: String(item.pageId),
+      pageTitle: String(item.pageTitle || item.page?.title || ''),
+      status: String(item.status),
+      submittedBy: String(item.submittedBy),
+      submittedAt: String(item.submittedAt),
+      reviewedBy: String(item.reviewedBy || ''),
+      reviewedAt: String(item.reviewedAt || ''),
+      reason: String(item.reason || ''),
+      page: clone(item.page),
+    }))
+    .slice(0, MAX_APPROVALS)
 
 const now = () => new Date().toISOString()
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -204,10 +241,11 @@ const createTenantRecord = (tenantId, name, appId, pages, templates, members = [
   templates: templates || seedTemplates(name),
   audit: [],
   assets: [],
+  approvals: [],
 })
 
 const createState = () => ({
-  version: 4,
+  version: 5,
   defaultTenantId: DEFAULT_TENANT_ID,
   tenants: [
     createTenantRecord(
@@ -253,13 +291,14 @@ const normalizeState = (raw) => {
         templates,
         audit: normalizeAudit(tenant?.audit),
         assets: normalizeAssets(tenant?.assets),
+        approvals: normalizeApprovals(tenant?.approvals),
       }
     })
     const ids = new Set(tenants.map((tenant) => tenant.id))
     const defaultTenantId = ids.has(String(raw.defaultTenantId || ''))
       ? String(raw.defaultTenantId)
       : tenants[0].id
-    return { version: 4, defaultTenantId, tenants }
+    return { version: 5, defaultTenantId, tenants }
   }
 
   const legacyPages = Array.isArray(raw?.pages) && raw.pages.length ? raw.pages : seedPages()
@@ -268,7 +307,7 @@ const normalizeState = (raw) => {
   })
   const legacyTemplates = Array.isArray(raw?.templates) ? raw.templates : seedTemplates()
   return {
-    version: 4,
+    version: 5,
     defaultTenantId: DEFAULT_TENANT_ID,
     tenants: [
       createTenantRecord(
@@ -456,6 +495,10 @@ const collectAssetSources = (tenant) => {
   for (const template of tenant.templates || []) {
     push('template', template.id, template.name, 'template', template.page)
   }
+  for (const approval of tenant.approvals || []) {
+    if (approval.status !== 'pending') continue
+    push('approval', approval.id, approval.pageTitle, 'pending', approval.page)
+  }
   return sources
 }
 
@@ -509,6 +552,29 @@ const summary = (item) => ({
   publishedAt: item.publishedAt,
   updatedAt: item.draftUpdatedAt,
 })
+
+const approvalSummary = (item) => ({
+  id: item.id,
+  pageId: item.pageId,
+  pageTitle: item.pageTitle,
+  status: item.status,
+  submittedBy: item.submittedBy,
+  submittedAt: item.submittedAt,
+  reviewedBy: item.reviewedBy,
+  reviewedAt: item.reviewedAt,
+  reason: item.reason,
+})
+
+/** 管理员绕过审批直接发布 / 回滚时，关闭该页待审申请，避免之后通过旧快照把线上覆盖回去 */
+const closePendingApprovals = (tenant, pageId, reason) => {
+  for (const item of tenant.approvals || []) {
+    if (item.pageId !== pageId || item.status !== 'pending') continue
+    item.status = 'rejected'
+    item.reviewedBy = 'system'
+    item.reviewedAt = now()
+    item.reason = reason
+  }
+}
 
 const recordVersion = (page) => {
   if (!page.published) return
@@ -784,6 +850,57 @@ const route = async (req, res, url) => {
     return ok(res, { records: tenant.audit || [] })
   }
 
+  if (parts[1] === 'approvals') {
+    if (parts.length === 2 && req.method === 'GET') {
+      return ok(res, { approvals: (tenant.approvals || []).map(approvalSummary) })
+    }
+
+    if (parts.length === 4 && req.method === 'POST' && ['approve', 'reject'].includes(parts[3])) {
+      if (claims.role !== 'admin') throw new HttpError('只有管理员可以审批发布申请', 403)
+      const approval = (tenant.approvals || []).find((item) => item.id === parts[2])
+      if (!approval) throw new HttpError('发布申请不存在或已被清理', 404)
+      if (approval.status !== 'pending') throw new HttpError('该发布申请已处理', 409)
+
+      if (parts[3] === 'approve') {
+        const page = findPage(tenant, approval.pageId)
+        const snapshot = clone(approval.page)
+        recordVersion(page)
+        page.draft = clone(snapshot)
+        page.draftUpdatedAt = now()
+        page.published = snapshot
+        page.publishedAt = now()
+        page.title = snapshot.title || approval.pageTitle || page.title
+        approval.status = 'approved'
+        approval.reviewedBy = claims.sub
+        approval.reviewedAt = now()
+        approval.reason = ''
+        recordAudit(tenant, claims, 'approval-approve', {
+          pageId: page.id,
+          pageTitle: page.title,
+        })
+        await saveState()
+        return ok(res, {
+          publishedAt: page.publishedAt,
+          approval: approvalSummary(approval),
+        })
+      }
+
+      const body = await readBody(req)
+      approval.status = 'rejected'
+      approval.reviewedBy = claims.sub
+      approval.reviewedAt = now()
+      approval.reason = String(body.reason || '').trim() || '审批未通过'
+      recordAudit(tenant, claims, 'approval-reject', {
+        pageId: approval.pageId,
+        pageTitle: approval.pageTitle,
+      })
+      await saveState()
+      return ok(res, { approval: approvalSummary(approval) })
+    }
+
+    throw new HttpError('方法不支持', 405)
+  }
+
   if (parts[1] === 'assets') {
     if (parts.length === 2 && req.method === 'GET') {
       const sources = collectAssetSources(tenant)
@@ -807,7 +924,10 @@ const route = async (req, res, url) => {
       if (!asset) throw new HttpError('素材不存在', 404)
       const usedBy = assetUsage(asset, collectAssetSources(tenant))
       if (usedBy.length) {
-        throw new HttpError(`素材仍被 ${usedBy.length} 处页面、历史版本或模板引用，请先移除引用`, 409)
+        throw new HttpError(
+          `素材仍被 ${usedBy.length} 处页面、历史版本、模板或待审申请引用，请先移除引用`,
+          409
+        )
       }
       tenant.assets = tenant.assets.filter((item) => item.id !== asset.id)
       await saveState()
@@ -926,6 +1046,7 @@ const route = async (req, res, url) => {
       if (req.method === 'DELETE') {
         if (page.isHome) throw new HttpError('首页不允许删除')
         tenant.pages = tenant.pages.filter((item) => item.id !== page.id)
+        tenant.approvals = (tenant.approvals || []).filter((item) => item.pageId !== page.id)
         recordAudit(tenant, claims, 'page-delete', {
           pageId: page.id,
           pageTitle: page.title || page.draft?.title || page.published?.title,
@@ -934,6 +1055,35 @@ const route = async (req, res, url) => {
         return ok(res, true)
       }
       throw new HttpError('方法不支持', 405)
+    }
+
+    if (parts[3] === 'approval' && req.method === 'POST') {
+      if ((tenant.approvals || []).some((item) => item.pageId === page.id && item.status === 'pending')) {
+        throw new HttpError('该页面已有待审核的发布申请，请等待管理员处理', 409)
+      }
+      const body = await readBody(req)
+      const submitted = body.page ?? page.draft
+      assertPage(submitted)
+      const snapshot = clone(submitted)
+      const approval = {
+        id: id('apv'),
+        pageId: page.id,
+        pageTitle: String(snapshot.title || page.title || ''),
+        status: 'pending',
+        submittedBy: claims.sub,
+        submittedAt: now(),
+        reviewedBy: '',
+        reviewedAt: '',
+        reason: '',
+        page: snapshot,
+      }
+      tenant.approvals = [approval, ...(tenant.approvals || [])].slice(0, MAX_APPROVALS)
+      recordAudit(tenant, claims, 'approval-submit', {
+        pageId: page.id,
+        pageTitle: approval.pageTitle,
+      })
+      await saveState()
+      return ok(res, approvalSummary(approval))
     }
 
     if (parts[3] === 'copy' && req.method === 'POST') {
@@ -969,6 +1119,9 @@ const route = async (req, res, url) => {
     }
 
     if (parts[3] === 'publish' && req.method === 'PUT') {
+      if (claims.role !== 'admin') {
+        throw new HttpError('只有管理员可以直接发布，请先提交发布审核', 403)
+      }
       const body = await readBody(req)
       assertPage(body.page)
       recordVersion(page)
@@ -977,6 +1130,7 @@ const route = async (req, res, url) => {
       page.published = body.page
       page.publishedAt = now()
       page.title = body.page.title || page.title
+      closePendingApprovals(tenant, page.id, '管理员已直接发布，申请自动关闭')
       recordAudit(tenant, claims, 'publish', {
         pageId: page.id,
         pageTitle: page.published.title || page.title,
@@ -1006,6 +1160,7 @@ const route = async (req, res, url) => {
         page.published = clone(snapshot)
         page.publishedAt = now()
         page.title = snapshot.title || page.title
+        closePendingApprovals(tenant, page.id, '管理员已直接回滚发布，申请自动关闭')
         recordAudit(tenant, claims, 'rollback', {
           pageId: page.id,
           pageTitle: snapshot.title || page.title,

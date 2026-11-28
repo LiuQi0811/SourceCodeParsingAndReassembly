@@ -3,6 +3,16 @@ import { createDemoPage } from '@btn/deco/demo'
 import { defineMock, MockError } from '../adapter'
 import { storage } from '@/utils/storage'
 import { deleteMockAsset, listMockAssets, removeMockAssets } from './decoAssets'
+import {
+  approvalSummary,
+  closeMockApprovalsForPage,
+  createMockApproval,
+  findMockApproval,
+  loadMockApprovals,
+  removeMockApprovals,
+  removeMockApprovalsForPage,
+  updateMockApproval,
+} from './decoApprovalStore'
 
 const PAGES_KEY = 'deco_pages'
 const PAGES_VERSION_KEY = 'deco_pages_version'
@@ -25,7 +35,16 @@ interface AuditRecord {
   id: string
   actor: string
   role: string
-  action: 'publish' | 'rollback' | 'page-create' | 'page-copy' | 'page-delete' | 'template-use'
+  action:
+    | 'publish'
+    | 'rollback'
+    | 'page-create'
+    | 'page-copy'
+    | 'page-delete'
+    | 'template-use'
+    | 'approval-submit'
+    | 'approval-approve'
+    | 'approval-reject'
   pageId: string
   pageTitle: string
   at: string
@@ -81,6 +100,12 @@ interface TemplateRecord {
 
 const now = (): string => new Date().toLocaleString()
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+const currentProfile = (): { username?: string; nickname?: string; roleIds?: number[] } =>
+  storage.get<{ username?: string; nickname?: string; roleIds?: number[] }>('profile') || {}
+const isMockAdmin = (): boolean => Boolean(currentProfile().roleIds?.includes(1))
+const assertMockAdmin = (message: string): void => {
+  if (!isMockAdmin()) throw new MockError(message, 403)
+}
 const versionId = (): string =>
   `ver-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`
 const auditId = (): string =>
@@ -168,7 +193,7 @@ const recordAudit = (
   const list = loadTenants()
   const owner = list.find((item) => item.id === tenant)
   if (!owner) return
-  const profile = storage.get<{ nickname?: string }>('profile')
+  const profile = currentProfile()
   owner.audit = [
     {
       id: auditId(),
@@ -333,18 +358,31 @@ const assertAppIdAvailable = (appId: string, exceptTenantId = ''): string => {
 }
 
 defineMock('GET', '/deco/tenants', () => {
-  const tenants = loadTenants()
+  const all = loadTenants()
+  const admin = isMockAdmin()
+  const username = String(currentProfile().username || '')
+  const visible = admin ? all : all.filter((item) => item.members.includes(username))
+  const defaultTenantId = visible.some((item) => item.id === DEFAULT_TENANT)
+    ? DEFAULT_TENANT
+    : visible[0]?.id || ''
   return {
-    defaultTenantId: DEFAULT_TENANT,
-    canManage: true,
-    tenants: tenants.map(tenantSummary),
+    defaultTenantId,
+    canManage: admin,
+    tenants: visible.map(tenantSummary),
   }
 })
 
-defineMock('GET', '/deco/accounts', () => ({ accounts: DECO_ACCOUNTS }))
+defineMock('GET', '/deco/accounts', () => {
+  assertMockAdmin('只有管理员可以查看装修账号')
+  return { accounts: DECO_ACCOUNTS }
+})
 
 defineMock('GET', '/deco/audit', (ctx) => ({
   records: loadTenants().find((item) => item.id === tenantOf(ctx))?.audit || [],
+}))
+
+defineMock('GET', '/deco/approvals', (ctx) => ({
+  approvals: loadMockApprovals(tenantOf(ctx)).map(approvalSummary),
 }))
 
 defineMock('GET', '/deco/assets', (ctx) => ({
@@ -355,6 +393,7 @@ defineMock('GET', '/deco/assets', (ctx) => ({
 defineMock('DELETE', '/deco/assets/:id', (ctx) => deleteMockAsset(ctx, String(ctx.pathParams.id)))
 
 defineMock('POST', '/deco/tenants', ({ body }) => {
+  assertMockAdmin('只有管理员可以新增小程序应用')
   const tenants = loadTenants()
   const name = String(body.name || '').trim()
   if (!name) throw new MockError('请填写小程序名称', 400)
@@ -385,6 +424,7 @@ defineMock('POST', '/deco/tenants', ({ body }) => {
 })
 
 defineMock('PUT', '/deco/tenants/:id', ({ pathParams, body }) => {
+  assertMockAdmin('只有管理员可以修改小程序应用')
   const tenants = loadTenants()
   const target = tenants.find((item) => item.id === pathParams.id)
   if (!target) throw new MockError(`装修应用不存在：${pathParams.id}`, 404)
@@ -399,6 +439,7 @@ defineMock('PUT', '/deco/tenants/:id', ({ pathParams, body }) => {
 })
 
 defineMock('DELETE', '/deco/tenants/:id', ({ pathParams }) => {
+  assertMockAdmin('只有管理员可以删除小程序应用')
   const tenants = loadTenants()
   const target = tenants.find((item) => item.id === pathParams.id)
   if (!target) throw new MockError(`装修应用不存在：${pathParams.id}`, 404)
@@ -408,6 +449,7 @@ defineMock('DELETE', '/deco/tenants/:id', ({ pathParams }) => {
   storage.remove(pagesVersionKey(target.id))
   storage.remove(templatesKey(target.id))
   removeMockAssets(target.id)
+  removeMockApprovals(target.id)
   return { id: target.id }
 })
 
@@ -497,11 +539,71 @@ defineMock('POST', '/deco/pages/:id/versions/:versionId/rollback', ({ pathParams
   target.publishedAt = publishedAt
   target.title = snapshot.title || target.title
   save(tenant, pages)
+  closeMockApprovalsForPage(tenant, target.id, '管理员已直接回滚发布，申请自动关闭')
   recordAudit(tenant, 'rollback', {
     pageId: target.id,
     pageTitle: target.published?.title || target.title,
   })
   return { publishedAt }
+})
+
+defineMock('POST', '/deco/approvals/:id/approve', ({ pathParams, ...ctx }) => {
+  assertMockAdmin('只有管理员可以审批发布申请')
+  const tenant = tenantOf(ctx)
+  const approval = findMockApproval(tenant, pathParams.id)
+  if (!approval) throw new MockError('发布申请不存在或已被清理', 404)
+  if (approval.status !== 'pending') throw new MockError('该发布申请已处理', 409)
+
+  const pages = load(tenant)
+  const target = pages.find((item) => item.id === approval.pageId)
+  if (!target) throw new MockError('对应装修页面已被删除', 404)
+
+  const snapshot = clone(approval.page)
+  assertValid(snapshot, '待审页面数据不合法')
+  recordVersion(target)
+
+  const publishedAt = now()
+  target.draft = clone(snapshot)
+  target.draftUpdatedAt = publishedAt
+  target.published = snapshot
+  target.publishedAt = publishedAt
+  target.title = snapshot.title || approval.pageTitle || target.title
+  save(tenant, pages)
+
+  const reviewed = updateMockApproval(tenant, approval.id, {
+    status: 'approved',
+    reviewedBy: currentProfile().nickname || 'admin',
+    reviewedAt: publishedAt,
+    reason: '',
+  })
+  recordAudit(tenant, 'approval-approve', {
+    pageId: target.id,
+    pageTitle: target.title,
+  })
+  return {
+    publishedAt,
+    approval: reviewed ? approvalSummary(reviewed) : approvalSummary(approval),
+  }
+})
+
+defineMock('POST', '/deco/approvals/:id/reject', ({ pathParams, body, ...ctx }) => {
+  assertMockAdmin('只有管理员可以审批发布申请')
+  const tenant = tenantOf(ctx)
+  const approval = findMockApproval(tenant, pathParams.id)
+  if (!approval) throw new MockError('发布申请不存在或已被清理', 404)
+  if (approval.status !== 'pending') throw new MockError('该发布申请已处理', 409)
+
+  const reviewed = updateMockApproval(tenant, approval.id, {
+    status: 'rejected',
+    reviewedBy: currentProfile().nickname || 'admin',
+    reviewedAt: now(),
+    reason: String(body.reason || '').trim() || '审批未通过',
+  })
+  recordAudit(tenant, 'approval-reject', {
+    pageId: approval.pageId,
+    pageTitle: approval.pageTitle,
+  })
+  return { approval: reviewed ? approvalSummary(reviewed) : approvalSummary(approval) }
 })
 
 defineMock('GET', '/deco/templates', (ctx) => {
@@ -574,6 +676,7 @@ defineMock('DELETE', '/deco/pages/:id', ({ pathParams, ...ctx }) => {
     tenant,
     pages.filter((item) => item.id !== target.id)
   )
+  removeMockApprovalsForPage(tenant, target.id)
   recordAudit(tenant, 'page-delete', {
     pageId: target.id,
     pageTitle: target.title || target.draft?.title || target.published?.title,
@@ -603,7 +706,33 @@ defineMock('PUT', '/deco/pages/:id/draft', ({ pathParams, body, ...ctx }) => {
   return { updatedAt }
 })
 
+defineMock('POST', '/deco/pages/:id/approval', ({ pathParams, body, ...ctx }) => {
+  const tenant = tenantOf(ctx)
+  const target = findPage(tenant, pathParams.id)
+  if (
+    loadMockApprovals(tenant).some((item) => item.pageId === target.id && item.status === 'pending')
+  ) {
+    throw new MockError('该页面已有待审核的发布申请，请等待管理员处理', 409)
+  }
+
+  const page = (body.page || target.draft) as DecoPage
+  assertValid(page, '提交审核数据不合法')
+  const snapshot = clone(page)
+  const approval = createMockApproval(tenant, {
+    pageId: target.id,
+    pageTitle: snapshot.title || target.title,
+    submittedBy: currentProfile().nickname || 'admin',
+    page: snapshot,
+  })
+  recordAudit(tenant, 'approval-submit', {
+    pageId: target.id,
+    pageTitle: approval.pageTitle,
+  })
+  return approvalSummary(approval)
+})
+
 defineMock('PUT', '/deco/pages/:id/publish', ({ pathParams, body, ...ctx }) => {
+  assertMockAdmin('只有管理员可以直接发布，请先提交发布审核')
   const tenant = tenantOf(ctx)
   const pages = load(tenant)
   const target = pages.find((item) => item.id === pathParams.id)
@@ -621,6 +750,7 @@ defineMock('PUT', '/deco/pages/:id/publish', ({ pathParams, body, ...ctx }) => {
   target.publishedAt = publishedAt
   target.title = page.title || target.title
   save(tenant, pages)
+  closeMockApprovalsForPage(tenant, target.id, '管理员已直接发布，申请自动关闭')
   recordAudit(tenant, 'publish', {
     pageId: target.id,
     pageTitle: target.published?.title || target.title,
@@ -644,6 +774,7 @@ defineMock('GET', '/deco/home', (ctx) => {
 
 /** 旧发布接口保留为「发布首页」别名 */
 defineMock('PUT', '/deco/home', ({ body, ...ctx }) => {
+  assertMockAdmin('只有管理员可以直接发布，请先提交发布审核')
   const tenant = tenantOf(ctx)
   const pages = load(tenant)
   const home = pages.find((item) => item.isHome) ?? pages[0]
@@ -661,6 +792,7 @@ defineMock('PUT', '/deco/home', ({ body, ...ctx }) => {
   home.publishedAt = publishedAt
   home.title = page.title || home.title
   save(tenant, pages)
+  closeMockApprovalsForPage(tenant, home.id, '管理员已直接发布，申请自动关闭')
   recordAudit(tenant, 'publish', {
     pageId: home.id,
     pageTitle: home.published?.title || home.title,

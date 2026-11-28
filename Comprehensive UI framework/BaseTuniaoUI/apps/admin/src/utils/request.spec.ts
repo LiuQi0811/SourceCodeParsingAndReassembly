@@ -132,6 +132,14 @@ describe('request + mock 契约', () => {
   })
 
   it('装修多页面：新建、存草稿、发布、读取与删除', async () => {
+    // 发布与删除均要求管理员权限，先登录 admin
+    const login = await post<{ token: string; profile: { nickname: string } }>('/auth/login', {
+      username: 'admin',
+      password: '123456',
+    })
+    memory.set(STORAGE_PREFIX + appConfig.tokenKey, login.token)
+    memory.set(STORAGE_PREFIX + 'profile', JSON.stringify(login.profile))
+
     const before = await get<{ pages: { id: string; isHome: boolean }[] }>('/deco/pages')
     expect(before.pages).toHaveLength(1)
     expect(before.pages[0].isHome).toBe(true)
