@@ -1,0 +1,7 @@
+export * from './schema'
+export * from './demo'
+export { default as DecoRenderer } from './DecoRenderer.vue'
+export { default as BannerBlock } from './blocks/BannerBlock.vue'
+export { default as NoticeBlock } from './blocks/NoticeBlock.vue'
+export { default as NavBlock } from './blocks/NavBlock.vue'
+export { default as GoodsBlock } from './blocks/GoodsBlock.vue'

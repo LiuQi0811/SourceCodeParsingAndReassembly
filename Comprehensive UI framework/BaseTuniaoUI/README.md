@@ -1,0 +1,162 @@
+# 图鸟系统管理基础框架
+
+基于 **uni-app 3 + Vue 3.4 + TypeScript + TuniaoUI（图鸟 UI）** 的后台管理基础框架，采用**单仓多应用（npm workspaces）**组织：
+
+```
+apps/admin   后台端（H5，管理界面，默认接内置 Mock）
+apps/mp      小程序端（微信，C 端，独立 pages / manifest）
+packages/shared  两端共用的纯逻辑：表单校验、树工具、格式化、接口类型
+packages/deco    装修协议（schema）与渲染器（DecoRenderer + 4 个组件块）
+```
+
+共享包通过 `@btn/shared` / `@btn/deco` 引入，源码即 TS/Vue 源文件，不需要额外编译步骤。
+两端共用同一套技术栈与版本（Vue 3.4.21、uni-app 3.0.0-4020920240930001），但页面、路由清单、登录态彼此独立：后台走 RBAC，小程序端后续接自己的 C 端登录，不复用后台权限模型。
+
+## 快速开始
+
+命令统一在**仓库根**执行（根脚本用 `-w` 代理到对应应用）：
+
+```bash
+npm install          # 首次，一次装完所有应用
+npm run dev:h5       # 后台端调试，默认 http://localhost:5173
+npm run build:h5     # 后台端生产构建，产物在 apps/admin/dist/build/h5
+npm run dev:mp       # 小程序端调试（微信开发者工具导入 apps/mp/dist/dev/mp-weixin）
+npm run build:mp     # 小程序端构建，产物在 apps/mp/dist/build/mp-weixin
+npm test             # 单元测试（Vitest，目前 92 条）
+npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 26 条）
+npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 + H5 构建（提交前建议）
+```
+
+也可以在子应用目录里跑同名脚本（如 `cd apps/admin && npm run dev:h5`）。注意 E2E 与单测的配置都在 `apps/admin` 下，**不要在根直接 `npx playwright test`**，用根脚本 `npm run test:e2e`。
+
+以下内容除非特别说明，路径均相对 `apps/admin/`。
+
+演示账号（密码统一 `123456`）：
+
+| 账号 | 角色 | 权限 |
+| --- | --- | --- |
+| `admin` | 超级管理员 | 全部 |
+| `chenmo` | 系统管理员 | 用户 / 角色 / 字典 |
+| `zhouye` | 运维人员 | 菜单 / 日志只读 |
+
+普通账号直接访问无权限页面会被 `AppLayout` 拦成「无访问权限」页；右上角用户菜单可重置演示数据。
+
+## 技术要点
+
+- **响应式**：`app` store 监听窗口宽度，`<768px` 为 mobile，`<1200px` 为 tablet，其余 desktop；桌面为「固定侧边栏 + 吸顶顶栏」，移动端自动切为「抽屉菜单 + 卡片列表」。
+- **尺寸单位**：布局与控件统一使用 **px 设计令牌**（`src/styles/tokens.scss`），不使用 rpx。原因是桌面 H5 上 rpx 会随窗口宽度放大，后台表格与表单会被撑大；图标统一用 `AppIcon`，按 `size` 传像素值。
+- **图标**：`AppIcon` 是纯字体实现（`tn-icon-{name}` 类名取字形），字体文件离线放在 `src/static/fonts/tuniao-icon.woff`，由 `src/styles/icon-font.scss` 以同名 `font-family` 覆盖官方 CSS 里的 CDN 地址，内网/断网也不会丢图标；不再引入 `@tuniao/tnui-vue3-uniapp` 的 icon 组件。
+- **请求层**：`src/utils/request.ts` 统一封装 `get/post/put/del`，处理 loading、`code !== 0` 业务错误、401 清理登录态并广播 `auth:expired`。`VITE_USE_MOCK=true` 走 `src/mock`，否则走 `VITE_API_BASE` 真实域名。
+- **Mock 层**：`src/mock/adapter.ts` 做路由匹配（支持 `/system/user/:id`），数据由 `src/mock/db.ts` 写入本地存储，可持久化、可重置。种子数据带版本号（`SEED_VERSION`，存在 `BTN_mock_seed_version`）：给种子加了新菜单/新角色后把它加一，老浏览器缓存会按 id 把缺失记录补进来，不用清 localStorage；同时布局页启动时会静默补拉一次 `profile`，避免缓存里的旧菜单树盖住新入口。
+- **权限**：登录后 `profile` 返回菜单树、按钮权限码与 `roleIds`，`user.hasPerm('system:user:add')`、`user.hasPage('/pages/system/user/index')` 分别控制按钮与页面。角色改授权/改资料后，若改的是当前账号所属角色，页面会 `user.refreshProfile()`，侧边栏与当前页权限即时生效（收回当前页权限会直接落到「无访问权限」）。
+- **路由注册单一来源**：`src/config/routes.ts` 的 `REGISTERED_PAGES` 必须与 `src/pages.json` 的页面路径一致。菜单表单保存会校验路径是否已注册，`navigateTo` 也会拦截未注册路径，避免「点了没反应」。
+- **主题外观**：右上角头像 → 主题外观，可切换浅色 / 深色与四种品牌色（天青 / 松绿 / 黛紫 / 赤橙），并额外提供「界面密度（标准 / 紧凑）」与「圆角（小 / 标准 / 大）」两组档位。实现是「CSS 变量 + 根节点 class」：`app` store 的 `themeClass` 输出 `theme-*`、`accent-*`、`density-*`、`radius-*`，页面根节点（`AppLayout`、登录页）绑定后，所有控件通过 `var(--app-*)` 继承，切换即时生效并写入本地存储。紧凑模式整体压字号（`--app-font*`）与内容边距，并收窄按钮 / 输入框 / 表格行高；圆角档位只改 `--app-radius*` 三个变量。新增品牌色只需在 `src/styles/themes.scss` 加一个 `.accent-xxx` 块、再到 `app.ts` 的 `ACCENTS` 登记色值。
+- **表单与 CRUD**：新增/编辑弹窗统一走 `src/hooks/useCrudForm.ts`（打开 → 重置 → 校验 → 提交 → toast → 关闭 → `onSaved` 刷新），校验规则是纯数据声明（`src/utils/validate.ts` 的 `FormRule`：必填、正则、最大长度、跨字段 `validate`），按声明顺序短路只提示第一条。删除确认统一走 `src/utils/dialog.ts` 的 `confirmDelete`，确认按钮文案与危险色一致；`uni.showModal` 的取消键默认跟浏览器语言走（中文页面也会显示 `Cancel`），所以 `cancelText` 显式传 `t('common.cancel')`。
+- **多语言**：`vue-i18n`（Composition API，`legacy: false`），文案按命名空间放在 `src/locales/{zh-CN,en-US}.ts`：`common`（通用词）、`layout`、`login`、`home` 与各业务页各自的命名空间（含 `deco`）。`src/locales/index.ts` 从 `BTN_locale` 读语言、`setLocale()` 写回；页面里 `const { t } = useI18n()` 后直接 `t('user.title')`。切换入口两处：登录页右上角「EN / 中文」、头像菜单「语言 / Language」面板。因为文案在 setup 时求值，切换语言后统一 `reLaunch` 当前页生效；通用控件（`AppDialog` / `AppTable` / `AppSelect` / `AppInput` / `AppEmpty` / `AppPagination`）的默认文案自己兜 `t()`，页面不传也不会出现中文残留。
+- **业务数据的英文层**：Mock 种子只存中文（它同时是新增/编辑后的真实数据），`src/mock/i18n.ts` 在 `en-US` 下把接口返回体深拷贝一份，按「中文原值 → 英文译文」翻译 `name` / `deptName` / `roleNames` / `label` / `remark` / `module` / `action` 这几个字段，覆盖菜单名、部门名、角色名与说明、字典标签、日志模块与动作；账号、昵称、手机号、路径、权限码不动，表里查不到的文案（用户自己输入的名称）原样保留。**译文绝不写回 db**，否则切回中文会看到英文。角色名、菜单树来自落在本地的 `profile`，所以切换语言时会先 `user.refreshProfile()` 再 `reLaunch`，避免侧边栏仍显示旧语言。Mock 抛出的业务错误（`MockError`）也走同一层：`localizeMockMessage()` 把「账号已存在」「该角色已被 N 个用户使用」这类提示翻成英文，未登记的开发期提示（如 Mock 接口未定义）保留中文方便排查。
+- **代码规范**：`npm run lint`（ESLint 9 flat config）、`npm run format`（Prettier）；`npm run type-check` 用 `vue-tsc --noEmit`；`npm run format:check` 只检查不改写。
+- **CI**：`.github/workflows/ci.yml` 两个 job —— `quality`（ESLint → 两端类型检查 → 格式检查 → 92 条单测 → `build:h5` → `build:mp`）与 `e2e`（`needs: quality`，安装 Chromium 后跑 26 条 Playwright 用例，失败上传 `apps/admin/test-results` / `apps/admin/playwright-report`）。CI 上设 `PW_BROWSER=chromium`，`playwright.config.ts` 据此从「系统 Chrome」切到 Playwright 自带 Chromium；本机仍复用系统 Chrome，不额外下载。提交前本地跑 `npm run verify` 等价于 `quality` job（但不含 `build:mp`，改小程序端时单独跑一次）。
+- **单元测试**：`npm test`（Vitest，配置在 `vitest.config.ts`，`src/**/*.spec.ts` 自动收集，目前 92 条）。覆盖权限判断（`utils/permission.ts`）、页面注册校验（`config/routes.ts`）、树工具、格式化工具、表单规则（`utils/validate.ts`）、`useCrudForm` 的打开/校验短路/新增/编辑/失败保留弹窗、主题外观与密度/圆角的读写与非法值回落（`store/app`）、Mock 业务数据英文层（各字段翻译、未命中保留原文、深拷贝不改 db、错误提示翻译、走真实请求链路验证）、删除确认的按钮文案与失败兜底（`utils/dialog.ts`）、装修协议校验（版本号、id 重复、轮播/公告/导航必填项、未知组件类型，`utils/deco.spec.ts`），以及请求层 + Mock 的契约（登录成功/失败、401 清理与 `auth:expired` 广播、404、`showError`、loading 成对调用、图片上传回显 base64 与非法格式拦截、装修多页面的新建/存草稿/发布/读取/删除与首页保护）。测试里用内存 Map 替身扮演 `uni` 存储，无需浏览器或 HBuilderX。
+- **端到端测试**：`npm run test:e2e`（Playwright，`e2e/*.spec.ts`，目前 6 个文件 26 条）。直接复用本机 Chrome（`channel: 'chrome'`，不额外下载浏览器），`playwright.config.ts` 里配了 `webServer`：没有 dev server 时自动 `npm run dev:h5`，已在跑则复用 5173 端口，单 worker 顺序执行。分两个 project：`desktop`（1280×800，跑 auth / permission / theme / user-crud / deco）与 `mobile`（660×570，命中 `<768` 断点，只跑 `mobile.spec.ts`）。装修用例覆盖组件联动、草稿持久化、发布状态、图片回填、多页增删切换、复制与模板复用、发布历史回滚。
+  - 桌面覆盖登录与会话（未登录拦截、空账号、密码错误、admin 进工作台）、权限拦截（chenmo 无菜单管理、zhouye 无用户管理、admin 有新增按钮）、主题外观与语言（深色落 class + 落 storage、紧凑密度叠大圆角、切英文再切回中文且菜单名/角色名/日志模块同步变英文、英文列表页部门与角色列已翻译而昵称保持中文、英文环境重复账号得到英文错误提示）、用户 CRUD（空表单必填、手机号格式、新增→检索→删除，且删除确认框取消键为「取消」而非 `Cancel`）、装修编辑器（组件列表 4 项、预览渲染轮播、新增轮播后计数变 5、上移生效、改间距后保存草稿并刷新仍保留数值、选图后图片地址回填为 base64 且保存刷新仍在、发布后状态标签显示最近发布时间且刷新后仍在、新建页面后空白页可保存/切回首页/再切回/删除并自动回首页）。
+  - 移动覆盖侧边栏不渲染 / 顶栏标题替面包屑、菜单按钮开抽屉且点菜单项后自动收起、用户列表渲染为卡片（`.table-cards` 且无 `.table-wrap`）、头像菜单收起昵称但仍可切深色。
+  - 失败会留存 `test-results/` 下的截图、trace 与 `error-context.md`，`npm run test:e2e:report` 打开 HTML 报告。
+  - 写用例要注意 uni-app 的几个坑：`getByPlaceholder` 对 uni H5 输入框无效（placeholder 是独立节点，统一用 `e2e/helpers.ts` 的 `field()`）；登录页默认预填 `admin/123456`，测「空值」要先 `fill('')`；`page.goto('#/...')` 不重建应用，登出必须 `reload()`（见 `resetApp()`）；`uni.showModal` 的按钮文案来自调用方 `confirmText`，不是统一的「确定」。
+
+## 页面装修（一期）
+
+- 入口：侧边栏「小程序运营 → 页面装修」，页面路径 `/pages/operation/deco/index`，权限码 `operation:deco:edit`，按钮另有 `operation:deco:save` / `operation:deco:publish`。
+- 三栏布局：左侧组件列表（新增、上移/下移、删除），中间 375px 手机预览，右侧属性面板（间距、高度、圆角、文案、图片地址、商品价格等），底部是页面标题与主色。
+- 预览与小程序端共用 `packages/deco` 的 `DecoRenderer`，改一处两端同时生效。发布前会跑 `validateDecoPage()`，脏数据（版本不对、id 重复、组件缺必填项）直接拦下并提示具体原因。
+- 多页面：顶部「装修页面」下拉可切换、新建、删除页面（首页由第一个页面固定担任、不允许删除，最多 20 个）。每页有独立的草稿与已发布数据，互不影响；新页面从空白开始，标题改完保存即同步到下拉。
+- 复制与模板复用：页面栏可「复制当前页」（默认标题加「副本」，组件与图片整体带过去，最多 20 个页面）、「存为模板」（快照存进模板库，最多 20 个）、打开「模板库」用已有模板新建页面或删除模板。首次打开模板库会种入一个内置「电商首页模板」（`tpl-demo`），可直接拿来起新页。
+- 版本回滚：每次发布前把当前已发布页压进该页历史（最多保留 10 版），页面栏「版本历史」列出标题与发布时间；点「回滚」把选中版本当新发布写回草稿与线上，同时把回滚前的版本继续留档，历史不丢。
+- 草稿与发布走 Mock 接口（契约与真实后端一致）：`GET /deco/pages`（列表，含 `isHome` / `path` / 时间戳）、`POST /deco/pages`（新建）、`POST /deco/pages/:id/copy`（复制，body 可带 `title`）、`DELETE /deco/pages/:id`、`GET|PUT /deco/pages/:id/draft`（草稿）、`PUT /deco/pages/:id/publish`（发布）、`GET /deco/pages/:id`（C 端读某页）、`GET /deco/pages/:id/versions`（历史摘要）、`POST /deco/pages/:id/versions/:versionId/rollback`（回滚）、`GET|POST /deco/templates`（模板列表/存模板）、`DELETE /deco/templates/:id`、`POST /deco/templates/:id/use`（用模板建页，body 可带 `title`）、`GET|PUT /deco/home`（首页快捷读写）。Mock 实现落在 `src/mock/handlers/deco.ts`，数据存 `BTN_deco_pages` / `BTN_deco_templates`（`BTN_deco_pages_version` 当前为 2，老数据会自动补 `versions: []`）；老的单页键 `deco_home_draft` / `deco_home_published` 会一次性迁移成首页记录。
+- 小程序端 `apps/mp/src/api/deco.ts`：默认 `GET /deco/home`；首页支持 `?pageId=xxx` 时改读 `GET /deco/pages/:id`。`apps/mp/.env` 的 `VITE_API_BASE` 为空时用内置示例（`packages/deco` 的 `createDemoPage()`），填了地址就拉后台发布的页面，校验不过或请求失败也回落示例，保证页面永远能渲染。
+- 图片上传：属性面板的图片字段（轮播图、商品图）支持「选择图片 / 更换 / 移除」，也可继续手贴外部图片地址。前端把图读成 base64 后走 `POST /upload`，Mock 返回同一个 data URL（`inline: true`），单图上限 600KB；真实后端把这里换成 OSS 上传并返回 CDN 地址即可，协议与渲染器不用动。
+- 一期边界：只做上移/下移、增删、改属性，不做自由拖拽；组件固定 4 种；页面之间通过「复制页面 / 存为模板」复用，不设自定义首页以外的入口页策略。图片在演示环境是 base64 内联，多张大图会顶到 localStorage 容量上限；Mock 数据只存在当前浏览器（含版本历史与模板），真机要看到后台发布的内容必须配置真实后端。
+
+## 目录结构（apps/admin）
+
+```
+apps/admin/src/
+├── api/                 各模块接口（auth/user/role/menu/dept/dict/log/dashboard）
+├── components/
+│   ├── layout/          AppLayout（外壳）、SideMenu（菜单）
+│   └── ui/              AppButton / AppTable / AppDialog / AppSelect 等基础控件
+├── config/index.ts      appName、baseURL、useMock、tokenKey、分页大小、断点
+├── config/routes.ts     已注册页面清单（菜单路径校验的唯一来源）
+├── hooks/               useTableList（分页搜索）、useCrudForm（新增/编辑弹窗）
+├── locales/             i18n：index（实例与读写）、zh-CN、en-US
+├── mock/                adapter、db、seed 数据、i18n（业务数据英文层）、各模块 handler
+├── pages/
+│   ├── login/index.vue  登录（桌面左右分栏 / 移动单列）
+│   ├── home/index.vue   工作台（KPI、7 日趋势、快捷入口、最近日志）
+│   ├── operation/deco/  页面装修编辑器（组件列表 + 预览 + 属性面板）
+│   └── system/          user / role / menu / dept / dict / log
+├── store/               pinia：app（响应式与侧边栏）、user（登录态与权限）
+├── styles/              tokens（设计令牌）、themes（明暗与品牌色）、base（重置与工具类）、icon-font（图标字体）、index
+├── static/fonts/        tuniao-icon.woff（本地图标字体，离线可用）
+├── utils/               request、storage、tree、format、navigate、permission、validate（表单规则）、dialog（删除确认）
+├── types/http.ts        ApiResponse / PageQuery / PageResult
+├── App.vue              引入全局样式，onLaunch 初始化响应式
+├── main.ts              注册 pinia 与全部 App* 控件
+├── pages.json           9 个页面 + easycom 规则 + 自定义导航栏
+```
+
+`utils/validate.ts`、`utils/tree.ts`、`utils/format.ts`、`types/http.ts` 的实现已迁到 `packages/shared`，这里只留一行转发，页面与单测的 import 路径不变。
+
+测试与工具配置在 `apps/admin` 下（仓库根不放应用配置）：
+
+```
+apps/admin/e2e/          Playwright 用例：auth / permission / theme / user-crud / deco / mobile + helpers
+apps/admin/playwright.config.ts  E2E 配置（复用本机 Chrome、自动拉起 dev server、失败留存 trace）
+apps/admin/vitest.config.ts      单元测试配置
+.github/workflows/ci.yml         流水线：静态检查 / 单测 / 两端构建 + 端到端测试
+```
+
+小程序端目前是首页骨架 + 装修一期渲染：
+
+```
+apps/mp/src/
+├── App.vue / main.ts     应用入口
+├── manifest.json         mp-weixin appid 留空，导入微信开发者工具时再填
+├── pages.json            只有 pages/home/index 一个页面
+├── pages/home/index.vue  首页：写死的装修 JSON + DecoRenderer
+└── deco/                 构建前由 packages/deco 同步生成（gitignore，勿手改）
+```
+
+装修一期组件集：`banner`（轮播）、`notice`（公告）、`nav`（宫格导航）、`goods`（商品列表）。协议在 `packages/deco/src/schema.ts`，`validateDecoPage()` 在渲染前做运行期校验（版本号、id 唯一、各组件必填项）。
+
+**一个小程序端的编译限制**：`mp-weixin` 编译器不接受 `src` 之外的 `.vue`，直接 import `@btn/deco` 的渲染器会生成 `../node-modules/...` 这种非法 chunk 名并构建失败。所以渲染器只在 `packages/deco` 维护一份，`apps/mp` 的 `predev:mp` / `prebuild:mp` / `pretype-check` 会先跑 `scripts/sync-deco.mjs` 拷到 `apps/mp/src/deco`。改渲染器只改 `packages/deco`，重跑构建即可。后台端（H5）没有这个限制，可以直接 `import { DecoRenderer } from '@btn/deco'`。
+
+## 接入真实后端
+
+1. 改 `.env`：
+
+```ini
+VITE_USE_MOCK=false
+VITE_API_BASE=https://your-api.example.com
+```
+
+2. 后端按 `src/api/types.ts` 里的结构返回，统一格式：
+
+```json
+{ "code": 0, "message": "ok", "data": {} }
+```
+
+分页接口的 `data` 为 `{ list, total, pageNum, pageSize }`；登录接口返回 `{ token, profile }`，`profile` 里含 `menus`（树）与 `perms`（按钮权限码数组）。
+码值不一致时只需改 `code` 判定（`src/utils/request.ts`）与 401 处理分支，页面无需改动。
+
+## 扩展一个新模块
+
+1. 在 `src/api` 加接口文件，`src/mock/handlers` 加对应 handler 并在 `src/mock/index.ts` 引入（走真实接口时忽略这步）。
+2. 在 `src/pages` 下新建页面，用 `AppLayout` 包裹，列表页直接用 `useTableList` + `AppTable`（桌面表格 / 移动卡片自动切换）。
+3. 在 `src/pages.json` 的 `pages` 里注册路径（**必须与菜单数据的 `path` 一致**），同时把路径补进 `src/config/routes.ts` 的 `REGISTERED_PAGES`，否则菜单表单会报「未在 pages.json 注册」。
+4. 在 `src/mock/data.ts` 的菜单种子中加目录与按钮权限，前端即可按角色看到入口。
+
+## 约定
+
+- 新控件放 `src/components/ui/`，命名 `App*`，并在 `src/main.ts` 全局注册，页面里无需 import。
+- 颜色、圆角、字号一律取 `var(--app-*)` 令牌，不要写死色值。
+- 页面必须用 `AppLayout` 包裹才能拿到侧边栏、面包屑与权限校验。
