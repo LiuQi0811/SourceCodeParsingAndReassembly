@@ -43,6 +43,9 @@ export const qqStore = reactive({
 	},
 	// 会话是否处于“对方正在输入”状态
 	typing: {} as Record<string, boolean>,
+	// 从聊天记录页返回时要定位的消息
+	focusConvId: '',
+	focusMessageId: '',
 	// 群管理状态（管理员 / 已移出成员 / 全员禁言 / 入群审批）
 	groupMeta: {} as Record<string, QQGroupMeta>,
 	// 群互动：待办 / 投票 / 相册 / 签到
@@ -277,6 +280,20 @@ export function markConversationRead(convId: string) {
 	if (conv) conv.unread = 0
 }
 
+/** 从聊天记录页指定一条消息，回到聊天页后定位并高亮 */
+export function setChatFocus(convId: string, msgId: string) {
+	qqStore.focusConvId = convId
+	qqStore.focusMessageId = msgId
+}
+
+export function takeChatFocus(convId: string): string {
+	if (qqStore.focusConvId !== convId) return ''
+	const id = qqStore.focusMessageId
+	qqStore.focusConvId = ''
+	qqStore.focusMessageId = ''
+	return id
+}
+
 /** 会话草稿（存在 conversations 上，随本地快照一起持久化） */
 export function conversationDraftOf(convId: string) {
 	return findConversation(convId)?.draft || ''
@@ -313,10 +330,28 @@ function previewOf(msg: QQMessage) {
 	return msg.text || ''
 }
 
+/** 模拟自己消息的送达过程：发送中 → 已送达 → 单聊已读 */
+function simulateDelivery(convId: string, msgId: string) {
+	const findMessage = () => (qqStore.messages[convId] || []).find((item) => item.id === msgId)
+	setTimeout(() => {
+		const msg = findMessage()
+		if (!msg || msg.status !== 'sending') return
+		msg.status = 'sent'
+		const conv = findConversation(convId)
+		if (conv?.type !== 'single') return
+		setTimeout(() => {
+			const current = findMessage()
+			if (current && current.status === 'sent') current.status = 'read'
+		}, 900)
+	}, 450)
+}
+
 /** 追加一条消息，并同步会话的最后一条与时间 */
 export function appendMessage(convId: string, msg: QQMessage) {
 	const list = getMessages(convId)
+	if (msg.senderId === 'me' && msg.type !== 'system') msg.status = 'sending'
 	list.push(msg)
+	if (msg.senderId === 'me' && msg.type !== 'system') simulateDelivery(convId, msg.id)
 	const conv = findConversation(convId)
 	if (!conv) return msg
 	const base = previewOf(msg)

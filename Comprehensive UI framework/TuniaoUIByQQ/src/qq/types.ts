@@ -90,8 +90,13 @@ export interface QQMessage {
 	/** 群聊中这条消息是否 @ 了我 */
 	mentionsMe?: boolean
 	time: string
+	/** 消息所属日期分组，缺省为今天（历史记录用“昨天 / 周一”等） */
+	day?: string
+	/** 自己发出的消息的送达状态（演示用） */
+	status?: 'sending' | 'sent' | 'read'
 	/** 引用回复的原消息摘要 */
 	quote?: {
+		id?: string
 		name: string
 		text: string
 	}

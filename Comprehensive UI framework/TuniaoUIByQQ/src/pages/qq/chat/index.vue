@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 	import { computed, nextTick, onMounted, ref, watch } from 'vue'
-	import { onLoad, onReady, onUnload } from '@dcloudio/uni-app'
+	import { onLoad, onReady, onShow, onUnload } from '@dcloudio/uni-app'
 	import {
 		appendMessage,
 		conversationDraftOf,
@@ -23,10 +23,12 @@
 		sendVideoMessage,
 		setConversationDraft,
 		sortedConversations,
+		takeChatFocus,
 	} from '@/qq/store'
 	import {
 		goBack,
 		goCall,
+		goChatHistory,
 		goGroupCheckin,
 		goGroupInfo,
 		goGroupTodo,
@@ -57,7 +59,15 @@
 	// 长按菜单 & 引用回复
 	const menuOpen = ref(false)
 	const menuMsg = ref<QQMessage | null>(null)
-	const quote = ref<{ name: string; text: string } | null>(null)
+	const quote = ref<{ id?: string; name: string; text: string } | null>(null)
+
+	// 进入会话时的未读与新消息分隔
+	const newCount = ref(0)
+	const newFromIndex = ref(-1)
+
+	// 定位高亮
+	const highlightId = ref('')
+	let highlightTimer: ReturnType<typeof setTimeout> | null = null
 
 	// 多选、批量删除与转发
 	const multiMode = ref(false)
@@ -165,6 +175,70 @@
 
 	const canSend = computed(() => draft.value.trim().length > 0)
 
+	const dayOf = (msg: QQMessage) => msg.day || '今天'
+
+	/** 跨天时在消息上方显示日期条 */
+	function dayLabel(index: number) {
+		const msg = messages.value[index]
+		if (!msg) return ''
+		if (index === 0) return dayOf(msg)
+		return dayOf(msg) !== dayOf(messages.value[index - 1]) ? dayOf(msg) : ''
+	}
+
+	function clockMinutes(time: string): number | null {
+		const match = /^(\d{1,2}):(\d{2})$/.exec(time || '')
+		if (!match) return null
+		return Number(match[1]) * 60 + Number(match[2])
+	}
+
+	/** 同一天内，与上一条间隔 5 分钟以上时显示时间 */
+	function timeLabel(index: number) {
+		const msg = messages.value[index]
+		if (!msg || index === 0) return ''
+		const prev = messages.value[index - 1]
+		if (dayOf(msg) !== dayOf(prev)) return ''
+		const current = clockMinutes(msg.time)
+		const before = clockMinutes(prev.time)
+		if (current === null || before === null) return ''
+		return current - before >= 5 ? msg.time : ''
+	}
+
+	function statusLabel(msg: QQMessage) {
+		if (msg.status === 'sending') return '发送中…'
+		if (msg.status === 'sent') return '已送达'
+		return conv.value?.type === 'group' ? '已送达' : '已读'
+	}
+
+	function jumpToMessage(msgId: string, toast = '') {
+		const exists = messages.value.some((item) => item.id === msgId)
+		if (!exists) {
+			uni.showToast({ title: '原消息已撤回或不存在', icon: 'none' })
+			return
+		}
+		scrollTarget.value = ''
+		nextTick(() => {
+			scrollTarget.value = `msg-${msgId}`
+			highlightId.value = msgId
+			if (highlightTimer) clearTimeout(highlightTimer)
+			highlightTimer = setTimeout(() => {
+				highlightId.value = ''
+			}, 1400)
+			if (toast) uni.showToast({ title: toast, icon: 'none' })
+		})
+	}
+
+	function jumpToQuote(source: { id?: string; name: string; text: string }) {
+		if (!source.id) {
+			uni.showToast({ title: '原消息已撤回或不存在', icon: 'none' })
+			return
+		}
+		jumpToMessage(source.id, `已定位到 ${source.name} 的消息`)
+	}
+
+	function openHistory() {
+		if (conv.value) goChatHistory(conv.value.id)
+	}
+
 	// 输入即存草稿，发送清空后消息列表里的「[草稿]」也会同步消失
 	watch(draft, (value) => {
 		if (conv.value) setConversationDraft(conv.value.id, value)
@@ -178,10 +252,29 @@
 			return
 		}
 		draft.value = conversationDraftOf(convId.value)
-		markConversationRead(convId.value)
 		messages.value = getMessages(convId.value)
-		// 聊天页滚动区域自动滑动到底部
-		nextTick(() => scrollToBottom())
+		// 在清空未读之前记下新消息起点，用于聊天页的「以下为新消息」分隔
+		const unread = Math.max(0, conv.value.unread || 0)
+		newCount.value = Math.min(unread, messages.value.length)
+		newFromIndex.value = newCount.value ? messages.value.length - newCount.value : -1
+		markConversationRead(convId.value)
+		// 有未读时先停在「以下是新消息」分隔线，否则滑到最新消息
+		nextTick(() => {
+			if (newCount.value) {
+				scrollTarget.value = ''
+				nextTick(() => {
+					scrollTarget.value = 'unread-divider'
+				})
+				return
+			}
+			scrollToBottom()
+		})
+	})
+
+	onShow(() => {
+		const focusId = takeChatFocus(convId.value)
+		if (!focusId) return
+		nextTick(() => jumpToMessage(focusId, '已定位到聊天记录'))
 	})
 
 	onReady(() => {
@@ -191,6 +284,7 @@
 	onUnload(() => {
 		if (replyTimer) clearTimeout(replyTimer)
 		if (typingTimer) clearTimeout(typingTimer)
+		if (highlightTimer) clearTimeout(highlightTimer)
 		if (conv.value) {
 			setConversationDraft(conv.value.id, draft.value)
 			qqStore.typing[conv.value.id] = false
@@ -601,7 +695,7 @@
 		if (!msg || msg.type !== 'text' || !msg.text) return
 		const name =
 			msg.senderId === 'me' ? qqStore.user.name : msg.senderName || findUser(msg.senderId).name
-		quote.value = { name, text: msg.text }
+		quote.value = { id: msg.id, name, text: msg.text }
 		closeMenu()
 	}
 
@@ -782,6 +876,9 @@
 			<template #right>
 				<view v-if="multiMode" class="chat-hd-text" @tap="exitMulti">取消</view>
 				<template v-else>
+					<view class="chat-hd-icon" @tap="openHistory">
+						<tn-icon name="search" size="19px" color="tn-grey-dark" />
+					</view>
 					<view class="chat-hd-icon" @tap="callVoice">
 						<tn-icon name="phone" size="19px" color="tn-grey-dark" />
 					</view>
@@ -828,22 +925,34 @@
 			:scroll-into-view="scrollTarget"
 			:scroll-with-animation="true"
 		>
-			<view class="chat-date">今天</view>
+			<template v-for="(msg, index) in messages" :key="msg.id">
+				<view v-if="dayLabel(index)" class="chat-date">
+					<text>{{ dayLabel(index) }}</text>
+				</view>
 
-			<view
-				v-for="msg in messages"
-				:id="`msg-${msg.id}`"
-				:key="msg.id"
-				:data-msg="msg.id"
-				class="chat-row"
-				:class="{
-					'chat-row--self': msg.senderId === 'me',
-					'chat-row--mention': msg.mentionsMe,
-					'chat-row--multi': multiMode && msg.type !== 'system',
-					'chat-row--selected': multiMode && isSelected(msg.id),
-				}"
-				@tap="onRowTap(msg.id)"
-			>
+				<view v-if="index === newFromIndex && newCount" id="unread-divider" class="chat-unread">
+					<view class="chat-unread__line" />
+					<text class="chat-unread__text">以下是 {{ newCount }} 条新消息</text>
+					<view class="chat-unread__line" />
+				</view>
+
+				<view v-if="timeLabel(index)" class="chat-time">
+					<text>{{ timeLabel(index) }}</text>
+				</view>
+
+				<view
+					:id="`msg-${msg.id}`"
+					:data-msg="msg.id"
+					class="chat-row"
+					:class="{
+						'chat-row--self': msg.senderId === 'me',
+						'chat-row--mention': msg.mentionsMe,
+						'chat-row--multi': multiMode && msg.type !== 'system',
+						'chat-row--selected': multiMode && isSelected(msg.id),
+						'chat-row--flash': highlightId === msg.id,
+					}"
+					@tap="onRowTap(msg.id)"
+				>
 				<view
 					v-if="multiMode && msg.type !== 'system'"
 					class="chat-pick"
@@ -887,10 +996,12 @@
 								v-if="msg.quote"
 								class="chat-quote-block"
 								:class="{ 'chat-quote-block--self': msg.senderId === 'me' }"
+								@tap="jumpToQuote(msg.quote)"
 							>
 								<text class="chat-quote-block__text">
 									{{ msg.quote.name }}：{{ msg.quote.text }}
 								</text>
+								<text class="chat-quote-block__hint">点击定位</text>
 							</view>
 							<text class="chat-text">{{ msg.text }}</text>
 						</view>
@@ -1019,9 +1130,18 @@
 								<text class="chat-video-card__label">{{ msg.text || '视频' }}</text>
 							</view>
 						</view>
+						<view
+									v-if="msg.senderId === 'me'"
+							class="chat-status"
+							:class="{ 'chat-status--sending': msg.status === 'sending' }"
+						>
+							{{ statusLabel(msg) }}
+						</view>
 					</view>
 				</template>
 			</view>
+
+			</template>
 
 			<view v-if="conv && qqStore.typing[conv.id]" class="chat-typing">
 				<view class="typing-dots"><view /><view /><view /></view>
@@ -2997,5 +3117,71 @@
 	.confirm-box__btn--danger {
 		color: #fa5151;
 		font-weight: 500;
+	}
+
+	/* H：时间分组、未读分隔、发送状态与定位高亮 */
+	.chat-time {
+		display: flex;
+		justify-content: center;
+		margin: -2px 0 8px;
+	}
+
+	.chat-time text {
+		font-size: 9.5px;
+		color: var(--qq-text-4);
+	}
+
+	.chat-unread {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 2px 2px 12px;
+	}
+
+	.chat-unread__line {
+		flex: 1;
+		height: 1px;
+		background-color: rgba(18, 183, 245, 0.28);
+	}
+
+	.chat-unread__text {
+		padding: 3px 8px;
+		border-radius: 9px;
+		background-color: var(--qq-blue-light);
+		font-size: 9.5px;
+		color: #12b7f5;
+		white-space: nowrap;
+	}
+
+	.chat-status {
+		margin-top: 4px;
+		font-size: 9.5px;
+		color: var(--qq-text-4);
+	}
+
+	.chat-status--sending {
+		color: #12b7f5;
+	}
+
+	.chat-row--flash {
+		border-radius: 10px;
+		background-color: rgba(18, 183, 245, 0.12);
+		box-shadow: 0 0 0 1.5px rgba(18, 183, 245, 0.38);
+	}
+
+	.chat-quote-block {
+		cursor: pointer;
+	}
+
+	.chat-quote-block__hint {
+		display: block;
+		margin-top: 2px;
+		font-size: 9px;
+		color: #12b7f5;
+		text-align: right;
+	}
+
+	.chat-quote-block--self .chat-quote-block__hint {
+		color: rgba(255, 255, 255, 0.72);
 	}
 </style>

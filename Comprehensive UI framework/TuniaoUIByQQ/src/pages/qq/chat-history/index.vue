@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 	import { computed, ref } from 'vue'
 	import { onLoad } from '@dcloudio/uni-app'
-	import { findConversation, getMessages } from '@/qq/store'
+	import { findConversation, getMessages, setChatFocus } from '@/qq/store'
 	import type { QQMessage } from '@/qq/types'
 
 	const convId = ref('c3')
@@ -39,8 +39,15 @@
 
 	const allMessages = computed<HistoryMessage[]>(() => {
 		const recent = getMessages(convId.value) as HistoryMessage[]
-		const old = archive[convId.value] || []
-		return [...old, ...recent]
+		const oldList = archive[convId.value] || []
+		const old = oldList.filter((item) => !recent.some((msg) => msg.id === item.id))
+		const historyIndex = new Map(oldList.map((item, index) => [item.id, index]))
+		return [...old, ...recent].sort((a, b) => {
+			const ai = historyIndex.get(a.id)
+			const bi = historyIndex.get(b.id)
+			return (ai === undefined ? Number.MAX_SAFE_INTEGER : ai) -
+				(bi === undefined ? Number.MAX_SAFE_INTEGER : bi)
+		})
 	})
 
 	const typeOptions = [
@@ -60,10 +67,7 @@
 		let list = allMessages.value
 		if (type.value !== 'all') list = list.filter((m) => m.type === type.value)
 		if (kw.value) {
-			list = list.filter((m) => {
-				const label = m.text || (m.type === 'image' ? '[图片]' : m.type === 'voice' ? '[语音]' : m.type === 'file' ? '[文件]' : '')
-				return label.toLowerCase().includes(kw.value.toLowerCase())
-			})
+			list = list.filter((m) => searchLabel(m).toLowerCase().includes(kw.value.toLowerCase()))
 		}
 		return list
 	})
@@ -71,9 +75,21 @@
 	function typeName(m: HistoryMessage) {
 		if (m.type === 'image') return '[图片]'
 		if (m.type === 'voice') return `[语音] ${m.duration || 0}″`
+		if (m.type === 'video') return `[视频] ${m.text || ''}`.trim()
 		if (m.type === 'file') return `[文件] ${m.text || ''}`
+		if (m.type === 'redpacket') return `[红包] ${m.payment?.note || '恭喜发财'}`
+		if (m.type === 'transfer') return `[转账] ¥${(m.payment?.amount || 0).toFixed(2)}`
+		if (m.type === 'group-card' && m.card) {
+			const label =
+				m.card.kind === 'todo' ? '群待办' : m.card.kind === 'vote' ? '群投票' : '群签到'
+			return `[${label}] ${m.card.title}`
+		}
 		if (m.type === 'system') return '[系统消息]'
 		return m.text || ''
+	}
+
+	function searchLabel(m: HistoryMessage) {
+		return `${typeName(m)} ${m.text || ''}`.trim()
 	}
 
 	function parts(text: string) {
@@ -99,13 +115,34 @@
 	}
 
 	function onResult(m: HistoryMessage) {
-		uni.showToast({ title: '演示：定位到该消息', icon: 'none' })
+		const list = getMessages(convId.value)
+		if (!list.some((item) => item.id === m.id)) {
+			// 更早的历史记录被点开时，按它在历史列表里的顺序补进当前会话
+			const historyIndex = allMessages.value.findIndex((item) => item.id === m.id)
+			let insertAt = list.length
+			for (let i = 0; i < list.length; i++) {
+				const currentIndex = allMessages.value.findIndex((item) => item.id === list[i].id)
+				if (currentIndex > historyIndex) {
+					insertAt = i
+					break
+				}
+			}
+			list.splice(insertAt, 0, { ...m })
+		}
+		setChatFocus(convId.value, m.id)
+		const pages = getCurrentPages() as any[]
+		const prev = pages[pages.length - 2]
+		if (prev?.route?.includes('/pages/qq/chat/index')) {
+			uni.navigateBack()
+		} else {
+			uni.redirectTo({ url: `/pages/qq/chat/index?id=${convId.value}` })
+		}
 	}
 </script>
 
 <template>
 	<view class="qq-page history-page">
-		<qq-navbar title="聊天记录" bg="#F7F8FA" />
+		<qq-navbar title="聊天记录" :subtitle="conv?.name || ''" bg="#F7F8FA" />
 
 		<view class="history-search">
 			<view class="history-search__box">
@@ -180,6 +217,22 @@
 						</template>
 						<template v-else-if="m.type === 'file'">
 							<tn-icon name="folder" size="13px" color="#4776E6" />
+							<text class="history-item__text">{{ typeName(m) }}</text>
+						</template>
+						<template v-else-if="m.type === 'video'">
+							<tn-icon name="video" size="13px" color="#8E54E9" />
+							<text class="history-item__text">{{ typeName(m) }}</text>
+						</template>
+						<template v-else-if="m.type === 'redpacket' || m.type === 'transfer'">
+							<tn-icon
+								:name="m.type === 'redpacket' ? 'lucky-money' : 'transfer-circle'"
+								size="13px"
+								:color="m.type === 'redpacket' ? '#F5576C' : '#F0A020'"
+							/>
+							<text class="history-item__text">{{ typeName(m) }}</text>
+						</template>
+						<template v-else-if="m.type === 'group-card'">
+							<tn-icon name="success-circle" size="13px" color="#12B7F5" />
 							<text class="history-item__text">{{ typeName(m) }}</text>
 						</template>
 						<template v-else>
