@@ -3,8 +3,11 @@
  *
  * 约束：协议只描述「放什么组件、组件里有什么」，不描述渲染细节；
  * 后台编辑器、后台预览、小程序端都读同一份 JSON，渲染统一走 DecoRenderer。
- * 一期组件集固定为 banner / notice / nav / goods，新增组件要同时改 type、校验与渲染器。
+ * 组件的元数据、默认值与必填规则登记在 registry.ts，新增组件先加类型，
+ * 再在注册表登记一条定义，最后为后台预览与小程序端补渲染块。
  */
+
+import { getDecoComponentDefinition, type DecoListField, type DecoSimpleField } from './registry'
 
 export const DECO_VERSION = 1
 
@@ -96,6 +99,74 @@ export interface DecoValidateResult {
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim() !== ''
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const validateSimpleField = (
+  field: DecoSimpleField,
+  value: unknown,
+  where: string
+): string | null => {
+  const missing =
+    value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+  if (missing) {
+    return field.required ? `${where}：缺少${field.name}` : null
+  }
+
+  if (field.kind === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return `${where}：${field.name}必须是数字`
+    }
+    if (field.min !== undefined && value < field.min) {
+      return `${where}：${field.name}不能小于 ${field.min}`
+    }
+    if (field.max !== undefined && value > field.max) {
+      return `${where}：${field.name}不能大于 ${field.max}`
+    }
+    return null
+  }
+
+  if (field.kind === 'select') {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      return `${where}：${field.name}取值不合法`
+    }
+    if (field.options?.some((option) => option.value === value)) return null
+    return `${where}：${field.name}取值不在可选范围`
+  }
+
+  if (typeof value !== 'string') {
+    return `${where}：${field.name}必须是文本`
+  }
+  return null
+}
+
+const validateListField = (field: DecoListField, value: unknown, where: string): string | null => {
+  if (!Array.isArray(value)) return `${where}：${field.name}必须是数组`
+  const minItems = field.minItems ?? 0
+  if (value.length < minItems) {
+    return `${where}：${field.name}至少需要 ${minItems} 项`
+  }
+  if (field.maxItems !== undefined && value.length > field.maxItems) {
+    return `${where}：${field.name}最多 ${field.maxItems} 项`
+  }
+
+  const itemIds = new Set<string>()
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index]
+    const itemWhere = `${where}的${field.name}第 ${index + 1} 项`
+    if (!isRecord(item)) return `${itemWhere}不是对象`
+    if (!isNonEmptyString(item.id)) return `${itemWhere}缺少 id`
+    if (itemIds.has(item.id)) return `${itemWhere}的 id 重复：${item.id}`
+    itemIds.add(item.id)
+
+    for (const itemField of field.itemFields) {
+      const message = validateSimpleField(itemField, item[itemField.key], itemWhere)
+      if (message) return message
+    }
+  }
+  return null
+}
+
 /** 运行期校验：装修 JSON 来自后端/本地草稿，渲染前必须过一遍，避免脏数据把页面打崩 */
 export function validateDecoPage(page: unknown): DecoValidateResult {
   if (!page || typeof page !== 'object') return { valid: false, message: '装修数据不是对象' }
@@ -108,38 +179,32 @@ export function validateDecoPage(page: unknown): DecoValidateResult {
 
   const ids = new Set<string>()
   for (const item of data.components) {
-    if (!item || typeof item !== 'object') return { valid: false, message: '组件项不是对象' }
-    const component = item as DecoComponent
-    if (!isNonEmptyString(component.id)) return { valid: false, message: '组件缺少 id' }
-    if (ids.has(component.id)) return { valid: false, message: `组件 id 重复：${component.id}` }
-    ids.add(component.id)
+    if (!isRecord(item)) return { valid: false, message: '组件项不是对象' }
+    if (!isNonEmptyString(item.id)) return { valid: false, message: '组件缺少 id' }
+    if (ids.has(item.id)) return { valid: false, message: `组件 id 重复：${item.id}` }
+    ids.add(item.id)
 
-    switch (component.type) {
-      case 'banner':
-        if (!Array.isArray(component.items) || component.items.length === 0) {
-          return { valid: false, message: `轮播 ${component.id} 至少需要一张图` }
+    if (item.gap !== undefined) {
+      if (typeof item.gap !== 'number' || !Number.isFinite(item.gap) || item.gap < 0) {
+        return {
+          valid: false,
+          message: `组件 ${item.id} 的上下间距必须是非负数字`,
         }
-        break
-      case 'notice':
-        if (!isNonEmptyString(component.text)) {
-          return { valid: false, message: `公告 ${component.id} 缺少文案` }
-        }
-        break
-      case 'nav':
-        if (!Array.isArray(component.items) || component.items.length === 0) {
-          return { valid: false, message: `宫格导航 ${component.id} 至少需要一个入口` }
-        }
-        if (component.columns && component.columns > 5) {
-          return { valid: false, message: `宫格导航 ${component.id} 每行最多 5 个` }
-        }
-        break
-      case 'goods':
-        if (!Array.isArray(component.items) || component.items.length === 0) {
-          return { valid: false, message: `商品列表 ${component.id} 至少需要一个商品` }
-        }
-        break
-      default:
-        return { valid: false, message: `未知组件类型：${String((component as DecoBase).type)}` }
+      }
+    }
+
+    const definition = getDecoComponentDefinition(String(item.type))
+    if (!definition) {
+      return { valid: false, message: `未知组件类型：${String(item.type)}` }
+    }
+
+    const where = `${definition.name} ${item.id}`
+    for (const field of definition.fields) {
+      const message =
+        field.kind === 'list'
+          ? validateListField(field, item[field.key], where)
+          : validateSimpleField(field, item[field.key], where)
+      if (message) return { valid: false, message }
     }
   }
 

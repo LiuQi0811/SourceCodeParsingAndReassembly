@@ -1,4 +1,5 @@
 export * from './schema'
+export * from './registry'
 export * from './demo'
 export { default as DecoRenderer } from './DecoRenderer.vue'
 export { default as BannerBlock } from './blocks/BannerBlock.vue'

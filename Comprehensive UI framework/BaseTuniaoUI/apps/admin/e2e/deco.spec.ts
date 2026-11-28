@@ -26,6 +26,30 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item').nth(3)).toContainText('轮播')
   })
 
+  test('组件属性由注册表生成，列表字段与跳转路径可保存', async ({ page }) => {
+    await page.locator('.add-row .app-btn', { hasText: '宫格导航' }).click()
+    await expect(page.locator('.comp-item')).toHaveCount(5)
+    await expect(page.locator('.panel-props')).toContainText('每行列数')
+    await expect(page.locator('.panel-props .sub-block')).toHaveCount(2)
+    await expect(page.locator('.panel-props')).toContainText('跳转路径')
+
+    await page.locator('.panel-props .app-btn', { hasText: '宫格导航' }).click()
+    await expect(page.locator('.panel-props .sub-block')).toHaveCount(3)
+
+    const firstEntry = page.locator('.panel-props .sub-block').first()
+    await firstEntry.locator('.app-input input').nth(2).fill('/pages/goods/detail?id=1')
+
+    await page.locator('.app-layout .app-btn', { hasText: '保存草稿' }).click()
+    await expect(page.getByText('草稿已保存').first()).toBeVisible()
+
+    await page.reload()
+    await page.locator('.comp-item').last().click()
+    await expect(page.locator('.panel-props .sub-block')).toHaveCount(3)
+    await expect(
+      page.locator('.panel-props .sub-block').first().locator('.app-input input').nth(2)
+    ).toHaveValue('/pages/goods/detail?id=1')
+  })
+
   test('拖拽左侧手柄可以调整组件顺序', async ({ page }) => {
     await expect(page.locator('.comp-item').first()).toContainText('轮播')
     await expect(page.locator('.comp-item').last()).toContainText('商品')
@@ -129,7 +153,7 @@ test.describe('页面装修编辑器', () => {
     const modal = page.locator('.uni-modal')
     await expect(modal).toContainText('删除「待删除小程序」')
     await modal.getByText('删除应用', { exact: true }).click()
-    await expect(page.getByText('小程序应用已删除').first()).toBeVisible()
+    await expect(page.getByText('小程序应用已删除').last()).toBeVisible()
     await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
 
     await page.locator('.tenant-select .select-trigger').click()
