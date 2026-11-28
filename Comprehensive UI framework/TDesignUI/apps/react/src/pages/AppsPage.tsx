@@ -1,20 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Card, Divider, Empty, Input, Pagination, Space, Tag } from 'tdesign-react';
 import {
   ALL,
   CATEGORY_OPTIONS,
   STATUS_OPTIONS,
-  createAppListStore,
+  appListStore,
   statusLabel,
   statusTheme,
-  type AppCategory,
   type AppStatus,
   type CategoryFilter,
 } from '@tdesignui/core';
 
 export default function AppsPage() {
-  // 列表状态机来自 core：筛选、分页、统计全部在 core 算完，这里只做渲染
-  const store = useMemo(() => createAppListStore(), []);
+  // 列表状态机来自 core 的共享单例：新建页写入后，这里订阅会立刻收到新快照
+  const store = appListStore;
   const [snapshot, setSnapshot] = useState(store.get());
   useEffect(() => store.subscribe(setSnapshot), [store]);
 
@@ -23,13 +22,13 @@ export default function AppsPage() {
     value === ALL ? '全部状态' : statusLabel(value as AppStatus);
 
   return (
-    <div className="page">
-      <header className="hero--left">
+    <div className="tds-page">
+      <header className="tds-hero--left">
         <h1>应用列表</h1>
         <p>数据、筛选、分页、状态文案全部来自 @tdesignui/core，React 只负责渲染</p>
       </header>
 
-      <div className="stack--wide">
+      <div className="tds-stack--wide">
         <Card bordered title="概览">
           <Space align="center" size={16}>
             <Tag theme="primary" variant="light">
@@ -58,11 +57,11 @@ export default function AppsPage() {
             />
 
             <Space align="center" size={8} breakLine>
-              <span className="filter-label">分类</span>
+              <span className="tds-filter-label">分类</span>
               {CATEGORY_OPTIONS.map((item) => (
                 <Tag
                   key={item}
-                  className="pickable"
+                  className="tds-pickable"
                   theme={snapshot.filter.category === item ? 'primary' : 'default'}
                   variant={snapshot.filter.category === item ? 'light' : 'outline'}
                   onClick={() => store.setCategory(item as CategoryFilter)}
@@ -73,11 +72,11 @@ export default function AppsPage() {
             </Space>
 
             <Space align="center" size={8} breakLine>
-              <span className="filter-label">状态</span>
+              <span className="tds-filter-label">状态</span>
               {STATUS_OPTIONS.map((item) => (
                 <Tag
                   key={item}
-                  className="pickable"
+                  className="tds-pickable"
                   theme={snapshot.filter.status === item ? 'primary' : 'default'}
                   variant={snapshot.filter.status === item ? 'light' : 'outline'}
                   onClick={() => store.setStatus(item)}
@@ -91,7 +90,7 @@ export default function AppsPage() {
               <Button variant="outline" onClick={() => store.reset()}>
                 重置条件
               </Button>
-              <span className="hint">
+              <span className="tds-hint">
                 当前：{snapshot.filter.keyword || '不限关键词'} ·{' '}
                 {categoryText(snapshot.filter.category)} · {statusText(snapshot.filter.status)}
               </span>
@@ -101,20 +100,20 @@ export default function AppsPage() {
 
         <Card bordered title="列表">
           {snapshot.result.total === 0 ? (
-            <div className="empty">
+            <div className="tds-empty">
               <Empty description="没有匹配的应用，试试放宽筛选条件" />
             </div>
           ) : (
-            <div className="grid">
+            <div className="tds-grid">
               {snapshot.result.rows.map((row) => (
-                <div key={row.id} className="item">
-                  <div className="item-head">
-                    <span className="item-name">{row.name}</span>
+                <div key={row.id} className="tds-item">
+                  <div className="tds-item-head">
+                    <span className="tds-item-name">{row.name}</span>
                     <Tag theme={statusTheme(row.status)} variant="light">
                       {statusLabel(row.status)}
                     </Tag>
                   </div>
-                  <div className="item-meta">
+                  <div className="tds-item-meta">
                     <span>{row.id}</span>
                     <span>{row.category}</span>
                     <span>负责人 {row.owner}</span>
@@ -126,8 +125,8 @@ export default function AppsPage() {
           )}
 
           <Divider />
-          <div className="footer">
-            <span className="hint">
+          <div className="tds-footer">
+            <span className="tds-hint">
               第 {snapshot.page} / {snapshot.result.totalPages} 页，每页 {snapshot.pageSize} 条
             </span>
             <Pagination

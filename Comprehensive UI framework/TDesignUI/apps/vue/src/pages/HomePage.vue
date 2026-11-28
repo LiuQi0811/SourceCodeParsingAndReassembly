@@ -18,19 +18,21 @@ const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请
 </script>
 
 <template>
-  <div class="page" :class="{ 'page--dark': dark }">
-    <header class="hero">
+  <div class="tds-page" :class="{ 'tds-page--dark': dark }">
+    <header class="tds-hero">
       <h1>{{ APP_SPEC.product }}</h1>
       <p>{{ APP_SPEC.tagline }} · Vue 版</p>
     </header>
 
-    <div class="stack">
+    <div class="tds-stack">
       <t-card title="基础交互" :bordered="true" hover-shadow>
         <t-space direction="vertical" size="16px" style="width: 100%">
           <t-input v-model="name" label="名字" placeholder="输入你的名字" clearable />
           <t-space align="center">
             <t-button theme="primary" @click="counter.increment()">点我 +1</t-button>
-            <t-button theme="default" variant="outline" @click="counter.increment(5)">一次 +5</t-button>
+            <t-button theme="default" variant="outline" @click="counter.increment(5)"
+              >一次 +5</t-button
+            >
             <t-button theme="default" variant="text" @click="counter.reset()">重置</t-button>
             <t-tag theme="primary" variant="light">{{ formatCount(count) }}</t-tag>
           </t-space>
@@ -53,46 +55,3 @@ const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请
     </div>
   </div>
 </template>
-
-<style scoped>
-.page {
-  padding: 12px 0 32px;
-}
-
-.page--dark {
-  background: #1a1a1a;
-  border-radius: 8px;
-  padding: 24px;
-  margin: -12px -24px 0;
-}
-
-.page--dark .hero h1,
-.page--dark .hero p {
-  color: #e8e8e8;
-}
-
-.hero {
-  max-width: 720px;
-  margin: 0 auto 32px;
-  text-align: center;
-}
-
-.hero h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  color: #1f2329;
-}
-
-.hero p {
-  margin: 0;
-  color: #646a73;
-}
-
-.stack {
-  max-width: 720px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-</style>

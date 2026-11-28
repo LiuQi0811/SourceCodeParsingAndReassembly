@@ -2,11 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { ROUTES } from '@tdesignui/core';
 import HomePage from './pages/HomePage.vue';
 import AppsPage from './pages/AppsPage.vue';
+import CreatePage from './pages/CreatePage.vue';
 
 // 路径来自 core 的路由表，组件在这里映射 —— 两端共享路径，各自选择实现
 const components: Record<string, unknown> = {
   home: HomePage,
   apps: AppsPage,
+  create: CreatePage,
 };
 
 export const router = createRouter({

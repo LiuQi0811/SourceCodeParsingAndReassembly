@@ -1,5 +1,5 @@
 // @tdesignui/core —— 纯 TS，禁止 import vue / react / tdesign-*
-// 这里是 Vue 与 React 两端的唯一真相：常量、路由表、领域模型、框架无关 store。
+// 这里是 Vue 与 React 两端的唯一真相：常量、路由表、领域模型、校验规则、框架无关 store。
 
 export const APP_SPEC = {
   product: 'TDesign UI',
@@ -10,3 +10,4 @@ export const APP_SPEC = {
 export * from './counter';
 export * from './routes';
 export * from './apps';
+export * from './app-form';

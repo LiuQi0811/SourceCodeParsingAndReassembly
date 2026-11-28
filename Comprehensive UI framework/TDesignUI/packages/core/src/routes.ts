@@ -1,5 +1,5 @@
 export interface RouteMeta {
-  key: 'home' | 'apps';
+  key: 'home' | 'apps' | 'create';
   path: string;
   title: string;
   /** 导航栏上显示的名字 */
@@ -9,6 +9,7 @@ export interface RouteMeta {
 export const ROUTES: readonly RouteMeta[] = [
   { key: 'home', path: '/', title: '首页', navLabel: '首页' },
   { key: 'apps', path: '/apps', title: '应用列表', navLabel: '应用列表' },
+  { key: 'create', path: '/create', title: '新建应用', navLabel: '新建应用' },
 ];
 
 export function routePathOf(key: RouteMeta['key']): string {

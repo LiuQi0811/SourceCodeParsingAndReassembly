@@ -15,15 +15,13 @@ export default function HomePage() {
   const greeting = name ? `你好，${name}！` : '请输入名字';
 
   return (
-    <div className={dark ? 'page page--dark' : 'page'}>
-      <header className="hero">
+    <div className={dark ? 'tds-page tds-page--dark' : 'tds-page'}>
+      <header className="tds-hero">
         <h1>{APP_SPEC.product}</h1>
-        <p>
-          {APP_SPEC.tagline} · React 版 · Fast Refresh 已启用
-        </p>
+        <p>{APP_SPEC.tagline} · React 版 · Fast Refresh 已启用</p>
       </header>
 
-      <div className="stack">
+      <div className="tds-stack">
         <Card title="基础交互" bordered hoverShadow>
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Input
