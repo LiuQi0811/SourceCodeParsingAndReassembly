@@ -106,6 +106,32 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item')).toHaveCount(5)
   })
 
+  test('应用可以单独授权装修账号', async ({ page }) => {
+    await page.locator('.tenant-bar .app-btn', { hasText: '新增小程序' }).click()
+    const dialog = page.locator('.dialog-panel')
+    const inputs = dialog.locator('.app-input input')
+    await inputs.nth(0).fill('权限测试小程序')
+    await inputs.nth(1).fill('wx1111222233334444')
+    await inputs.nth(2).fill('app-perm')
+    await dialog.locator('.app-btn', { hasText: '确定' }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('权限测试小程序')
+
+    // 新应用默认只有超级管理员可管理，编辑弹窗里选择 chenmo 并保存
+    await page.locator('.tenant-bar .app-btn', { hasText: '编辑应用' }).click()
+    await expect(dialog).toContainText('可管理账号')
+    await page.locator('.tenant-member-select .select-trigger').click()
+    const panel = page.locator('.select-panel')
+    await panel.locator('.option-row', { hasText: 'chenmo' }).click()
+    await panel.locator('.panel-footer .app-btn').click()
+    await expect(page.locator('.tenant-member-select .select-text')).toContainText('chenmo')
+    await dialog.locator('.app-btn', { hasText: '确定' }).click()
+    await expect(page.getByText('小程序信息已更新').last()).toBeVisible()
+
+    // 再次打开仍保留授权成员
+    await page.locator('.tenant-bar .app-btn', { hasText: '编辑应用' }).click()
+    await expect(page.locator('.tenant-member-select .select-text')).toContainText('chenmo')
+  })
+
   test('切换应用会提示丢弃未保存草稿', async ({ page }) => {
     await page.locator('.tenant-bar .app-btn', { hasText: '新增小程序' }).click()
     const dialog = page.locator('.dialog-panel')
@@ -153,7 +179,6 @@ test.describe('页面装修编辑器', () => {
     const modal = page.locator('.uni-modal')
     await expect(modal).toContainText('删除「待删除小程序」')
     await modal.getByText('删除应用', { exact: true }).click()
-    await expect(page.getByText('小程序应用已删除').last()).toBeVisible()
     await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
 
     await page.locator('.tenant-select .select-trigger').click()

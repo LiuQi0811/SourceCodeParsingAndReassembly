@@ -72,8 +72,13 @@ try {
   assert(login.code === 0 && login.data.token, '装修鉴权登录失败')
   const token = login.data.token
 
-  const noPerm = await request('POST', '/auth/deco-login', { username: 'chenmo', password: '123456' })
-  assert(noPerm.code === 403, '无装修权限账号不应拿到 token')
+  const editorLogin = await request('POST', '/auth/deco-login', {
+    username: 'chenmo',
+    password: '123456',
+  })
+  assert(editorLogin.code === 0 && editorLogin.data.token, '装修编辑账号登录失败')
+  assert(editorLogin.data.role === 'editor', '装修编辑账号角色不正确')
+  const editorToken = editorLogin.data.token
 
   const tenantDenied = await request('GET', '/deco/tenants')
   assert(tenantDenied.code === 401, '未登录访问应用列表应返回 401')
@@ -81,6 +86,16 @@ try {
   const tenants = await request('GET', '/deco/tenants', undefined, token)
   assert(tenants.code === 0 && tenants.data.tenants.length === 1, '默认应用数量不正确')
   assert(tenants.data.defaultTenantId === 'btn-mall', '默认应用标识不正确')
+  assert(tenants.data.canManage === true, '管理员应可以管理应用')
+  assert(tenants.data.tenants[0].members.includes('chenmo'), '默认应用成员不正确')
+
+  const accounts = await request('GET', '/deco/accounts', undefined, token)
+  assert(
+    accounts.code === 0 && accounts.data.accounts.some((item) => item.username === 'chenmo'),
+    '账号列表缺少装修编辑账号'
+  )
+  const editorAccounts = await request('GET', '/deco/accounts', undefined, editorToken)
+  assert(editorAccounts.code === 403, '编辑账号不应能查看账号列表')
 
   const newTenant = await request(
     'POST',
@@ -89,6 +104,47 @@ try {
     token
   )
   assert(newTenant.code === 0 && newTenant.data.id === 'app-smoke', '新增小程序应用失败')
+  assert(newTenant.data.members.length === 0, '新应用不应默认授权给编辑账号')
+
+  const editorTenants = await request('GET', '/deco/tenants', undefined, editorToken)
+  assert(
+    editorTenants.code === 0 && editorTenants.data.tenants.length === 1,
+    '编辑账号不应看到未授权应用'
+  )
+  assert(editorTenants.data.tenants[0].id === 'btn-mall', '编辑账号应保留默认应用')
+  assert(editorTenants.data.canManage === false, '编辑账号不应能管理应用')
+
+  const editorAppPages = await request('GET', '/deco/pages', undefined, editorToken, 'app-smoke')
+  assert(editorAppPages.code === 403, '编辑账号访问未授权应用应返回 403')
+
+  const editorAppUpload = await request(
+    'POST',
+    '/upload',
+    { name: 'denied.png', dataUrl: 'data:image/png;base64,iVBORw0KGgo=' },
+    editorToken,
+    'app-smoke'
+  )
+  assert(editorAppUpload.code === 403, '编辑账号不应能上传到未授权应用')
+
+  const grantMember = await request(
+    'PUT',
+    '/deco/tenants/app-smoke',
+    { name: '冒烟测试小程序', appId: 'wx1234567890abcdef', members: ['chenmo'] },
+    token
+  )
+  assert(grantMember.code === 0 && grantMember.data.members.includes('chenmo'), '应用授权成员失败')
+  const editorGranted = await request('GET', '/deco/pages', undefined, editorToken, 'app-smoke')
+  assert(editorGranted.code === 0, '授权后编辑账号仍无法访问应用')
+
+  const revokeMember = await request(
+    'PUT',
+    '/deco/tenants/app-smoke',
+    { name: '冒烟测试小程序', appId: 'wx1234567890abcdef', members: [] },
+    token
+  )
+  assert(revokeMember.code === 0 && revokeMember.data.members.length === 0, '撤销应用成员失败')
+  const editorRevoked = await request('GET', '/deco/pages', undefined, editorToken, 'app-smoke')
+  assert(editorRevoked.code === 403, '撤销后编辑账号仍可访问应用')
 
   const duplicate = await request(
     'POST',
@@ -159,7 +215,10 @@ try {
 
   // 未发布页面不能出现在 C 端清单里
   const publicBefore = await request('GET', '/deco/published')
-  assert(publicBefore.code === 0 && publicBefore.data.pages.length === 1, '未发布页面泄露到 C 端清单')
+  assert(
+    publicBefore.code === 0 && publicBefore.data.pages.length === 1,
+    '未发布页面泄露到 C 端清单'
+  )
 
   const page = home.data.page
   page.title = '第二版'
@@ -189,7 +248,12 @@ try {
 
   const templates = await request('GET', '/deco/templates', undefined, token)
   assert(templates.data.templates.length === 1, '内置模板缺失')
-  const saveTemplate = await request('POST', '/deco/templates', { name: '我的模板', page: next }, token)
+  const saveTemplate = await request(
+    'POST',
+    '/deco/templates',
+    { name: '我的模板', page: next },
+    token
+  )
   assert(saveTemplate.code === 0, '保存模板失败')
   const useTemplate = await request(
     'POST',
@@ -203,7 +267,10 @@ try {
   const png =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
   const upload = await request('POST', '/upload', { name: 'dot.png', dataUrl: png }, token)
-  assert(upload.code === 0 && upload.data.url.startsWith(`${BASE}/uploads/btn-mall/`), '上传应落默认应用目录')
+  assert(
+    upload.code === 0 && upload.data.url.startsWith(`${BASE}/uploads/btn-mall/`),
+    '上传应落默认应用目录'
+  )
   const image = await fetch(upload.data.url)
   assert(image.headers.get('content-type') === 'image/png', '上传文件不可访问')
 
@@ -234,7 +301,7 @@ try {
   assert(removedTenant.code === 404, '已删除应用不应再可访问')
 
   console.log(
-    'api smoke passed: auth / tenants / pages / copy / publish / versions / rollback / templates / upload / published'
+    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / templates / upload / published'
   )
 } finally {
   await stop()

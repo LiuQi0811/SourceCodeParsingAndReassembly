@@ -13,6 +13,7 @@ interface DecoLoginResult {
   token: string
   expiresAt: string
   username: string
+  role: string
 }
 
 export const hasRemoteDecoApi = (): boolean => BASE !== ''

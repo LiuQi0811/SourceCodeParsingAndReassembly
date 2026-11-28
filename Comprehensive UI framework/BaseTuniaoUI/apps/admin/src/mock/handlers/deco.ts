@@ -16,12 +16,15 @@ const LEGACY_HOME_KEY = 'deco_home_published'
 const MAX_PAGES = 20
 const MAX_TEMPLATES = 20
 const MAX_VERSIONS = 10
+const DECO_ACCOUNTS = [{ username: 'chenmo', role: 'editor' }]
+const DECO_EDITOR_NAMES = DECO_ACCOUNTS.map((item) => item.username)
 
 interface TenantRecord {
   id: string
   name: string
   appId: string
   createdAt: string
+  members: string[]
 }
 
 interface DraftRecord {
@@ -103,15 +106,35 @@ const tenantOf = (ctx: { headers?: Record<string, string> }): string => {
   return String((key ? headers[key] : '') || '').trim() || DEFAULT_TENANT
 }
 
+const normalizeMembers = (value: unknown): string[] =>
+  Array.from(
+    new Set(
+      (Array.isArray(value) ? value : [])
+        .map((item) => String(item || '').trim())
+        .filter((item) => DECO_EDITOR_NAMES.includes(item))
+    )
+  )
+
 const loadTenants = (): TenantRecord[] => {
   const cached = storage.get<TenantRecord[]>(TENANTS_KEY)
-  if (Array.isArray(cached) && cached.length > 0) return cached
+  if (Array.isArray(cached) && cached.length > 0) {
+    return cached.map((item) => ({
+      ...item,
+      members:
+        item.members === undefined
+          ? item.id === DEFAULT_TENANT
+            ? ['chenmo']
+            : []
+          : normalizeMembers(item.members),
+    }))
+  }
   const seeded: TenantRecord[] = [
     {
       id: DEFAULT_TENANT,
       name: '图鸟商城',
       appId: 'wx4cd3b6ba323e40ea',
       createdAt: now(),
+      members: ['chenmo'],
     },
   ]
   storage.set(TENANTS_KEY, seeded)
@@ -250,6 +273,7 @@ const tenantSummary = (tenant: TenantRecord) => ({
   name: tenant.name,
   appId: tenant.appId,
   createdAt: tenant.createdAt,
+  members: normalizeMembers(tenant.members),
   pageCount: load(tenant.id).length,
 })
 
@@ -271,9 +295,12 @@ defineMock('GET', '/deco/tenants', () => {
   const tenants = loadTenants()
   return {
     defaultTenantId: DEFAULT_TENANT,
+    canManage: true,
     tenants: tenants.map(tenantSummary),
   }
 })
+
+defineMock('GET', '/deco/accounts', () => ({ accounts: DECO_ACCOUNTS }))
 
 defineMock('POST', '/deco/tenants', ({ body }) => {
   const tenants = loadTenants()
@@ -289,7 +316,13 @@ defineMock('POST', '/deco/tenants', ({ body }) => {
   if (tenants.some((item) => item.id === tenantId)) {
     throw new MockError(`应用标识已存在：${tenantId}`, 409)
   }
-  const tenant: TenantRecord = { id: tenantId, name, appId, createdAt: now() }
+  const tenant: TenantRecord = {
+    id: tenantId,
+    name,
+    appId,
+    createdAt: now(),
+    members: normalizeMembers(body.members),
+  }
   saveTenants([...tenants, tenant])
   // 首次读取页面时再种入示例首页，避免创建应用时写太多存储
   storage.remove(pagesKey(tenantId))
@@ -307,6 +340,7 @@ defineMock('PUT', '/deco/tenants/:id', ({ pathParams, body }) => {
   const appId = assertAppIdAvailable(String(body.appId ?? target.appId).trim(), target.id)
   target.name = name
   target.appId = appId
+  if (body.members !== undefined) target.members = normalizeMembers(body.members)
   saveTenants(tenants)
   return tenantSummary(target)
 })

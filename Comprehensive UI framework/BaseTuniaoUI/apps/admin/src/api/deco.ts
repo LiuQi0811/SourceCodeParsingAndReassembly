@@ -38,7 +38,13 @@ export interface DecoTenantSummary {
   name: string
   appId: string
   createdAt: string
+  members: string[]
   pageCount: number
+}
+
+export interface DecoAccountSummary {
+  username: string
+  role: string
 }
 
 /**
@@ -58,17 +64,23 @@ export interface DecoTenantSummary {
  * DELETE /deco/templates/:id         删除模板
  * POST   /deco/templates/:id/use     用模板新建页面 { title }
  * GET    /deco/home                  C 端读取首页（最近发布）
- * GET    /deco/tenants               小程序应用列表
+ * GET    /deco/tenants               小程序应用列表（按登录账号的应用授权过滤）
+ * GET    /deco/accounts              可分配应用成员的装修账号（admin）
  * POST   /deco/tenants               新增小程序应用 { id?, name, appId }
- * PUT    /deco/tenants/:id           修改应用名称 / AppID
+ * PUT    /deco/tenants/:id           修改应用名称 / AppID / members
  * DELETE /deco/tenants/:id           删除小程序应用（默认应用不可删）
  */
 export const decoApi = {
   tenants: () =>
-    decoGet<{ defaultTenantId: string; tenants: DecoTenantSummary[] }>('/deco/tenants'),
-  createTenant: (payload: { id?: string; name: string; appId: string }) =>
+    decoGet<{
+      defaultTenantId: string
+      canManage: boolean
+      tenants: DecoTenantSummary[]
+    }>('/deco/tenants'),
+  accounts: () => decoGet<{ accounts: DecoAccountSummary[] }>('/deco/accounts'),
+  createTenant: (payload: { id?: string; name: string; appId: string; members?: string[] }) =>
     decoPost<DecoTenantSummary>('/deco/tenants', payload),
-  updateTenant: (id: string, payload: { name: string; appId: string }) =>
+  updateTenant: (id: string, payload: { name: string; appId: string; members?: string[] }) =>
     decoPut<DecoTenantSummary>(`/deco/tenants/${id}`, payload),
   removeTenant: (id: string) => decoDel<{ id: string }>(`/deco/tenants/${id}`),
   pages: () => decoGet<{ pages: DecoPageSummary[] }>('/deco/pages'),

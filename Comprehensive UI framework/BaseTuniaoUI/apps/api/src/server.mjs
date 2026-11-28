@@ -35,9 +35,21 @@ const APP_ID_PATTERN = /^wx[a-z0-9]{16}$/
 /** 演示账号，与后台 Mock 保持一致；生产环境应换数据库 + 真实密码哈希 */
 const ACCOUNTS = [
   { username: 'admin', password: '123456', role: 'admin', deco: true },
-  { username: 'chenmo', password: '123456', role: 'editor', deco: false },
+  { username: 'chenmo', password: '123456', role: 'editor', deco: true },
   { username: 'zhouye', password: '123456', role: 'editor', deco: false },
 ]
+
+/** 默认应用预置的可管理账号；admin 作为超级管理员自动拥有全部应用 */
+const DEFAULT_TENANT_MEMBERS = ['chenmo']
+const DECO_EDITOR_NAMES = ACCOUNTS.filter((item) => item.deco && item.role !== 'admin').map(
+  (item) => item.username
+)
+const normalizeMembers = (value) => {
+  const names = (Array.isArray(value) ? value : [])
+    .map((item) => String(item || '').trim())
+    .filter((item) => DECO_EDITOR_NAMES.includes(item))
+  return [...new Set(names)]
+}
 
 const now = () => new Date().toISOString()
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -120,11 +132,12 @@ const seedTemplates = (title = DEFAULT_TENANT_NAME) => {
   ]
 }
 
-const createTenantRecord = (tenantId, name, appId, pages, templates) => ({
+const createTenantRecord = (tenantId, name, appId, pages, templates, members = []) => ({
   id: tenantId,
   name,
   appId,
   createdAt: now(),
+  members: normalizeMembers(members),
   pages: pages || seedPages(name),
   templates: templates || seedTemplates(name),
 })
@@ -133,7 +146,14 @@ const createState = () => ({
   version: 2,
   defaultTenantId: DEFAULT_TENANT_ID,
   tenants: [
-    createTenantRecord(DEFAULT_TENANT_ID, DEFAULT_TENANT_NAME, DEFAULT_TENANT_APP_ID),
+    createTenantRecord(
+      DEFAULT_TENANT_ID,
+      DEFAULT_TENANT_NAME,
+      DEFAULT_TENANT_APP_ID,
+      undefined,
+      undefined,
+      DEFAULT_TENANT_MEMBERS
+    ),
   ],
 })
 
@@ -150,18 +170,21 @@ const normalizeState = (raw) => {
         ? String(tenant.id)
         : `app-${index + 1}`
       const name = String(tenant?.name || '').trim() || `小程序 ${index + 1}`
-      const pages = Array.isArray(tenant?.pages) && tenant.pages.length ? tenant.pages : seedPages(name)
+      const pages =
+        Array.isArray(tenant?.pages) && tenant.pages.length ? tenant.pages : seedPages(name)
       pages.forEach((page) => {
         if (!Array.isArray(page.versions)) page.versions = []
       })
-      const templates = Array.isArray(tenant?.templates)
-        ? tenant.templates
-        : seedTemplates(name)
+      const templates = Array.isArray(tenant?.templates) ? tenant.templates : seedTemplates(name)
       return {
         id: tenantId,
         name,
         appId: String(tenant?.appId || ''),
         createdAt: tenant?.createdAt || now(),
+        members:
+          tenant?.members === undefined
+            ? normalizeMembers(tenantId === DEFAULT_TENANT_ID ? DEFAULT_TENANT_MEMBERS : [])
+            : normalizeMembers(tenant.members),
         pages,
         templates,
       }
@@ -187,7 +210,8 @@ const normalizeState = (raw) => {
         DEFAULT_TENANT_NAME,
         DEFAULT_TENANT_APP_ID,
         legacyPages,
-        legacyTemplates
+        legacyTemplates,
+        DEFAULT_TENANT_MEMBERS
       ),
     ],
   }
@@ -279,8 +303,25 @@ const tenantSummary = (tenant) => ({
   name: tenant.name,
   appId: tenant.appId,
   createdAt: tenant.createdAt,
+  members: tenant.members || [],
   pageCount: tenant.pages.length,
 })
+
+const canManageTenant = (claims, tenant) =>
+  claims.role === 'admin' || (tenant.members || []).includes(claims.sub)
+
+const assertTenantAccess = (claims, tenant) => {
+  if (!canManageTenant(claims, tenant)) {
+    throw new HttpError(`当前账号没有「${tenant.name}」的装修权限`, 403)
+  }
+  return tenant
+}
+
+const assertMembers = (value) => {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) throw new HttpError('应用成员必须是账号数组')
+  return normalizeMembers(value)
+}
 
 const assertTenantId = (tenantId) => {
   if (!TENANT_ID_PATTERN.test(tenantId)) {
@@ -454,7 +495,8 @@ const route = async (req, res, url) => {
   if (url.pathname === '/auth/deco-login' && req.method === 'POST') {
     const body = await readBody(req)
     const account = ACCOUNTS.find(
-      (item) => item.username === String(body.username || '').trim() && item.password === body.password
+      (item) =>
+        item.username === String(body.username || '').trim() && item.password === body.password
     )
     if (!account) throw new HttpError('账号或密码错误', 401)
     if (!account.deco) throw new HttpError('当前账号没有装修编辑权限', 403)
@@ -462,12 +504,14 @@ const route = async (req, res, url) => {
       token: signToken(account.username, account.role),
       expiresAt: new Date(Date.now() + TOKEN_TTL).toISOString(),
       username: account.username,
+      role: account.role,
     })
   }
 
   if (url.pathname === '/upload' && req.method === 'POST') {
-    requireAuth(req)
+    const claims = requireAuth(req)
     const tenant = resolveTenant(req)
+    assertTenantAccess(claims, tenant)
     const body = await readBody(req)
     return ok(res, await saveUpload(body, req, tenant.id))
   }
@@ -479,9 +523,17 @@ const route = async (req, res, url) => {
     const claims = requireAuth(req)
 
     if (parts.length === 2 && req.method === 'GET') {
+      const visible =
+        claims.role === 'admin'
+          ? state.tenants
+          : state.tenants.filter((tenant) => canManageTenant(claims, tenant))
+      const visibleDefaultId = visible.some((tenant) => tenant.id === state.defaultTenantId)
+        ? state.defaultTenantId
+        : visible[0]?.id || ''
       return ok(res, {
-        defaultTenantId: state.defaultTenantId,
-        tenants: state.tenants.map(tenantSummary),
+        defaultTenantId: visibleDefaultId,
+        canManage: claims.role === 'admin',
+        tenants: visible.map(tenantSummary),
       })
     }
 
@@ -494,7 +546,14 @@ const route = async (req, res, url) => {
       const tenantId = assertTenantId(
         String(body.id || '').trim() || `app-${Date.now().toString(36)}`
       )
-      const tenant = createTenantRecord(tenantId, name, appId)
+      const tenant = createTenantRecord(
+        tenantId,
+        name,
+        appId,
+        undefined,
+        undefined,
+        assertMembers(body.members) || []
+      )
       state.tenants.push(tenant)
       await saveState()
       return ok(res, tenantSummary(tenant))
@@ -508,8 +567,10 @@ const route = async (req, res, url) => {
       const name = String(body.name ?? tenant.name).trim()
       if (!name) throw new HttpError('请填写小程序名称')
       const appId = assertAppIdAvailable(String(body.appId ?? tenant.appId).trim(), tenant.id)
+      const members = assertMembers(body.members)
       tenant.name = name
       tenant.appId = appId
+      if (members !== undefined) tenant.members = members
       await saveState()
       return ok(res, tenantSummary(tenant))
     }
@@ -530,16 +591,26 @@ const route = async (req, res, url) => {
     throw new HttpError('方法不支持', 405)
   }
 
+  // 可分配的应用成员账号；admin 自动拥有全部应用，不进入成员列表
+  if (parts[1] === 'accounts' && parts.length === 2 && req.method === 'GET') {
+    const claims = requireAuth(req)
+    if (claims.role !== 'admin') throw new HttpError('只有管理员可以查看装修账号', 403)
+    return ok(res, {
+      accounts: ACCOUNTS.filter((item) => item.deco && item.role !== 'admin').map((item) => ({
+        username: item.username,
+        role: item.role,
+      })),
+    })
+  }
+
   // C 端公开接口：首页、已发布页清单、指定页的已发布数据
-  const isPublicPageDetail =
-    req.method === 'GET' && parts[1] === 'pages' && parts.length === 3
+  const isPublicPageDetail = req.method === 'GET' && parts[1] === 'pages' && parts.length === 3
   const isPublicGet =
     req.method === 'GET' &&
-    (url.pathname === '/deco/home' ||
-      url.pathname === '/deco/published' ||
-      isPublicPageDetail)
-  if (!isPublicGet) requireAuth(req)
+    (url.pathname === '/deco/home' || url.pathname === '/deco/published' || isPublicPageDetail)
+  const claims = isPublicGet ? null : requireAuth(req)
   const tenant = resolveTenant(req)
+  if (claims) assertTenantAccess(claims, tenant)
   const tenantPages = tenant.pages
   const tenantTemplates = tenant.templates
 
@@ -571,7 +642,8 @@ const route = async (req, res, url) => {
   if (parts[1] === 'pages' && parts.length === 2) {
     if (req.method === 'GET') return ok(res, { pages: tenantPages.map(summary) })
     if (req.method === 'POST') {
-      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      if (tenantPages.length >= MAX_PAGES)
+        throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
       const body = await readBody(req)
       const title = String(body.title || '').trim() || `新页面 ${tenantPages.length}`
       const record = createPage(title, { version: 1, title, components: [] })
@@ -618,7 +690,8 @@ const route = async (req, res, url) => {
     }
 
     if (parts.length === 4 && parts[3] === 'use' && req.method === 'POST') {
-      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      if (tenantPages.length >= MAX_PAGES)
+        throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
       const template = tenantTemplates.find((item) => item.id === parts[2])
       if (!template) throw new HttpError('模板不存在', 404)
       const body = await readBody(req)
@@ -637,7 +710,8 @@ const route = async (req, res, url) => {
     const page = findPage(tenant, parts[2])
 
     if (parts.length === 3) {
-      if (req.method === 'GET') return ok(res, { page: page.published, publishedAt: page.publishedAt })
+      if (req.method === 'GET')
+        return ok(res, { page: page.published, publishedAt: page.publishedAt })
       if (req.method === 'DELETE') {
         if (page.isHome) throw new HttpError('首页不允许删除')
         tenant.pages = tenant.pages.filter((item) => item.id !== page.id)
@@ -648,7 +722,8 @@ const route = async (req, res, url) => {
     }
 
     if (parts[3] === 'copy' && req.method === 'POST') {
-      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      if (tenantPages.length >= MAX_PAGES)
+        throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
       const base = page.draft || page.published
       if (!base) throw new HttpError('当前页面还没有内容可复制')
       const body = await readBody(req)

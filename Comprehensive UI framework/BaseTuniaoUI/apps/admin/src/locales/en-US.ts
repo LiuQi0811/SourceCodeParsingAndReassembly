@@ -378,6 +378,13 @@ export default {
     tenantCodeTip:
       'The app code is used as VITE_DECO_TENANT in the mini program and cannot be changed after creation.',
     tenantEditTip: 'Name and AppID can be edited; the app code cannot be changed after creation.',
+    tenantMembers: 'Allowed accounts',
+    tenantMemberPlaceholder: 'Choose accounts that can manage this app',
+    tenantMembersTip:
+      'Super admins automatically own every app. Selected decoration accounts can switch to and edit only this app; other apps stay hidden.',
+    tenantReadonlyTip:
+      'You can only use apps granted to you. Creating, renaming and deleting apps is reserved for super admins.',
+    tenantEmpty: 'No manageable mini program apps. Ask a super admin for access.',
     tenantNameRequired: 'Please enter the mini program name',
     tenantAppIdInvalid: 'Invalid AppID: it must start with wx and contain 18 characters',
     tenantCreated: 'Mini program created',

@@ -378,6 +378,12 @@ export default {
     tenantCodePlaceholder: '留空自动生成，例如 mall-xz',
     tenantCodeTip: '应用标识用于小程序端 VITE_DECO_TENANT，创建后不可修改。',
     tenantEditTip: '名称和 AppID 可以修改；应用标识创建后不可修改。',
+    tenantMembers: '可管理账号',
+    tenantMemberPlaceholder: '选择可管理该应用的账号',
+    tenantMembersTip:
+      '超级管理员自动拥有全部应用；被选中的装修账号可以切换并编辑该应用，不会看到其他未授权应用。',
+    tenantReadonlyTip: '你只能操作已授权的小程序应用；应用的新增、改名和删除由超级管理员完成。',
+    tenantEmpty: '暂无可管理的小程序应用，请联系超级管理员授权。',
     tenantNameRequired: '请填写小程序名称',
     tenantAppIdInvalid: 'AppID 格式不正确，应以 wx 开头且共 18 位',
     tenantCreated: '小程序已创建',
