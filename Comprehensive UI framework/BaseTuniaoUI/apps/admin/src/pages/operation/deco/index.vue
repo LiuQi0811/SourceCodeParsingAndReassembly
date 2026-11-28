@@ -16,6 +16,7 @@ import {
 import {
   decoApi,
   type DecoAccountSummary,
+  type DecoAssetSummary,
   type DecoAuditAction,
   type DecoAuditRecord,
   type DecoPageSummary,
@@ -23,6 +24,7 @@ import {
   type DecoTenantSummary,
   type DecoVersionSummary,
 } from '@/api/deco'
+import { chooseAndUploadImage } from '@/api/upload'
 import { useUserStore } from '@/store/modules/user'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -79,12 +81,18 @@ const copying = ref(false)
 const templates = ref<DecoTemplateSummary[]>([])
 const versions = ref<DecoVersionSummary[]>([])
 const auditRecords = ref<DecoAuditRecord[]>([])
+const assets = ref<DecoAssetSummary[]>([])
+const assetLimit = ref(200)
 const showTemplates = ref(false)
 const showVersions = ref(false)
 const showAudit = ref(false)
+const showAssets = ref(false)
 const templatesLoading = ref(false)
 const versionsLoading = ref(false)
 const auditLoading = ref(false)
+const assetsLoading = ref(false)
+const assetUploading = ref(false)
+const assetRemovingId = ref('')
 const savingTemplate = ref(false)
 const usingTemplateId = ref('')
 const removingTemplateId = ref('')
@@ -126,6 +134,11 @@ const auditActionLabel = (action: DecoAuditAction): string => {
     'template-use': t('deco.auditTemplateUse'),
   }
   return labels[action] || action
+}
+
+const formatAssetSize = (size: number): string => {
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(size / 1024))} KB`
 }
 
 const pageOptions = computed(() =>
@@ -199,9 +212,11 @@ const reloadWorkspace = async () => {
   templates.value = []
   versions.value = []
   auditRecords.value = []
+  assets.value = []
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showAssets.value = false
   page.value = blankPage(t('deco.untitledPage'))
   savedPageSnapshot.value = pageSnapshot(page.value)
   selectedId.value = ''
@@ -513,6 +528,7 @@ const switchPage = async (value: string | number | (string | number)[]) => {
   showTemplates.value = false
   showVersions.value = false
   showAudit.value = false
+  showAssets.value = false
   try {
     await openPage(id)
   } catch (error) {
@@ -601,6 +617,7 @@ const toggleTemplates = async () => {
   if (!showTemplates.value) return
   showVersions.value = false
   showAudit.value = false
+  showAssets.value = false
   await loadTemplates()
 }
 
@@ -615,6 +632,7 @@ const saveAsTemplate = async () => {
     showTemplates.value = true
     showVersions.value = false
     showAudit.value = false
+    showAssets.value = false
     uni.showToast({ title: t('deco.templateSaved'), icon: 'success' })
   } catch (error) {
     // request 层已提示错误
@@ -683,6 +701,7 @@ const toggleVersions = async () => {
   if (!showVersions.value) return
   showTemplates.value = false
   showAudit.value = false
+  showAssets.value = false
   await loadVersions()
 }
 
@@ -703,7 +722,70 @@ const toggleAudit = async () => {
   if (!showAudit.value) return
   showTemplates.value = false
   showVersions.value = false
+  showAssets.value = false
   await loadAudit()
+}
+
+const loadAssets = async () => {
+  if (!tenantId.value) return
+  assetsLoading.value = true
+  try {
+    const result = await decoApi.assets()
+    assets.value = result.assets
+    assetLimit.value = result.limit
+  } catch (error) {
+    // request 层已提示错误
+  } finally {
+    assetsLoading.value = false
+  }
+}
+
+const toggleAssets = async () => {
+  showAssets.value = !showAssets.value
+  if (!showAssets.value) return
+  showTemplates.value = false
+  showVersions.value = false
+  showAudit.value = false
+  await loadAssets()
+}
+
+const uploadAsset = async () => {
+  if (assetUploading.value) return
+  assetUploading.value = true
+  try {
+    const result = await chooseAndUploadImage()
+    if (!result) return
+    await loadAssets()
+    uni.showToast({ title: t('deco.assetUploaded'), icon: 'success' })
+  } catch (error) {
+    uni.showToast({ title: t('deco.uploadFailed'), icon: 'none' })
+  } finally {
+    assetUploading.value = false
+  }
+}
+
+const askRemoveAsset = (asset: DecoAssetSummary) => {
+  if (asset.usageCount > 0 || assetRemovingId.value) return
+  uni.showModal({
+    title: t('deco.assetDeleteTitle'),
+    content: t('deco.assetDeleteConfirm', { name: asset.name }),
+    confirmText: t('common.confirm'),
+    cancelText: t('common.cancel'),
+    confirmColor: '#f5455c',
+    success: async (res) => {
+      if (!res.confirm) return
+      assetRemovingId.value = asset.id
+      try {
+        await decoApi.deleteAsset(asset.id)
+        await loadAssets()
+        uni.showToast({ title: t('deco.assetDeleted'), icon: 'success' })
+      } catch (error) {
+        // request 层已提示错误
+      } finally {
+        assetRemovingId.value = ''
+      }
+    },
+  })
 }
 
 const askRollback = (version: DecoVersionSummary) => {
@@ -884,6 +966,9 @@ onLoad(async () => {
         <app-button size="sm" type="text" @click="toggleAudit">
           {{ t('deco.auditLog') }}
         </app-button>
+        <app-button size="sm" type="text" @click="toggleAssets">
+          {{ t('deco.assetLibrary') }}
+        </app-button>
       </view>
     </app-card>
 
@@ -961,6 +1046,49 @@ onLoad(async () => {
           <text class="aux-sub">
             {{ t('deco.auditBy', { actor: item.actor, time: item.at }) }}
           </text>
+        </view>
+      </view>
+    </app-card>
+
+    <app-card v-if="showAssets" padding="14" class="aux-panel">
+      <view class="aux-head">
+        <view class="asset-head-main">
+          <text class="panel-title">{{ t('deco.assetLibrary') }}</text>
+          <text class="asset-counter">{{ assets.length }} / {{ assetLimit }}</text>
+        </view>
+        <view class="aux-actions">
+          <app-button size="sm" type="primary" :loading="assetUploading" @click="uploadAsset">
+            {{ t('deco.assetUpload') }}
+          </app-button>
+          <app-button size="sm" type="text" @click="showAssets = false">
+            {{ t('common.close') }}
+          </app-button>
+        </view>
+      </view>
+      <app-empty v-if="!assets.length && !assetsLoading" :text="t('deco.assetEmpty')" />
+      <view v-else class="asset-grid">
+        <view v-for="asset in assets" :key="asset.id" class="asset-card">
+          <image class="asset-thumb" :src="asset.url" mode="aspectFill" />
+          <view class="asset-info">
+            <text class="asset-name">{{ asset.name }}</text>
+            <text class="asset-meta">
+              {{ formatAssetSize(asset.size) }} ·
+              {{
+                asset.usageCount
+                  ? t('deco.assetUsage', { count: asset.usageCount })
+                  : t('deco.assetUnused')
+              }}
+            </text>
+          </view>
+          <app-button
+            size="sm"
+            type="text"
+            :disabled="asset.usageCount > 0"
+            :loading="assetRemovingId === asset.id"
+            @click="askRemoveAsset(asset)"
+          >
+            {{ asset.usageCount ? t('deco.assetInUse') : t('common.remove') }}
+          </app-button>
         </view>
       </view>
     </app-card>
@@ -1271,6 +1399,68 @@ onLoad(async () => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.aux-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.asset-head-main {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-counter {
+  font-size: 12px;
+  color: var(--app-text-3);
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.asset-card {
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-bg-2);
+  overflow: hidden;
+  padding-bottom: 6px;
+}
+
+.asset-thumb {
+  display: block;
+  width: 100%;
+  height: 88px;
+  background: var(--app-bg-3);
+}
+
+.asset-info {
+  gap: 2px;
+  padding: 8px 10px 4px;
+  min-width: 0;
+}
+
+.asset-name {
+  font-size: 12px;
+  color: var(--app-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-meta {
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+.asset-card .app-btn {
+  margin-left: 10px;
 }
 
 .aux-row {

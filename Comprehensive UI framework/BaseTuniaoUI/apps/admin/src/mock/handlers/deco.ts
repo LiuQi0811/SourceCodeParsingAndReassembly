@@ -2,6 +2,7 @@ import { DECO_VERSION, validateDecoPage, type DecoPage } from '@btn/deco/schema'
 import { createDemoPage } from '@btn/deco/demo'
 import { defineMock, MockError } from '../adapter'
 import { storage } from '@/utils/storage'
+import { deleteMockAsset, listMockAssets, removeMockAssets } from './decoAssets'
 
 const PAGES_KEY = 'deco_pages'
 const PAGES_VERSION_KEY = 'deco_pages_version'
@@ -346,6 +347,13 @@ defineMock('GET', '/deco/audit', (ctx) => ({
   records: loadTenants().find((item) => item.id === tenantOf(ctx))?.audit || [],
 }))
 
+defineMock('GET', '/deco/assets', (ctx) => ({
+  assets: listMockAssets(ctx),
+  limit: 50,
+}))
+
+defineMock('DELETE', '/deco/assets/:id', (ctx) => deleteMockAsset(ctx, String(ctx.pathParams.id)))
+
 defineMock('POST', '/deco/tenants', ({ body }) => {
   const tenants = loadTenants()
   const name = String(body.name || '').trim()
@@ -399,6 +407,7 @@ defineMock('DELETE', '/deco/tenants/:id', ({ pathParams }) => {
   storage.remove(pagesKey(target.id))
   storage.remove(pagesVersionKey(target.id))
   storage.remove(templatesKey(target.id))
+  removeMockAssets(target.id)
   return { id: target.id }
 })
 

@@ -287,6 +287,37 @@ try {
   )
   const image = await fetch(upload.data.url)
   assert(image.headers.get('content-type') === 'image/png', '上传文件不可访问')
+  assert(upload.data.assetId, '上传后未返回素材 ID')
+
+  const assets = await request('GET', '/deco/assets', undefined, token)
+  assert(assets.code === 0 && assets.data.assets.length === 1, '上传后素材库数量不正确')
+  assert(assets.data.assets[0].usageCount === 0, '未引用素材不应有引用数')
+  const unusedAssetId = assets.data.assets[0].id
+  const removeUnused = await request('DELETE', `/deco/assets/${unusedAssetId}`, undefined, token)
+  assert(removeUnused.code === 0, '未引用素材应允许删除')
+  const removedAssetFile = await fetch(upload.data.url)
+  assert(removedAssetFile.status === 404, '删除素材后文件应清理')
+
+  const uploadUsed = await request('POST', '/upload', { name: 'used.png', dataUrl: png }, token)
+  assert(uploadUsed.code === 0, '第二次上传失败')
+  const assetPage = { ...next, assetProbe: uploadUsed.data.url }
+  const publishWithAsset = await request(
+    'PUT',
+    `/deco/pages/${copyId}/publish`,
+    { page: assetPage },
+    token
+  )
+  assert(publishWithAsset.code === 0, '含素材页面发布失败')
+  const usedAssets = await request('GET', '/deco/assets', undefined, token)
+  assert(usedAssets.data.assets.length === 1, '引用素材未进入素材库')
+  assert(usedAssets.data.assets[0].usageCount >= 1, '素材引用数统计失败')
+  const removeUsed = await request(
+    'DELETE',
+    `/deco/assets/${usedAssets.data.assets[0].id}`,
+    undefined,
+    token
+  )
+  assert(removeUsed.code === 409, '被引用素材应拒绝删除')
 
   const appUpload = await request(
     'POST',
@@ -315,7 +346,7 @@ try {
   assert(removedTenant.code === 404, '已删除应用不应再可访问')
 
   console.log(
-    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / audit / templates / upload / published'
+    'api smoke passed: auth / tenant-permissions / tenants / pages / copy / publish / versions / rollback / audit / templates / upload / assets / published'
   )
 } finally {
   await stop()

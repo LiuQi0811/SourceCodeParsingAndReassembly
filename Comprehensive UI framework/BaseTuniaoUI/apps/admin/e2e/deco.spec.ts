@@ -238,6 +238,55 @@ test.describe('页面装修编辑器', () => {
     )
   })
 
+  test('素材库支持上传、引用统计与删除保护', async ({ page }) => {
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    await page.locator('.page-bar .app-btn', { hasText: '素材库' }).click()
+    const panel = page.locator('.aux-panel')
+    await expect(panel).toContainText('素材库还是空的')
+
+    // 先传一张不引用的素材，验证可删除
+    const unusedChooserPromise = page.waitForEvent('filechooser')
+    await panel.locator('.app-btn', { hasText: '上传素材' }).click()
+    const unusedChooser = await unusedChooserPromise
+    await unusedChooser.setFiles({ name: 'unused.png', mimeType: 'image/png', buffer: pixel })
+    await expect(page.getByText('素材已上传').first()).toBeVisible()
+    await expect(panel.locator('.asset-card')).toHaveCount(1)
+    await expect(panel.locator('.asset-card')).toContainText('unused.png')
+    await expect(panel.locator('.asset-card')).toContainText('未引用')
+
+    await panel.locator('.asset-card .app-btn', { hasText: '删除' }).click()
+    await page.locator('.uni-modal').getByText('确定', { exact: true }).click()
+    await expect(page.getByText('素材已删除').first()).toBeVisible()
+    await expect(panel).toContainText('素材库还是空的')
+
+    // 通过组件图片上传，素材会随草稿一起被识别为已引用
+    await panel.locator('.app-btn', { hasText: '关闭' }).click()
+    await page.locator('.comp-item').first().click()
+    const usedChooserPromise = page.waitForEvent('filechooser')
+    await page
+      .locator('.panel-props .image-picker .app-btn', { hasText: '选择图片' })
+      .first()
+      .click()
+    const usedChooser = await usedChooserPromise
+    await usedChooser.setFiles({ name: 'used.png', mimeType: 'image/png', buffer: pixel })
+    await expect(page.locator('.panel-props .image-picker input').first()).toHaveValue(
+      /^data:image\/png;base64,/i
+    )
+    await page.locator('.app-layout .app-btn', { hasText: '保存草稿' }).click()
+    await expect(page.getByText('草稿已保存').first()).toBeVisible()
+
+    await page.locator('.page-bar .app-btn', { hasText: '素材库' }).click()
+    await expect(panel.locator('.asset-card')).toHaveCount(1)
+    await expect(panel.locator('.asset-card')).toContainText('used.png')
+    await expect(panel.locator('.asset-card')).toContainText('被 1 处引用')
+    await expect(panel.locator('.asset-card .app-btn', { hasText: '使用中' })).toHaveClass(
+      /is-disabled/
+    )
+  })
+
   test('新建页面、保存、切换与删除', async ({ page }) => {
     await expect(page.locator('.page-bar .app-tag')).toContainText('首页')
     await expect(page.locator('.comp-item')).toHaveCount(4)
