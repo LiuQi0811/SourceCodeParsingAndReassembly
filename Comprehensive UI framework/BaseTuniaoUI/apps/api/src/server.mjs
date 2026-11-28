@@ -5,7 +5,7 @@
  * - 所有响应统一 { code, msg, data }，与后台 Mock / 小程序请求层保持一致
  */
 import { createServer as createHttpServer } from 'node:http'
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { existsSync, createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,7 @@ const MAX_PAGES = 20
 const MAX_TEMPLATES = 20
 const MAX_VERSIONS = 10
 const MAX_AUDIT = 100
+const MAX_ASSETS = 200
 const BODY_LIMIT = 30 * 1024 * 1024
 const TOKEN_SECRET = process.env.DECO_TOKEN_SECRET || 'btn-deco-dev-secret'
 const TOKEN_TTL = 8 * 60 * 60 * 1000
@@ -60,6 +61,34 @@ const AUDIT_ACTIONS = new Set([
   'page-delete',
   'template-use',
 ])
+
+const IMAGE_FILE_PATTERN = /\.(png|jpe?g|webp|gif)$/i
+
+/** 素材元信息只存索引，文件本体在 uploads/<tenantId>/ 下 */
+const normalizeAssets = (value) =>
+  (Array.isArray(value) ? value : [])
+    .filter(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        String(item.id || '') &&
+        String(item.url || '') &&
+        (String(item.path || '') || String(item.fileName || ''))
+    )
+    .map((item) => {
+      const fileName = path.basename(String(item.fileName || item.path || ''))
+      return {
+        id: String(item.id),
+        url: String(item.url),
+        path: String(item.path || `/uploads/${fileName}`),
+        fileName,
+        name: String(item.name || fileName),
+        size: Number(item.size) || 0,
+        createdAt: String(item.createdAt || now()),
+        createdBy: String(item.createdBy || ''),
+      }
+    })
+    .slice(0, MAX_ASSETS)
 
 /** 老数据没有审计字段；只保留结构完整、动作已登记的历史记录 */
 const normalizeAudit = (value) =>
@@ -174,10 +203,11 @@ const createTenantRecord = (tenantId, name, appId, pages, templates, members = [
   pages: pages || seedPages(name),
   templates: templates || seedTemplates(name),
   audit: [],
+  assets: [],
 })
 
 const createState = () => ({
-  version: 3,
+  version: 4,
   defaultTenantId: DEFAULT_TENANT_ID,
   tenants: [
     createTenantRecord(
@@ -222,13 +252,14 @@ const normalizeState = (raw) => {
         pages,
         templates,
         audit: normalizeAudit(tenant?.audit),
+        assets: normalizeAssets(tenant?.assets),
       }
     })
     const ids = new Set(tenants.map((tenant) => tenant.id))
     const defaultTenantId = ids.has(String(raw.defaultTenantId || ''))
       ? String(raw.defaultTenantId)
       : tenants[0].id
-    return { version: 3, defaultTenantId, tenants }
+    return { version: 4, defaultTenantId, tenants }
   }
 
   const legacyPages = Array.isArray(raw?.pages) && raw.pages.length ? raw.pages : seedPages()
@@ -237,7 +268,7 @@ const normalizeState = (raw) => {
   })
   const legacyTemplates = Array.isArray(raw?.templates) ? raw.templates : seedTemplates()
   return {
-    version: 3,
+    version: 4,
     defaultTenantId: DEFAULT_TENANT_ID,
     tenants: [
       createTenantRecord(
@@ -250,6 +281,42 @@ const normalizeState = (raw) => {
       ),
     ],
   }
+}
+
+/** 把升级前已经落盘、但还没有索引的上传文件补进素材库 */
+const syncTenantAssets = async (tenant) => {
+  const dir = path.join(UPLOAD_DIR, tenant.id)
+  if (!existsSync(dir)) return
+  let files = []
+  try {
+    files = await readdir(dir)
+  } catch {
+    return
+  }
+  const known = new Set((tenant.assets || []).map((item) => item.fileName))
+  const incoming = files
+    .filter((file) => IMAGE_FILE_PATTERN.test(file) && !known.has(file))
+    .map((file) => {
+      const filePath = path.join(dir, file)
+      const stat = statSync(filePath)
+      return { file, size: stat.size, mtime: stat.mtime }
+    })
+    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
+
+  const additions = incoming.map(({ file, size, mtime }) => {
+    const assetPath = `/uploads/${tenant.id}/${file}`
+    return {
+      id: id('asset'),
+      url: `http://localhost:${PORT}${assetPath}`,
+      path: assetPath,
+      fileName: file,
+      name: file,
+      size,
+      createdAt: mtime.toISOString(),
+      createdBy: 'legacy',
+    }
+  })
+  tenant.assets = [...additions, ...(tenant.assets || [])].slice(0, MAX_ASSETS)
 }
 
 const loadState = async () => {
@@ -265,6 +332,7 @@ const loadState = async () => {
   } else {
     state = createState()
   }
+  await Promise.all(state.tenants.map((tenant) => syncTenantAssets(tenant)))
   await saveState()
 }
 
@@ -368,6 +436,36 @@ const recordAudit = (tenant, claims, action, target = {}) => {
   ].slice(0, MAX_AUDIT)
 }
 
+/**
+ * 素材引用索引：草稿、线上、历史版本和模板都算引用。
+ * 历史版本也算，避免删素材后回滚出现裂图。
+ */
+const collectAssetSources = (tenant) => {
+  const sources = []
+  const push = (type, sourceId, title, state, page) => {
+    if (!page || typeof page !== 'object') return
+    sources.push({ type, id: sourceId, title, state, content: JSON.stringify(page) })
+  }
+  for (const page of tenant.pages || []) {
+    push('page', page.id, page.title, 'draft', page.draft)
+    push('page', page.id, page.title, 'published', page.published)
+    for (const version of page.versions || []) {
+      push('page', `${page.id}:${version.id}`, page.title, 'history', version.page)
+    }
+  }
+  for (const template of tenant.templates || []) {
+    push('template', template.id, template.name, 'template', template.page)
+  }
+  return sources
+}
+
+const assetUsage = (asset, sources) => {
+  const needle = asset.path || asset.url
+  return sources
+    .filter((source) => source.content.includes(needle))
+    .map(({ content, ...source }) => source)
+}
+
 const assertMembers = (value) => {
   if (value === undefined) return undefined
   if (!Array.isArray(value)) throw new HttpError('应用成员必须是账号数组')
@@ -446,26 +544,44 @@ const assertPage = (page) => {
 
 const sanitizeFileName = (name) => path.basename(String(name || 'image')).replace(/[^\w.-]/g, '_')
 
-const saveUpload = async (body, req, tenantId) => {
+const saveUpload = async (body, req, tenant, claims) => {
   const dataUrl = String(body.dataUrl || '')
   const matched = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp|gif));base64,(.+)$/)
   if (!matched) throw new HttpError('仅支持 png / jpeg / webp / gif 图片')
+  if ((tenant.assets || []).length >= MAX_ASSETS) {
+    throw new HttpError(`素材数量已达上限（${MAX_ASSETS} 个），请先清理未引用素材`)
+  }
 
   const buffer = Buffer.from(matched[3], 'base64')
   if (buffer.length > 600 * 1024) throw new HttpError('图片不能超过 600KB')
 
   const ext = matched[2] === 'jpeg' || matched[2] === 'jpg' ? 'jpg' : matched[2]
   const fileName = `${Date.now().toString(36)}-${randomBytes(4).toString('hex')}.${ext}`
-  const tenantDir = path.join(UPLOAD_DIR, tenantId)
+  const tenantDir = path.join(UPLOAD_DIR, tenant.id)
   await mkdir(tenantDir, { recursive: true })
   await writeFile(path.join(tenantDir, fileName), buffer)
 
   const host = req.headers.host || `localhost:${PORT}`
-  return {
-    url: `http://${host}/uploads/${tenantId}/${fileName}`,
+  const url = `http://${host}/uploads/${tenant.id}/${fileName}`
+  const asset = {
+    id: id('asset'),
+    url,
+    path: `/uploads/${tenant.id}/${fileName}`,
+    fileName,
     name: sanitizeFileName(body.name || `image.${ext}`),
     size: buffer.length,
+    createdAt: now(),
+    createdBy: claims.sub,
+  }
+  tenant.assets = [asset, ...(tenant.assets || [])].slice(0, MAX_ASSETS)
+  await saveState()
+
+  return {
+    url,
+    name: asset.name,
+    size: asset.size,
     inline: false,
+    assetId: asset.id,
   }
 }
 
@@ -564,7 +680,7 @@ const route = async (req, res, url) => {
     const tenant = resolveTenant(req)
     assertTenantAccess(claims, tenant)
     const body = await readBody(req)
-    return ok(res, await saveUpload(body, req, tenant.id))
+    return ok(res, await saveUpload(body, req, tenant, claims))
   }
 
   if (parts[0] !== 'deco') throw new HttpError('接口不存在', 404)
@@ -666,6 +782,45 @@ const route = async (req, res, url) => {
 
   if (parts[1] === 'audit' && parts.length === 2 && req.method === 'GET') {
     return ok(res, { records: tenant.audit || [] })
+  }
+
+  if (parts[1] === 'assets') {
+    if (parts.length === 2 && req.method === 'GET') {
+      const sources = collectAssetSources(tenant)
+      const assets = (tenant.assets || []).map((asset) => {
+        const usedBy = assetUsage(asset, sources)
+        return {
+          id: asset.id,
+          url: asset.url,
+          name: asset.name,
+          size: asset.size,
+          createdAt: asset.createdAt,
+          createdBy: asset.createdBy,
+          usageCount: usedBy.length,
+          usedBy,
+        }
+      })
+      return ok(res, { assets, limit: MAX_ASSETS })
+    }
+    if (parts.length === 3 && req.method === 'DELETE') {
+      const asset = (tenant.assets || []).find((item) => item.id === parts[2])
+      if (!asset) throw new HttpError('素材不存在', 404)
+      const usedBy = assetUsage(asset, collectAssetSources(tenant))
+      if (usedBy.length) {
+        throw new HttpError(`素材仍被 ${usedBy.length} 处页面、历史版本或模板引用，请先移除引用`, 409)
+      }
+      tenant.assets = tenant.assets.filter((item) => item.id !== asset.id)
+      await saveState()
+      if (asset.fileName) {
+        try {
+          await rm(path.join(UPLOAD_DIR, tenant.id, asset.fileName), { force: true })
+        } catch (error) {
+          console.warn('[api] 素材文件删除失败', error)
+        }
+      }
+      return ok(res, { id: asset.id })
+    }
+    throw new HttpError('方法不支持', 405)
   }
 
   // /deco/published 只返回已发布页面，避免把草稿页标题暴露给 C 端

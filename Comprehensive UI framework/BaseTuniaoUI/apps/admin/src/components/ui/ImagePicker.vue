@@ -5,8 +5,11 @@ import { chooseAndUploadImage, UploadError } from '@/api/upload'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 
-const props = defineProps<{ modelValue?: string }>()
-const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
+const props = defineProps<{ modelValue?: string; assetPickable?: boolean }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+  (e: 'request-asset'): void
+}>()
 
 const { t } = useI18n()
 const uploading = ref(false)
@@ -54,6 +57,15 @@ const clear = () => emit('update:modelValue', '')
       <view class="picker-ops">
         <app-button size="sm" plain :loading="uploading" @click="choose">
           {{ props.modelValue ? t('deco.replaceImage') : t('deco.chooseImage') }}
+        </app-button>
+        <app-button
+          v-if="props.assetPickable"
+          size="sm"
+          type="text"
+          class="asset-pick"
+          @click="emit('request-asset')"
+        >
+          {{ t('deco.assetPick') }}
         </app-button>
         <app-button v-if="props.modelValue" size="sm" type="text" icon="delete" @click="clear" />
       </view>
@@ -103,6 +115,7 @@ const clear = () => emit('update:modelValue', '')
   flex: 1;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
 }
 </style>

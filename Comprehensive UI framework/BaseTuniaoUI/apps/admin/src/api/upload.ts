@@ -6,6 +6,8 @@ export interface UploadResult {
   size: number
   /** Mock 阶段直接返回 base64 内联地址，真实后端应返回 OSS / CDN 地址 */
   inline: boolean
+  /** 真实后端会把上传登记进当前应用的素材库 */
+  assetId?: string
 }
 
 export type UploadErrorCode = 'too-large' | 'unsupported' | 'read-failed' | 'failed'

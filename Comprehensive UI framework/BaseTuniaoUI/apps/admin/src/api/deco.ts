@@ -60,6 +60,24 @@ export interface DecoAuditRecord {
   at: string
 }
 
+export interface DecoAssetUsage {
+  type: 'page' | 'template'
+  id: string
+  title: string
+  state: 'draft' | 'published' | 'history' | 'template'
+}
+
+export interface DecoAssetSummary {
+  id: string
+  url: string
+  name: string
+  size: number
+  createdAt: string
+  createdBy: string
+  usageCount: number
+  usedBy: DecoAssetUsage[]
+}
+
 /**
  * 装修接口契约（Mock 与真实后端保持一致）
  * GET    /deco/pages                 页面列表（第一条是首页）
@@ -80,6 +98,8 @@ export interface DecoAuditRecord {
  * GET    /deco/tenants               小程序应用列表（按登录账号的应用授权过滤）
  * GET    /deco/accounts              可分配应用成员的装修账号（admin）
  * GET    /deco/audit                 当前应用的操作日志（发布/回滚/页面与模板操作）
+ * GET    /deco/assets                当前应用的素材库（含引用统计）
+ * DELETE /deco/assets/:id            删除未被引用的素材
  * POST   /deco/tenants               新增小程序应用 { id?, name, appId }
  * PUT    /deco/tenants/:id           修改应用名称 / AppID / members
  * DELETE /deco/tenants/:id           删除小程序应用（默认应用不可删）
@@ -93,6 +113,8 @@ export const decoApi = {
     }>('/deco/tenants'),
   accounts: () => decoGet<{ accounts: DecoAccountSummary[] }>('/deco/accounts'),
   audit: () => decoGet<{ records: DecoAuditRecord[] }>('/deco/audit'),
+  assets: () => decoGet<{ assets: DecoAssetSummary[]; limit: number }>('/deco/assets'),
+  deleteAsset: (id: string) => decoDel<{ id: string }>(`/deco/assets/${id}`),
   createTenant: (payload: { id?: string; name: string; appId: string; members?: string[] }) =>
     decoPost<DecoTenantSummary>('/deco/tenants', payload),
   updateTenant: (id: string, payload: { name: string; appId: string; members?: string[] }) =>

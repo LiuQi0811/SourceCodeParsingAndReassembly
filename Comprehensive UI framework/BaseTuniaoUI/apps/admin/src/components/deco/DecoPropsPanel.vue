@@ -13,6 +13,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import ImagePicker from '@/components/ui/ImagePicker.vue'
 
 const props = defineProps<{ component: DecoComponent }>()
+const emit = defineEmits<{ (e: 'request-asset', apply: (url: string) => void): void }>()
 
 const { t } = useI18n()
 const uid = (prefix: string) =>
@@ -105,6 +106,14 @@ const updateListItemField = (
   }
   item[field.key] = String(raw)
 }
+
+const requestSimpleAsset = (field: DecoSimpleField) => {
+  emit('request-asset', (url: string) => updateSimpleField(field, url))
+}
+
+const requestListAsset = (item: Record<string, unknown>, field: DecoSimpleField) => {
+  emit('request-asset', (url: string) => updateListItemField(item, field, url))
+}
 </script>
 
 <template>
@@ -113,8 +122,10 @@ const updateListItemField = (
       <text class="prop-label">{{ t(field.labelKey) }}</text>
       <image-picker
         v-if="field.kind === 'image'"
+        asset-pickable
         :model-value="asString(readValue(field.key))"
         @update:model-value="updateSimpleField(field, $event)"
+        @request-asset="requestSimpleAsset(field)"
       />
       <app-select
         v-else-if="field.kind === 'select'"
@@ -177,8 +188,10 @@ const updateListItemField = (
           <text class="prop-label">{{ t(itemField.labelKey) }}</text>
           <image-picker
             v-if="itemField.kind === 'image'"
+            asset-pickable
             :model-value="asString(item[itemField.key])"
             @update:model-value="updateListItemField(item, itemField, $event)"
+            @request-asset="requestListAsset(item, itemField)"
           />
           <app-select
             v-else-if="itemField.kind === 'select'"
