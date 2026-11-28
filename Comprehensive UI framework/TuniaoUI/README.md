@@ -22,7 +22,7 @@ npm run type-check    # vue-tsc 检查 src（示例代码 0 错误；组件库�
 src/
 ├── App.vue                     # 全局样式、base64 图标字体、i18n 语言还原、生命周期
 ├── main.ts                     # 全量安装组件库 + Pinia + vue-i18n
-├── pages.json                  # 主包 19 页 + 分包 1 页 + 5 项 tabBar + easycom custom
+├── pages.json                  # 主包 18 页 + 分包 2 页 + 5 项 tabBar + easycom custom
 ├── manifest.json               # 应用配置（H5 hash 路由 / 小程序 AppID）
 ├── uni.scss / env.d.ts         # 全局 scss 变量、TS 声明
 ├── i18n/                       # vue-i18n 实例与中英文语言包
@@ -53,19 +53,21 @@ src/
 │   ├── cart/index.vue          # 购物车：全选 / 数量增减 / 左滑删除 / 空态 / 合计结算栏
 │   ├── checkout/index.vue      # 确认订单：地址 / 配送 / 优惠券 / 支付 / mock 下单与成功弹窗
 │   ├── search/index.vue        # 搜索筛选：关键词 / 历史 / 分类 / 价格 / 排序 / 空态 / 加购
-│   ├── source/index.vue        # 完整源码：按页面读取构建期生成的整份 .vue 源码
 │   └── mine/index.vue          # 我的：用户卡 / 功能列表 / FAQ / 技术栈 / 知识点清单
 └── pages-sub/
-    └── engineering/index.vue   # 分包页：按需引入 / subPackages / 字体本地化 / 小程序检查清单
+    ├── engineering/index.vue   # 分包页：按需引入 / subPackages / 字体本地化 / 小程序检查清单
+    └── source/
+        ├── index.vue           # 完整源码查看器：按路由展示整份 .vue 源码
+        └── page-source.generated.ts # 构建期生成的 20 页源码注册表，随分包加载
 ```
 
 ## 示例卡交互说明
 
 - 布局页新增「布局实验室」：方向 / 交叉轴 / 主轴 / wrap / gap 五组切换会实时更新 `tn-flex-*` 类名与预览，支持复制 class；「真实页面布局」可切换 1/2/3 列与侧栏显隐，用来观察内容区自适应。
 - 示例卡默认是「效果预览」，里面的按钮、弹层、输入框都是真实运行的组件；绿色圆点表示当前是可交互预览。
-- 「源码」不再是代表性片段，而是该卡的**完整可复制示例**：构建期从页面 SFC 中提取这张卡的完整模板、按表达式依赖闭包收集所需状态/方法/类型与 import，再带上该卡用到的 scoped 样式；页面根部的弹层宿主（Picker / Modal / Popup 等）也会按绑定关系自动拼进模板。每张卡片另有「完整源码」入口，跳到 `pages/source/index` 查看当前页面的整份 `.vue` 源码。
-- 卡片源码与页面源码都由 `npm run gen:sources` 在 `dev` / `build` 前自动生成：页面全文写入 `src/utils/page-source.generated.ts`，每卡完整示例写入 `src/utils/demo-code.generated.ts`。修改示例页后重新构建即可同步，不需要手工维护 84 份代码；动态标题卡用 `code-key` 固定注册键，避免标题插值导致查找失效。
-- 为避免 84 张卡的完整源码把小程序包体顶到 2MB，`demo-code.generated.ts` 不再展开成可读对象，而是用 `lz-string` 压缩成一条字符串；`DemoBlock` 首次切到「源码」时才解压并缓存。压缩后注册表约 103KB（原约 241KB），小程序整包从约 1.98MB 降到约 1.86MB，H5 从约 2.00MB 降到约 1.88MB。
+- 「源码」不再是代表性片段，而是该卡的**完整可复制示例**：构建期从页面 SFC 中提取这张卡的完整模板、按表达式依赖闭包收集所需状态/方法/类型与 import，再带上该卡用到的 scoped 样式；页面根部的弹层宿主（Picker / Modal / Popup 等）也会按绑定关系自动拼进模板。每张卡片另有「完整源码」入口，跳到 `pages-sub/source/index` 查看当前页面的整份 `.vue` 源码。
+- 卡片源码与页面源码都由 `npm run gen:sources` 在 `dev` / `build` 前自动生成：页面全文写入 `src/pages-sub/source/page-source.generated.ts`，每卡完整示例写入 `src/utils/demo-code.generated.ts`。修改示例页后重新构建即可同步，不需要手工维护 84 份代码；动态标题卡用 `code-key` 固定注册键，避免标题插值导致查找失效。
+- 为避免 84 张卡的完整源码把小程序包体顶到 2MB，`demo-code.generated.ts` 不再展开成可读对象，而是用 `lz-string` 压缩成一条字符串；`DemoBlock` 首次切到「源码」时才解压并缓存。压缩后注册表约 103KB（原约 241KB）；后续新增购物车、结算、搜索三页使整包回到约 1.96MB，再把约 345KB 的页面源码注册表下沉到分包，小程序主包回到约 1.60MB。
 - `TnActionSheet.show({ select })` 的 `select` 回调需要返回 `true`（或 resolve 为 `true` 的 Promise）才会关闭操作菜单；只弹 Toast 不返回值时菜单会保持打开并继续挡住页面点击。
 - `TnModal` / `TnNotify` / `TnActionSheet` / `TnPopup` / `TnOverlay` 这类层叠组件建议放在页面根节点，不要放进 `demo-block` 卡片；卡片的 `overflow` 与圆角会让小程序里的 fixed 弹层被裁剪。示例卡已移除 `overflow: hidden`，反馈 / 表单 / 进阶页的弹层宿主也已统一移到页面根节点。
 - **小程序“点了没反应”的根因是组件没有注册**：`pages.json` 必须提供 `^tn-(.*)` 的 easycom 规则，否则构建产物里 `<tn-*>` 只是未知节点。微信会把未知节点当普通容器渲染子内容，于是文字看得见、点击也能触发页面事件，但组件行为（弹层、选择器、开关）完全不存在。`src/pages.json` 现已配置 `^tn-(.*) → @tuniao/tnui-vue3-uniapp/components/$1/src/$1.vue`，并为 `avatar-group`、`checkbox-group`、`collapse-item`、`form-item`、`list-item`、`radio-group`、`steps-item`、`subsection-item`、`swipe-action-item`、`tabbar-item`、`tabs-item` 补了显式映射。验证方式：构建后查看 `dist/build/mp-weixin/pages/form/index.json` 的 `usingComponents`，表单页应包含 `tn-picker`、`tn-date-time-picker`、`tn-region-picker` 等 19 个组件。
@@ -199,7 +201,8 @@ const data = await request<{ name: string }>({
 
 ## 工程化与分包
 
-- **真实分包**：`pages.json` 中声明 `subPackages: [{ root: 'pages-sub', pages: ['engineering/index'] }]`，本页从进阶页 `navigateTo('/pages-sub/engineering/index')` 进入。H5 构建会产出独立的 `pages-sub-engineering-*.js` 懒加载 chunk；小程序构建会生成独立分包目录。
+- **真实分包**：`pages.json` 中声明 `subPackages: [{ root: 'pages-sub', pages: ['engineering/index', 'source/index'] }]`。工程化页从进阶页 `navigateTo('/pages-sub/engineering/index')` 进入；完整源码查看器从任意示例卡的「完整源码」进入。H5 构建会产出两个独立懒加载 chunk：`pages-sub-engineering-*.js`（约 11KB）和 `pages-sub-source-*.js`（约 344KB）；小程序构建会生成独立分包目录。
+- **完整源码注册表下沉**：页面源码注册表原始体积约 345KB，之前放在 `src/utils` 会整体计入主包。现在改为生成到 `src/pages-sub/source/page-source.generated.ts`，只由分包内的查看器引用；小程序主包从约 1.94MB 降到约 1.60MB，H5 首屏也不再加载这 344KB。
 - **按需 vs 全量**：业务项目建议只注册用到的组件（`app.component('TnButton', TnButton)`），减小主包；本示例为了展示全部组件使用全量遍历注册。接口一致，可随时切换。
 - **图标字体本地化**：默认 `tn-style` 的 `@font-face` 指向 `//at.alicdn.com/...woff`，断网/域名拦截时图标变方块，小程序也无法加载外链字体。`App.vue` 在 `tn-style` 之后追加：
 
@@ -208,12 +211,12 @@ const data = await request<{ name: string }>({
   @import '@tuniao/tn-icon/dist/base64/index.css';
   ```
 
-  base64 版本约 178KB，woff2 内嵌。`App.vue` 的全局声明负责 H5 页面里直接写的 `tn-icon-*` 类；小程序端组件 `icon.wxss` 由 Vite 别名单独指向 base64，避免回退到 CDN。H5 主 CSS 约 315KB，小程序主包约 1.94MB。
+  base64 版本约 178KB，woff2 内嵌。`App.vue` 的全局声明负责 H5 页面里直接写的 `tn-icon-*` 类；小程序端组件 `icon.wxss` 由 Vite 别名单独指向 base64，避免回退到 CDN。H5 主 CSS 约 315KB，小程序主包约 1.60MB。
 - **小程序上线清单**：安全区（`safe-area-inset-bottom`）、自定义导航栏胶囊高度（`uni.getMenuButtonBoundingClientRect()`）、字体离线、tabBar 必须在主包、分包不能跨包引用资源、主包 < 2MB / 总包 < 20MB、iOS/Android 真机各验一次。
 
 ## 小程序构建与真机验证
 
-已通过 `npm run build:mp-weixin` 实测，产物在 `dist/build/mp-weixin`：376 个文件、约 1.96MB；主包约 1.94MB（低于 2MB 限制，余量约 62KB），`pages-sub/engineering` 为独立分包目录，`app.json` 中的 `subPackages` 已正确写入。新增购物车、确认订单、搜索筛选三页后，主包余量已经很紧，后续加页需优先压缩源码注册表或迁入分包。
+已通过 `npm run build:mp-weixin` 实测，产物在 `dist/build/mp-weixin`：375 个文件、约 1.96MB；主包约 1.60MB（低于 2MB 限制，余量约 408KB），`pages-sub` 约 0.35MB，`app.json` 中的 `subPackages` 已正确写入 `engineering` 与 `source` 两页。把 345KB 页面源码注册表下沉到分包的 `source` 页后，主包余量从约 62KB 回到约 408KB，后续继续加暗色主题与 i18n 时仍有空间。
 
 构建前必须对齐 `@dcloudio/*` 版本：组件库会把 2023 alpha 版 `@dcloudio/uni-mp-*` 带进依赖树，与 2024 版 `@dcloudio/uni-app` 跨代不匹配，报 `"isInSSRComponentSetup" is not exported`。本项目已在根 `dependencies` 显式声明 `@dcloudio/uni-mp-weixin` / `uni-mp-vue` / `uni-mp-compiler`，并在 `overrides` 中把组件库子树统一钉到 `3.0.0-4020920240930001`，重装后构建通过。
 
@@ -265,8 +268,8 @@ App 平台最初因 `@dcloudio/uni-app-plus` / `uni-app-vite` / `uni-app-vue` �
 ## 构建产物
 
 - H5：56 个文件，约 1.97MB（主 CSS 315KB，其中约 178KB 为 base64 图标字体）；`base: './'`，可直接静态部署。
-- 分包：`assets/pages-sub-engineering-*.js` 独立 chunk，验证 subPackages 生效。
-- 小程序：`dist/build/mp-weixin`，376 个文件、约 1.96MB；用微信开发者工具导入后预览/真机。
+- 分包：`assets/pages-sub-engineering-*.js` 约 11KB、`assets/pages-sub-source-*.js` 约 344KB，均为独立懒加载 chunk。
+- 小程序：`dist/build/mp-weixin`，375 个文件、约 1.96MB；主包约 1.60MB、分包约 0.35MB，用微信开发者工具导入后预览/真机。
 - App：`dist/build/app`，42 个文件、约 3.32MB；用 HBuilderX 导入后运行到 Android / iOS 基座。
 
 ## 常见问题

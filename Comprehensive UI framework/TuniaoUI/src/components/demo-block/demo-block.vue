@@ -92,7 +92,7 @@ function openFullSource() {
 		return
 	}
 	uni.navigateTo({
-		url: `/pages/source/index?path=${encodeURIComponent(route)}`,
+		url: `/pages-sub/source/index?path=${encodeURIComponent(route)}`,
 	})
 }
 </script>

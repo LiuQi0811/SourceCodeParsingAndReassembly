@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getPageSource } from '../../utils/page-source'
+import { pageSources } from './page-source.generated'
 
 const route = ref('')
 const source = ref('')
@@ -9,7 +9,7 @@ const source = ref('')
 onLoad((options) => {
 	const requested = typeof options?.path === 'string' ? options.path : 'pages/feedback/index'
 	route.value = decodeURIComponent(requested)
-	source.value = getPageSource(route.value)
+	source.value = pageSources[route.value] || ''
 })
 
 function back() {

@@ -36,5 +36,6 @@ for (const [dir] of groups) {
 }
 
 const output = `// 由 scripts/generate-page-sources.mjs 生成，请勿手改。\nexport const pageSources: Record<string, string> = ${JSON.stringify(sources, null, '\t')}\n`
-fs.writeFileSync(path.join(root, 'src/utils/page-source.generated.ts'), output, 'utf8')
-console.log(`[page-sources] ${Object.keys(sources).length} pages -> src/utils/page-source.generated.ts`)
+const outputPath = path.join(root, 'src/pages-sub/source/page-source.generated.ts')
+fs.writeFileSync(outputPath, output, 'utf8')
+console.log(`[page-sources] ${Object.keys(sources).length} pages -> src/pages-sub/source/page-source.generated.ts`)
