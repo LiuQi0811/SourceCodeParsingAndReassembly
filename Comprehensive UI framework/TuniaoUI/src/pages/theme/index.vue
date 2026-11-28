@@ -4,6 +4,10 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
 import { tnIcons } from '@/data/icons'
 import { localeOptions, setLocale } from '@/i18n'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const { t, locale } = useI18n()
 const statusBarHeight = ref(0)
@@ -110,13 +114,35 @@ platform = 'App（Android / iOS）'
 </script>
 
 <template>
-	<view class="page" :style="{ paddingTop: statusBarHeight ? `${statusBarHeight + 12}px` : '24rpx' }">
+	<view class="page" :style="[{ paddingTop: statusBarHeight ? `${statusBarHeight + 12}px` : '24rpx' }, theme.vars]">
 		<view class="page-header">
 			<text class="page-header__eyebrow">DESIGN SYSTEM</text>
-			<text class="page-header__title">主题 · 图标 · 多语言</text>
+			<text class="page-header__title">{{ t('themePage.title') }}</text>
 			<text class="page-header__desc">
-				CSS 变量换肤、21 色板、渐变库、838 个图标检索、vue-i18n 多语言与条件编译，这一页把「非组件」的知识点补齐
+				{{ t('themePage.desc') }}
 			</text>
+		</view>
+
+		<!-- 外观模式 -->
+		<view class="appearance-card">
+			<view class="appearance-copy">
+				<text class="appearance-eyebrow">APPEARANCE</text>
+				<text class="appearance-title">{{ t('themePage.appearance') }}</text>
+				<text class="appearance-desc">{{ t('themePage.appearanceDesc') }}</text>
+			</view>
+			<view class="appearance-switch" :class="{ 'appearance-switch--dark': theme.isDark }" @click="theme.toggle()">
+				<tn-icon :name="theme.isDark ? 'moon-fill' : 'wea-sun'" :size="34" :color="theme.isDark ? '#67e8f9' : '#2f6bff'" />
+			</view>
+			<view class="appearance-options">
+				<view class="appearance-option" :class="{ 'appearance-option--active': !theme.isDark }" @click="theme.setMode('light')">
+					<tn-icon name="wea-sun" :size="26" :color="!theme.isDark ? '#2f6bff' : '#748199'" />
+					<text>{{ t('themePage.light') }}</text>
+				</view>
+				<view class="appearance-option" :class="{ 'appearance-option--active': theme.isDark }" @click="theme.setMode('dark')">
+					<tn-icon name="moon-fill" :size="24" :color="theme.isDark ? '#67e8f9' : '#748199'" />
+					<text>{{ t('themePage.dark') }}</text>
+				</view>
+			</view>
 		</view>
 
 		<!-- 换肤 -->
@@ -125,7 +151,15 @@ platform = 'App（Android / iOS）'
 			desc="组件内部颜色全部走 --tn-color-* 变量。改 2 个变量即可全局换肤，不用重新编译 sass"
 			code=":style=&quot;{ '--tn-color-primary': color, '--tn-color-primary-rgb': rgb }&quot;"
 		>
-			<view class="theme-scope" :style="themeStyle">
+			<view
+				class="theme-scope"
+				:class="{ 'theme-scope--dark': theme.isDark }"
+				:style="[
+					themeStyle,
+					theme.vars,
+					{ backgroundColor: theme.isDark ? '#0d1625' : '#f4f7fb' },
+				]"
+			>
 				<view class="tn-demo-row">
 					<tn-button type="primary" icon="check">主色按钮</tn-button>
 					<tn-button type="primary" plain>朴素</tn-button>
@@ -328,6 +362,102 @@ platform = 'App（Android / iOS）'
 	padding-top: 24rpx;
 }
 
+.appearance-card {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 24rpx;
+	margin: 0 24rpx 24rpx;
+	padding: 28rpx 28rpx 94rpx;
+	border: 1rpx solid var(--demo-line);
+	border-radius: 28rpx;
+	background-color: var(--demo-surface);
+	box-shadow: var(--demo-shadow);
+	overflow: hidden;
+}
+
+.appearance-copy {
+	flex: 1;
+	min-width: 0;
+}
+
+.appearance-eyebrow {
+	display: block;
+	font-size: 18rpx;
+	font-weight: 700;
+	letter-spacing: 3rpx;
+	color: var(--demo-faint);
+}
+
+.appearance-title {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 32rpx;
+	font-weight: 700;
+	color: var(--demo-ink);
+}
+
+.appearance-desc {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 23rpx;
+	line-height: 1.6;
+	color: var(--demo-muted);
+}
+
+.appearance-switch {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 92rpx;
+	height: 92rpx;
+	border: 1rpx solid var(--demo-primary-line);
+	border-radius: 50%;
+	background-color: var(--demo-primary-soft);
+	transition: transform 0.2s ease;
+}
+
+.appearance-switch--dark {
+	transform: rotate(-16deg);
+}
+
+.appearance-options {
+	position: absolute;
+	right: 24rpx;
+	bottom: 22rpx;
+	left: 24rpx;
+	display: flex;
+	gap: 8rpx;
+	padding: 6rpx;
+	border-radius: 999rpx;
+	background-color: var(--demo-soft);
+}
+
+.appearance-option {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8rpx;
+	padding: 12rpx 0;
+	border-radius: 999rpx;
+	font-size: 23rpx;
+	color: var(--demo-muted);
+}
+
+.appearance-option--active {
+	background-color: var(--demo-surface);
+	box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.08);
+	font-weight: 600;
+	color: var(--demo-ink);
+}
+
+/* #ifdef H5 */
+.appearance-card {
+	background-image: radial-gradient(circle at 88% 12%, rgba(47, 107, 255, 0.14), transparent 42%);
+}
+/* #endif */
+
 .page-header {
 	margin: 0 24rpx 24rpx;
 	padding: 30rpx 32rpx;
@@ -368,7 +498,16 @@ platform = 'App（Android / iOS）'
 .theme-scope {
 	padding: 20rpx;
 	border-radius: 16rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
+}
+
+/* 小程序下插槽内容对页面级 CSS 变量继承不稳定，暗色时补一个显式底色 */
+.theme-scope--dark {
+	background-color: #0d1625;
+}
+
+.theme-scope :deep(.tn-button--plain) {
+	color: var(--demo-ink);
 }
 
 .preset-row {
@@ -388,7 +527,7 @@ platform = 'App（Android / iOS）'
 }
 
 .preset--active {
-	border-color: #303133;
+	border-color: var(--demo-text);
 }
 
 .palette-grid {
@@ -410,7 +549,7 @@ platform = 'App（Android / iOS）'
 
 .palette-cell--active {
 	border-color: #5f4fd9;
-	background-color: #f3f1ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .palette-cell__block {
@@ -422,7 +561,7 @@ platform = 'App（Android / iOS）'
 .palette-cell__name {
 	margin-top: 6rpx;
 	font-size: 18rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	text-align: center;
 	word-break: break-all;
 }
@@ -467,13 +606,13 @@ platform = 'App（Android / iOS）'
 	align-items: center;
 	padding: 16rpx 6rpx;
 	border-radius: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .icon-item__name {
 	margin-top: 8rpx;
 	font-size: 18rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	text-align: center;
 	word-break: break-all;
 }
@@ -494,20 +633,20 @@ platform = 'App（Android / iOS）'
 	display: block;
 	margin-top: 8rpx;
 	font-size: 24rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .i18n-card__slogan {
 	display: block;
 	margin-top: 12rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .compile-card {
 	padding: 20rpx 24rpx;
 	border-radius: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -515,7 +654,7 @@ platform = 'App（Android / iOS）'
 
 .compile-card__label {
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .compile-card__value {
@@ -530,7 +669,7 @@ platform = 'App（Android / iOS）'
 	display: flex;
 	align-items: center;
 	font-size: 24rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .token-row {
@@ -547,7 +686,7 @@ platform = 'App（Android / iOS）'
 .token-item__label {
 	width: 60rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .token-bar {
@@ -562,15 +701,15 @@ platform = 'App（Android / iOS）'
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	font-size: 20rpx;
-	color: #606266;
+	color: var(--demo-muted);
 	border-radius: 12rpx;
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>

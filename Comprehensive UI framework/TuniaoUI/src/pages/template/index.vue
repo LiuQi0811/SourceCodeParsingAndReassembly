@@ -3,6 +3,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { banners, goods, noticeList } from '@/data/mock'
 import { useCartStore } from '@/stores/cart'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const { t } = useI18n()
 const cart = useCartStore()
@@ -89,9 +93,9 @@ function onBannerClick(index: number) {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<!-- 自定义导航栏（页面配置了 navigationStyle: custom） -->
-		<tn-navbar fixed bg-color="#ffffff" text-color="#303133" back-icon="" home-icon="" :bottom-shadow="true">
+		<tn-navbar fixed :bg-color="theme.isDark ? '#0b1220' : '#ffffff'" :text-color="theme.isDark ? '#ffffff' : '#303133'" back-icon="" home-icon="" :bottom-shadow="true">
 			<view class="nav-title">
 				<tn-icon name="shop" :size="30" color="tn-blue" />
 				<text class="nav-title__text">图鸟商城</text>
@@ -278,7 +282,7 @@ function onBannerClick(index: number) {
 
 .search-area {
 	padding: 16rpx 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .banner {
@@ -330,7 +334,7 @@ function onBannerClick(index: number) {
 	padding: 24rpx 8rpx;
 	display: flex;
 	flex-wrap: wrap;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 20rpx;
 	box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
 }
@@ -355,13 +359,13 @@ function onBannerClick(index: number) {
 .quick-item__text {
 	margin-top: 10rpx;
 	font-size: 22rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .seckill {
 	margin: 0 24rpx;
 	padding: 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 20rpx;
 	box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.05);
 }
@@ -382,7 +386,7 @@ function onBannerClick(index: number) {
 
 .seckill__label {
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .seckill__body {
@@ -406,13 +410,13 @@ function onBannerClick(index: number) {
 .seckill__name {
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .seckill__desc {
 	margin-top: 6rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .price {
@@ -424,13 +428,13 @@ function onBannerClick(index: number) {
 .origin-price {
 	margin-left: 8rpx;
 	font-size: 22rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 	text-decoration: line-through;
 }
 
 .goods-section {
 	margin-top: 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 20rpx 20rpx 0 0;
 	overflow: hidden;
 }
@@ -448,7 +452,7 @@ function onBannerClick(index: number) {
 }
 
 .goods-card__inner {
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 16rpx;
 	overflow: hidden;
 }
@@ -468,7 +472,7 @@ function onBannerClick(index: number) {
 .goods-name {
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -477,7 +481,7 @@ function onBannerClick(index: number) {
 .goods-desc {
 	margin-top: 6rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -498,7 +502,7 @@ function onBannerClick(index: number) {
 
 .goods-sales {
 	font-size: 20rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 
 .action-bar {
@@ -511,7 +515,7 @@ function onBannerClick(index: number) {
 	align-items: center;
 	justify-content: space-between;
 	padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 -6rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
@@ -524,7 +528,7 @@ function onBannerClick(index: number) {
 
 .action-bar__text {
 	font-size: 20rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .page-bottom-space {

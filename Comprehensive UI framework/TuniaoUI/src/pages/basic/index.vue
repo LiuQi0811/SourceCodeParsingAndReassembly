@@ -1,5 +1,9 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 /** 按钮：加载中 / 禁用 / 图标 / 文本按钮 */
 const loading = ref(false)
@@ -46,7 +50,7 @@ const selectedTitle = ref('normal')
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">基础组件</text>
 			<text class="page-header__desc">按钮 / 图标 / 头像 / 标签 / 角标 / 标题，展示尺寸、形状、颜色类型与插槽用法</text>
@@ -276,7 +280,7 @@ const selectedTitle = ref('normal')
 	display: block;
 	font-size: 36rpx;
 	font-weight: 700;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .page-header__desc {
@@ -284,7 +288,7 @@ const selectedTitle = ref('normal')
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .section-gap {
@@ -304,19 +308,19 @@ const selectedTitle = ref('normal')
 	align-items: center;
 	padding: 14rpx 0;
 	border-radius: 14rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border: 2rpx solid transparent;
 }
 
 .icon-cell--active {
 	border-color: #5f4fd9;
-	background-color: #f0efff;
+	background-color: var(--demo-purple-soft);
 }
 
 .icon-cell__label {
 	margin-top: 8rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .avatar-pick {
@@ -327,7 +331,7 @@ const selectedTitle = ref('normal')
 
 .avatar-pick--active {
 	border-color: #5f4fd9;
-	background-color: #f3f1ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .avatar-group-pick {
@@ -340,7 +344,7 @@ const selectedTitle = ref('normal')
 
 .avatar-group-pick--active {
 	border-color: #5f4fd9;
-	background-color: #f3f1ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .badge-live {
@@ -349,12 +353,12 @@ const selectedTitle = ref('normal')
 	gap: 12rpx;
 	padding: 8rpx 14rpx;
 	border-radius: 12rpx;
-	background-color: #f4f6fb;
+	background-color: var(--demo-soft);
 }
 
 .badge-live__text {
 	font-size: 22rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .badge-control {
@@ -364,7 +368,7 @@ const selectedTitle = ref('normal')
 	gap: 16rpx;
 	padding: 14rpx 16rpx;
 	border-radius: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .badge-control__btn {
@@ -383,7 +387,7 @@ const selectedTitle = ref('normal')
 	flex: 1;
 	text-align: center;
 	font-size: 21rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .tag-pick {
@@ -394,7 +398,7 @@ const selectedTitle = ref('normal')
 
 .tag-pick--active {
 	border-color: #5f4fd9;
-	background-color: #f3f1ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .tn-title-picks {
@@ -411,7 +415,7 @@ const selectedTitle = ref('normal')
 
 .title-pick--active {
 	border-color: #5f4fd9;
-	background-color: #f7f6ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .avatar-sizes {
@@ -436,7 +440,7 @@ const selectedTitle = ref('normal')
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>
 

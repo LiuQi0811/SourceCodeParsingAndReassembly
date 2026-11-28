@@ -7,6 +7,10 @@
 import { computed, onMounted, ref } from 'vue'
 import * as LZString from 'lz-string'
 import { demoCodePacked } from '@/utils/demo-code.generated'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const props = defineProps<{
 	title?: string
@@ -98,7 +102,7 @@ function openFullSource() {
 </script>
 
 <template>
-	<view class="demo-block">
+	<view class="demo-block" :style="theme.vars">
 		<view v-if="title || desc" class="demo-block__head">
 			<view v-if="title" class="demo-block__title-row">
 				<view class="demo-block__title">
@@ -164,8 +168,8 @@ function openFullSource() {
 <style lang="scss" scoped>
 .demo-block {
 	margin: 0 28rpx 28rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 28rpx;
 	box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.05);
 }
@@ -185,7 +189,7 @@ function openFullSource() {
 	align-items: center;
 	font-size: 30rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .demo-block__bar {
@@ -198,12 +202,12 @@ function openFullSource() {
 
 .demo-block__tag {
 	padding: 4rpx 12rpx;
-	border: 1rpx solid #e2e8f0;
+	border: 1rpx solid var(--demo-line);
 	border-radius: 999rpx;
 	font-size: 20rpx;
 	font-weight: 600;
 	letter-spacing: 1rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .demo-block__desc {
@@ -211,7 +215,7 @@ function openFullSource() {
 	margin-top: 12rpx;
 	font-size: 26rpx;
 	line-height: 1.7;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .demo-block__tabs {
@@ -227,10 +231,10 @@ function openFullSource() {
 	margin-right: 8rpx;
 	padding: 8rpx 20rpx;
 	border-radius: 999rpx;
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	font-size: 22rpx;
 	line-height: 1.4;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .demo-block__live-dot {
@@ -242,7 +246,7 @@ function openFullSource() {
 }
 
 .demo-block__tab--active {
-	background-color: #0f172a;
+	background-color: var(--demo-contrast);
 	font-weight: 600;
 	color: #ffffff;
 }
@@ -251,20 +255,20 @@ function openFullSource() {
 	margin-left: auto;
 	padding: 8rpx 16rpx;
 	border-radius: 999rpx;
-	background-color: #eef4ff;
+	background-color: var(--demo-primary-soft);
 	font-size: 20rpx;
 	line-height: 1.4;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .demo-block__copy {
 	margin-left: 8rpx;
 	padding: 8rpx 18rpx;
-	border: 1rpx solid #e2e8f0;
+	border: 1rpx solid var(--demo-line);
 	border-radius: 999rpx;
 	font-size: 20rpx;
 	line-height: 1.4;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .demo-block__readonly {
@@ -272,7 +276,7 @@ function openFullSource() {
 	margin: -4rpx 28rpx 18rpx;
 	font-size: 20rpx;
 	line-height: 1.5;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .demo-block__body {
@@ -281,7 +285,7 @@ function openFullSource() {
 
 .demo-block__code-wrap {
 	margin: 0;
-	background-color: #0f172a;
+	background-color: var(--demo-code-bg);
 	border-top: 1rpx solid #1e293b;
 	border-radius: 0 0 28rpx 28rpx;
 	overflow: hidden;
@@ -316,7 +320,7 @@ function openFullSource() {
 	margin-left: auto;
 	font-size: 20rpx;
 	letter-spacing: 1rpx;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .demo-block__code-expand {

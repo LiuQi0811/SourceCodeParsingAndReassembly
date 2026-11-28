@@ -1,7 +1,11 @@
-﻿<script lang="ts" setup>
+<script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { cartKey, useCartStore } from '@/stores/cart'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const cart = useCartStore()
 
@@ -64,7 +68,7 @@ function checkout() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="cart-head">
 			<view>
 				<text class="cart-head__eyebrow">CART</text>
@@ -136,7 +140,7 @@ function checkout() {
 .page {
 	min-height: 100vh;
 	padding: 28rpx 24rpx 190rpx;
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	box-sizing: border-box;
 }
 
@@ -152,7 +156,7 @@ function checkout() {
 	display: block;
 	font-size: 22rpx;
 	letter-spacing: 4rpx;
-	color: #9aa6b8;
+	color: var(--demo-faint);
 	font-weight: 700;
 }
 
@@ -161,7 +165,7 @@ function checkout() {
 	margin-top: 6rpx;
 	font-size: 42rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 	letter-spacing: 1rpx;
 }
 
@@ -169,13 +173,13 @@ function checkout() {
 	display: block;
 	margin-top: 8rpx;
 	font-size: 23rpx;
-	color: #7d8ba1;
+	color: var(--demo-muted);
 }
 
 .cart-list {
 	overflow: hidden;
 	border-radius: 28rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 12rpx 36rpx rgba(36, 48, 68, 0.06);
 }
 
@@ -183,7 +187,7 @@ function checkout() {
 	display: flex;
 	align-items: center;
 	padding: 26rpx 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .cart-check {
@@ -195,7 +199,7 @@ function checkout() {
 	margin-right: 18rpx;
 	border: 2rpx solid #d8e0ec;
 	border-radius: 50%;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	transition: all 0.18s ease;
 	box-sizing: border-box;
 }
@@ -210,7 +214,7 @@ function checkout() {
 	height: 136rpx;
 	border-radius: 18rpx;
 	flex-shrink: 0;
-	background-color: #eef2f8;
+	background-color: var(--demo-line-soft);
 }
 
 .cart-line__body {
@@ -223,7 +227,7 @@ function checkout() {
 	display: block;
 	font-size: 27rpx;
 	font-weight: 700;
-	color: #273449;
+	color: var(--demo-ink);
 	line-height: 1.45;
 }
 
@@ -232,7 +236,7 @@ function checkout() {
 	margin-top: 8rpx;
 	padding: 4rpx 12rpx;
 	border-radius: 8rpx;
-	background-color: #f1f5ff;
+	background-color: var(--demo-primary-soft);
 	font-size: 21rpx;
 	color: #4b7dff;
 }
@@ -247,7 +251,7 @@ function checkout() {
 .cart-line__price {
 	font-size: 32rpx;
 	font-weight: 800;
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .cart-step {
@@ -264,14 +268,14 @@ function checkout() {
 	justify-content: center;
 	width: 56rpx;
 	height: 48rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .cart-step__value {
 	min-width: 52rpx;
 	font-size: 24rpx;
 	font-weight: 700;
-	color: #273449;
+	color: var(--demo-ink);
 	text-align: center;
 }
 
@@ -281,7 +285,7 @@ function checkout() {
 	align-items: center;
 	padding: 30rpx 20rpx 56rpx;
 	border-radius: 28rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 12rpx 36rpx rgba(36, 48, 68, 0.06);
 }
 
@@ -294,7 +298,7 @@ function checkout() {
 	margin-top: 22rpx;
 	padding: 0 10rpx;
 	font-size: 22rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 	text-align: center;
 }
 
@@ -307,7 +311,7 @@ function checkout() {
 	display: flex;
 	align-items: center;
 	padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 -12rpx 36rpx rgba(36, 48, 68, 0.1);
 }
 
@@ -319,7 +323,7 @@ function checkout() {
 .checkout-bar__select-text {
 	margin-left: 10rpx;
 	font-size: 24rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 }
 
 .checkout-bar__total {
@@ -330,7 +334,7 @@ function checkout() {
 .checkout-bar__count {
 	display: block;
 	font-size: 21rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 }
 
 .checkout-bar__amount {
@@ -341,14 +345,14 @@ function checkout() {
 
 .checkout-bar__label {
 	font-size: 22rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 }
 
 .checkout-bar__value {
 	margin-left: 6rpx;
 	font-size: 38rpx;
 	font-weight: 800;
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .checkout-bar__btn {

@@ -1,5 +1,9 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const importExample = "import { TnButton } from '@tuniao/tnui-vue3-uniapp'"
 
@@ -69,7 +73,7 @@ function onSwipeClick(item: any) {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">导航组件</text>
 			<text class="page-header__desc">
@@ -84,7 +88,7 @@ function onSwipeClick(item: any) {
 			code="<tn-navbar :fixed=&quot;false&quot;>标题<template #right>...</template></tn-navbar>"
 		>
 			<view class="navbar-demo">
-				<tn-navbar :fixed="false" :bg-color="navbarBg === 'primary' ? 'tn-blue' : '#ffffff'" :text-color="navbarBg === 'primary' ? 'tn-white' : '#303133'">
+				<tn-navbar :fixed="false" :bg-color="navbarBg === 'primary' ? 'tn-blue' : (theme.isDark ? '#0b1220' : '#ffffff')" :text-color="navbarBg === 'primary' ? 'tn-white' : (theme.isDark ? '#ffffff' : '#303133')">
 					自定义导航栏
 					<template #right>
 						<view class="tn-flex tn-flex-center-center" @click="navbarBg = navbarBg === 'primary' ? 'white' : 'primary'">
@@ -285,7 +289,7 @@ function onSwipeClick(item: any) {
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .section-gap {
@@ -308,7 +312,7 @@ function onSwipeClick(item: any) {
 .tabs-wrap {
 	overflow: hidden;
 	border-radius: 16rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .tabbar-demo {
@@ -320,14 +324,14 @@ function onSwipeClick(item: any) {
 .collapse-text {
 	font-size: 24rpx;
 	line-height: 1.7;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .swipe-cell {
 	display: flex;
 	align-items: center;
 	padding: 20rpx 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .swipe-cell__info {
@@ -338,19 +342,19 @@ function onSwipeClick(item: any) {
 
 .swipe-cell__title {
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .swipe-cell__desc {
 	margin-top: 6rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>
 

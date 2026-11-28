@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { noticeList } from '@/data/mock'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 /** ---------------- 命令式：Modal ---------------- */
 const modalRef = ref<any>(null)
@@ -164,7 +168,7 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">反馈组件</text>
 			<text class="page-header__desc">
@@ -442,7 +446,7 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .section-gap {
@@ -471,7 +475,7 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 .popup-content__desc {
 	margin: 12rpx 0 24rpx;
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .loading-row {
@@ -490,7 +494,7 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 .loading-cell__text {
 	margin-top: 12rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .progress-row {
@@ -515,13 +519,13 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 
 .empty-cell__text {
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .long-text {
 	font-size: 26rpx;
 	line-height: 1.8;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .count-row {
@@ -539,13 +543,13 @@ const noticeDirection = ref<'horizontal' | 'vertical'>('vertical')
 .count-cell__label {
 	margin-bottom: 10rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>
 

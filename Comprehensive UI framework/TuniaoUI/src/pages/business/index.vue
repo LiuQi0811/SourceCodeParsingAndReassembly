@@ -4,6 +4,10 @@ import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useCartStore, type GoodsItem } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { request, RequestError, BusinessError } from '@/utils/request'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const cart = useCartStore()
 const user = useUserStore()
@@ -231,7 +235,7 @@ watch(
 </script>
 
 <template>
-	<view class="biz">
+	<view class="biz" :style="theme.vars">
 		<view class="biz-hero">
 			<view class="biz-hero__glow" />
 			<text class="biz-hero__eyebrow">BUSINESS LOOP</text>
@@ -492,8 +496,8 @@ watch(
 .panel {
 	margin: 0 28rpx 24rpx;
 	padding: 28rpx;
-	background: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 28rpx;
 	box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.04);
 }
@@ -519,7 +523,7 @@ watch(
 	font-size: 18rpx;
 	font-weight: 600;
 	letter-spacing: 2rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .panel__eyebrow--light {
@@ -531,7 +535,7 @@ watch(
 	margin-top: 4rpx;
 	font-size: 32rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .panel__title--light {
@@ -543,7 +547,7 @@ watch(
 	margin-top: 18rpx;
 	font-size: 19rpx;
 	line-height: 1.6;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .account {
@@ -551,7 +555,7 @@ watch(
 	align-items: center;
 	padding: 20rpx;
 	background: #f8fafc;
-	border: 1rpx solid #eef2f8;
+	border: 1rpx solid var(--demo-line-soft);
 	border-radius: 20rpx;
 }
 
@@ -575,13 +579,13 @@ watch(
 .account__name {
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .account__meta {
 	margin-top: 5rpx;
 	font-size: 19rpx;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .token-box {
@@ -633,7 +637,7 @@ watch(
 	margin-left: 0;
 	font-size: 19rpx;
 	line-height: 1.5;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .goods-strip {
@@ -646,7 +650,7 @@ watch(
 	margin-right: 14rpx;
 	padding: 12rpx;
 	background: #f8fafc;
-	border: 1rpx solid #eef2f8;
+	border: 1rpx solid var(--demo-line-soft);
 	border-radius: 18rpx;
 	display: flex;
 	flex-direction: column;
@@ -678,7 +682,7 @@ watch(
 	margin-top: 10rpx;
 	font-size: 21rpx;
 	line-height: 1.4;
-	color: #0f172a;
+	color: var(--demo-ink);
 	overflow: hidden;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
@@ -727,13 +731,13 @@ watch(
 
 .cart-line__title {
 	font-size: 22rpx;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .cart-line__price {
 	margin-top: 3rpx;
 	font-size: 18rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .stepper {
@@ -746,17 +750,17 @@ watch(
 	height: 40rpx;
 	line-height: 38rpx;
 	text-align: center;
-	border: 1rpx solid #e2e8f0;
+	border: 1rpx solid var(--demo-line);
 	border-radius: 10rpx;
 	font-size: 24rpx;
-	color: #475569;
+	color: var(--demo-text);
 }
 
 .stepper__value {
 	width: 48rpx;
 	text-align: center;
 	font-size: 22rpx;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .cart-line__subtotal {
@@ -764,7 +768,7 @@ watch(
 	text-align: right;
 	font-size: 22rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .cart-total {
@@ -777,7 +781,7 @@ watch(
 
 .cart-total__label {
 	font-size: 20rpx;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .cart-total__value {
@@ -801,14 +805,14 @@ watch(
 .empty__text {
 	margin-top: 10rpx;
 	font-size: 21rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .order-card {
 	margin-bottom: 14rpx;
 	padding: 20rpx;
 	background: #f8fafc;
-	border: 1rpx solid #eef2f8;
+	border: 1rpx solid var(--demo-line-soft);
 	border-radius: 18rpx;
 }
 
@@ -825,7 +829,7 @@ watch(
 .order-card__no {
 	font-size: 18rpx;
 	letter-spacing: 1rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .order-card__title {
@@ -833,7 +837,7 @@ watch(
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .order-card__bottom {
@@ -845,13 +849,13 @@ watch(
 
 .order-card__time {
 	font-size: 18rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .order-card__amount {
 	font-size: 24rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .load-state {
@@ -866,7 +870,7 @@ watch(
 
 .load-state__text {
 	font-size: 20rpx;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .point {

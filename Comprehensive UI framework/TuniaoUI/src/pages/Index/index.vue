@@ -6,6 +6,10 @@ import type { FooterNavigator } from '@tuniao/tnui-vue3-uniapp'
 import { tnIconCount } from '@/data/icons'
 import { noticeList } from '@/data/mock'
 import { localeOptions, setLocale } from '@/i18n'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const { t, locale } = useI18n()
 
@@ -31,15 +35,15 @@ onShow(() => {
 onPullDownRefresh(() => {
 	setTimeout(() => {
 		uni.stopPullDownRefresh()
-		uni.showToast({ title: '刷新完成', icon: 'none' })
+		uni.showToast({ title: t('home.refreshDone'), icon: 'none' })
 	}, 600)
 })
 
 const stats = computed(() => [
-	{ value: '55', label: '组件' },
-	{ value: `${tnIconCount}`, label: '图标' },
-	{ value: '21', label: '色板' },
-	{ value: '16', label: '知识页' },
+	{ value: '55', label: t('home.stats.components') },
+	{ value: `${tnIconCount}`, label: t('home.stats.icons') },
+	{ value: '21', label: t('home.stats.palettes') },
+	{ value: '16', label: t('home.stats.pages') },
 ])
 
 interface NavItem {
@@ -51,30 +55,30 @@ interface NavItem {
 	tab?: boolean
 }
 
-const navList: NavItem[] = [
-	{ title: '基础组件', desc: 'Button / Icon / Avatar / Tag / Badge / Title', icon: 'cube', url: '/pages/basic/index', color: 'blue' },
-	{ title: '布局与原子类', desc: 'tn-flex / 宽高 / 间距 / 圆角 / 阴影 / 文本截断', icon: 'menu-grille', url: '/pages/layout/index', color: 'aquablue' },
-	{ title: '表单组件', desc: 'Input / Checkbox / Radio / Picker / 上传 / 校验', icon: 'edit-form', url: '/pages/form/index', color: 'purple' },
-	{ title: '反馈组件', desc: 'Modal / Notify / Popup / 进度条 / 加载', icon: 'message', url: '/pages/feedback/index', color: 'orange' },
-	{ title: '导航组件', desc: 'Navbar / Tabs / Tabbar / Steps / 滑动操作', icon: 'menu', url: '/pages/nav/index', color: 'green' },
-	{ title: '数据展示', desc: 'Calendar / Swiper / 瀑布流 / 相册 / 索引列表', icon: 'charts-column', url: '/pages/data/index', color: 'teal' },
-	{ title: '进阶 API', desc: 'validateField / beforeBack / beforeSwitch / 事件全集 / 内置文案 i18n', icon: 'code', url: '/pages/advanced/index', color: 'blue' },
-	{ title: '跨端与系统 API', desc: '生命周期 / 网络监听 / 分享 / 扫码 / 定位 / 能力探测', icon: 'phone', url: '/pages/cross-platform/index', color: 'aquablue' },
-	{ title: '业务闭环', desc: 'Pinia / 请求封装 / 登录态 / 购物车 / 分页 / 下拉刷新', icon: 'order', url: '/pages/business/index', color: 'orange' },
-	{ title: '工程化 · 分包', desc: 'subPackages / 按需引入 / 图标字体本地化 / 小程序清单', icon: 'cube', url: '/pages-sub/engineering/index', color: 'aquablue' },
-	{ title: '主题 · 图标 · 多语言', desc: 'CSS 变量换肤 / 838 图标检索 / vue-i18n', icon: 'creative', url: '/pages/theme/index', color: 'red', tab: true },
-	{ title: '实战模板', desc: '商品详情页：导航 + 轮播 + 表单 + 弹层组合', icon: 'image-text', url: '/pages/template/index', color: 'grey', tab: true },
-]
+const navList = computed<NavItem[]>(() => [
+	{ title: t('home.nav.basic.title'), desc: t('home.nav.basic.desc'), icon: 'cube', url: '/pages/basic/index', color: 'blue' },
+	{ title: t('home.nav.layout.title'), desc: t('home.nav.layout.desc'), icon: 'menu-grille', url: '/pages/layout/index', color: 'aquablue' },
+	{ title: t('home.nav.form.title'), desc: t('home.nav.form.desc'), icon: 'edit-form', url: '/pages/form/index', color: 'purple' },
+	{ title: t('home.nav.feedback.title'), desc: t('home.nav.feedback.desc'), icon: 'message', url: '/pages/feedback/index', color: 'orange' },
+	{ title: t('home.nav.nav.title'), desc: t('home.nav.nav.desc'), icon: 'menu', url: '/pages/nav/index', color: 'green' },
+	{ title: t('home.nav.data.title'), desc: t('home.nav.data.desc'), icon: 'charts-column', url: '/pages/data/index', color: 'teal' },
+	{ title: t('home.nav.advanced.title'), desc: t('home.nav.advanced.desc'), icon: 'code', url: '/pages/advanced/index', color: 'blue' },
+	{ title: t('home.nav.cross.title'), desc: t('home.nav.cross.desc'), icon: 'phone', url: '/pages/cross-platform/index', color: 'aquablue' },
+	{ title: t('home.nav.business.title'), desc: t('home.nav.business.desc'), icon: 'order', url: '/pages/business/index', color: 'orange' },
+	{ title: t('home.nav.engineering.title'), desc: t('home.nav.engineering.desc'), icon: 'cube', url: '/pages-sub/engineering/index', color: 'aquablue' },
+	{ title: t('home.nav.theme.title'), desc: t('home.nav.theme.desc'), icon: 'creative', url: '/pages/theme/index', color: 'red', tab: true },
+	{ title: t('home.nav.template.title'), desc: t('home.nav.template.desc'), icon: 'image-text', url: '/pages/template/index', color: 'grey', tab: true },
+])
 
-const primaryNav = navList.slice(0, 6)
-const featureNav = navList.slice(6, 9)
-const moreNav = navList.slice(9)
+const primaryNav = computed(() => navList.value.slice(0, 6))
+const featureNav = computed(() => navList.value.slice(6, 9))
+const moreNav = computed(() => navList.value.slice(9))
 const featureKickers = ['TYPES · INTERCEPT', 'PLATFORM · API', 'STATE · REQUEST']
 
-const footerNav: FooterNavigator[] = [
-	{ title: '官方文档', url: 'https://vue3.tuniaokj.com' },
-	{ title: 'GitHub', url: 'https://github.com/tuniaoTech/tuniaoui-rc-vue3-uniapp' },
-]
+const footerNav = computed<FooterNavigator[]>(() => [
+	{ title: t('home.footer.docs'), url: 'https://vue3.tuniaokj.com' },
+	{ title: t('home.footer.github'), url: 'https://github.com/tuniaoTech/tuniaoui-rc-vue3-uniapp' },
+])
 
 function go(item: NavItem) {
 	if (item.tab) {
@@ -94,7 +98,7 @@ const rateValue = ref(4)
 </script>
 
 <template>
-	<view class="home" :style="{ paddingTop: statusBarHeight ? `${statusBarHeight}px` : '20rpx' }">
+	<view class="home" :style="[{ paddingTop: statusBarHeight ? `${statusBarHeight}px` : '20rpx' }, theme.vars]">
 		<view class="hero">
 			<view class="hero__orb hero__orb--one" />
 			<view class="hero__orb hero__orb--two" />
@@ -133,7 +137,7 @@ const rateValue = ref(4)
 					{{ t('home.start') }}
 				</tn-button>
 				<view class="hero__ghost" @click="go(navList[6])">
-					<text>进阶 API</text>
+					<text>{{ t('home.nav.advanced.title') }}</text>
 					<tn-icon name="right" :size="20" color="#bfdbfe" />
 				</view>
 			</view>
@@ -159,7 +163,7 @@ const rateValue = ref(4)
 				<text class="section-head__eyebrow">EXPLORE</text>
 				<text class="section-head__title">{{ t('home.map') }}</text>
 			</view>
-			<text class="section-head__meta">点击卡片进入</text>
+			<text class="section-head__meta">{{ t('home.exploreMeta') }}</text>
 		</view>
 
 		<view class="nav-grid">
@@ -182,7 +186,7 @@ const rateValue = ref(4)
 		<view class="section-head section-head--tight">
 			<view class="section-head__copy">
 				<text class="section-head__eyebrow">DEEP DIVE</text>
-				<text class="section-head__title">重点专题</text>
+				<text class="section-head__title">{{ t('home.highlights') }}</text>
 				<view class="section-head__line" />
 			</view>
 		</view>
@@ -203,7 +207,7 @@ const rateValue = ref(4)
 				<text class="feature-card__title">{{ item.title }}</text>
 				<text class="feature-card__desc">{{ item.desc }}</text>
 				<view class="feature-card__link">
-					<text>打开专题</text>
+					<text>{{ t('home.openTopic') }}</text>
 					<tn-icon name="right" :size="18" :color="index === 0 ? '#a5f3fc' : '#2f6bff'" />
 				</view>
 			</view>
@@ -212,7 +216,7 @@ const rateValue = ref(4)
 		<view class="section-head section-head--tight">
 			<view class="section-head__copy">
 				<text class="section-head__eyebrow">MORE</text>
-				<text class="section-head__title">更多页面</text>
+				<text class="section-head__title">{{ t('home.morePages') }}</text>
 			</view>
 		</view>
 
@@ -230,15 +234,16 @@ const rateValue = ref(4)
 		</view>
 
 		<demo-block
-			title="组件速览"
-			desc="全量注册 / 原子类 / 组件插槽 / 命令式弹窗 / CSS 变量换肤 / 多语言"
+			code-key="home-quick"
+			:title="t('home.quickTitle')"
+			:desc="t('home.quickDesc')"
 		>
 			<view class="tn-demo-row">
-				<tn-tag type="primary" size="sm">app.use 全量注册</tn-tag>
-				<tn-tag type="success" size="sm">easycom 自动引入</tn-tag>
-				<tn-tag type="warning" size="sm">v-model 双向绑定</tn-tag>
-				<tn-tag type="danger" size="sm">ref.show() 命令式</tn-tag>
-				<tn-tag type="info" size="sm">条件编译</tn-tag>
+				<tn-tag type="primary" size="sm">{{ t('home.quickTags.full') }}</tn-tag>
+				<tn-tag type="success" size="sm">{{ t('home.quickTags.easycom') }}</tn-tag>
+				<tn-tag type="warning" size="sm">{{ t('home.quickTags.model') }}</tn-tag>
+				<tn-tag type="danger" size="sm">{{ t('home.quickTags.imperative') }}</tn-tag>
+				<tn-tag type="info" size="sm">{{ t('home.quickTags.conditional') }}</tn-tag>
 			</view>
 			<view class="quick-row">
 				<tn-avatar icon="girl" type="primary" :size="48" />
@@ -250,7 +255,7 @@ const rateValue = ref(4)
 		</demo-block>
 
 		<tn-footer
-			content="TuniaoUI · 全知识点示例工程"
+			:content="t('home.greeting')"
 			:fixed="false"
 			:navigator="footerNav"
 		/>
@@ -494,7 +499,7 @@ const rateValue = ref(4)
 	font-size: 18rpx;
 	font-weight: 600;
 	letter-spacing: 2rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .section-head__title {
@@ -502,7 +507,7 @@ const rateValue = ref(4)
 	margin-top: 4rpx;
 	font-size: 32rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .section-head__line {
@@ -515,7 +520,7 @@ const rateValue = ref(4)
 
 .section-head__meta {
 	font-size: 21rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .nav-grid {
@@ -530,8 +535,8 @@ const rateValue = ref(4)
 	box-sizing: border-box;
 	margin: 8rpx;
 	padding: 24rpx;
-	background: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
 }
@@ -555,7 +560,7 @@ const rateValue = ref(4)
 	margin-top: 19rpx;
 	font-size: 27rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .nav-card__desc {
@@ -563,7 +568,7 @@ const rateValue = ref(4)
 	margin-top: 7rpx;
 	font-size: 20rpx;
 	line-height: 1.55;
-	color: #7b8794;
+	color: var(--demo-muted);
 	overflow: hidden;
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
@@ -583,8 +588,8 @@ const rateValue = ref(4)
 	margin-bottom: 20rpx;
 	padding: 28rpx;
 	border-radius: 28rpx;
-	border: 1rpx solid #e8eef7;
-	background: #ffffff;
+	border: 1rpx solid var(--demo-line);
+	background: var(--demo-surface);
 	box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.05);
 }
 
@@ -619,7 +624,7 @@ const rateValue = ref(4)
 	margin-left: 12rpx;
 	font-size: 18rpx;
 	letter-spacing: 1rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .feature-card__title {
@@ -627,7 +632,7 @@ const rateValue = ref(4)
 	margin-top: 10rpx;
 	font-size: 32rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .feature-card__desc {
@@ -635,7 +640,7 @@ const rateValue = ref(4)
 	margin-top: 10rpx;
 	font-size: 22rpx;
 	line-height: 1.7;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .feature-card__link {
@@ -644,7 +649,7 @@ const rateValue = ref(4)
 	margin-top: 20rpx;
 	font-size: 21rpx;
 	font-weight: 600;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .feature-card__link text {
@@ -674,8 +679,8 @@ const rateValue = ref(4)
 .more-list {
 	margin: 0 28rpx;
 	padding: 4rpx 24rpx;
-	background: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 }
 
@@ -710,13 +715,13 @@ const rateValue = ref(4)
 .more-row__title {
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .more-row__desc {
 	margin-top: 5rpx;
 	font-size: 20rpx;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .quick-row {

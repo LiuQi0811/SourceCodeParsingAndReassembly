@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const faqIndex = ref([0])
 const statusBarHeight = ref(0)
@@ -116,7 +120,7 @@ function copyVersion() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<!-- 用户信息 -->
 		<view class="profile" :style="{ paddingTop: statusBarHeight ? `${statusBarHeight + 22}px` : '44rpx' }">
 			<view class="profile-top">
@@ -229,7 +233,7 @@ function copyVersion() {
 
 <style lang="scss" scoped>
 .page {
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	min-height: 100vh;
 	padding-bottom: 20rpx;
 }
@@ -294,8 +298,8 @@ function copyVersion() {
 	margin: -26rpx 24rpx 0;
 	padding: 26rpx 8rpx;
 	display: flex;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 22rpx;
 	box-shadow: 0 12rpx 30rpx rgba(15, 23, 42, 0.07);
 	position: relative;
@@ -321,13 +325,13 @@ function copyVersion() {
 .quick-text {
 	margin-top: 10rpx;
 	font-size: 22rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .cell-group {
 	margin: 18rpx 24rpx 0;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 22rpx;
 	overflow: hidden;
 	box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.04);
@@ -344,20 +348,20 @@ function copyVersion() {
 .cell-title {
 	margin-left: 12rpx;
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .cell-value {
 	margin-right: 8rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .block-card {
 	margin: 18rpx 24rpx 0;
 	padding: 26rpx 24rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 22rpx;
 	box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.04);
 }
@@ -365,13 +369,13 @@ function copyVersion() {
 .block-title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .faq-content {
 	font-size: 24rpx;
 	line-height: 1.9;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .stack-grid {
@@ -385,7 +389,7 @@ function copyVersion() {
 	margin: 6rpx;
 	padding: 16rpx 12rpx;
 	box-sizing: border-box;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 12rpx;
 	display: flex;
 	flex-direction: column;
@@ -394,13 +398,13 @@ function copyVersion() {
 .stack-name {
 	font-size: 20rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .stack-version {
 	margin-top: 4rpx;
 	font-size: 18rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .check-list {
@@ -416,7 +420,7 @@ function copyVersion() {
 .check-text {
 	margin-left: 10rpx;
 	font-size: 23rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .version-card {
@@ -425,8 +429,8 @@ function copyVersion() {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 22rpx;
 	box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.04);
 }
@@ -434,12 +438,12 @@ function copyVersion() {
 .version-text {
 	margin-top: 10rpx;
 	font-size: 24rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .version-sub {
 	margin-top: 6rpx;
 	font-size: 20rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 </style>

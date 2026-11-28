@@ -1,5 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
 
 const checks = ref([
 	{ key: 'safe-area', label: '底部安全区：tabBar / 固定操作栏留出 safe-area-inset-bottom', done: true },
@@ -50,6 +53,7 @@ app.component('TnPopup', TnPopup)
 
 // 全量注册：本项目采用（示例工程需要展示全部 55 个组件）
 import * as TnUI from '@tuniao/tnui-vue3-uniapp'
+
 Object.entries(TnUI).forEach(([name, comp]) => {
   if (/^Tn[A-Z]/.test(name) && comp?.install) {
     app.component(name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(), comp)
@@ -67,7 +71,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<view class="header-top">
 				<tn-tag type="primary" size="sm">分包页面</tn-tag>
@@ -241,7 +245,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 
 <style lang="scss" scoped>
 .page {
-	background-color: #f5f6fa;
+	background-color: var(--demo-soft);
 	padding-bottom: 40rpx;
 }
 
@@ -261,14 +265,14 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 .header-path {
 	margin-left: 14rpx;
 	font-size: 22rpx;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .page-header__title {
 	display: block;
 	font-size: 38rpx;
 	font-weight: 700;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .page-header__desc {
@@ -276,7 +280,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.7;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .stat-row {
@@ -308,14 +312,14 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 .stat-label {
 	margin-top: 6rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip-text {
 	display: block;
 	font-size: 23rpx;
 	line-height: 1.75;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .warn-text {
@@ -333,7 +337,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin-top: 20rpx;
 	border: 1rpx solid #1e293b;
 	border-radius: 18rpx;
-	background-color: #0f172a;
+	background-color: var(--demo-code-bg);
 	overflow: hidden;
 }
 
@@ -342,7 +346,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin: 20rpx 0 8rpx;
 	font-size: 22rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .compare-row {
@@ -354,7 +358,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	flex: 1;
 	padding: 20rpx;
 	border-radius: 14rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	margin-right: 12rpx;
 }
 
@@ -370,7 +374,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	display: block;
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .compare-desc {
@@ -378,7 +382,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin-top: 8rpx;
 	font-size: 21rpx;
 	line-height: 1.6;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .font-preview {
@@ -395,7 +399,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 
 .check-progress__text {
 	font-size: 22rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .check-progress__bar {
@@ -425,11 +429,11 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin-left: 14rpx;
 	font-size: 23rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .check-label--done {
-	color: #9aa3ad;
+	color: var(--demo-faint);
 	text-decoration: line-through;
 }
 
@@ -442,7 +446,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	flex-direction: column;
 	padding: 16rpx 18rpx;
 	margin-bottom: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 12rpx;
 }
 
@@ -456,7 +460,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 .cmd-desc {
 	margin-top: 6rpx;
 	font-size: 21rpx;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .pitfall-item {
@@ -470,7 +474,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	margin-left: 12rpx;
 	font-size: 23rpx;
 	line-height: 1.65;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .back-card {
@@ -479,7 +483,7 @@ const navHeight = menu.height + (menu.top - statusBar) * 2`
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 18rpx;
 	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }

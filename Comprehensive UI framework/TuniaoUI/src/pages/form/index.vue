@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const { t } = useI18n()
 
@@ -240,7 +244,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">表单组件</text>
 			<text class="page-header__desc">
@@ -562,7 +566,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .section-gap {
@@ -578,7 +582,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 
 .mode-current {
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	padding-bottom: 8rpx;
 }
 
@@ -586,7 +590,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 	display: block;
 	margin-top: 6rpx;
 	font-size: 20rpx;
-	color: #a8abb2;
+	color: var(--demo-faint);
 }
 
 .form-actions {
@@ -607,7 +611,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 
 .row-label {
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 	white-space: nowrap;
 }
 
@@ -632,7 +636,7 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 	display: flex;
 	align-items: center;
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .upload-btn {
@@ -642,20 +646,20 @@ const regionText = computed(() => formModel.regionNames.join(' / '))
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 16rpx;
 }
 
 .upload-btn__text {
 	margin-top: 8rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	line-height: 1.6;
 	word-break: break-all;
 }

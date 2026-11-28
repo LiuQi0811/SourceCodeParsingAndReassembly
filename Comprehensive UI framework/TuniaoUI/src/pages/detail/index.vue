@@ -3,6 +3,10 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goods, gallery } from '@/data/mock'
 import { useCartStore } from '@/stores/cart'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const cart = useCartStore()
 
@@ -112,9 +116,9 @@ function copyLink() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<!-- 自定义导航栏 -->
-		<tn-navbar fixed back-icon="left" home-icon="" bg-color="#ffffff" text-color="#303133" :bottom-shadow="true">
+		<tn-navbar fixed back-icon="left" home-icon="" :bg-color="theme.isDark ? '#0b1220' : '#ffffff'" :text-color="theme.isDark ? '#ffffff' : '#303133'" :bottom-shadow="true">
 			<text class="nav-title">商品详情</text>
 			<template #right>
 				<view class="nav-right">
@@ -263,7 +267,7 @@ function copyLink() {
 
 <style lang="scss" scoped>
 .page {
-	background-color: #f5f6fa;
+	background-color: var(--demo-soft);
 }
 
 .nav-title {
@@ -278,7 +282,7 @@ function copyLink() {
 
 .album {
 	padding: 16rpx 24rpx 0;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .price-card {
@@ -306,7 +310,7 @@ function copyLink() {
 .price-origin {
 	margin-left: 12rpx;
 	font-size: 24rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 	text-decoration: line-through;
 }
 
@@ -314,19 +318,19 @@ function copyLink() {
 	margin-top: 14rpx;
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .goods-subtitle {
 	margin-top: 8rpx;
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .sales {
 	margin-left: 12rpx;
 	font-size: 22rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 
 .countdown-row {
@@ -348,7 +352,7 @@ function copyLink() {
 .cell-card {
 	margin: 16rpx 24rpx 0;
 	padding: 26rpx 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 16rpx;
 	display: flex;
 	align-items: center;
@@ -358,26 +362,26 @@ function copyLink() {
 .cell-title {
 	margin-left: 8rpx;
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .cell-value {
 	margin-right: 8rpx;
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .block-card {
 	margin: 16rpx 24rpx 0;
 	padding: 26rpx 24rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-radius: 16rpx;
 }
 
 .block-title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .param-row {
@@ -389,19 +393,19 @@ function copyLink() {
 .param-label {
 	width: 160rpx;
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .param-value {
 	flex: 1;
 	font-size: 24rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .paragraph {
 	font-size: 24rpx;
 	line-height: 1.9;
-	color: #606266;
+	color: var(--demo-muted);
 	padding: 8rpx 0;
 }
 
@@ -418,7 +422,7 @@ function copyLink() {
 .popup-title {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .coupon-item {
@@ -445,7 +449,7 @@ function copyLink() {
 .coupon-cond {
 	margin-left: 12rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .action-bar {
@@ -458,7 +462,7 @@ function copyLink() {
 	align-items: center;
 	justify-content: space-between;
 	padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 -6rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
@@ -470,7 +474,7 @@ function copyLink() {
 
 .action-text {
 	font-size: 20rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .bottom-space {

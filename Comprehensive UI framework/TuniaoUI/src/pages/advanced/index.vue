@@ -8,6 +8,10 @@ import type {
 	TnModalInstance,
 } from '@tuniao/tnui-vue3-uniapp'
 import { localeOptions, setLocale } from '@/i18n'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const { t, locale } = useI18n()
 
@@ -241,7 +245,7 @@ function goComponents() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">进阶 API 与工程化</text>
 			<text class="page-header__desc">
@@ -531,7 +535,7 @@ function goComponents() {
 
 <style lang="scss" scoped>
 .page {
-	background-color: #f5f6fa;
+	background-color: var(--demo-soft);
 	padding-bottom: 40rpx;
 }
 
@@ -546,7 +550,7 @@ function goComponents() {
 	display: block;
 	font-size: 38rpx;
 	font-weight: 700;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .page-header__desc {
@@ -554,23 +558,23 @@ function goComponents() {
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.7;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .result-line {
 	display: block;
 	margin-top: 16rpx;
 	padding: 14rpx 18rpx;
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	border-radius: 12rpx;
 	font-size: 22rpx;
-	color: #5a6472;
+	color: var(--demo-muted);
 }
 
 .navbar-box {
 	overflow: hidden;
 	border-radius: 16rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .navbar-title {
@@ -581,12 +585,12 @@ function goComponents() {
 .tabbar-box {
 	padding: 8rpx 0;
 	border-radius: 16rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .swipe-card {
 	padding: 26rpx 24rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 14rpx;
 	display: flex;
 	flex-direction: column;
@@ -595,7 +599,7 @@ function goComponents() {
 .swipe-title {
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .icon-cell {
@@ -609,7 +613,7 @@ function goComponents() {
 .icon-label {
 	margin-top: 8rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .color-rule {
@@ -628,7 +632,7 @@ function goComponents() {
 .color-note {
 	margin-top: 10rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	text-align: center;
 }
 
@@ -641,14 +645,14 @@ function goComponents() {
 .popup-title {
 	font-size: 30rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .popup-desc {
 	margin-top: 12rpx;
 	font-size: 24rpx;
 	line-height: 1.7;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .lang-row {
@@ -675,7 +679,7 @@ function goComponents() {
 
 .i18n-label {
 	font-size: 24rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .engineering-card {
@@ -708,12 +712,12 @@ function goComponents() {
 .engineering-title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .engineering-desc {
 	margin-top: 6rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>

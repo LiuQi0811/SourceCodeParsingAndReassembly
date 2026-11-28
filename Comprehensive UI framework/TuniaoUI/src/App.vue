@@ -1,32 +1,48 @@
 <script lang="ts" setup>
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
+import i18n from '@/i18n'
+import { applyLocaleChrome } from '@/i18n/chrome'
+import { useThemeStore } from '@/stores/theme'
 
 const { t } = useI18n()
+const theme = useThemeStore()
+
+function syncChrome() {
+	theme.applyChrome()
+	applyLocaleChrome()
+}
 
 onLaunch(() => {
 	console.log('[TuniaoUI] App Launch')
+	theme.init()
 	// 读取本地保存的语言，实现多语言持久化
 	const cachedLocale = uni.getStorageSync('tn-demo-locale')
-	if (cachedLocale) {
-		i18nGlobalLocale(cachedLocale)
+	if (cachedLocale === 'zh-Hans' || cachedLocale === 'en') {
+		i18n.global.locale.value = cachedLocale
 	}
+	uni.$on('tn-demo-locale-change', () => {
+		applyLocaleChrome()
+		setTimeout(syncChrome, 80)
+	})
+	// 页面跳转后重新应用导航栏 / TabBar 配色与标题，避免暗色模式只生效在首页
+	const afterNavigation = { success: () => setTimeout(syncChrome, 80), fail: () => {} }
+	uni.addInterceptor('navigateTo', afterNavigation)
+	uni.addInterceptor('redirectTo', afterNavigation)
+	uni.addInterceptor('switchTab', afterNavigation)
+	uni.addInterceptor('reLaunch', afterNavigation)
+	uni.addInterceptor('navigateBack', afterNavigation)
+	setTimeout(syncChrome, 80)
 })
 
 onShow(() => {
 	console.log('[TuniaoUI] App Show', t('app.name'))
+	syncChrome()
 })
 
 onHide(() => {
 	console.log('[TuniaoUI] App Hide')
 })
-
-function i18nGlobalLocale(locale: string) {
-	// 延迟引入，避免循环依赖
-	import('./i18n').then(({ default: i18n }) => {
-		i18n.global.locale.value = locale as any
-	})
-}
 </script>
 
 <style lang="scss">
@@ -38,7 +54,7 @@ function i18nGlobalLocale(locale: string) {
 @import '@tuniao/tn-icon/dist/base64/index.css';
 
 page {
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg, #f4f7fb);
 	color: var(--tn-text-color-primary, #0f172a);
 	font-size: 28rpx;
 
@@ -52,6 +68,15 @@ page {
 	--demo-primary: #2f6bff;
 	--demo-cyan: #06b6d4;
 }
+
+/* #ifdef H5 */
+html.theme-dark,
+html.theme-dark body,
+html.theme-dark page,
+html.theme-dark uni-page-body {
+	background-color: #070b14 !important;
+}
+/* #endif */
 
 .page {
 	box-sizing: border-box;

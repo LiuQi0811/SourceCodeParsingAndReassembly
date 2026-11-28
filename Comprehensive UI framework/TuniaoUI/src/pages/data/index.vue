@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { banners, contacts, gallery, goods, scrollListData, waterFallData } from '@/data/mock'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 /** Calendar */
 const calendarMode = ref<'date' | 'multi' | 'range'>('date')
@@ -82,7 +86,7 @@ function callPhone(item: any) {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">数据展示</text>
 			<text class="page-header__desc">
@@ -328,7 +332,7 @@ function callPhone(item: any) {
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .section-gap {
@@ -350,7 +354,7 @@ function callPhone(item: any) {
 .week-calendar-wrap {
 	overflow: hidden;
 	border-radius: 16rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 }
 
 .swiper-item {
@@ -405,13 +409,13 @@ function callPhone(item: any) {
 	flex-direction: column;
 	overflow: hidden;
 	border-radius: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .lazy-cell__text {
 	padding: 10rpx;
 	font-size: 20rpx;
-	color: #606266;
+	color: var(--demo-muted);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -424,12 +428,12 @@ function callPhone(item: any) {
 	align-items: center;
 	justify-content: center;
 	gap: 8rpx;
-	background-color: #f1f3f8;
+	background-color: var(--demo-line-soft);
 }
 
 .lazy-error__text {
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .waterfall-wrap {
@@ -458,7 +462,7 @@ function callPhone(item: any) {
 	padding: 22rpx;
 	display: flex;
 	flex-direction: column;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 16rpx;
 }
 
@@ -466,13 +470,13 @@ function callPhone(item: any) {
 	margin-top: 10rpx;
 	font-size: 26rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .scroll-item__desc {
 	margin-top: 6rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .index-list-wrap {
@@ -484,7 +488,7 @@ function callPhone(item: any) {
 	display: flex;
 	align-items: center;
 	padding: 18rpx 20rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	border-bottom: 1rpx solid #f2f4f8;
 }
 
@@ -497,18 +501,18 @@ function callPhone(item: any) {
 
 .contact__name {
 	font-size: 26rpx;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .contact__phone {
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>
 

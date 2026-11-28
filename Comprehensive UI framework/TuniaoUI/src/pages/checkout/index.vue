@@ -1,8 +1,12 @@
-﻿<script lang="ts" setup>
+<script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { cartKey, useCartStore } from '@/stores/cart'
 import { request } from '@/utils/request'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 interface Address {
 	id: string
@@ -177,7 +181,7 @@ function viewOrder() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-head">
 			<text class="page-head__eyebrow">CHECKOUT</text>
 			<text class="page-head__title">确认订单</text>
@@ -358,7 +362,7 @@ function viewOrder() {
 .page {
 	min-height: 100vh;
 	padding: 28rpx 24rpx 190rpx;
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	box-sizing: border-box;
 }
 
@@ -370,7 +374,7 @@ function viewOrder() {
 	display: block;
 	font-size: 22rpx;
 	letter-spacing: 4rpx;
-	color: #9aa6b8;
+	color: var(--demo-faint);
 	font-weight: 700;
 }
 
@@ -379,7 +383,7 @@ function viewOrder() {
 	margin-top: 6rpx;
 	font-size: 42rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 	letter-spacing: 1rpx;
 }
 
@@ -387,14 +391,14 @@ function viewOrder() {
 	display: block;
 	margin-top: 8rpx;
 	font-size: 23rpx;
-	color: #7d8ba1;
+	color: var(--demo-muted);
 }
 
 .card {
 	margin-bottom: 24rpx;
 	padding: 28rpx 24rpx;
 	border-radius: 28rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 12rpx 36rpx rgba(36, 48, 68, 0.06);
 }
 
@@ -429,13 +433,13 @@ function viewOrder() {
 .address-card__name {
 	font-size: 29rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .address-card__phone {
 	margin-left: 14rpx;
 	font-size: 24rpx;
-	color: #7d8ba1;
+	color: var(--demo-muted);
 }
 
 .address-card__top :deep(.tn-tag) {
@@ -446,7 +450,7 @@ function viewOrder() {
 	display: block;
 	margin-top: 8rpx;
 	font-size: 23rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 	line-height: 1.5;
 }
 
@@ -464,12 +468,12 @@ function viewOrder() {
 .section-head__title {
 	font-size: 27rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .section-head__extra {
 	font-size: 22rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 }
 
 .order-line {
@@ -489,7 +493,7 @@ function viewOrder() {
 	height: 112rpx;
 	border-radius: 16rpx;
 	flex-shrink: 0;
-	background-color: #eef2f8;
+	background-color: var(--demo-line-soft);
 }
 
 .order-line__body {
@@ -502,7 +506,7 @@ function viewOrder() {
 	display: block;
 	font-size: 26rpx;
 	font-weight: 700;
-	color: #273449;
+	color: var(--demo-ink);
 	line-height: 1.4;
 }
 
@@ -511,7 +515,7 @@ function viewOrder() {
 	margin-top: 6rpx;
 	padding: 4rpx 10rpx;
 	border-radius: 8rpx;
-	background-color: #f1f5ff;
+	background-color: var(--demo-primary-soft);
 	font-size: 20rpx;
 	color: #4b7dff;
 }
@@ -525,20 +529,20 @@ function viewOrder() {
 .order-line__price {
 	font-size: 28rpx;
 	font-weight: 800;
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .order-line__count {
 	margin-left: 14rpx;
 	font-size: 22rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 }
 
 .order-line__subtotal {
 	margin-left: 18rpx;
 	font-size: 26rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .option-list {
@@ -551,7 +555,7 @@ function viewOrder() {
 	padding: 20rpx 18rpx;
 	border: 1rpx solid #edf1f7;
 	border-radius: 18rpx;
-	background-color: #fafbfe;
+	background-color: var(--demo-soft);
 }
 
 .option + .option {
@@ -560,7 +564,7 @@ function viewOrder() {
 
 .option--active {
 	border-color: #bcd0ff;
-	background-color: #f2f6ff;
+	background-color: var(--demo-primary-soft);
 }
 
 .option__radio {
@@ -571,7 +575,7 @@ function viewOrder() {
 	height: 36rpx;
 	border: 2rpx solid #d8e0ec;
 	border-radius: 50%;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	flex-shrink: 0;
 }
 
@@ -590,20 +594,20 @@ function viewOrder() {
 	display: block;
 	font-size: 25rpx;
 	font-weight: 700;
-	color: #273449;
+	color: var(--demo-ink);
 }
 
 .option__desc {
 	display: block;
 	margin-top: 4rpx;
 	font-size: 21rpx;
-	color: #8b98aa;
+	color: var(--demo-muted);
 }
 
 .option__extra {
 	margin-left: 12rpx;
 	font-size: 22rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 }
 
 .link-row {
@@ -622,7 +626,7 @@ function viewOrder() {
 	margin-left: 12rpx;
 	font-size: 26rpx;
 	font-weight: 700;
-	color: #273449;
+	color: var(--demo-ink);
 }
 
 .link-row__right {
@@ -633,11 +637,11 @@ function viewOrder() {
 .link-row__value {
 	margin-right: 8rpx;
 	font-size: 23rpx;
-	color: #8b98aa;
+	color: var(--demo-muted);
 }
 
 .link-row__value--active {
-	color: #ff6b3d;
+	color: var(--demo-orange);
 	font-weight: 700;
 }
 
@@ -651,11 +655,11 @@ function viewOrder() {
 	justify-content: space-between;
 	padding: 8rpx 0;
 	font-size: 24rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 }
 
 .summary-row__discount {
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .summary-row--total {
@@ -664,19 +668,19 @@ function viewOrder() {
 	border-top: 1rpx solid #f1f4f9;
 	font-size: 27rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .summary-row--total text:last-child {
 	font-size: 34rpx;
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .checkout-tip {
 	display: block;
 	padding: 0 8rpx;
 	font-size: 21rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 	text-align: center;
 }
 
@@ -686,7 +690,7 @@ function viewOrder() {
 	align-items: center;
 	padding: 30rpx 20rpx 56rpx;
 	border-radius: 28rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 12rpx 36rpx rgba(36, 48, 68, 0.06);
 }
 
@@ -704,7 +708,7 @@ function viewOrder() {
 	display: flex;
 	align-items: center;
 	padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 -12rpx 36rpx rgba(36, 48, 68, 0.1);
 }
 
@@ -715,7 +719,7 @@ function viewOrder() {
 .submit-bar__count {
 	display: block;
 	font-size: 21rpx;
-	color: #98a4b6;
+	color: var(--demo-faint);
 }
 
 .submit-bar__amount {
@@ -726,14 +730,14 @@ function viewOrder() {
 
 .submit-bar__label {
 	font-size: 22rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 }
 
 .submit-bar__value {
 	margin-left: 6rpx;
 	font-size: 38rpx;
 	font-weight: 800;
-	color: #ff6b3d;
+	color: var(--demo-orange);
 }
 
 .submit-bar__btn {
@@ -763,13 +767,13 @@ function viewOrder() {
 	margin-top: 22rpx;
 	font-size: 36rpx;
 	font-weight: 800;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .success-card__desc {
 	margin-top: 8rpx;
 	font-size: 22rpx;
-	color: #8b98aa;
+	color: var(--demo-muted);
 	text-align: center;
 }
 
@@ -778,13 +782,13 @@ function viewOrder() {
 	margin-top: 24rpx;
 	padding: 20rpx;
 	border-radius: 18rpx;
-	background-color: #f6f8fc;
+	background-color: var(--demo-soft);
 }
 
 .success-card__meta text {
 	display: block;
 	font-size: 21rpx;
-	color: #5f6d82;
+	color: var(--demo-muted);
 	line-height: 1.7;
 	text-align: center;
 }

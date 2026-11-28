@@ -1,6 +1,10 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { scrollListData } from '@/data/mock'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const colors = ['red', 'purplered', 'purple', 'bluepurple', 'aquablue', 'blue', 'indigo', 'cyan', 'teal', 'green']
 const lightColors = ['aquablue', 'indigo', 'cyan', 'teal', 'green', 'yellowgreen', 'lime', 'yellow', 'orangeyellow', 'orange', 'orangered', 'grey']
@@ -97,7 +101,7 @@ const gradientItems = [
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__title">布局与原子类</text>
 			<text class="page-header__desc">
@@ -421,7 +425,7 @@ const gradientItems = [
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.6;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .header-chips {
@@ -435,7 +439,7 @@ const gradientItems = [
 	padding: 8rpx 18rpx;
 	border-radius: 999rpx;
 	background-color: rgba(255, 255, 255, 0.7);
-	color: #5f4fd9;
+	color: var(--demo-purple);
 	font-size: 20rpx;
 }
 
@@ -454,8 +458,8 @@ const gradientItems = [
 	padding: 10rpx 22rpx;
 	border: 1rpx solid #d9def0;
 	border-radius: 999rpx;
-	background-color: #ffffff;
-	color: #5f4fd9;
+	background-color: var(--demo-surface);
+	color: var(--demo-purple);
 	font-size: 22rpx;
 }
 
@@ -472,7 +476,7 @@ const gradientItems = [
 	width: 140rpx;
 	padding-top: 8rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .lab-options {
@@ -486,8 +490,8 @@ const gradientItems = [
 	padding: 8rpx 18rpx;
 	border: 1rpx solid #e3e7f1;
 	border-radius: 10rpx;
-	background-color: #f7f8fc;
-	color: #606266;
+	background-color: var(--demo-soft);
+	color: var(--demo-muted);
 	font-size: 21rpx;
 }
 
@@ -501,7 +505,7 @@ const gradientItems = [
 	margin-top: 18rpx;
 	padding: 16rpx;
 	border-radius: 14rpx;
-	background-color: #f4f6fb;
+	background-color: var(--demo-soft);
 }
 
 .lab-canvas {
@@ -509,7 +513,7 @@ const gradientItems = [
 	padding: 16rpx;
 	border: 1rpx dashed #c8d0e6;
 	border-radius: 12rpx;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	overflow: hidden;
 }
 
@@ -563,7 +567,7 @@ const gradientItems = [
 	border: 1rpx solid #e5e9f2;
 	border-radius: 16rpx;
 	overflow: hidden;
-	background-color: #ffffff;
+	background-color: var(--demo-surface);
 	box-shadow: 0 10rpx 28rpx rgba(40, 50, 90, 0.08);
 }
 
@@ -598,12 +602,12 @@ const gradientItems = [
 .dash-title {
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .dash-date {
 	font-size: 19rpx;
-	color: #8a90a6;
+	color: var(--demo-muted);
 }
 
 .dash-body {
@@ -614,7 +618,7 @@ const gradientItems = [
 .dash-side {
 	flex: 0 0 128rpx;
 	padding: 18rpx 12rpx;
-	background-color: #f7f8fc;
+	background-color: var(--demo-soft);
 	border-right: 1rpx solid #edf0f6;
 }
 
@@ -622,13 +626,13 @@ const gradientItems = [
 	display: block;
 	padding: 12rpx 10rpx;
 	border-radius: 8rpx;
-	color: #8a90a6;
+	color: var(--demo-muted);
 	font-size: 19rpx;
 }
 
 .dash-nav--active {
-	background-color: #e9e8ff;
-	color: #5f4fd9;
+	background-color: var(--demo-purple-soft);
+	color: var(--demo-purple);
 	font-weight: 600;
 }
 
@@ -648,12 +652,12 @@ const gradientItems = [
 .dash-toolbar__title {
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .dash-toolbar__meta {
 	font-size: 19rpx;
-	color: #9aa1b5;
+	color: var(--demo-faint);
 }
 
 .dash-grid {
@@ -678,14 +682,14 @@ const gradientItems = [
 	box-sizing: border-box;
 	padding: 16rpx;
 	border-radius: 10rpx;
-	background-color: #f7f9ff;
+	background-color: var(--demo-soft);
 	border: 1rpx solid #edf0fa;
 }
 
 .dash-card__title {
 	display: block;
 	font-size: 18rpx;
-	color: #8a90a6;
+	color: var(--demo-muted);
 }
 
 .dash-card__value {
@@ -693,14 +697,14 @@ const gradientItems = [
 	margin-top: 6rpx;
 	font-size: 28rpx;
 	font-weight: 700;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .dash-card__hint {
 	display: block;
 	margin-top: 6rpx;
 	font-size: 18rpx;
-	color: #7a86a8;
+	color: var(--demo-muted);
 }
 
 .dash-footer {
@@ -709,13 +713,13 @@ const gradientItems = [
 	justify-content: space-between;
 	padding: 16rpx 22rpx;
 	border-top: 1rpx solid #edf0f6;
-	background-color: #fbfcff;
+	background-color: var(--demo-soft);
 	font-size: 19rpx;
-	color: #9aa1b5;
+	color: var(--demo-faint);
 }
 
 .dash-footer__action {
-	color: #5f4fd9;
+	color: var(--demo-purple);
 	font-weight: 600;
 }
 
@@ -749,7 +753,7 @@ const gradientItems = [
 .space-label {
 	width: 90rpx;
 	font-size: 20rpx;
-	color: #8a90a6;
+	color: var(--demo-muted);
 }
 
 .space-stage {
@@ -758,13 +762,13 @@ const gradientItems = [
 	justify-content: flex-end;
 	padding: 8rpx 12rpx;
 	border-radius: 10rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .space-box {
 	box-sizing: border-box;
 	border-radius: 8rpx;
-	background-color: #e9e8ff;
+	background-color: var(--demo-purple-soft);
 }
 
 .space-content {
@@ -785,7 +789,7 @@ const gradientItems = [
 	gap: 22rpx;
 	padding: 24rpx 18rpx;
 	border-radius: 14rpx;
-	background-color: #eef1f8;
+	background-color: var(--demo-soft);
 }
 
 .effect-item {
@@ -801,14 +805,14 @@ const gradientItems = [
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: #ffffff;
-	color: #606266;
+	background-color: var(--demo-surface);
+	color: var(--demo-muted);
 	font-size: 20rpx;
 }
 
 .effect-caption {
 	font-size: 18rpx;
-	color: #9aa1b5;
+	color: var(--demo-faint);
 }
 
 .text-demo {
@@ -818,13 +822,13 @@ const gradientItems = [
 
 .text-ellipsis {
 	width: 100%;
-	color: #303133;
+	color: var(--demo-text);
 	line-height: 1.6;
 }
 
 .border-demo {
 	border-radius: 12rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 }
 
 .color-grid {
@@ -891,7 +895,7 @@ const gradientItems = [
 .list-desc {
 	margin-left: 16rpx;
 	font-size: 22rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 
 .sticky-tail {
@@ -906,7 +910,7 @@ const gradientItems = [
 
 .sticky-tail__text {
 	font-size: 20rpx;
-	color: #9aa1b5;
+	color: var(--demo-faint);
 }
 
 .sticky-bar {
@@ -920,7 +924,7 @@ const gradientItems = [
 .sticky-body {
 	margin-top: 12rpx;
 	padding: 8rpx 24rpx;
-	background-color: #f7f9fc;
+	background-color: var(--demo-soft);
 	border-radius: 12rpx;
 }
 
@@ -929,12 +933,12 @@ const gradientItems = [
 	padding: 22rpx 0;
 	border-bottom: 1rpx solid #eaedf2;
 	font-size: 24rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>

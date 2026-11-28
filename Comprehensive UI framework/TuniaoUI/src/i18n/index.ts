@@ -28,6 +28,7 @@ export const localeOptions = [
 export function setLocale(locale: string) {
 	i18n.global.locale.value = locale as 'zh-Hans' | 'en'
 	uni.setStorageSync('tn-demo-locale', locale)
+	uni.$emit('tn-demo-locale-change', locale)
 }
 
 export default i18n

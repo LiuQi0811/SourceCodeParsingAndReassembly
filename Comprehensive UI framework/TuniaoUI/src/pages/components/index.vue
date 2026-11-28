@@ -2,6 +2,10 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { tnIconCount } from '@/data/icons'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const statusBarHeight = ref(0)
 
@@ -190,7 +194,7 @@ function copyTag(tag: string) {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header" :style="{ paddingTop: statusBarHeight ? `${statusBarHeight + 20}px` : '38rpx' }">
 			<text class="page-header__eyebrow">COMPONENT INDEX</text>
 			<text class="page-header__title">组件总览</text>
@@ -278,7 +282,7 @@ function copyTag(tag: string) {
 
 <style lang="scss" scoped>
 .page {
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 	padding-bottom: 40rpx;
 }
 
@@ -352,8 +356,8 @@ function copyTag(tag: string) {
 	margin: 8rpx;
 	padding: 24rpx;
 	box-sizing: border-box;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	display: flex;
 	flex-direction: column;
@@ -373,28 +377,28 @@ function copyTag(tag: string) {
 	margin-top: 14rpx;
 	font-size: 27rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .category-card__desc {
 	margin-top: 6rpx;
 	font-size: 20rpx;
 	line-height: 1.5;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .category-card__total {
 	margin-top: 10rpx;
 	font-size: 20rpx;
 	font-weight: 600;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .notice-card {
 	margin: 16rpx 24rpx;
 	padding: 24rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
 }
@@ -402,7 +406,7 @@ function copyTag(tag: string) {
 .notice-card__title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .notice-card__code-meta {
@@ -415,7 +419,7 @@ function copyTag(tag: string) {
 .notice-card__code-meta text {
 	font-size: 17rpx;
 	letter-spacing: 1rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .notice-card__code-scroll {
@@ -429,7 +433,7 @@ function copyTag(tag: string) {
 	box-sizing: border-box;
 	min-width: 100%;
 	padding: 20rpx;
-	background-color: #0f172a;
+	background-color: var(--demo-code-bg);
 }
 
 .code-line {
@@ -445,14 +449,14 @@ function copyTag(tag: string) {
 	display: block;
 	margin-top: 14rpx;
 	font-size: 22rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .group-card {
 	margin: 16rpx 24rpx 0;
 	padding: 24rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
 }
@@ -466,12 +470,12 @@ function copyTag(tag: string) {
 .group-title {
 	font-size: 28rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .group-tip {
 	font-size: 20rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 
 .comp-row {
@@ -494,7 +498,7 @@ function copyTag(tag: string) {
 	border-radius: 6rpx;
 	background: #eef4ff;
 	font-size: 22rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 	font-family: Menlo, Consolas, monospace;
 }
 
@@ -502,13 +506,13 @@ function copyTag(tag: string) {
 	margin-top: 4rpx;
 	font-size: 26rpx;
 	font-weight: 500;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .comp-note {
 	margin-top: 4rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .comp-go {
@@ -526,8 +530,8 @@ function copyTag(tag: string) {
 	margin: 6rpx;
 	padding: 16rpx;
 	box-sizing: border-box;
-	background-color: #f8fafc;
-	border: 1rpx solid #eef2f8;
+	background-color: var(--demo-soft);
+	border: 1rpx solid var(--demo-line-soft);
 	border-radius: 14rpx;
 	display: flex;
 	flex-direction: column;
@@ -536,13 +540,13 @@ function copyTag(tag: string) {
 .page-map__name {
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #303133;
+	color: var(--demo-text);
 }
 
 .page-map__desc {
 	margin-top: 4rpx;
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .bottom-space {

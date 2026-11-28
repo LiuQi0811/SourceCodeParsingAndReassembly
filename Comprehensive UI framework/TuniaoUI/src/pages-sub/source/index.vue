@@ -2,6 +2,10 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { pageSources } from './page-source.generated'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const route = ref('')
 const source = ref('')
@@ -29,7 +33,7 @@ function copyAll() {
 </script>
 
 <template>
-	<view class="source-page">
+	<view class="source-page" :style="theme.vars">
 		<view class="source-head">
 			<view>
 				<text class="source-eyebrow">FULL SOURCE</text>
@@ -67,8 +71,8 @@ function copyAll() {
 	justify-content: space-between;
 	gap: 20rpx;
 	padding: 28rpx;
-	background: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.05);
 }
@@ -78,7 +82,7 @@ function copyAll() {
 	font-size: 20rpx;
 	font-weight: 600;
 	letter-spacing: 2rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .source-title {
@@ -86,7 +90,7 @@ function copyAll() {
 	margin-top: 8rpx;
 	font-size: 34rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .source-route {
@@ -94,7 +98,7 @@ function copyAll() {
 	margin-top: 10rpx;
 	font-size: 24rpx;
 	line-height: 1.5;
-	color: #64748b;
+	color: var(--demo-muted);
 }
 
 .source-actions {
@@ -110,7 +114,7 @@ function copyAll() {
 	gap: 16rpx;
 	margin: 16rpx 4rpx;
 	font-size: 22rpx;
-	color: #94a3b8;
+	color: var(--demo-faint);
 }
 
 .source-scroll {

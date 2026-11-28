@@ -3,6 +3,10 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goods, type GoodsItem } from '@/data/mock'
 import { useCartStore } from '@/stores/cart'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 const HISTORY_KEY = 'tn-demo-search-history'
 
@@ -149,7 +153,7 @@ function goCart() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="hero">
 			<view class="hero__top">
 				<view>
@@ -300,7 +304,7 @@ function goCart() {
 .page {
 	min-height: 100vh;
 	padding-bottom: 48rpx;
-	background-color: #f4f7fb;
+	background-color: var(--demo-bg);
 }
 
 .hero {
@@ -368,8 +372,8 @@ function goCart() {
 	position: relative;
 	margin: -42rpx 24rpx 0;
 	padding: 24rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.06);
 }
@@ -406,7 +410,7 @@ function goCart() {
 
 .keyword-line__tip {
 	font-size: 20rpx;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .keyword-pill {
@@ -415,13 +419,13 @@ function goCart() {
 	margin-left: 10rpx;
 	padding: 6rpx 12rpx 6rpx 16rpx;
 	border-radius: 20rpx;
-	background-color: #edf5ff;
+	background-color: var(--demo-primary-soft);
 }
 
 .keyword-pill text {
 	max-width: 360rpx;
 	font-size: 22rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -442,7 +446,7 @@ function goCart() {
 	display: block;
 	font-size: 22rpx;
 	font-weight: 600;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .chip-wrap {
@@ -454,11 +458,11 @@ function goCart() {
 .chip {
 	margin: 10rpx 12rpx 0 0;
 	padding: 10rpx 18rpx;
-	border: 1rpx solid #e5ebf4;
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
-	background-color: #f8fafc;
+	background-color: var(--demo-soft);
 	font-size: 21rpx;
-	color: #606266;
+	color: var(--demo-muted);
 }
 
 .chip--hot {
@@ -468,10 +472,10 @@ function goCart() {
 }
 
 .chip--active {
-	border-color: #c7ddff;
-	background-color: #edf5ff;
+	border-color: var(--demo-primary-line);
+	background-color: var(--demo-primary-soft);
 	font-weight: 600;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .history-block {
@@ -488,7 +492,7 @@ function goCart() {
 
 .history-head__clear {
 	font-size: 20rpx;
-	color: #9aa6b8;
+	color: var(--demo-faint);
 }
 
 .history-chip {
@@ -497,13 +501,13 @@ function goCart() {
 	margin: 10rpx 12rpx 0 0;
 	padding: 8rpx 10rpx 8rpx 16rpx;
 	border-radius: 24rpx;
-	background-color: #f4f6fa;
+	background-color: var(--demo-soft);
 }
 
 .history-chip__text {
 	max-width: 220rpx;
 	font-size: 21rpx;
-	color: #606266;
+	color: var(--demo-muted);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -519,8 +523,8 @@ function goCart() {
 .filter-card {
 	margin: 18rpx 24rpx 0;
 	padding: 8rpx 24rpx 18rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 	box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
 }
@@ -540,7 +544,7 @@ function goCart() {
 	padding-top: 14rpx;
 	font-size: 21rpx;
 	font-weight: 600;
-	color: #909399;
+	color: var(--demo-faint);
 }
 
 .filter-row .chip-wrap {
@@ -563,18 +567,18 @@ function goCart() {
 .result-head__title {
 	font-size: 30rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .result-head__count {
 	margin-left: 12rpx;
 	font-size: 20rpx;
-	color: #9aa6b8;
+	color: var(--demo-faint);
 }
 
 .result-head__reset {
 	font-size: 21rpx;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .result-list {
@@ -585,8 +589,8 @@ function goCart() {
 	display: flex;
 	margin-bottom: 16rpx;
 	padding: 18rpx;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 22rpx;
 	box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
 }
@@ -595,7 +599,7 @@ function goCart() {
 	width: 176rpx;
 	height: 176rpx;
 	border-radius: 16rpx;
-	background-color: #eef2f8;
+	background-color: var(--demo-line-soft);
 }
 
 .goods-row__body {
@@ -617,7 +621,7 @@ function goCart() {
 	margin-right: 10rpx;
 	font-size: 27rpx;
 	font-weight: 600;
-	color: #0f172a;
+	color: var(--demo-ink);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -627,17 +631,17 @@ function goCart() {
 	flex-shrink: 0;
 	padding: 4rpx 12rpx;
 	border-radius: 8rpx;
-	background-color: #edf5ff;
+	background-color: var(--demo-primary-soft);
 	font-size: 18rpx;
 	line-height: 1.4;
-	color: #2f6bff;
+	color: var(--demo-primary);
 }
 
 .goods-row__desc {
 	margin-top: 6rpx;
 	font-size: 21rpx;
 	line-height: 1.5;
-	color: #909399;
+	color: var(--demo-faint);
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -653,9 +657,9 @@ function goCart() {
 	margin-right: 8rpx;
 	padding: 3rpx 10rpx;
 	border-radius: 8rpx;
-	background-color: #f2f6fc;
+	background-color: var(--demo-soft);
 	font-size: 18rpx;
-	color: #7b8794;
+	color: var(--demo-muted);
 }
 
 .goods-row__bottom {
@@ -679,14 +683,14 @@ function goCart() {
 .goods-row__origin {
 	margin-left: 8rpx;
 	font-size: 19rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 	text-decoration: line-through;
 }
 
 .goods-row__sales {
 	margin-left: 12rpx;
 	font-size: 19rpx;
-	color: #b0b3b8;
+	color: var(--demo-faint);
 }
 
 .goods-row__add {
@@ -706,15 +710,15 @@ function goCart() {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	background-color: #ffffff;
-	border: 1rpx solid #e8eef7;
+	background-color: var(--demo-surface);
+	border: 1rpx solid var(--demo-line);
 	border-radius: 24rpx;
 }
 
 .empty-card__desc {
 	margin-top: 8rpx;
 	font-size: 21rpx;
-	color: #909399;
+	color: var(--demo-faint);
 	text-align: center;
 }
 
@@ -727,6 +731,6 @@ function goCart() {
 	margin: 20rpx 32rpx 0;
 	font-size: 20rpx;
 	line-height: 1.6;
-	color: #9aa6b8;
+	color: var(--demo-faint);
 }
 </style>

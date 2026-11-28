@@ -12,6 +12,10 @@ import {
 	onUnload,
 } from '@dcloudio/uni-app'
 import { useComponentColor, useComponentSize, useNamespace } from '@tuniao/tnui-vue3-uniapp'
+import { useThemeStore } from '@/stores/theme'
+
+const theme = useThemeStore()
+
 
 interface LogItem {
 	id: number
@@ -318,7 +322,7 @@ function showShareConfig() {
 </script>
 
 <template>
-	<view class="page">
+	<view class="page" :style="theme.vars">
 		<view class="page-header">
 			<text class="page-header__eyebrow">CROSS PLATFORM</text>
 			<text class="page-header__title">跨端生命周期与系统 API</text>
@@ -499,7 +503,7 @@ function showShareConfig() {
 	margin-top: 10rpx;
 	font-size: 40rpx;
 	font-weight: 800;
-	color: #172033;
+	color: var(--demo-ink);
 }
 
 .page-header__desc {
@@ -507,7 +511,7 @@ function showShareConfig() {
 	margin-top: 12rpx;
 	font-size: 24rpx;
 	line-height: 1.7;
-	color: #5f6b7a;
+	color: var(--demo-muted);
 }
 
 .platform-badge {
@@ -521,7 +525,7 @@ function showShareConfig() {
 
 .platform-badge__label {
 	font-size: 20rpx;
-	color: #8792a2;
+	color: var(--demo-muted);
 }
 
 .platform-badge__value {
@@ -548,7 +552,7 @@ function showShareConfig() {
 
 .log-list {
 	border-radius: 16rpx;
-	background: #f7f9fc;
+	background: var(--demo-soft);
 	overflow: hidden;
 }
 
@@ -567,7 +571,7 @@ function showShareConfig() {
 .log-time {
 	width: 78rpx;
 	font-size: 18rpx;
-	color: #a2acb8;
+	color: var(--demo-faint);
 }
 
 .log-type {
@@ -582,14 +586,14 @@ function showShareConfig() {
 	min-width: 300rpx;
 	font-size: 20rpx;
 	line-height: 1.5;
-	color: #697586;
+	color: var(--demo-muted);
 	word-break: break-all;
 }
 
 .log-empty {
 	padding: 24rpx;
 	font-size: 22rpx;
-	color: #a2acb8;
+	color: var(--demo-faint);
 	text-align: center;
 }
 
@@ -604,26 +608,26 @@ function showShareConfig() {
 	flex-direction: column;
 	padding: 22rpx;
 	border-radius: 16rpx;
-	background: #f7f9fc;
+	background: var(--demo-soft);
 }
 
 .metric-card__label {
 	font-size: 20rpx;
-	color: #8792a2;
+	color: var(--demo-muted);
 }
 
 .metric-card__value {
 	margin-top: 8rpx;
 	font-size: 30rpx;
 	font-weight: 700;
-	color: #243044;
+	color: var(--demo-ink);
 	word-break: break-all;
 }
 
 .metric-card__hint {
 	margin-top: 8rpx;
 	font-size: 19rpx;
-	color: #a2acb8;
+	color: var(--demo-faint);
 }
 
 .button-row {
@@ -639,7 +643,7 @@ function showShareConfig() {
 	align-items: center;
 	padding: 20rpx;
 	border-radius: 16rpx;
-	background: #f7f9fc;
+	background: var(--demo-soft);
 }
 
 .share-card__body {
@@ -651,14 +655,14 @@ function showShareConfig() {
 	display: block;
 	font-size: 24rpx;
 	font-weight: 600;
-	color: #303b4f;
+	color: var(--demo-ink);
 }
 
 .share-card__desc {
 	display: block;
 	margin-top: 6rpx;
 	font-size: 19rpx;
-	color: #98a3b3;
+	color: var(--demo-faint);
 }
 
 .selected-image {
@@ -674,7 +678,7 @@ function showShareConfig() {
 	margin-top: 12rpx;
 	font-size: 20rpx;
 	line-height: 1.6;
-	color: #9aa5b5;
+	color: var(--demo-faint);
 	word-break: break-all;
 }
 
@@ -701,20 +705,20 @@ function showShareConfig() {
 	flex-direction: column;
 	padding: 14rpx;
 	border-radius: 12rpx;
-	background: #f7f9fc;
+	background: var(--demo-soft);
 	box-sizing: border-box;
 }
 
 .capability-cell__name {
 	font-size: 18rpx;
-	color: #6f7b8b;
+	color: var(--demo-muted);
 }
 
 .capability-cell__state {
 	margin-top: 6rpx;
 	font-size: 20rpx;
 	font-weight: 700;
-	color: #9aa5b5;
+	color: var(--demo-faint);
 }
 
 .capability-cell__state.is-ok {
@@ -736,7 +740,7 @@ function showShareConfig() {
 	margin-top: 18rpx;
 	padding: 24rpx;
 	border-radius: 16rpx;
-	background: #f7f9fc;
+	background: var(--demo-soft);
 }
 
 .hook-swatch {
@@ -751,27 +755,27 @@ function showShareConfig() {
 .hook-swatch__text {
 	font-size: 20rpx;
 	font-weight: 700;
-	color: #0f172a;
+	color: var(--demo-ink);
 }
 
 .hook-demo__title {
 	display: block;
 	font-size: 24rpx;
 	font-weight: 700;
-	color: #243044;
+	color: var(--demo-ink);
 }
 
 .hook-demo__text {
 	display: block;
 	margin-top: 8rpx;
 	font-size: 20rpx;
-	color: #6f7b8b;
+	color: var(--demo-muted);
 }
 
 .tip {
 	margin: 8rpx 32rpx 40rpx;
 	font-size: 22rpx;
 	line-height: 1.6;
-	color: #909399;
+	color: var(--demo-faint);
 }
 </style>
