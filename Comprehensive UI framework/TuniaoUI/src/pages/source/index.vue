@@ -6,8 +6,9 @@ import { getPageSource } from '../../utils/page-source'
 const route = ref('')
 const source = ref('')
 
-onLoad((options: Record<string, string>) => {
-	route.value = decodeURIComponent(options.path || 'pages/feedback/index')
+onLoad((options) => {
+	const requested = typeof options?.path === 'string' ? options.path : 'pages/feedback/index'
+	route.value = decodeURIComponent(requested)
 	source.value = getPageSource(route.value)
 })
 

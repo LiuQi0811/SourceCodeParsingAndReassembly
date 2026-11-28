@@ -40,6 +40,12 @@ const generatedCode = computed(() => {
 /** 构建器生成成功时优先用完整代码，抽取失败才退回旧的手写片段 */
 const codeText = computed(() => generatedCode.value || props.code || '')
 const isGenerated = computed(() => !!generatedCode.value)
+const codeHint = computed(() => {
+	if (!isGenerated.value) return '代表性用法片段 · 左右滑动'
+	const lines = codeText.value.split('\n').length
+	const size = (codeText.value.length / 1024).toFixed(1)
+	return `完整示例 · ${lines} 行 / ${size} KB · 上下左右滑动`
+})
 
 /** 默认展示真实运行的效果，源码按需切换 */
 const activeTab = ref<'preview' | 'code'>('preview')
@@ -122,7 +128,7 @@ function openFullSource() {
 				<view class="demo-block__code-dot demo-block__code-dot--red" />
 				<view class="demo-block__code-dot demo-block__code-dot--amber" />
 				<view class="demo-block__code-dot demo-block__code-dot--green" />
-				<text class="demo-block__code-hint">{{ isGenerated ? '完整示例 · 上下左右滑动' : '代表性用法片段 · 左右滑动' }}</text>
+				<text class="demo-block__code-hint">{{ codeHint }}</text>
 			</view>
 			<scroll-view class="demo-block__code-scroll" scroll-x scroll-y :show-scrollbar="false">
 				<text class="demo-block__code">{{ codeText }}</text>
