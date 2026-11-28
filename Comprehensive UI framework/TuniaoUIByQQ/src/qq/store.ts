@@ -328,28 +328,77 @@ export function appendMessage(convId: string, msg: QQMessage) {
 	return msg
 }
 
+/** 用消息列表的最后一条刷新会话预览 */
+function syncConversationPreview(convId: string) {
+	const conv = findConversation(convId)
+	if (!conv) return
+	const list = getMessages(convId)
+	const last = list[list.length - 1]
+	if (!last) {
+		conv.lastMessage = '开始聊天吧'
+		return
+	}
+	const base = previewOf(last)
+	const sender =
+		last.senderId === 'me' ? qqStore.user.name : last.senderName || findUser(last.senderId).name
+	conv.lastMessage =
+		conv.type === 'group' && last.senderId !== 'me' && last.senderId !== 'system'
+			? `${sender}：${base}`
+			: base
+}
+
 /** 删除一条消息，并同步会话的最后一条预览 */
 export function removeMessage(convId: string, msgId: string) {
 	const list = getMessages(convId)
 	const index = list.findIndex((m) => m.id === msgId)
 	if (index === -1) return
 	list.splice(index, 1)
-	const conv = findConversation(convId)
-	if (!conv) return
-	const last = list[list.length - 1]
-	if (last) {
-		const base = previewOf(last)
-		const sender =
-			last.senderId === 'me'
-				? qqStore.user.name
-				: last.senderName || findUser(last.senderId).name
-		conv.lastMessage =
-			conv.type === 'group' && last.senderId !== 'me' && last.senderId !== 'system'
-				? `${sender}：${base}`
-				: base
-	} else {
-		conv.lastMessage = '开始聊天吧'
+	syncConversationPreview(convId)
+}
+
+/** 批量删除消息，返回实际删除的条数 */
+export function removeMessages(convId: string, msgIds: string[]) {
+	const list = getMessages(convId)
+	const ids = new Set(msgIds)
+	const before = list.length
+	for (let i = list.length - 1; i >= 0; i--) {
+		if (ids.has(list[i].id)) list.splice(i, 1)
 	}
+	const removed = before - list.length
+	if (removed > 0) syncConversationPreview(convId)
+	return removed
+}
+
+/**
+ * 把多条消息转发到另一个会话。
+ * 转发后以“我”的身份出现在目标会话，引用关系和 @ 状态不带走。
+ */
+export function forwardMessages(sourceConvId: string, msgIds: string[], targetConvId: string) {
+	const sourceList = getMessages(sourceConvId)
+	const targetConv = findConversation(targetConvId)
+	const ids = new Set(msgIds)
+	const selected = sourceList.filter((msg) => ids.has(msg.id) && msg.type !== 'system')
+	for (const msg of selected) {
+		const copy: QQMessage = {
+			...msg,
+			id: uid('msg'),
+			convId: targetConvId,
+			senderId: 'me',
+			senderName: undefined,
+			mentionsMe: false,
+			quote: undefined,
+			time: nowTime(),
+		}
+		if (msg.payment) {
+			copy.payment = {
+				...msg.payment,
+				status: 'pending',
+				toId: targetConv?.type === 'single' ? targetConv.targetId : undefined,
+			}
+		}
+		appendMessage(targetConvId, copy)
+	}
+	return selected.length
 }
 
 /** 我发送文字消息 */

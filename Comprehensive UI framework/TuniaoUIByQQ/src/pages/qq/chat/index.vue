@@ -7,6 +7,7 @@
 		conversationMentionMessages,
 		findConversation,
 		findUser,
+		forwardMessages,
 		getMessages,
 		groupMetaOf,
 		markConversationRead,
@@ -15,11 +16,13 @@
 		receivePayment,
 		receiveText,
 		removeMessage,
+		removeMessages,
 		sendRedPacket,
 		sendText,
 		sendTransfer,
 		sendVideoMessage,
 		setConversationDraft,
+		sortedConversations,
 	} from '@/qq/store'
 	import {
 		goBack,
@@ -55,6 +58,19 @@
 	const menuOpen = ref(false)
 	const menuMsg = ref<QQMessage | null>(null)
 	const quote = ref<{ name: string; text: string } | null>(null)
+
+	// 多选、批量删除与转发
+	const multiMode = ref(false)
+	const selectedIds = ref<string[]>([])
+	const deleteConfirmOpen = ref(false)
+	const forwardOpen = ref(false)
+	const selectedCount = computed(() => selectedIds.value.length)
+	const forwardTargets = computed(() =>
+		sortedConversations.value.filter((item) => item.id !== convId.value)
+	)
+	const headerTitle = computed(() =>
+		multiMode.value ? `已选择 ${selectedCount.value} 条` : conv.value?.name || '聊天'
+	)
 
 	// @ 我提醒
 	const dismissedMentionId = ref('')
@@ -346,7 +362,7 @@
 	}
 
 	function openPayCard(msg: QQMessage) {
-		if (!msg.payment || !conv.value) return
+		if (multiMode.value || !msg.payment || !conv.value) return
 		if (msg.senderId === 'me') {
 			uni.showToast({
 				title: msg.type === 'redpacket' ? '你发出的红包，等待领取' : '转账已发出，等待收款',
@@ -375,6 +391,7 @@
 	}
 
 	function openVideo(msg: QQMessage) {
+		if (multiMode.value) return
 		videoMsg.value = msg
 		videoPlaying.value = true
 	}
@@ -474,6 +491,7 @@
 	}
 
 	function playVoice(msg: QQMessage) {
+		if (multiMode.value) return
 		if (playingId.value === msg.id) {
 			playingId.value = ''
 			if (playTimer) clearTimeout(playTimer)
@@ -487,20 +505,22 @@
 	}
 
 	function previewImage(url: string) {
+		if (multiMode.value) return
 		uni.previewImage({ urls: [url] })
 	}
 
 	function previewMessageImages(msg: QQMessage) {
+		if (multiMode.value) return
 		if (msg.image) uni.previewImage({ urls: [msg.image] })
 	}
 
 	function openProfile(senderId: string) {
-		if (senderId === 'me') return
+		if (multiMode.value || senderId === 'me') return
 		goUserDetail(senderId)
 	}
 
 	function openGroupCard(card: QQGroupCard) {
-		if (!conv.value) return
+		if (multiMode.value || !conv.value) return
 		if (card.kind === 'todo') return goGroupTodo(conv.value.id)
 		if (card.kind === 'vote') return goGroupVote(conv.value.id)
 		goGroupCheckin(conv.value.id)
@@ -524,6 +544,7 @@
 	/* ---------------- 长按菜单 ---------------- */
 
 	function openMenu(msgId: string) {
+		if (multiMode.value) return
 		const msg = messages.value.find((m) => m.id === msgId)
 		if (!msg || msg.type === 'system') return
 		menuMsg.value = msg
@@ -613,6 +634,84 @@
 		scrollToBottom()
 	}
 
+	/* ---------------- 多选 / 批量操作 ---------------- */
+
+	function enterMulti() {
+		const msg = menuMsg.value
+		if (!msg) return
+		multiMode.value = true
+		selectedIds.value = [msg.id]
+		menuOpen.value = false
+		emojiOpen.value = false
+		moreOpen.value = false
+		photoOpen.value = false
+	}
+
+	function exitMulti() {
+		multiMode.value = false
+		selectedIds.value = []
+		deleteConfirmOpen.value = false
+		forwardOpen.value = false
+	}
+
+	function isSelected(msgId: string) {
+		return selectedIds.value.includes(msgId)
+	}
+
+	function toggleSelect(msgId: string) {
+		selectedIds.value = isSelected(msgId)
+			? selectedIds.value.filter((id) => id !== msgId)
+			: [...selectedIds.value, msgId]
+	}
+
+	function onRowTap(msgId: string) {
+		if (!multiMode.value) return
+		const msg = messages.value.find((item) => item.id === msgId)
+		if (!msg || msg.type === 'system') return
+		toggleSelect(msgId)
+	}
+
+	function openDeleteConfirm() {
+		if (!selectedCount.value) return
+		deleteConfirmOpen.value = true
+	}
+
+	function closeDeleteConfirm() {
+		deleteConfirmOpen.value = false
+	}
+
+	function confirmDeleteSelected() {
+		if (!conv.value || !selectedCount.value) return
+		const count = removeMessages(conv.value.id, selectedIds.value)
+		messages.value = getMessages(conv.value.id)
+		deleteConfirmOpen.value = false
+		multiMode.value = false
+		selectedIds.value = []
+		uni.showToast({ title: `已删除 ${count} 条消息`, icon: 'none' })
+	}
+
+	function openForwardPicker() {
+		if (!selectedCount.value) return
+		forwardOpen.value = true
+	}
+
+	function closeForwardPicker() {
+		forwardOpen.value = false
+	}
+
+	function forwardTo(targetConvId: string) {
+		if (!conv.value || !selectedCount.value) return
+		const target = findConversation(targetConvId)
+		const count = forwardMessages(conv.value.id, selectedIds.value, targetConvId)
+		forwardOpen.value = false
+		multiMode.value = false
+		selectedIds.value = []
+		uni.showToast({
+			title: count ? `已转发 ${count} 条到 ${target?.name || '会话'}` : '没有可转发的消息',
+			icon: 'none',
+		})
+	}
+
 	function msgIdFromEvent(event: Event): string | null {
 		const target = event.target as HTMLElement | null
 		if (!target || typeof target.closest !== 'function') return null
@@ -621,6 +720,10 @@
 	}
 
 	function handleContextMenu(event: MouseEvent) {
+		if (multiMode.value) {
+			event.preventDefault()
+			return
+		}
 		const id = msgIdFromEvent(event)
 		if (!id) return
 		event.preventDefault()
@@ -628,6 +731,7 @@
 	}
 
 	function handleTouchStart(event: TouchEvent) {
+		if (multiMode.value) return
 		const id = msgIdFromEvent(event)
 		if (!id) return
 		if (pressTimer) clearTimeout(pressTimer)
@@ -670,21 +774,24 @@
 <template>
 	<view class="chat-page">
 		<qq-navbar
-			:title="conv ? conv.name : '聊天'"
-			:subtitle="subtitle"
+			:title="headerTitle"
+			:subtitle="multiMode ? '点击消息选择' : subtitle"
 			bg="#F7F8FA"
 			:border="true"
 		>
 			<template #right>
-				<view class="chat-hd-icon" @tap="callVoice">
-					<tn-icon name="phone" size="19px" color="tn-grey-dark" />
-				</view>
-				<view class="chat-hd-icon" @tap="callVideo">
-					<tn-icon name="video" size="20px" color="tn-grey-dark" />
-				</view>
-				<view class="chat-hd-icon" @tap="chatInfo">
-					<tn-icon name="more-horizontal" size="20px" color="tn-grey-dark" />
-				</view>
+				<view v-if="multiMode" class="chat-hd-text" @tap="exitMulti">取消</view>
+				<template v-else>
+					<view class="chat-hd-icon" @tap="callVoice">
+						<tn-icon name="phone" size="19px" color="tn-grey-dark" />
+					</view>
+					<view class="chat-hd-icon" @tap="callVideo">
+						<tn-icon name="video" size="20px" color="tn-grey-dark" />
+					</view>
+					<view class="chat-hd-icon" @tap="chatInfo">
+						<tn-icon name="more-horizontal" size="20px" color="tn-grey-dark" />
+					</view>
+				</template>
 			</template>
 		</qq-navbar>
 
@@ -703,7 +810,7 @@
 		</view>
 
 		<!-- @ 我提醒 -->
-		<view v-if="showMentionBanner" class="chat-mention" @tap="jumpToMention">
+		<view v-if="showMentionBanner && !multiMode" class="chat-mention" @tap="jumpToMention">
 			<view class="chat-mention__icon">
 				<text>@</text>
 			</view>
@@ -729,8 +836,22 @@
 				:key="msg.id"
 				:data-msg="msg.id"
 				class="chat-row"
-				:class="{ 'chat-row--self': msg.senderId === 'me', 'chat-row--mention': msg.mentionsMe }"
+				:class="{
+					'chat-row--self': msg.senderId === 'me',
+					'chat-row--mention': msg.mentionsMe,
+					'chat-row--multi': multiMode && msg.type !== 'system',
+					'chat-row--selected': multiMode && isSelected(msg.id),
+				}"
+				@tap="onRowTap(msg.id)"
 			>
+				<view
+					v-if="multiMode && msg.type !== 'system'"
+					class="chat-pick"
+					:class="{ 'chat-pick--on': isSelected(msg.id) }"
+				>
+					<view class="chat-pick__dot" />
+				</view>
+
 				<!-- 系统提示 -->
 				<view v-if="msg.type === 'system'" class="chat-system">
 					<text class="chat-system__text">{{ msg.text }}</text>
@@ -910,8 +1031,33 @@
 			<view class="chat-body__footer" />
 		</scroll-view>
 
+		<!-- 多选操作栏 -->
+		<view v-if="multiMode" class="chat-multi">
+			<view class="chat-multi__info">
+				<text class="chat-multi__count">{{ selectedCount }}</text>
+				<text class="chat-multi__label">条已选</text>
+			</view>
+			<view
+				class="chat-multi__btn"
+				:class="{ 'chat-multi__btn--disabled': !selectedCount }"
+				@tap="openForwardPicker"
+			>
+				<tn-icon name="share" size="18px" color="#12B7F5" />
+				<text>转发</text>
+			</view>
+			<view
+				class="chat-multi__btn chat-multi__btn--danger"
+				:class="{ 'chat-multi__btn--disabled': !selectedCount }"
+				@tap="openDeleteConfirm"
+			>
+				<tn-icon name="delete" size="18px" color="#FA5151" />
+				<text>删除</text>
+			</view>
+			<view class="chat-multi__cancel" @tap="exitMulti">取消</view>
+		</view>
+
 		<!-- 输入栏 -->
-		<view class="chat-input" :class="{ 'chat-input--panel': emojiOpen || moreOpen }">
+		<view v-else class="chat-input" :class="{ 'chat-input--panel': emojiOpen || moreOpen }">
 			<view v-if="quote" class="chat-quote">
 				<view class="chat-quote__bar" />
 				<text class="chat-quote__text">回复 {{ quote.name }}：{{ quote.text }}</text>
@@ -1143,6 +1289,7 @@
 					</view>
 					<view v-if="canCopy" class="chat-menu__item" @tap="onCopy">复制</view>
 					<view v-if="canQuote" class="chat-menu__item" @tap="onQuote">引用</view>
+					<view class="chat-menu__item" @tap="enterMulti">多选</view>
 					<view v-if="canRevoke" class="chat-menu__item chat-menu__item--danger" @tap="onRevoke">
 						撤回
 					</view>
@@ -1150,6 +1297,50 @@
 				</view>
 				<view class="chat-menu__card">
 					<view class="chat-menu__item" @tap="closeMenu">取消</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 转发目标选择 -->
+		<view v-if="forwardOpen" class="forward-mask" @tap="closeForwardPicker">
+			<view class="forward-sheet" @tap.stop>
+				<view class="forward-head">
+					<text class="forward-head__title">转发给</text>
+					<text class="forward-head__sub">已选 {{ selectedCount }} 条消息</text>
+					<text class="forward-head__close" @tap="closeForwardPicker">关闭</text>
+				</view>
+				<scroll-view class="forward-list" scroll-y>
+					<view
+						v-for="target in forwardTargets"
+						:key="target.id"
+						class="forward-item"
+						@tap="forwardTo(target.id)"
+					>
+						<qq-avatar
+							:name="target.name"
+							:from="target.avatarFrom"
+							:to="target.avatarTo"
+							:size="40"
+						/>
+						<view class="forward-item__main">
+							<text class="forward-item__name">{{ target.name }}</text>
+							<text class="forward-item__sub">{{ target.type === 'group' ? '群聊' : '好友' }} · {{ target.lastMessage }}</text>
+						</view>
+						<tn-icon name="right" size="14px" color="#C9CDD4" />
+					</view>
+					<view v-if="!forwardTargets.length" class="forward-empty">暂无可转发的会话</view>
+				</scroll-view>
+			</view>
+		</view>
+
+		<!-- 批量删除确认 -->
+		<view v-if="deleteConfirmOpen" class="confirm-mask" @tap="closeDeleteConfirm">
+			<view class="confirm-box" @tap.stop>
+				<text class="confirm-box__title">删除 {{ selectedCount }} 条消息？</text>
+				<text class="confirm-box__sub">删除后不可恢复，仅影响本地演示数据。</text>
+				<view class="confirm-box__actions">
+					<view class="confirm-box__btn" @tap="closeDeleteConfirm">取消</view>
+					<view class="confirm-box__btn confirm-box__btn--danger" @tap="confirmDeleteSelected">删除</view>
 				</view>
 			</view>
 		</view>
@@ -2536,5 +2727,275 @@
 		margin-top: 8px;
 		font-size: 9.5px;
 		color: rgba(255, 255, 255, 0.65);
+	}
+
+	/* G：多选、批量删除与转发 */
+	.chat-hd-text {
+		padding: 0 4px;
+		font-size: 13px;
+		color: #12b7f5;
+	}
+
+	.chat-row {
+		position: relative;
+	}
+
+	.chat-row--multi {
+		padding-left: 30px;
+	}
+
+	.chat-row--selected {
+		border-radius: 10px;
+		background-color: var(--qq-blue-light);
+	}
+
+	.chat-pick {
+		position: absolute;
+		left: 3px;
+		top: 9px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 18px;
+		height: 18px;
+		border-radius: 50%;
+		border: 1.5px solid #c9cdd4;
+		background-color: var(--qq-card);
+		box-sizing: border-box;
+	}
+
+	.chat-pick--on {
+		border-color: #12b7f5;
+		background-color: #12b7f5;
+	}
+
+	.chat-pick__dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background-color: #ffffff;
+		opacity: 0;
+	}
+
+	.chat-pick--on .chat-pick__dot {
+		opacity: 1;
+	}
+
+	.chat-multi {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+		border-top: 1px solid var(--qq-line);
+		background-color: var(--qq-card);
+	}
+
+	.chat-multi__info {
+		display: flex;
+		align-items: baseline;
+		gap: 3px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.chat-multi__count {
+		font-size: 18px;
+		font-weight: 700;
+		color: #12b7f5;
+	}
+
+	.chat-multi__label {
+		font-size: 11px;
+		color: var(--qq-text-3);
+	}
+
+	.chat-multi__btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 3px;
+		height: 34px;
+		padding: 0 8px;
+		border-radius: 8px;
+		background-color: var(--qq-blue-light);
+		font-size: 12px;
+		color: #12b7f5;
+	}
+
+	.chat-multi__btn--danger {
+		color: #fa5151;
+		background-color: rgba(250, 81, 81, 0.08);
+	}
+
+	.chat-multi__btn--disabled {
+		opacity: 0.42;
+	}
+
+	.chat-multi__cancel {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 34px;
+		padding: 0 7px;
+		font-size: 12px;
+		color: var(--qq-text-2);
+	}
+
+	.forward-mask {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		max-width: 430px;
+		z-index: 84;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		background-color: rgba(0, 0, 0, 0.34);
+	}
+
+	.forward-sheet {
+		max-height: 72vh;
+		display: flex;
+		flex-direction: column;
+		padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+		border-radius: 16px 16px 0 0;
+		background-color: var(--qq-card);
+	}
+
+	.forward-head {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid var(--qq-line);
+	}
+
+	.forward-head__title {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--qq-text);
+	}
+
+	.forward-head__sub {
+		flex: 1;
+		font-size: 11px;
+		color: var(--qq-text-3);
+	}
+
+	.forward-head__close {
+		font-size: 12px;
+		color: var(--qq-text-2);
+	}
+
+	.forward-list {
+		height: 48vh;
+	}
+
+	.forward-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 9px 2px;
+		border-bottom: 1px solid var(--qq-line);
+	}
+
+	.forward-item:last-child {
+		border-bottom: none;
+	}
+
+	.forward-item__main {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.forward-item__name {
+		display: block;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--qq-text);
+	}
+
+	.forward-item__sub {
+		display: block;
+		margin-top: 2px;
+		font-size: 10.5px;
+		color: var(--qq-text-3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.forward-empty {
+		padding: 26px 0;
+		text-align: center;
+		font-size: 12px;
+		color: var(--qq-text-3);
+	}
+
+	.confirm-mask {
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		max-width: 430px;
+		z-index: 86;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.4);
+	}
+
+	.confirm-box {
+		width: 286px;
+		padding: 20px 18px 0;
+		border-radius: 14px;
+		overflow: hidden;
+		background-color: var(--qq-card);
+		text-align: center;
+	}
+
+	.confirm-box__title {
+		display: block;
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--qq-text);
+	}
+
+	.confirm-box__sub {
+		display: block;
+		margin-top: 8px;
+		font-size: 11.5px;
+		line-height: 1.5;
+		color: var(--qq-text-3);
+	}
+
+	.confirm-box__actions {
+		display: flex;
+		margin: 18px -18px 0;
+		border-top: 1px solid var(--qq-line);
+	}
+
+	.confirm-box__btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 46px;
+		font-size: 15px;
+		color: var(--qq-text);
+	}
+
+	.confirm-box__btn:first-child {
+		border-right: 1px solid var(--qq-line);
+	}
+
+	.confirm-box__btn--danger {
+		color: #fa5151;
+		font-weight: 500;
 	}
 </style>
