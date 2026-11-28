@@ -49,6 +49,7 @@ const codeHint = computed(() => {
 
 /** 默认展示真实运行的效果，源码按需切换 */
 const activeTab = ref<'preview' | 'code'>('preview')
+const codeExpanded = ref(false)
 const copyLabel = ref('复制')
 
 function copyCode() {
@@ -129,8 +130,17 @@ function openFullSource() {
 				<view class="demo-block__code-dot demo-block__code-dot--amber" />
 				<view class="demo-block__code-dot demo-block__code-dot--green" />
 				<text class="demo-block__code-hint">{{ codeHint }}</text>
+				<text class="demo-block__code-expand" @click="codeExpanded = !codeExpanded">
+					{{ codeExpanded ? '收起' : '展开' }}
+				</text>
 			</view>
-			<scroll-view class="demo-block__code-scroll" scroll-x scroll-y :show-scrollbar="false">
+			<scroll-view
+				class="demo-block__code-scroll"
+				:class="{ 'demo-block__code-scroll--expanded': codeExpanded }"
+				scroll-x
+				scroll-y
+				:show-scrollbar="false"
+			>
 				<text class="demo-block__code">{{ codeText }}</text>
 			</scroll-view>
 		</view>
@@ -295,9 +305,21 @@ function openFullSource() {
 	color: #64748b;
 }
 
+.demo-block__code-expand {
+	margin-left: 16rpx;
+	font-size: 20rpx;
+	font-weight: 600;
+	color: #67e8f9;
+}
+
 .demo-block__code-scroll {
 	width: 100%;
 	height: 520rpx;
+}
+
+.demo-block__code-scroll--expanded {
+	height: 78vh;
+	max-height: 1200rpx;
 }
 
 .demo-block__code {
