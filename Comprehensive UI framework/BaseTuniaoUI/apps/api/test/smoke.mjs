@@ -203,9 +203,23 @@ try {
   const png =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
   const upload = await request('POST', '/upload', { name: 'dot.png', dataUrl: png }, token)
-  assert(upload.code === 0 && upload.data.url.startsWith(BASE), '上传返回地址不正确')
+  assert(upload.code === 0 && upload.data.url.startsWith(`${BASE}/uploads/btn-mall/`), '上传应落默认应用目录')
   const image = await fetch(upload.data.url)
   assert(image.headers.get('content-type') === 'image/png', '上传文件不可访问')
+
+  const appUpload = await request(
+    'POST',
+    '/upload',
+    { name: 'app-dot.png', dataUrl: png },
+    token,
+    'app-smoke'
+  )
+  assert(
+    appUpload.code === 0 && appUpload.data.url.startsWith(`${BASE}/uploads/app-smoke/`),
+    '上传应落指定应用目录'
+  )
+  const appImage = await fetch(appUpload.data.url)
+  assert(appImage.headers.get('content-type') === 'image/png', '指定应用上传文件不可访问')
 
   console.log(
     'api smoke passed: auth / tenants / pages / copy / publish / versions / rollback / templates / upload / published'

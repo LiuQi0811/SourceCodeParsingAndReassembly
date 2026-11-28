@@ -101,14 +101,14 @@ npm run build:mp
 
 `mp:tenant` 会同步改写 `apps/mp/.env` 的 `VITE_DECO_TENANT`（传了第三个参数时也改 `VITE_API_BASE`）和 `apps/mp/src/manifest.json` 的微信 AppID。每发布一个新小程序，就在后台新增一个应用，拿到它的 AppID，再用该脚本切换并构建；不要把不同小程序的产物混用同一个 AppID。
 
-- **边界**：当前装修 token 未按应用细分权限，任一有装修权限的管理员可切换所有应用；应用暂不支持删除；上传文件仍是全局目录，不按应用分目录。面向不同客户交付时，还需要补应用级权限、上传隔离和独立域名。
+- **边界**：当前装修 token 未按应用细分权限，任一有装修权限的管理员可切换所有应用；应用暂不支持删除。面向不同客户交付时，还需要补应用级权限与独立域名。
 
 ### 装修真实后端（apps/api）
 
 `apps/api` 是一个零依赖的 Node HTTP 服务，接口路径、响应结构（`{ code, msg, data }`）与后台 Mock 完全一致：
 
 - 数据落盘：`apps/api/data/deco.json`，v2 结构按应用存放页面与模板；首次启动自动种入默认应用「图鸟商城」及其首页与「电商首页模板」，老单应用数据自动迁移
-- 图片落盘：`apps/api/uploads/`，通过 `GET /uploads/<file>` 访问，上传接口为 `POST /upload`（仍收 base64，服务端转文件）
+- 图片落盘：`apps/api/uploads/<tenantId>/`，通过 `GET /uploads/<tenantId>/<file>` 访问，上传接口为 `POST /upload`（仍收 base64，服务端转文件；按 `X-Deco-Tenant` 分应用存目录）
 - 多应用：管理端接口默认按 `X-Deco-Tenant` 读写对应应用，缺省回落默认应用；应用列表/新增/编辑见上节
 - 管理端接口：页面列表/新建/复制/删除、草稿读写、发布、版本历史与回滚、模板 CRUD 与套用、上传；全部要求 `Authorization: Bearer <token>`
 - C 端公开接口：`GET /deco/home`、`GET /deco/published`（只返回已发布页面）、`GET /deco/pages/:id`（只返回已发布数据）；均按 `X-Deco-Tenant` 返回对应应用

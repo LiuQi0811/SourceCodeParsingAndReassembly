@@ -1,7 +1,7 @@
 /**
  * BaseTuniaoUI 装修后端（零依赖）
  * - 数据持久化到 apps/api/data/deco.json
- * - 图片落盘到 apps/api/uploads，并通过 /uploads/<file> 对外提供
+ * - 图片按应用落盘到 apps/api/uploads/<tenantId>，并通过 /uploads/<tenantId>/<file> 对外提供
  * - 所有响应统一 { code, msg, data }，与后台 Mock / 小程序请求层保持一致
  */
 import { createServer as createHttpServer } from 'node:http'
@@ -354,7 +354,7 @@ const assertPage = (page) => {
 
 const sanitizeFileName = (name) => path.basename(String(name || 'image')).replace(/[^\w.-]/g, '_')
 
-const saveUpload = async (body, req) => {
+const saveUpload = async (body, req, tenantId) => {
   const dataUrl = String(body.dataUrl || '')
   const matched = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp|gif));base64,(.+)$/)
   if (!matched) throw new HttpError('仅支持 png / jpeg / webp / gif 图片')
@@ -364,11 +364,13 @@ const saveUpload = async (body, req) => {
 
   const ext = matched[2] === 'jpeg' || matched[2] === 'jpg' ? 'jpg' : matched[2]
   const fileName = `${Date.now().toString(36)}-${randomBytes(4).toString('hex')}.${ext}`
-  await writeFile(path.join(UPLOAD_DIR, fileName), buffer)
+  const tenantDir = path.join(UPLOAD_DIR, tenantId)
+  await mkdir(tenantDir, { recursive: true })
+  await writeFile(path.join(tenantDir, fileName), buffer)
 
   const host = req.headers.host || `localhost:${PORT}`
   return {
-    url: `http://${host}/uploads/${fileName}`,
+    url: `http://${host}/uploads/${tenantId}/${fileName}`,
     name: sanitizeFileName(body.name || `image.${ext}`),
     size: buffer.length,
     inline: false,
@@ -435,7 +437,10 @@ const route = async (req, res, url) => {
   if (url.pathname === '/health') return ok(res, { status: 'up', time: now() })
 
   if (parts[0] === 'uploads' && parts[1]) {
-    const filePath = path.join(UPLOAD_DIR, path.basename(parts[1]))
+    const tenantDir =
+      parts[2] && TENANT_ID_PATTERN.test(parts[1]) ? path.join(UPLOAD_DIR, parts[1]) : UPLOAD_DIR
+    const fileName = path.basename(parts[2] || parts[1])
+    const filePath = path.join(tenantDir, fileName)
     if (!existsSync(filePath)) return send(res, 404, { code: 404, msg: '文件不存在', data: null })
     const stat = statSync(filePath)
     res.writeHead(200, {
@@ -462,8 +467,9 @@ const route = async (req, res, url) => {
 
   if (url.pathname === '/upload' && req.method === 'POST') {
     requireAuth(req)
+    const tenant = resolveTenant(req)
     const body = await readBody(req)
-    return ok(res, await saveUpload(body, req))
+    return ok(res, await saveUpload(body, req, tenant.id))
   }
 
   if (parts[0] !== 'deco') throw new HttpError('接口不存在', 404)
