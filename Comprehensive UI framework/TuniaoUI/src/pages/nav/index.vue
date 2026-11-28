@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const importExample = "import { TnButton } from '@tuniao/tnui-vue3-uniapp'"
 
@@ -46,9 +46,20 @@ function setCollapseMode(accordion: boolean) {
 	collapseValue.value = accordion ? 0 : [0, 1]
 }
 
+const collapseStatus = computed(() => {
+	const value = collapseValue.value
+	const opened = Array.isArray(value) ? value.map((index) => index + 1).join('、') : String(value + 1)
+	return `${collapseAccordion.value ? '手风琴（单开）' : '多开（number[]）'} · 展开第 ${opened} 项`
+})
+
 /** Subsection */
 const subsectionIndex = ref(0)
 const subsectionButtonIndex = ref(1)
+const subsectionLabels = ['全部订单', '待付款', '已完成']
+const periodLabels = ['日', '周', '月']
+const subsectionStatus = computed(
+	() => `下划线：${subsectionLabels[subsectionIndex.value]}；按钮：${periodLabels[subsectionButtonIndex.value]}`
+)
 
 /** SwipeAction */
 function onSwipeClick(item: any) {
@@ -192,6 +203,7 @@ function onSwipeClick(item: any) {
 					<text class="collapse-text">除 app.use 全量安装外，也可以在页面里 {{ importExample }}，或用 easycom 规则自动引入。</text>
 				</tn-collapse-item>
 			</tn-collapse>
+			<text class="tn-gray_text tn-mt-sm">{{ collapseStatus }}</text>
 		</demo-block>
 
 		<!-- Subsection -->
@@ -213,6 +225,7 @@ function onSwipeClick(item: any) {
 					<tn-subsection-item title="月" />
 				</tn-subsection>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">{{ subsectionStatus }}</text>
 		</demo-block>
 
 		<!-- SwipeAction -->

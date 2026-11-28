@@ -382,6 +382,10 @@ watch(
 						<text class="order-card__amount">¥{{ order.amount }}</text>
 					</view>
 				</view>
+				<view v-if="!orders.length" class="empty">
+					<tn-icon name="list" :size="34" color="#94a3b8" />
+					<text class="empty__text">{{ loading ? '订单加载中…' : '订单为空，点击下方重新加载' }}</text>
+				</view>
 			</view>
 
 			<view class="load-state" @click="loadOrders()">

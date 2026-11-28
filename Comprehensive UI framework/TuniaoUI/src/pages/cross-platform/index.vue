@@ -73,6 +73,7 @@ onLoad((options) => {
 
 onReady(() => {
 	readyState.value = '已 ready'
+	capabilitiesRefresh.value++
 	addLog('onReady', '页面首次渲染完成，适合测量节点尺寸')
 	initNetworkWatch()
 	initWindowWatch()
@@ -183,17 +184,30 @@ const settingText = ref('')
 const phoneText = ref('')
 const apiResult = ref('尚未调用系统 API')
 
-const capabilities = computed(() => [
-	{ name: 'chooseImage', label: '选择图片', ok: canUse('chooseImage') },
-	{ name: 'previewImage', label: '预览图片', ok: canUse('previewImage') },
-	{ name: 'scanCode', label: '扫码', ok: canUse('scanCode') },
-	{ name: 'chooseLocation', label: '选择位置', ok: canUse('chooseLocation') },
-	{ name: 'openSetting', label: '打开设置', ok: canUse('openSetting') },
-	{ name: 'makePhoneCall', label: '拨打电话', ok: canUse('makePhoneCall') },
-])
+const capabilitiesRefresh = ref(0)
+const capabilities = computed(() => {
+	void capabilitiesRefresh.value
+	return [
+		{ name: 'chooseImage', label: '选择图片', ok: canUse('chooseImage') },
+		{ name: 'previewImage', label: '预览图片', ok: canUse('previewImage') },
+		{ name: 'scanCode', label: '扫码', ok: canUse('scanCode') },
+		{ name: 'chooseLocation', label: '选择位置', ok: canUse('chooseLocation') },
+		{ name: 'openSetting', label: '打开设置', ok: canUse('openSetting') },
+		{ name: 'makePhoneCall', label: '拨打电话', ok: canUse('makePhoneCall') },
+	]
+})
 
 function canUse(name: string) {
 	return typeof (uni as any)[name] === 'function'
+}
+
+function guardApi(name: string) {
+	if (canUse(name)) return true
+	const message = `${name} 在当前平台不可用`
+	apiResult.value = message
+	addLog(name, message)
+	uni.showToast({ title: message, icon: 'none' })
+	return false
 }
 
 function failApi(name: string, err: any) {
@@ -209,6 +223,7 @@ function succeedApi(name: string, detail: string) {
 }
 
 function chooseImage() {
+	if (!guardApi('chooseImage')) return
 	uni.chooseImage({
 		count: 1,
 		sizeType: ['original', 'compressed'],
@@ -223,6 +238,7 @@ function chooseImage() {
 }
 
 function previewImage() {
+	if (!guardApi('previewImage')) return
 	const urls = chosenImage.value
 		? [chosenImage.value, '/static/demo/banner-1.jpg']
 		: ['/static/demo/banner-1.jpg', '/static/demo/banner-2.jpg', '/static/demo/banner-3.jpg']
@@ -235,6 +251,7 @@ function previewImage() {
 }
 
 function scanCode() {
+	if (!guardApi('scanCode')) return
 	uni.scanCode({
 		onlyFromCamera: false,
 		scanType: ['qrCode', 'barCode'],
@@ -247,6 +264,7 @@ function scanCode() {
 }
 
 function chooseLocation() {
+	if (!guardApi('chooseLocation')) return
 	uni.chooseLocation({
 		success: (res) => {
 			locationText.value = [res.name, res.address].filter(Boolean).join(' · ') || '已选择位置'
@@ -257,6 +275,7 @@ function chooseLocation() {
 }
 
 function openSetting() {
+	if (!guardApi('openSetting')) return
 	uni.openSetting({
 		success: (res) => {
 			settingText.value = JSON.stringify(res.authSetting || {})
@@ -267,6 +286,7 @@ function openSetting() {
 }
 
 function makePhoneCall() {
+	if (!guardApi('makePhoneCall')) return
 	uni.makePhoneCall({
 		phoneNumber: '10086',
 		success: () => {
@@ -375,7 +395,7 @@ function showShareConfig() {
 		<!-- 媒体 -->
 		<demo-block
 			title="媒体：选择图片 / 预览图片"
-			desc="chooseImage 返回 tempFilePaths；previewImage 传入 urls 与 current，H5 与小程序都可用"
+			desc="chooseImage 返回 tempFilePaths；previewImage 传入 urls 与 current。H5 受浏览器权限与平台支持限制，能力矩阵会标出不可用项"
 			code="uni.chooseImage({ count: 1, sourceType: ['album', 'camera'] }) / uni.previewImage({ urls, current })"
 		>
 			<view class="button-row">
@@ -383,7 +403,7 @@ function showShareConfig() {
 				<tn-button size="sm" plain @click="previewImage">预览图片</tn-button>
 			</view>
 			<image v-if="chosenImage" :src="chosenImage" class="selected-image" mode="aspectFill" />
-			<text class="hint-text">{{ chosenImage ? `已选择：${chosenImage}` : '未选择时预览会使用内置示例图' }}</text>
+			<text class="hint-text">{{ chosenImage ? `已选择：${chosenImage}` : '未选择时预览会使用内置示例图；当前平台没有的 API 会在点击时直接提示' }}</text>
 		</demo-block>
 
 		<!-- 扫码 / 定位 -->
@@ -427,6 +447,7 @@ function showShareConfig() {
 					<text class="capability-cell__state" :class="item.ok ? 'is-ok' : 'is-off'">{{ item.ok ? '可用' : '不可用' }}</text>
 				</view>
 			</view>
+			<text class="hint-text">能力矩阵里标为「不可用」的 API，点击对应按钮会直接提示，不会抛出原始报错；可切换到小程序 / App 再验证。</text>
 			<view class="result-box">{{ apiResult }}</view>
 		</demo-block>
 
