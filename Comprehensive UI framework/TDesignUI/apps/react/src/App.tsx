@@ -1,6 +1,6 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Alert, Button, Card, Divider, Input, Space, Switch, Tag } from 'tdesign-react';
-import { APP_SPEC } from '@tdesignui/core';
+import { APP_SPEC, createCounter, formatCount } from '@tdesignui/core';
 
 const styles = {
   page: {
@@ -18,9 +18,13 @@ const styles = {
 
 export default function App() {
   const [name, setName] = useState('TDesign');
-  const [count, setCount] = useState(0);
   const [dark, setDark] = useState(false);
   const tags = ['React 19', 'Vite 7', 'TypeScript', 'TDesign'];
+
+  // 计数器来自 packages/core，与 Vue 端共用同一份实现
+  const counter = useMemo(() => createCounter(), []);
+  const [count, setCount] = useState(counter.get());
+  useEffect(() => counter.subscribe(setCount), [counter]);
 
   const greeting = name ? `你好，${name}！` : '请输入名字';
   const textColor = dark ? '#e8e8e8' : '#1f2329';
@@ -46,11 +50,17 @@ export default function App() {
                 onChange={(value) => setName(value)}
               />
               <Space align="center">
-                <Button theme="primary" onClick={() => setCount((c) => c + 1)}>
+                <Button theme="primary" onClick={() => counter.increment()}>
                   点我 +1
                 </Button>
+                <Button variant="outline" onClick={() => counter.increment(5)}>
+                  一次 +5
+                </Button>
+                <Button variant="text" onClick={() => counter.reset()}>
+                  重置
+                </Button>
                 <Tag theme="primary" variant="light">
-                  当前点击：{count} 次
+                  {formatCount(count)}
                 </Tag>
               </Space>
               <Alert theme="success" message={greeting} />

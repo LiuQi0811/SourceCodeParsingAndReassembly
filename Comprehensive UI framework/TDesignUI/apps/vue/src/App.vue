@@ -1,17 +1,20 @@
 <script setup lang="ts">
-// ref / computed 由 unplugin-auto-import 自动注入，无需手动 import
-import { APP_SPEC } from '@tdesignui/core';
+// ref / computed / onUnmounted 由 unplugin-auto-import 自动注入，无需手动 import
+import { APP_SPEC, createCounter, formatCount } from '@tdesignui/core';
 
 const name = ref('TDesign');
-const count = ref(0);
 const dark = ref(false);
 const tags = ref(['Vue 3', 'Vite', 'TypeScript', 'TDesign']);
 
-const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请输入名字'));
+// 计数器来自 packages/core，与 React 端共用同一份实现
+const counter = createCounter();
+const count = ref(counter.get());
+const stopCount = counter.subscribe((value) => {
+  count.value = value;
+});
+onUnmounted(stopCount);
 
-function handleClick() {
-  count.value += 1;
-}
+const greeting = computed(() => (name.value ? `你好，${name.value}！` : '请输入名字'));
 </script>
 
 <template>
@@ -26,8 +29,10 @@ function handleClick() {
         <t-space direction="vertical" size="16px" style="width: 100%">
           <t-input v-model="name" label="名字" placeholder="输入你的名字" clearable />
           <t-space align="center">
-            <t-button theme="primary" @click="handleClick">点我 +1</t-button>
-            <t-tag theme="primary" variant="light">当前点击：{{ count }} 次</t-tag>
+            <t-button theme="primary" @click="counter.increment()">点我 +1</t-button>
+            <t-button theme="default" variant="outline" @click="counter.increment(5)">一次 +5</t-button>
+            <t-button theme="default" variant="text" @click="counter.reset()">重置</t-button>
+            <t-tag theme="primary" variant="light">{{ formatCount(count) }}</t-tag>
           </t-space>
           <t-alert theme="success" :message="greeting" />
         </t-space>

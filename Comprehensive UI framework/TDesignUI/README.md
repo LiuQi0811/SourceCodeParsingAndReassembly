@@ -22,10 +22,33 @@ npm install                       # 根目录一次装完两个 app
 npm run dev:vue                   # 只起 Vue 端 → http://localhost:5180
 npm run dev:react                 # 只起 React 端 → http://localhost:5190
 npm run build:all                 # 两端分别构建
+npm run typecheck                 # 两端各跑一次 tsc --noEmit
 npm run ls:vite                   # 查看每个 app 实际解析到的 vite 版本
 ```
 
 两个终端同时开着 `dev:vue` 与 `dev:react` 可并行运行。
+
+## 共享状态怎么用
+
+`packages/core` 提供框架无关的 `createCounter()`（`get` / `increment` / `reset` / `subscribe`）。
+两端各自订阅，视图各自响应，业务逻辑只有一份：
+
+```ts
+// Vue：订阅写进 ref，卸载时退订
+const counter = createCounter();
+const count = ref(counter.get());
+const stop = counter.subscribe((value) => (count.value = value));
+onUnmounted(stop);
+```
+
+```tsx
+// React：订阅即派发 setState，useEffect 的返回值就是退订函数
+const counter = useMemo(() => createCounter(), []);
+const [count, setCount] = useState(counter.get());
+useEffect(() => counter.subscribe(setCount), [counter]);
+```
+
+`formatCount` 这类文案也归 core，避免两端各写一份字符串导致走样。
 
 ## 依赖版本隔离
 
@@ -42,6 +65,8 @@ npm workspaces 会把版本不同的包**嵌套**到各自 `apps/*/node_modules`
 ## 约定
 
 - `packages/core` 只能写纯 TS。出现 `import ... from 'vue'` / `'react'` / `'tdesign-*'` 就说明边界破了。
+- `subscribe` 返回的退订函数必须返回 `void`（不能返回 `boolean`），否则无法直接当作 React 的 effect cleanup。
+- `tsconfig` 不要写 `baseUrl`：本项目使用 TypeScript 7，该选项已被移除，`paths` 直接相对 tsconfig 解析。
 - 端口写死并开启 `strictPort`，冲突时直接报错，避免静默顺延到别的端口而打开错的页面。
 - 新增第三个框架（如 Tuniao）按 `apps/<name>` + 自己的 `vite.config.ts` 加，根配置不用动。
 
