@@ -58,6 +58,11 @@ export const qqStore = reactive({
 let seq = 0
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${++seq}`
 
+/** 所有出现过的用户，删除好友后资料页 / 群成员仍能找回 */
+const knownUsers = new Map<string, QQUser>()
+qqStore.contacts.forEach((user) => knownUsers.set(user.id, user))
+qqStore.friendRequests.forEach((request) => knownUsers.set(request.user.id, request.user))
+
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
 export const nowTime = () => {
 	const d = new Date()
@@ -92,7 +97,25 @@ export const handledRequests = computed<QQFriendRequest[]>(() =>
 
 export function findUser(id: string): QQUser {
 	if (id === 'me') return qqStore.user
-	return qqStore.contacts.find((u) => u.id === id) || qqStore.user
+	// 恢复本地快照后联系人可能变化，查询前同步一次，删除好友后仍能找到资料
+	qqStore.contacts.forEach((user) => knownUsers.set(user.id, user))
+	qqStore.friendRequests.forEach((request) => knownUsers.set(request.user.id, request.user))
+	return (
+		qqStore.contacts.find((u) => u.id === id) ||
+		knownUsers.get(id) ||
+		qqStore.friendRequests.find((r) => r.user.id === id)?.user ||
+		qqStore.user
+	)
+}
+
+/** 是否已经是好友 */
+export function isContact(id: string) {
+	return id !== 'me' && qqStore.contacts.some((u) => u.id === id)
+}
+
+/** 某个人待处理的好友申请（用于资料页“同意申请”） */
+export function pendingRequestOf(userId: string) {
+	return qqStore.friendRequests.find((r) => r.user.id === userId && r.status === 'pending')
 }
 
 export function findConversation(id: string): QQConversation | undefined {
@@ -561,6 +584,50 @@ export function removeConversation(convId: string) {
 	if (index > -1) qqStore.conversations.splice(index, 1)
 }
 
+/** 设置 / 清除好友备注，并同步单聊会话标题 */
+export function updateContactRemark(userId: string, remark: string) {
+	const user = qqStore.contacts.find((u) => u.id === userId)
+	if (!user) return false
+	const clean = remark.trim().slice(0, 20)
+	if (clean) user.remark = clean
+	else delete user.remark
+	qqStore.conversations.forEach((conv) => {
+		if (conv.type === 'single' && conv.targetId === userId) {
+			conv.name = user.remark || user.name
+		}
+	})
+	return true
+}
+
+/** 保存好友标签 */
+export function updateContactTags(userId: string, tags: string[]) {
+	const user = qqStore.contacts.find((u) => u.id === userId)
+	if (!user) return false
+	const clean = Array.from(
+		new Set(tags.map((tag) => tag.trim().slice(0, 10)).filter(Boolean))
+	).slice(0, 8)
+	user.tags = clean
+	return true
+}
+
+/** 删除好友：移除联系人关系和单聊会话，历史消息留在内存里 */
+export function deleteFriend(userId: string) {
+	const index = qqStore.contacts.findIndex((u) => u.id === userId)
+	if (index < 0) return false
+	qqStore.contacts.splice(index, 1)
+	const removedConvIds = qqStore.conversations
+		.filter((conv) => conv.type === 'single' && conv.targetId === userId)
+		.map((conv) => conv.id)
+	qqStore.conversations = qqStore.conversations.filter(
+		(conv) => !(conv.type === 'single' && conv.targetId === userId)
+	)
+	if (removedConvIds.includes(qqStore.focusConvId)) {
+		qqStore.focusConvId = ''
+		qqStore.focusMessageId = ''
+	}
+	return true
+}
+
 /** 和某个好友开启聊天（已有会话直接复用） */
 export function openConversationWith(userId: string) {
 	const exist = qqStore.conversations.find((c) => c.type === 'single' && c.targetId === userId)
@@ -570,7 +637,7 @@ export function openConversationWith(userId: string) {
 		id: uid('c'),
 		type: 'single',
 		targetId: userId,
-		name: user.name,
+		name: user.remark || user.name,
 		avatarFrom: user.avatarFrom,
 		avatarTo: user.avatarTo,
 		avatarText: user.avatarText,
@@ -618,30 +685,51 @@ export function createGroup(memberIds: string[]) {
 	return conv.id
 }
 
-/** 同意好友申请：加入联系人列表，并生成一条会话 */
-export function acceptFriendRequest(requestId: string) {
-	const request = qqStore.friendRequests.find((r) => r.id === requestId)
-	if (!request || request.status !== 'pending') return null
-	request.status = 'accepted'
-	if (!qqStore.contacts.some((c) => c.id === request.user.id)) {
-		qqStore.contacts.push({ ...request.user })
+/** 把一个人加入好友并生成会话；重复调用会复用已有会话 */
+function startFriendConversation(user: QQUser) {
+	if (user.id === 'me') return null
+	if (!qqStore.contacts.some((c) => c.id === user.id)) {
+		qqStore.contacts.push({ ...user })
 	}
-	const convId = openConversationWith(request.user.id)
+	const contact = qqStore.contacts.find((c) => c.id === user.id)
+	if (contact) knownUsers.set(user.id, contact)
+	const pending = qqStore.friendRequests.find((r) => r.user.id === user.id && r.status === 'pending')
+	if (pending) pending.status = 'accepted'
+	const convId = openConversationWith(user.id)
 	const text = '你们已经是好友了，开始聊天吧'
-	getMessages(convId).push({
-		id: uid('msg'),
-		convId,
-		senderId: 'system',
-		type: 'system',
-		text,
-		time: nowTime(),
-	})
+	const list = getMessages(convId)
+	if (!list.some((item) => item.type === 'system' && item.text === text)) {
+		list.push({
+			id: uid('msg'),
+			convId,
+			senderId: 'system',
+			type: 'system',
+			text,
+			time: nowTime(),
+		})
+	}
 	const conv = findConversation(convId)
 	if (conv) {
 		conv.lastMessage = text
 		conv.time = nowTime()
 	}
 	return convId
+}
+
+/** 从资料页直接加好友（演示为“申请已通过”） */
+export function addFriend(userId: string) {
+	if (!userId || userId === 'me') return null
+	const user = findUser(userId)
+	if (user.id !== userId) return null
+	return startFriendConversation(user)
+}
+
+/** 同意好友申请：加入联系人列表，并生成一条会话 */
+export function acceptFriendRequest(requestId: string) {
+	const request = qqStore.friendRequests.find((r) => r.id === requestId)
+	if (!request || request.status !== 'pending') return null
+	request.status = 'accepted'
+	return startFriendConversation(request.user)
 }
 
 /** 拒绝好友申请 */

@@ -19,17 +19,29 @@
 	})
 
 	const topPad = computed(() => (statusBarHeight.value ? statusBarHeight.value : 8))
+	const activeTag = ref('')
 
-	/** 索引列表高度 = 可视高度 - 顶部总占用（标题栏 + 搜索 + 快捷入口 + 分组标题 + Tabbar） */
+	const allTags = computed(() =>
+		Array.from(
+			new Set(qqStore.contacts.flatMap((contact) => contact.tags || []))
+		)
+	)
+
+	const visibleContacts = computed(() => {
+		if (!activeTag.value) return qqStore.contacts
+		return qqStore.contacts.filter((contact) => contact.tags?.includes(activeTag.value))
+	})
+
+	/** 索引列表高度 = 可视高度 - 顶部总占用（标题栏 + 搜索 + 快捷入口 + 分组标题 + 标签行 + Tabbar） */
 	const listHeight = computed(() => {
-		const reserved = topPad.value + 44 + 40 + 99 + 35 + 54 + 10
+		const reserved = topPad.value + 44 + 40 + 99 + 35 + 38 + 54 + 10
 		return Math.max(320, windowHeight.value - reserved)
 	})
 
 	// 组件需要的是 { 字母: { title, data } } 结构，这样右侧索引栏才是字母
 	const indexedData = computed(() => {
 		const map: Record<string, { title: string; data: QQUser[] }> = {}
-		qqStore.contacts.forEach((contact) => {
+		visibleContacts.value.forEach((contact) => {
 			const key = contact.index || '#'
 			if (!map[key]) map[key] = { title: key, data: [] }
 			map[key].data.push(contact)
@@ -103,9 +115,34 @@
 		<view class="contact-list">
 			<view class="contact-list__title">
 				<text class="contact-list__label">我的好友</text>
-				<text class="contact-list__count">共 {{ totalContacts }} 位</text>
+				<text class="contact-list__count">
+					{{ activeTag ? `${visibleContacts.length} / ${totalContacts} 位` : `共 ${totalContacts} 位` }}
+				</text>
 			</view>
+
+			<scroll-view class="contact-tags" scroll-x :show-scrollbar="false">
+				<view class="contact-tags__inner">
+					<view
+						class="contact-tag"
+						:class="{ 'contact-tag--active': !activeTag }"
+						@tap="activeTag = ''"
+					>
+						全部
+					</view>
+					<view
+						v-for="tag in allTags"
+						:key="tag"
+						class="contact-tag"
+						:class="{ 'contact-tag--active': activeTag === tag }"
+						@tap="activeTag = activeTag === tag ? '' : tag"
+					>
+						{{ tag }}
+					</view>
+				</view>
+			</scroll-view>
+
 			<tn-index-list
+				v-if="visibleContacts.length"
 				:data="indexedData"
 				:height="listHeight"
 				:sticky-offset-top="0"
@@ -132,6 +169,10 @@
 					</view>
 				</template>
 			</tn-index-list>
+			<view v-else class="contact-empty">
+				<text class="contact-empty__title">这个标签下还没有好友</text>
+				<text class="contact-empty__desc">换一个标签，或点「全部」查看所有联系人</text>
+			</view>
 		</view>
 
 		<qq-tabbar active="contact" />
@@ -281,6 +322,62 @@
 
 	.contact-list__count {
 		font-size: 11px;
+		color: var(--qq-text-3);
+	}
+
+	.contact-tags {
+		flex-shrink: 0;
+		width: 100%;
+		height: 34px;
+		margin-bottom: 4px;
+		white-space: nowrap;
+	}
+
+	.contact-tags__inner {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0 14px;
+	}
+
+	.contact-tag {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		height: 24px;
+		padding: 0 10px;
+		border-radius: 12px;
+		background-color: var(--qq-card-2);
+		box-sizing: border-box;
+		flex-shrink: 0;
+		white-space: nowrap;
+		font-size: 10.5px;
+		color: var(--qq-text-3);
+	}
+
+	.contact-tag--active {
+		background-color: rgba(18, 183, 245, 0.12);
+		color: #12b7f5;
+		font-weight: 600;
+	}
+
+	.contact-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		height: 180px;
+		color: var(--qq-text-2);
+	}
+
+	.contact-empty__title {
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.contact-empty__desc {
+		font-size: 11.5px;
 		color: var(--qq-text-3);
 	}
 

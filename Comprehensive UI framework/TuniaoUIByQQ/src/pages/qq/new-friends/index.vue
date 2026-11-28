@@ -7,8 +7,12 @@
 		qqStore,
 		rejectFriendRequest,
 	} from '@/qq/store'
-	import { goChatByConversation, goNewGroup } from '@/qq/router'
+	import { goChatByConversation, goNewGroup, goUserDetail } from '@/qq/router'
 	import type { QQFriendRequest } from '@/qq/types'
+
+	function openProfile(request: QQFriendRequest) {
+		goUserDetail(request.user.id)
+	}
 
 	function onAccept(request: QQFriendRequest) {
 		const convId = acceptFriendRequest(request.id)
@@ -68,15 +72,17 @@
 
 			<view v-if="pendingRequests.length" class="friends-card">
 				<view v-for="request in pendingRequests" :key="request.id" class="request">
-					<qq-avatar
-						:name="request.user.name"
-						:from="request.user.avatarFrom"
-						:to="request.user.avatarTo"
-						:size="46"
-					/>
+					<view class="request__avatar" @tap="openProfile(request)">
+						<qq-avatar
+							:name="request.user.name"
+							:from="request.user.avatarFrom"
+							:to="request.user.avatarTo"
+							:size="46"
+						/>
+					</view>
 					<view class="request__main">
 						<view class="request__name-row">
-							<text class="request__name">{{ request.user.name }}</text>
+							<text class="request__name" @tap="openProfile(request)">{{ request.user.name }}</text>
 							<text class="request__time">{{ request.time }}</text>
 						</view>
 						<text class="request__meta">{{ request.source }}</text>
@@ -102,14 +108,16 @@
 			</view>
 			<view class="friends-card">
 				<view v-for="request in handledRequests" :key="request.id" class="request">
-					<qq-avatar
-						:name="request.user.name"
-						:from="request.user.avatarFrom"
-						:to="request.user.avatarTo"
-						:size="46"
-					/>
+					<view class="request__avatar" @tap="openProfile(request)">
+						<qq-avatar
+							:name="request.user.name"
+							:from="request.user.avatarFrom"
+							:to="request.user.avatarTo"
+							:size="46"
+						/>
+					</view>
 					<view class="request__main">
-						<text class="request__name">{{ request.user.name }}</text>
+						<text class="request__name" @tap="openProfile(request)">{{ request.user.name }}</text>
 						<text class="request__meta">{{ request.source }}</text>
 					</view>
 					<view

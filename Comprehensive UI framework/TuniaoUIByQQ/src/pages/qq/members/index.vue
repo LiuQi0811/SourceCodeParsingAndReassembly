@@ -3,6 +3,7 @@
 	import { onLoad, onShow } from '@dcloudio/uni-app'
 	import {
 		findConversation,
+		findUser,
 		groupMetaOf,
 		qqStore,
 		removeGroupMember,
@@ -40,7 +41,10 @@
 
 	function contactUser(id: string): QQUser | undefined {
 		if (id === 'me') return qqStore.user
-		return qqStore.contacts.find((u) => u.id === id)
+		const friend = qqStore.contacts.find((u) => u.id === id)
+		if (friend) return friend
+		const known = findUser(id)
+		return known.id === id ? known : undefined
 	}
 
 	/** 演示群成员：群主 林嘉禾、管理员取群管理状态，其余取通讯录好友 */
@@ -55,6 +59,7 @@
 		}
 		add('u_linjiahe', 'owner')
 		;[ 'u_suwan', 'u_chenyu' ].forEach((id) => add(id, 'admin'))
+		if (convId.value === 'c5') add('u_gunanzhou', 'member')
 		;[
 			'me',
 			'u_xujiashu',
