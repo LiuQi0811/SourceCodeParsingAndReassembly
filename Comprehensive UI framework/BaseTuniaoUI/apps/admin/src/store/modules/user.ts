@@ -4,6 +4,7 @@ import { appConfig } from '@/config'
 import { storage } from '@/utils/storage'
 import { hasPagePermission, hasPermission } from '@/utils/permission'
 import { authApi } from '@/api/auth'
+import { clearDecoToken, hasRemoteDecoApi, loginDeco } from '@/utils/decoAuth'
 import type { LoginForm, MenuItem, UserProfile } from '@/api/types'
 
 /**
@@ -32,6 +33,15 @@ export const useUserStore = defineStore('user', () => {
     token.value = result.token
     storage.set(appConfig.tokenKey, result.token)
     applyProfile(result.profile)
+
+    // 装修后端单独鉴权：失败不阻断主登录，装修页面会提示未登录
+    if (hasRemoteDecoApi()) {
+      try {
+        await loginDeco(form.username, form.password)
+      } catch (error) {
+        console.warn('[deco] 装修后端登录失败', error)
+      }
+    }
   }
 
   const fetchProfile = async (silent = false): Promise<UserProfile> => {
@@ -62,6 +72,7 @@ export const useUserStore = defineStore('user', () => {
     profile.value = null
     storage.remove(appConfig.tokenKey)
     storage.remove('profile')
+    clearDecoToken()
   }
 
   /** 按钮级权限判断 */
@@ -84,6 +95,7 @@ export const useUserStore = defineStore('user', () => {
   uni.$on('auth:expired', () => {
     token.value = ''
     profile.value = null
+    clearDecoToken()
     if (currentRoutePath() !== '/pages/login/index') {
       uni.reLaunch({ url: '/pages/login/index' })
     }

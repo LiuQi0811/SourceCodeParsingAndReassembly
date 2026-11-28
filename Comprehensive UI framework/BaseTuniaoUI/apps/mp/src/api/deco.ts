@@ -6,6 +6,27 @@ export interface DecoHomePayload {
   publishedAt: string;
 }
 
+export interface DecoPageSummary {
+  id: string;
+  title: string;
+  isHome: boolean;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+/** 多页面清单：用于 C 端页面切换 / 演示入口；后端不可用时返回空数组 */
+export const fetchDecoPages = async (): Promise<DecoPageSummary[]> => {
+  if (!hasRemoteApi()) return [];
+
+  try {
+    const result = await apiGet<{ pages: DecoPageSummary[] }>("/deco/published");
+    return Array.isArray(result.pages) ? result.pages : [];
+  } catch (error) {
+    console.warn("[deco] 拉取装修页面清单失败", error);
+    return [];
+  }
+};
+
 /**
  * 按页面 id 读取某个装修页面
  * 约定接口：GET {VITE_API_BASE}/deco/pages/:id → { page, publishedAt }

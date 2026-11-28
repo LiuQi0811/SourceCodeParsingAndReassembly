@@ -1,4 +1,4 @@
-import { post } from '@/utils/request'
+import { decoPost } from '@/utils/decoRequest'
 
 export interface UploadResult {
   url: string
@@ -81,7 +81,7 @@ export const chooseAndUploadImage = async (): Promise<UploadResult | null> => {
 
   const dataUrl = await toDataUrl(blob)
   try {
-    return await post<UploadResult>('/upload', { name, dataUrl }, { showError: false })
+    return await decoPost<UploadResult>('/upload', { name, dataUrl }, { showError: false })
   } catch (error) {
     throw new UploadError('failed')
   }

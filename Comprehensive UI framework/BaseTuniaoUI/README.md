@@ -4,6 +4,7 @@
 
 ```
 apps/admin   后台端（H5，管理界面，默认接内置 Mock）
+apps/api     装修后端（Node HTTP，数据与上传落本地）
 apps/mp      小程序端（微信，C 端，独立 pages / manifest）
 packages/shared  两端共用的纯逻辑：表单校验、树工具、格式化、接口类型
 packages/deco    装修协议（schema）与渲染器（DecoRenderer + 4 个组件块）
@@ -18,12 +19,14 @@ packages/deco    装修协议（schema）与渲染器（DecoRenderer + 4 个组�
 
 ```bash
 npm install          # 首次，一次装完所有应用
+npm run dev:api      # 装修后端（零依赖 Node），默认 http://localhost:3001
 npm run dev:h5       # 后台端调试，默认 http://localhost:5173
 npm run build:h5     # 后台端生产构建，产物在 apps/admin/dist/build/h5
 npm run dev:mp       # 小程序端调试（微信开发者工具导入 apps/mp/dist/dev/mp-weixin）
 npm run build:mp     # 小程序端构建，产物在 apps/mp/dist/build/mp-weixin
 npm test             # 单元测试（Vitest，目前 92 条）
 npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 26 条）
+npm run smoke:api    # 装修后端冒烟：临时目录跑复制/发布/回滚/模板/上传
 npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 + H5 构建（提交前建议）
 ```
 
@@ -72,9 +75,38 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 - 复制与模板复用：页面栏可「复制当前页」（默认标题加「副本」，组件与图片整体带过去，最多 20 个页面）、「存为模板」（快照存进模板库，最多 20 个）、打开「模板库」用已有模板新建页面或删除模板。首次打开模板库会种入一个内置「电商首页模板」（`tpl-demo`），可直接拿来起新页。
 - 版本回滚：每次发布前把当前已发布页压进该页历史（最多保留 10 版），页面栏「版本历史」列出标题与发布时间；点「回滚」把选中版本当新发布写回草稿与线上，同时把回滚前的版本继续留档，历史不丢。
 - 草稿与发布走 Mock 接口（契约与真实后端一致）：`GET /deco/pages`（列表，含 `isHome` / `path` / 时间戳）、`POST /deco/pages`（新建）、`POST /deco/pages/:id/copy`（复制，body 可带 `title`）、`DELETE /deco/pages/:id`、`GET|PUT /deco/pages/:id/draft`（草稿）、`PUT /deco/pages/:id/publish`（发布）、`GET /deco/pages/:id`（C 端读某页）、`GET /deco/pages/:id/versions`（历史摘要）、`POST /deco/pages/:id/versions/:versionId/rollback`（回滚）、`GET|POST /deco/templates`（模板列表/存模板）、`DELETE /deco/templates/:id`、`POST /deco/templates/:id/use`（用模板建页，body 可带 `title`）、`GET|PUT /deco/home`（首页快捷读写）。Mock 实现落在 `src/mock/handlers/deco.ts`，数据存 `BTN_deco_pages` / `BTN_deco_templates`（`BTN_deco_pages_version` 当前为 2，老数据会自动补 `versions: []`）；老的单页键 `deco_home_draft` / `deco_home_published` 会一次性迁移成首页记录。
-- 小程序端 `apps/mp/src/api/deco.ts`：默认 `GET /deco/home`；首页支持 `?pageId=xxx` 时改读 `GET /deco/pages/:id`。`apps/mp/.env` 的 `VITE_API_BASE` 为空时用内置示例（`packages/deco` 的 `createDemoPage()`），填了地址就拉后台发布的页面，校验不过或请求失败也回落示例，保证页面永远能渲染。
+- 小程序端 `apps/mp/src/api/deco.ts`：默认 `GET /deco/home`；首页支持 `?pageId=xxx` 时改读 `GET /deco/pages/:id`。后端可用且存在多个页面时，首页左下角出现「装修页面」入口，点开可切换其他已发布页面。`apps/mp/.env` 的 `VITE_API_BASE` 为空时用内置示例（`packages/deco` 的 `createDemoPage()`），填了地址就拉后台发布的页面，校验不过或请求失败也回落示例，保证页面永远能渲染。
 - 图片上传：属性面板的图片字段（轮播图、商品图）支持「选择图片 / 更换 / 移除」，也可继续手贴外部图片地址。前端把图读成 base64 后走 `POST /upload`，Mock 返回同一个 data URL（`inline: true`），单图上限 600KB；真实后端把这里换成 OSS 上传并返回 CDN 地址即可，协议与渲染器不用动。
 - 一期边界：只做上移/下移、增删、改属性，不做自由拖拽；组件固定 4 种；页面之间通过「复制页面 / 存为模板」复用，不设自定义首页以外的入口页策略。图片在演示环境是 base64 内联，多张大图会顶到 localStorage 容量上限；Mock 数据只存在当前浏览器（含版本历史与模板），真机要看到后台发布的内容必须配置真实后端。
+
+### 装修真实后端（apps/api）
+
+`apps/api` 是一个零依赖的 Node HTTP 服务，接口路径、响应结构（`{ code, msg, data }`）与后台 Mock 完全一致：
+
+- 数据落盘：`apps/api/data/deco.json`（首次启动自动种入「图鸟商城」首页与「电商首页模板」）
+- 图片落盘：`apps/api/uploads/`，通过 `GET /uploads/<file>` 访问，上传接口为 `POST /upload`（仍收 base64，服务端转文件）
+- 管理端接口：页面列表/新建/复制/删除、草稿读写、发布、版本历史与回滚、模板 CRUD 与套用、上传；全部要求 `Authorization: Bearer <token>`
+- C 端公开接口：`GET /deco/home`、`GET /deco/published`（只返回已发布页面）、`GET /deco/pages/:id`（只返回已发布数据）
+- 鉴权：`POST /auth/deco-login` 用后台演示账号换 token，仅 `admin`（密码 `123456`）有装修权限，`chenmo` / `zhouye` 会被拒绝；token 为 HMAC 签名，默认 8 小时过期；后台登录成功后会自动换一个装修 token
+- 启动：`npm run dev:api`（3001 端口，`PORT` / `HOST` 可覆盖，`DECO_TOKEN_SECRET` 可换签名密钥）
+- 冒烟：`npm run smoke:api`，使用临时目录与 3101 端口，不污染正式数据
+
+后台切换真实后端（只影响装修与上传，登录等仍走 Mock）：
+
+```bash
+# apps/admin/.env
+VITE_DECO_API_BASE=http://localhost:3001
+```
+
+留空时继续走内置 Mock，所以单测/E2E 不需要启动后端。小程序端 `apps/mp/.env`：
+
+```bash
+VITE_API_BASE=http://localhost:3001
+```
+
+微信开发者工具需勾选「不校验合法域名」；真机调试把地址改成电脑局域网 IP（手机与电脑同一网络），正式发布必须换 HTTPS 域名并在小程序后台配置 request 合法域名。
+
+当前后端的边界：鉴权账号仍是演示账号、密码明文写在服务端；JSON 存储与本地图片只适合开发。生产环境要换数据库和真实账号体系、上传换 OSS/CDN，并上 HTTPS。
 
 ## 目录结构（apps/admin）
 
@@ -115,14 +147,14 @@ apps/admin/vitest.config.ts      单元测试配置
 .github/workflows/ci.yml         流水线：静态检查 / 单测 / 两端构建 + 端到端测试
 ```
 
-小程序端目前是首页骨架 + 装修一期渲染：
+小程序端目前是首页骨架 + 装修渲染 + 多页面切换：
 
 ```
 apps/mp/src/
 ├── App.vue / main.ts     应用入口
 ├── manifest.json         mp-weixin appid 留空，导入微信开发者工具时再填
 ├── pages.json            只有 pages/home/index 一个页面
-├── pages/home/index.vue  首页：写死的装修 JSON + DecoRenderer
+├── pages/home/index.vue  首页：拉取 /deco/home 或指定页，多页时显示「装修页面」切换入口
 └── deco/                 构建前由 packages/deco 同步生成（gitignore，勿手改）
 ```
 

@@ -1,4 +1,4 @@
-import { del, get, post, put } from '@/utils/request'
+import { decoDel, decoGet, decoPost, decoPut } from '@/utils/decoRequest'
 import type { DecoPage } from '@btn/deco'
 
 export interface DecoDraftPayload {
@@ -52,25 +52,26 @@ export interface DecoTemplateSummary {
  * GET    /deco/home                  C 端读取首页（最近发布）
  */
 export const decoApi = {
-  pages: () => get<{ pages: DecoPageSummary[] }>('/deco/pages'),
-  createPage: (title: string) => post<DecoPageSummary>('/deco/pages', { title }),
+  pages: () => decoGet<{ pages: DecoPageSummary[] }>('/deco/pages'),
+  createPage: (title: string) => decoPost<DecoPageSummary>('/deco/pages', { title }),
   copyPage: (id: string, title: string) =>
-    post<DecoPageSummary>(`/deco/pages/${id}/copy`, { title }),
-  removePage: (id: string) => del<boolean>(`/deco/pages/${id}`),
-  draft: (id: string) => get<DecoDraftPayload>(`/deco/pages/${id}/draft`),
+    decoPost<DecoPageSummary>(`/deco/pages/${id}/copy`, { title }),
+  removePage: (id: string) => decoDel<boolean>(`/deco/pages/${id}`),
+  draft: (id: string) => decoGet<DecoDraftPayload>(`/deco/pages/${id}/draft`),
   saveDraft: (id: string, page: DecoPage) =>
-    put<{ updatedAt: string }>(`/deco/pages/${id}/draft`, { page }),
+    decoPut<{ updatedAt: string }>(`/deco/pages/${id}/draft`, { page }),
   publish: (id: string, page: DecoPage) =>
-    put<{ publishedAt: string }>(`/deco/pages/${id}/publish`, { page }),
-  page: (id: string) => get<DecoPublishPayload>(`/deco/pages/${id}`),
-  home: () => get<DecoPublishPayload>('/deco/home'),
-  versions: (id: string) => get<{ versions: DecoVersionSummary[] }>(`/deco/pages/${id}/versions`),
+    decoPut<{ publishedAt: string }>(`/deco/pages/${id}/publish`, { page }),
+  page: (id: string) => decoGet<DecoPublishPayload>(`/deco/pages/${id}`),
+  home: () => decoGet<DecoPublishPayload>('/deco/home'),
+  versions: (id: string) =>
+    decoGet<{ versions: DecoVersionSummary[] }>(`/deco/pages/${id}/versions`),
   rollback: (id: string, versionId: string) =>
-    post<{ publishedAt: string }>(`/deco/pages/${id}/versions/${versionId}/rollback`),
-  templates: () => get<{ templates: DecoTemplateSummary[] }>('/deco/templates'),
+    decoPost<{ publishedAt: string }>(`/deco/pages/${id}/versions/${versionId}/rollback`),
+  templates: () => decoGet<{ templates: DecoTemplateSummary[] }>('/deco/templates'),
   saveTemplate: (name: string, page: DecoPage) =>
-    post<DecoTemplateSummary>('/deco/templates', { name, page }),
-  removeTemplate: (id: string) => del<boolean>(`/deco/templates/${id}`),
+    decoPost<DecoTemplateSummary>('/deco/templates', { name, page }),
+  removeTemplate: (id: string) => decoDel<boolean>(`/deco/templates/${id}`),
   useTemplate: (id: string, title: string) =>
-    post<DecoPageSummary>(`/deco/templates/${id}/use`, { title }),
+    decoPost<DecoPageSummary>(`/deco/templates/${id}/use`, { title }),
 }
