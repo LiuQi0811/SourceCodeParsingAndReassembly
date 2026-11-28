@@ -277,9 +277,35 @@ export function markConversationRead(convId: string) {
 	if (conv) conv.unread = 0
 }
 
+/** 会话草稿（存在 conversations 上，随本地快照一起持久化） */
+export function conversationDraftOf(convId: string) {
+	return findConversation(convId)?.draft || ''
+}
+
+export function setConversationDraft(convId: string, text: string) {
+	const conv = findConversation(convId)
+	if (!conv) return
+	conv.draft = text
+}
+
+/** 群聊中 @ 我的消息（消息列表用 hasUnreadMention 结合未读数判断是否显示 @我 徽标） */
+export function conversationMentionMessages(convId: string) {
+	return (qqStore.messages[convId] || []).filter(
+		(msg) => msg.mentionsMe && msg.senderId !== 'me'
+	)
+}
+
+export function hasUnreadMention(conv: QQConversation) {
+	if (conv.unread <= 0) return false
+	return conversationMentionMessages(conv.id).length > 0
+}
+
 function previewOf(msg: QQMessage) {
 	if (msg.type === 'image') return '[图片]'
 	if (msg.type === 'voice') return `[语音] ${msg.duration || 0}"`
+	if (msg.type === 'video') return `[视频] ${msg.text || ''}`.trim()
+	if (msg.type === 'redpacket') return `[红包] ${msg.payment?.note || '恭喜发财'}`
+	if (msg.type === 'transfer') return `[转账] ¥${(msg.payment?.amount || 0).toFixed(2)}`
 	if (msg.type === 'group-card' && msg.card) {
 		const label = msg.card.kind === 'todo' ? '群待办' : msg.card.kind === 'vote' ? '群投票' : '群签到'
 		return `[${label}] ${msg.card.title}`
@@ -341,8 +367,8 @@ export function sendText(convId: string, text: string) {
 	return appendMessage(convId, msg)
 }
 
-/** 对方发来文字消息 */
-export function receiveText(convId: string, senderId: string, text: string) {
+/** 对方发来文字消息（mentionsMe 用于群聊 @ 提醒） */
+export function receiveText(convId: string, senderId: string, text: string, mentionsMe = false) {
 	const user = findUser(senderId)
 	const msg: QQMessage = {
 		id: uid('msg'),
@@ -353,7 +379,71 @@ export function receiveText(convId: string, senderId: string, text: string) {
 		text,
 		time: nowTime(),
 	}
+	if (mentionsMe) msg.mentionsMe = true
 	return appendMessage(convId, msg)
+}
+
+/** 我发一个红包 */
+export function sendRedPacket(convId: string, amount: number, note: string) {
+	const msg: QQMessage = {
+		id: uid('msg'),
+		convId,
+		senderId: 'me',
+		type: 'redpacket',
+		text: note,
+		payment: {
+			amount: Math.max(0.01, Number(amount) || 0),
+			note: note.trim() || '恭喜发财，大吉大利',
+			status: 'pending',
+		},
+		time: nowTime(),
+	}
+	return appendMessage(convId, msg)
+}
+
+/** 我发一笔转账（仅单聊） */
+export function sendTransfer(convId: string, amount: number, note: string) {
+	const conv = findConversation(convId)
+	const msg: QQMessage = {
+		id: uid('msg'),
+		convId,
+		senderId: 'me',
+		type: 'transfer',
+		text: note,
+		payment: {
+			amount: Math.max(0.01, Number(amount) || 0),
+			note: note.trim() || '转账',
+			status: 'pending',
+			toId: conv?.type === 'single' ? conv.targetId : undefined,
+		},
+		time: nowTime(),
+	}
+	return appendMessage(convId, msg)
+}
+
+/** 我发一条视频消息（本地演示，仅封面 + 模拟播放） */
+export function sendVideoMessage(convId: string, cover: string, duration: number, label = '') {
+	const msg: QQMessage = {
+		id: uid('msg'),
+		convId,
+		senderId: 'me',
+		type: 'video',
+		video: cover,
+		image: cover,
+		duration,
+		text: label,
+		time: nowTime(),
+	}
+	return appendMessage(convId, msg)
+}
+
+/** 点开别人发来的红包 / 转账，标记为已领取 */
+export function receivePayment(convId: string, msgId: string) {
+	const msg = (qqStore.messages[convId] || []).find((item) => item.id === msgId)
+	if (!msg || !msg.payment || msg.senderId === 'me') return false
+	if (msg.payment.status === 'received') return false
+	msg.payment.status = 'received'
+	return true
 }
 
 /** 把群待办 / 群投票 / 群签到以卡片消息发到群聊 */

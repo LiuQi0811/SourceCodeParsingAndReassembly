@@ -2,6 +2,7 @@
 	import { computed, ref } from 'vue'
 	import { onLoad } from '@dcloudio/uni-app'
 	import {
+		hasUnreadMention,
 		markConversationRead,
 		qqStore,
 		removeConversation,
@@ -148,12 +149,13 @@
 							</view>
 							<view class="conv__bottom">
 								<view class="conv__preview-wrap">
+									<text v-if="hasUnreadMention(conv)" class="conv__at">@我</text>
 									<text v-if="conv.draft" class="conv__draft">[草稿]</text>
 									<text
 										class="conv__preview"
 										:class="{ 'conv__preview--unread': conv.unread > 0 }"
 									>
-										{{ conv.lastMessage }}
+										{{ conv.draft || conv.lastMessage }}
 									</text>
 								</view>
 								<view class="conv__right">
@@ -321,6 +323,18 @@
 		font-size: 12px;
 		color: #fa5151;
 		margin-right: 3px;
+	}
+
+	.conv__at {
+		flex-shrink: 0;
+		margin-right: 4px;
+		padding: 1px 4px;
+		border-radius: 3px;
+		background: rgba(245, 87, 108, 0.12);
+		font-size: 9.5px;
+		font-weight: 700;
+		color: #f5576c;
+		line-height: 1.3;
 	}
 
 	.conv__preview {

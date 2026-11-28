@@ -43,7 +43,16 @@ export interface QQConversation {
 	groupNo?: string
 }
 
-export type QQMessageType = 'text' | 'image' | 'voice' | 'file' | 'system' | 'group-card'
+export type QQMessageType =
+	| 'text'
+	| 'image'
+	| 'voice'
+	| 'file'
+	| 'system'
+	| 'group-card'
+	| 'video'
+	| 'redpacket'
+	| 'transfer'
 
 export type QQGroupCardKind = 'todo' | 'vote' | 'checkin'
 
@@ -56,6 +65,15 @@ export interface QQGroupCard {
 	badge?: string
 }
 
+/** 红包 / 转账的卡片状态 */
+export interface QQPaymentInfo {
+	amount: number
+	note?: string
+	status: 'pending' | 'received'
+	/** 目标用户，群聊红包可为空 */
+	toId?: string
+}
+
 export interface QQMessage {
 	id: string
 	convId: string
@@ -66,6 +84,11 @@ export interface QQMessage {
 	image?: string
 	duration?: number
 	card?: QQGroupCard
+	payment?: QQPaymentInfo
+	/** 视频消息封面 */
+	video?: string
+	/** 群聊中这条消息是否 @ 了我 */
+	mentionsMe?: boolean
 	time: string
 	/** 引用回复的原消息摘要 */
 	quote?: {
