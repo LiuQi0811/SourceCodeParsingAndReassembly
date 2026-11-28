@@ -292,6 +292,25 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.page-select .select-text')).toContainText('电商首页模板')
   })
 
+  test('操作日志记录发布动作与操作人', async ({ page }) => {
+    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await expect(page.getByText('已发布').first()).toBeVisible()
+    await page.waitForTimeout(1000)
+
+    await page.locator('.page-bar .app-btn', { hasText: '操作日志' }).click()
+    const panel = page.locator('.aux-panel')
+    await expect(panel).toContainText('操作日志')
+    await expect(panel.locator('.aux-row').first()).toContainText('发布')
+    await expect(panel.locator('.aux-row').first()).toContainText('图鸟商城')
+    await expect(panel.locator('.aux-row').first()).toContainText('操作人')
+
+    // 面板保持打开时再次发布，最新日志应自动排到最上面
+    await page.locator('.meta-card .app-input input').first().fill('审计版')
+    await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
+    await expect(page.getByText('已发布').first()).toBeVisible()
+    await expect(panel.locator('.aux-row').first()).toContainText('审计版')
+  })
+
   test('发布历史保留上一版并可回滚', async ({ page }) => {
     await page.locator('.app-layout .app-btn', { hasText: '发布' }).click()
     await expect(page.getByText('已发布').first()).toBeVisible()

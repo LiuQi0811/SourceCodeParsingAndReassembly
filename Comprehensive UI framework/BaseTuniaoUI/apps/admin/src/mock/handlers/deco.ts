@@ -16,8 +16,19 @@ const LEGACY_HOME_KEY = 'deco_home_published'
 const MAX_PAGES = 20
 const MAX_TEMPLATES = 20
 const MAX_VERSIONS = 10
+const MAX_AUDIT = 100
 const DECO_ACCOUNTS = [{ username: 'chenmo', role: 'editor' }]
 const DECO_EDITOR_NAMES = DECO_ACCOUNTS.map((item) => item.username)
+
+interface AuditRecord {
+  id: string
+  actor: string
+  role: string
+  action: 'publish' | 'rollback' | 'page-create' | 'page-copy' | 'page-delete' | 'template-use'
+  pageId: string
+  pageTitle: string
+  at: string
+}
 
 interface TenantRecord {
   id: string
@@ -25,6 +36,7 @@ interface TenantRecord {
   appId: string
   createdAt: string
   members: string[]
+  audit: AuditRecord[]
 }
 
 interface DraftRecord {
@@ -70,6 +82,8 @@ const now = (): string => new Date().toLocaleString()
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 const versionId = (): string =>
   `ver-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`
+const auditId = (): string =>
+  `log-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`
 
 const blankPage = (title: string): DecoPage => ({
   version: DECO_VERSION,
@@ -126,6 +140,7 @@ const loadTenants = (): TenantRecord[] => {
             ? ['chenmo']
             : []
           : normalizeMembers(item.members),
+      audit: Array.isArray(item.audit) ? item.audit : [],
     }))
   }
   const seeded: TenantRecord[] = [
@@ -135,6 +150,7 @@ const loadTenants = (): TenantRecord[] => {
       appId: 'wx4cd3b6ba323e40ea',
       createdAt: now(),
       members: ['chenmo'],
+      audit: [],
     },
   ]
   storage.set(TENANTS_KEY, seeded)
@@ -142,6 +158,30 @@ const loadTenants = (): TenantRecord[] => {
 }
 
 const saveTenants = (list: TenantRecord[]): void => storage.set(TENANTS_KEY, list)
+
+const recordAudit = (
+  tenant: string,
+  action: AuditRecord['action'],
+  target: { pageId?: string; pageTitle?: string } = {}
+): void => {
+  const list = loadTenants()
+  const owner = list.find((item) => item.id === tenant)
+  if (!owner) return
+  const profile = storage.get<{ nickname?: string }>('profile')
+  owner.audit = [
+    {
+      id: auditId(),
+      actor: profile?.nickname || 'admin',
+      role: '',
+      action,
+      pageId: String(target.pageId || ''),
+      pageTitle: String(target.pageTitle || ''),
+      at: now(),
+    },
+    ...(owner.audit || []),
+  ].slice(0, MAX_AUDIT)
+  saveTenants(list)
+}
 
 const tenantName = (tenant: string): string =>
   loadTenants().find((item) => item.id === tenant)?.name || `小程序 ${tenant}`
@@ -302,6 +342,10 @@ defineMock('GET', '/deco/tenants', () => {
 
 defineMock('GET', '/deco/accounts', () => ({ accounts: DECO_ACCOUNTS }))
 
+defineMock('GET', '/deco/audit', (ctx) => ({
+  records: loadTenants().find((item) => item.id === tenantOf(ctx))?.audit || [],
+}))
+
 defineMock('POST', '/deco/tenants', ({ body }) => {
   const tenants = loadTenants()
   const name = String(body.name || '').trim()
@@ -322,6 +366,7 @@ defineMock('POST', '/deco/tenants', ({ body }) => {
     appId,
     createdAt: now(),
     members: normalizeMembers(body.members),
+    audit: [],
   }
   saveTenants([...tenants, tenant])
   // 首次读取页面时再种入示例首页，避免创建应用时写太多存储
@@ -385,6 +430,7 @@ defineMock('POST', '/deco/pages', ({ body, ...ctx }) => {
   const title = String(body.title || '').trim() || `新页面 ${pages.length}`
   const record = createPageRecord(title, blankPage(title))
   save(tenant, [...pages, record])
+  recordAudit(tenant, 'page-create', { pageId: record.id, pageTitle: title })
   return summary(record)
 })
 
@@ -404,6 +450,7 @@ defineMock('POST', '/deco/pages/:id/copy', ({ pathParams, body, ...ctx }) => {
   page.title = title
   const record = createPageRecord(title, page)
   save(tenant, [...pages, record])
+  recordAudit(tenant, 'page-copy', { pageId: record.id, pageTitle: title })
   return summary(record)
 })
 
@@ -441,6 +488,10 @@ defineMock('POST', '/deco/pages/:id/versions/:versionId/rollback', ({ pathParams
   target.publishedAt = publishedAt
   target.title = snapshot.title || target.title
   save(tenant, pages)
+  recordAudit(tenant, 'rollback', {
+    pageId: target.id,
+    pageTitle: target.published?.title || target.title,
+  })
   return { publishedAt }
 })
 
@@ -500,6 +551,7 @@ defineMock('POST', '/deco/templates/:id/use', ({ pathParams, body, ...ctx }) => 
   page.title = title
   const record = createPageRecord(title, page)
   save(tenant, [...pages, record])
+  recordAudit(tenant, 'template-use', { pageId: record.id, pageTitle: title })
   return summary(record)
 })
 
@@ -513,6 +565,10 @@ defineMock('DELETE', '/deco/pages/:id', ({ pathParams, ...ctx }) => {
     tenant,
     pages.filter((item) => item.id !== target.id)
   )
+  recordAudit(tenant, 'page-delete', {
+    pageId: target.id,
+    pageTitle: target.title || target.draft?.title || target.published?.title,
+  })
   return true
 })
 
@@ -556,6 +612,10 @@ defineMock('PUT', '/deco/pages/:id/publish', ({ pathParams, body, ...ctx }) => {
   target.publishedAt = publishedAt
   target.title = page.title || target.title
   save(tenant, pages)
+  recordAudit(tenant, 'publish', {
+    pageId: target.id,
+    pageTitle: target.published?.title || target.title,
+  })
   return { publishedAt }
 })
 
@@ -592,5 +652,9 @@ defineMock('PUT', '/deco/home', ({ body, ...ctx }) => {
   home.publishedAt = publishedAt
   home.title = page.title || home.title
   save(tenant, pages)
+  recordAudit(tenant, 'publish', {
+    pageId: home.id,
+    pageTitle: home.published?.title || home.title,
+  })
   return { publishedAt }
 })

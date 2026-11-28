@@ -22,6 +22,7 @@ const UPLOAD_DIR = process.env.API_UPLOAD_DIR
 const MAX_PAGES = 20
 const MAX_TEMPLATES = 20
 const MAX_VERSIONS = 10
+const MAX_AUDIT = 100
 const BODY_LIMIT = 30 * 1024 * 1024
 const TOKEN_SECRET = process.env.DECO_TOKEN_SECRET || 'btn-deco-dev-secret'
 const TOKEN_TTL = 8 * 60 * 60 * 1000
@@ -50,6 +51,38 @@ const normalizeMembers = (value) => {
     .filter((item) => DECO_EDITOR_NAMES.includes(item))
   return [...new Set(names)]
 }
+
+const AUDIT_ACTIONS = new Set([
+  'publish',
+  'rollback',
+  'page-create',
+  'page-copy',
+  'page-delete',
+  'template-use',
+])
+
+/** 老数据没有审计字段；只保留结构完整、动作已登记的历史记录 */
+const normalizeAudit = (value) =>
+  (Array.isArray(value) ? value : [])
+    .filter(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        String(item.id || '') &&
+        AUDIT_ACTIONS.has(String(item.action || '')) &&
+        String(item.actor || '') &&
+        String(item.at || '')
+    )
+    .map((item) => ({
+      id: String(item.id),
+      actor: String(item.actor),
+      role: String(item.role || ''),
+      action: String(item.action),
+      pageId: String(item.pageId || ''),
+      pageTitle: String(item.pageTitle || ''),
+      at: String(item.at),
+    }))
+    .slice(0, MAX_AUDIT)
 
 const now = () => new Date().toISOString()
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -140,10 +173,11 @@ const createTenantRecord = (tenantId, name, appId, pages, templates, members = [
   members: normalizeMembers(members),
   pages: pages || seedPages(name),
   templates: templates || seedTemplates(name),
+  audit: [],
 })
 
 const createState = () => ({
-  version: 2,
+  version: 3,
   defaultTenantId: DEFAULT_TENANT_ID,
   tenants: [
     createTenantRecord(
@@ -187,13 +221,14 @@ const normalizeState = (raw) => {
             : normalizeMembers(tenant.members),
         pages,
         templates,
+        audit: normalizeAudit(tenant?.audit),
       }
     })
     const ids = new Set(tenants.map((tenant) => tenant.id))
     const defaultTenantId = ids.has(String(raw.defaultTenantId || ''))
       ? String(raw.defaultTenantId)
       : tenants[0].id
-    return { version: 2, defaultTenantId, tenants }
+    return { version: 3, defaultTenantId, tenants }
   }
 
   const legacyPages = Array.isArray(raw?.pages) && raw.pages.length ? raw.pages : seedPages()
@@ -202,7 +237,7 @@ const normalizeState = (raw) => {
   })
   const legacyTemplates = Array.isArray(raw?.templates) ? raw.templates : seedTemplates()
   return {
-    version: 2,
+    version: 3,
     defaultTenantId: DEFAULT_TENANT_ID,
     tenants: [
       createTenantRecord(
@@ -315,6 +350,22 @@ const assertTenantAccess = (claims, tenant) => {
     throw new HttpError(`当前账号没有「${tenant.name}」的装修权限`, 403)
   }
   return tenant
+}
+
+/** 审计只记录业务操作，不记录草稿保存，避免每次保存都滚动日志 */
+const recordAudit = (tenant, claims, action, target = {}) => {
+  tenant.audit = [
+    {
+      id: id('log'),
+      actor: claims.sub,
+      role: claims.role,
+      action,
+      pageId: String(target.pageId || ''),
+      pageTitle: String(target.pageTitle || ''),
+      at: now(),
+    },
+    ...(tenant.audit || []),
+  ].slice(0, MAX_AUDIT)
 }
 
 const assertMembers = (value) => {
@@ -603,7 +654,6 @@ const route = async (req, res, url) => {
     })
   }
 
-  // C 端公开接口：首页、已发布页清单、指定页的已发布数据
   const isPublicPageDetail = req.method === 'GET' && parts[1] === 'pages' && parts.length === 3
   const isPublicGet =
     req.method === 'GET' &&
@@ -613,6 +663,10 @@ const route = async (req, res, url) => {
   if (claims) assertTenantAccess(claims, tenant)
   const tenantPages = tenant.pages
   const tenantTemplates = tenant.templates
+
+  if (parts[1] === 'audit' && parts.length === 2 && req.method === 'GET') {
+    return ok(res, { records: tenant.audit || [] })
+  }
 
   // /deco/published 只返回已发布页面，避免把草稿页标题暴露给 C 端
   if (parts[1] === 'published' && parts.length === 2 && req.method === 'GET') {
@@ -648,6 +702,7 @@ const route = async (req, res, url) => {
       const title = String(body.title || '').trim() || `新页面 ${tenantPages.length}`
       const record = createPage(title, { version: 1, title, components: [] })
       tenantPages.push(record)
+      recordAudit(tenant, claims, 'page-create', { pageId: record.id, pageTitle: title })
       await saveState()
       return ok(res, summary(record))
     }
@@ -700,6 +755,7 @@ const route = async (req, res, url) => {
       page.title = title
       const record = createPage(title, page)
       tenantPages.push(record)
+      recordAudit(tenant, claims, 'template-use', { pageId: record.id, pageTitle: title })
       await saveState()
       return ok(res, summary(record))
     }
@@ -715,6 +771,10 @@ const route = async (req, res, url) => {
       if (req.method === 'DELETE') {
         if (page.isHome) throw new HttpError('首页不允许删除')
         tenant.pages = tenant.pages.filter((item) => item.id !== page.id)
+        recordAudit(tenant, claims, 'page-delete', {
+          pageId: page.id,
+          pageTitle: page.title || page.draft?.title || page.published?.title,
+        })
         await saveState()
         return ok(res, true)
       }
@@ -732,6 +792,7 @@ const route = async (req, res, url) => {
       copied.title = title
       const record = createPage(title, copied)
       tenantPages.push(record)
+      recordAudit(tenant, claims, 'page-copy', { pageId: record.id, pageTitle: title })
       await saveState()
       return ok(res, summary(record))
     }
@@ -761,6 +822,10 @@ const route = async (req, res, url) => {
       page.published = body.page
       page.publishedAt = now()
       page.title = body.page.title || page.title
+      recordAudit(tenant, claims, 'publish', {
+        pageId: page.id,
+        pageTitle: page.published.title || page.title,
+      })
       await saveState()
       return ok(res, { publishedAt: page.publishedAt })
     }
@@ -786,6 +851,10 @@ const route = async (req, res, url) => {
         page.published = clone(snapshot)
         page.publishedAt = now()
         page.title = snapshot.title || page.title
+        recordAudit(tenant, claims, 'rollback', {
+          pageId: page.id,
+          pageTitle: snapshot.title || page.title,
+        })
         await saveState()
         return ok(res, { publishedAt: page.publishedAt })
       }

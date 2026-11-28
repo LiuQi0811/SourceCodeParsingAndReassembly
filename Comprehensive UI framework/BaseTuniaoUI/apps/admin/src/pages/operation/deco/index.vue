@@ -16,6 +16,8 @@ import {
 import {
   decoApi,
   type DecoAccountSummary,
+  type DecoAuditAction,
+  type DecoAuditRecord,
   type DecoPageSummary,
   type DecoTemplateSummary,
   type DecoTenantSummary,
@@ -76,10 +78,13 @@ const removing = ref(false)
 const copying = ref(false)
 const templates = ref<DecoTemplateSummary[]>([])
 const versions = ref<DecoVersionSummary[]>([])
+const auditRecords = ref<DecoAuditRecord[]>([])
 const showTemplates = ref(false)
 const showVersions = ref(false)
+const showAudit = ref(false)
 const templatesLoading = ref(false)
 const versionsLoading = ref(false)
+const auditLoading = ref(false)
 const savingTemplate = ref(false)
 const usingTemplateId = ref('')
 const removingTemplateId = ref('')
@@ -110,6 +115,18 @@ const accountOptions = computed(() =>
     value: item.username,
   }))
 )
+
+const auditActionLabel = (action: DecoAuditAction): string => {
+  const labels: Record<DecoAuditAction, string> = {
+    publish: t('deco.auditPublish'),
+    rollback: t('deco.auditRollback'),
+    'page-create': t('deco.auditPageCreate'),
+    'page-copy': t('deco.auditPageCopy'),
+    'page-delete': t('deco.auditPageDelete'),
+    'template-use': t('deco.auditTemplateUse'),
+  }
+  return labels[action] || action
+}
 
 const pageOptions = computed(() =>
   pages.value.map((item) => ({
@@ -181,8 +198,10 @@ const reloadWorkspace = async () => {
   publishedAt.value = ''
   templates.value = []
   versions.value = []
+  auditRecords.value = []
   showTemplates.value = false
   showVersions.value = false
+  showAudit.value = false
   page.value = blankPage(t('deco.untitledPage'))
   savedPageSnapshot.value = pageSnapshot(page.value)
   selectedId.value = ''
@@ -478,6 +497,7 @@ const publish = async () => {
     publishedAt.value = res.publishedAt
     savedPageSnapshot.value = pageSnapshot(payload)
     await refreshPages()
+    if (showAudit.value) await loadAudit()
     uni.showToast({ title: t('deco.published'), icon: 'success' })
   } catch (error) {
     // request 层已提示错误
@@ -492,6 +512,7 @@ const switchPage = async (value: string | number | (string | number)[]) => {
   if (!id || id === currentId.value) return
   showTemplates.value = false
   showVersions.value = false
+  showAudit.value = false
   try {
     await openPage(id)
   } catch (error) {
@@ -579,6 +600,7 @@ const toggleTemplates = async () => {
   showTemplates.value = !showTemplates.value
   if (!showTemplates.value) return
   showVersions.value = false
+  showAudit.value = false
   await loadTemplates()
 }
 
@@ -592,6 +614,7 @@ const saveAsTemplate = async () => {
     await loadTemplates()
     showTemplates.value = true
     showVersions.value = false
+    showAudit.value = false
     uni.showToast({ title: t('deco.templateSaved'), icon: 'success' })
   } catch (error) {
     // request 层已提示错误
@@ -659,7 +682,28 @@ const toggleVersions = async () => {
   showVersions.value = !showVersions.value
   if (!showVersions.value) return
   showTemplates.value = false
+  showAudit.value = false
   await loadVersions()
+}
+
+const loadAudit = async () => {
+  if (!tenantId.value) return
+  auditLoading.value = true
+  try {
+    auditRecords.value = (await decoApi.audit()).records
+  } catch (error) {
+    // request 层已提示错误
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+const toggleAudit = async () => {
+  showAudit.value = !showAudit.value
+  if (!showAudit.value) return
+  showTemplates.value = false
+  showVersions.value = false
+  await loadAudit()
 }
 
 const askRollback = (version: DecoVersionSummary) => {
@@ -678,6 +722,7 @@ const askRollback = (version: DecoVersionSummary) => {
         await refreshPages()
         await openPage(target.id)
         await loadVersions()
+        if (showAudit.value) await loadAudit()
         uni.showToast({ title: t('deco.rollbackDone'), icon: 'success' })
       } catch (error) {
         // request 层已提示错误
@@ -836,6 +881,9 @@ onLoad(async () => {
         <app-button size="sm" type="text" :disabled="!currentId" @click="toggleVersions">
           {{ t('deco.versionHistory') }}
         </app-button>
+        <app-button size="sm" type="text" @click="toggleAudit">
+          {{ t('deco.auditLog') }}
+        </app-button>
       </view>
     </app-card>
 
@@ -893,6 +941,27 @@ onLoad(async () => {
         >
           {{ t('deco.rollback') }}
         </app-button>
+      </view>
+    </app-card>
+
+    <app-card v-if="showAudit" padding="14" class="aux-panel">
+      <view class="aux-head">
+        <text class="panel-title">{{ t('deco.auditLog') }}</text>
+        <app-button size="sm" type="text" @click="showAudit = false">
+          {{ t('common.close') }}
+        </app-button>
+      </view>
+      <app-empty v-if="!auditRecords.length && !auditLoading" :text="t('deco.auditEmpty')" />
+      <view v-for="item in auditRecords" :key="item.id" class="aux-row">
+        <view class="aux-main">
+          <text class="aux-title">
+            {{ auditActionLabel(item.action) }}
+            <text v-if="item.pageTitle">· {{ item.pageTitle }}</text>
+          </text>
+          <text class="aux-sub">
+            {{ t('deco.auditBy', { actor: item.actor, time: item.at }) }}
+          </text>
+        </view>
       </view>
     </app-card>
 
