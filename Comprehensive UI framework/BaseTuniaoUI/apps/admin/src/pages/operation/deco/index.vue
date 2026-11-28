@@ -15,6 +15,7 @@ import {
 } from '@btn/deco'
 import {
   decoApi,
+  type DecoAccountSummary,
   type DecoPageSummary,
   type DecoTemplateSummary,
   type DecoTenantSummary,
@@ -55,6 +56,9 @@ const selectedId = ref(page.value.components[0]?.id ?? '')
 const publishedAt = ref<string>('')
 const tenants = ref<DecoTenantSummary[]>([])
 const defaultTenantId = ref('')
+const canManageTenants = ref(true)
+const accounts = ref<DecoAccountSummary[]>([])
+const tenantMembers = ref<string[]>([])
 const tenantId = ref(getDecoTenantId())
 const tenantDialogVisible = ref(false)
 const tenantEditingId = ref('')
@@ -64,6 +68,7 @@ const tenantCode = ref('')
 const tenantSaving = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
+const workspaceLoading = ref(false)
 const pages = ref<DecoPageSummary[]>([])
 const currentId = ref('')
 const creating = ref(false)
@@ -96,6 +101,13 @@ const tenantOptions = computed(() =>
   tenants.value.map((item) => ({
     label: item.name,
     value: item.id,
+  }))
+)
+
+const accountOptions = computed(() =>
+  accounts.value.map((item) => ({
+    label: item.username,
+    value: item.username,
   }))
 )
 
@@ -133,6 +145,11 @@ const loadTenants = async () => {
   const result = await decoApi.tenants()
   tenants.value = result.tenants
   defaultTenantId.value = result.defaultTenantId
+  canManageTenants.value = result.canManage
+  if (!result.tenants.length) {
+    tenantId.value = ''
+    return
+  }
   const stored = getDecoTenantId()
   const fallback =
     result.tenants.find((item) => item.id === result.defaultTenantId)?.id ||
@@ -142,8 +159,23 @@ const loadTenants = async () => {
   if (tenantId.value) setDecoTenantId(tenantId.value)
 }
 
+/** 应用成员账号列表由超级管理员接口提供；编辑账号看不到，也不显示成员设置 */
+const loadAccounts = async () => {
+  if (!canManageTenants.value) {
+    accounts.value = []
+    return
+  }
+  try {
+    const result = await decoApi.accounts()
+    accounts.value = result.accounts
+  } catch (error) {
+    accounts.value = []
+  }
+}
+
 /** 切换应用后清空当前编辑状态，重新读该应用自己的页面和模板 */
 const reloadWorkspace = async () => {
+  workspaceLoading.value = true
   pages.value = []
   currentId.value = ''
   publishedAt.value = ''
@@ -154,10 +186,15 @@ const reloadWorkspace = async () => {
   page.value = blankPage(t('deco.untitledPage'))
   savedPageSnapshot.value = pageSnapshot(page.value)
   selectedId.value = ''
-  const result = await decoApi.pages()
-  pages.value = result.pages
-  const first = result.pages[0]
-  if (first) await openPage(first.id)
+  try {
+    if (!tenantId.value) return
+    const result = await decoApi.pages()
+    pages.value = result.pages
+    const first = result.pages[0]
+    if (first) await openPage(first.id)
+  } finally {
+    workspaceLoading.value = false
+  }
 }
 
 const confirmDiscardDraft = () =>
@@ -192,6 +229,7 @@ const openTenantDialog = (mode: 'create' | 'edit') => {
   tenantEditingId.value = mode === 'edit' ? tenantId.value : ''
   tenantName.value = mode === 'edit' ? currentTenant.value?.name || '' : ''
   tenantAppId.value = mode === 'edit' ? currentTenant.value?.appId || '' : ''
+  tenantMembers.value = mode === 'edit' ? [...(currentTenant.value?.members || [])] : []
   tenantCode.value = ''
   tenantDialogVisible.value = true
 }
@@ -212,13 +250,18 @@ const saveTenant = async () => {
   tenantSaving.value = true
   try {
     if (tenantEditingId.value) {
-      await decoApi.updateTenant(tenantEditingId.value, { name, appId })
+      await decoApi.updateTenant(tenantEditingId.value, {
+        name,
+        appId,
+        members: tenantMembers.value,
+      })
       await loadTenants()
       uni.showToast({ title: t('deco.tenantUpdated'), icon: 'success' })
     } else {
       const created = await decoApi.createTenant({
         name,
         appId,
+        members: tenantMembers.value,
         ...(tenantCode.value.trim() ? { id: tenantCode.value.trim() } : {}),
       })
       await loadTenants()
@@ -660,6 +703,8 @@ const primaryOptions = computed(() => [
 onLoad(async () => {
   try {
     await loadTenants()
+    // 账号列表只服务编辑弹窗，不阻塞首屏工作区加载
+    void loadAccounts()
   } catch (error) {
     // 应用列表失败时仍允许继续用默认应用
   }
@@ -698,6 +743,12 @@ onLoad(async () => {
       </app-button>
     </template>
 
+    <view v-if="workspaceLoading" class="workspace-mask">
+      <view class="workspace-loading">
+        <text>{{ t('common.loading') }}</text>
+      </view>
+    </view>
+
     <app-card padding="14" class="tenant-bar">
       <view class="tenant-row">
         <text class="prop-label">{{ t('deco.tenantLabel') }}</text>
@@ -709,7 +760,7 @@ onLoad(async () => {
           @update:model-value="switchTenant"
         />
         <app-tag v-if="currentTenant?.appId" size="sm">{{ currentTenant.appId }}</app-tag>
-        <view class="tenant-actions">
+        <view v-if="canManageTenants" class="tenant-actions">
           <app-button size="sm" plain @click="openTenantDialog('create')">
             + {{ t('deco.tenantAdd') }}
           </app-button>
@@ -723,7 +774,11 @@ onLoad(async () => {
           </app-button>
         </view>
       </view>
-      <text class="tenant-tip">{{ t('deco.tenantTip', { id: tenantId }) }}</text>
+      <text v-if="tenantId" class="tenant-tip">{{ t('deco.tenantTip', { id: tenantId }) }}</text>
+      <text v-else class="tenant-tip">{{ t('deco.tenantEmpty') }}</text>
+      <text v-if="!canManageTenants" class="tenant-tip">
+        {{ t('deco.tenantReadonlyTip') }}
+      </text>
     </app-card>
 
     <app-card padding="14" class="page-bar">
@@ -990,6 +1045,18 @@ onLoad(async () => {
           <text class="prop-label">{{ t('deco.tenantCode') }}</text>
           <app-input v-model="tenantCode" :placeholder="t('deco.tenantCodePlaceholder')" />
         </view>
+        <view v-if="canManageTenants" class="prop-item">
+          <text class="prop-label">{{ t('deco.tenantMembers') }}</text>
+          <app-select
+            v-model="tenantMembers"
+            multiple
+            :options="accountOptions"
+            :placeholder="t('deco.tenantMemberPlaceholder')"
+            :title="t('deco.tenantMembers')"
+            class="tenant-member-select"
+          />
+          <text class="tenant-dialog-tip">{{ t('deco.tenantMembersTip') }}</text>
+        </view>
         <text class="tenant-dialog-tip">
           {{ tenantEditingId ? t('deco.tenantEditTip') : t('deco.tenantCodeTip') }}
         </text>
@@ -1007,6 +1074,30 @@ onLoad(async () => {
 </template>
 
 <style lang="scss" scoped>
+.workspace-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245, 248, 252, 0.62);
+  backdrop-filter: blur(1px);
+}
+
+.workspace-loading {
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--app-text-2);
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  box-shadow: var(--app-shadow);
+}
+
 .editor {
   display: grid;
   grid-template-columns: 300px minmax(340px, 1fr) 300px;
@@ -1050,6 +1141,10 @@ onLoad(async () => {
 
 .tenant-form {
   gap: 12px;
+}
+
+.tenant-member-select {
+  width: 100%;
 }
 
 .tenant-dialog-tip {
