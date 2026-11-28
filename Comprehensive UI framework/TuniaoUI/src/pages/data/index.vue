@@ -198,7 +198,9 @@ function callPhone(item: any) {
 			code="<tn-photo-album :data=&quot;imgs&quot; :column=&quot;3&quot; :max=&quot;9&quot; />"
 		>
 			<tn-photo-album :data="gallery" :column="3" :max="6" @click="albumIndex = $event" />
-			<text class="tn-gray_text tn-mt-sm">点击第 {{ albumIndex + 1 }} 张图片即可调起预览</text>
+			<text class="tn-gray_text tn-mt-sm">
+				{{ albumIndex >= 0 ? `已选择第 ${albumIndex + 1} 张，已调起预览` : '点击任意图片调起预览' }}
+			</text>
 		</demo-block>
 
 		<!-- LazyLoad -->
@@ -211,6 +213,17 @@ function callPhone(item: any) {
 				<view v-for="item in goods" :key="item.id" class="lazy-cell">
 					<tn-lazy-load :src="item.image" height="220" :threshold="100" transition />
 					<text class="lazy-cell__text">{{ item.name }}</text>
+				</view>
+				<view class="lazy-cell">
+					<tn-lazy-load src="/static/demo/not-found.jpg" height="220" :threshold="100">
+						<template #error>
+							<view class="lazy-error">
+								<tn-icon name="image-fill" :size="36" color="tn-grey-dark" />
+								<text class="lazy-error__text">加载失败</text>
+							</view>
+						</template>
+					</tn-lazy-load>
+					<text class="lazy-cell__text">失败占位</text>
 				</view>
 			</view>
 		</demo-block>
@@ -402,6 +415,21 @@ function callPhone(item: any) {
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
+}
+
+.lazy-error {
+	height: 220rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8rpx;
+	background-color: #f1f3f8;
+}
+
+.lazy-error__text {
+	font-size: 20rpx;
+	color: #909399;
 }
 
 .waterfall-wrap {

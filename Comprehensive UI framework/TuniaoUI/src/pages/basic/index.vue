@@ -18,6 +18,31 @@ function handleClick() {
 }
 
 const avatarSizes = ['sm', '', 'lg', 'xl']
+
+/** 图标：点击复制用法，并记录当前选中 */
+const selectedIcon = ref('home')
+function pickIcon(name: string) {
+	selectedIcon.value = name
+	uni.setClipboardData({
+		data: `<tn-icon name="${name}" />`,
+		success: () => uni.showToast({ title: `已复制 ${name}`, icon: 'none' }),
+	})
+}
+
+/** 头像：点击记录当前选中的头像类型 */
+const selectedAvatar = ref('girl')
+
+/** 角标：加减改变数值，验证 max 与响应式更新 */
+const badgeCount = ref(12)
+function changeBadge(delta: number) {
+	badgeCount.value = Math.max(0, Math.min(120, badgeCount.value + delta))
+}
+
+/** 标签：点击记录当前选中的语义色 */
+const selectedTag = ref('success')
+
+/** 标题：点击记录当前模式 */
+const selectedTitle = ref('normal')
 </script>
 
 <template>
@@ -78,15 +103,22 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 		<!-- Icon -->
 		<demo-block
 			title="TnIcon 图标"
-			desc="name 直接写图标名；size/color/bold/type 控制外观；也支持传图片地址渲染为图片图标"
+			desc="name 直接写图标名；size/color/bold/type 控制外观；点击任意图标会复制对应 &lt;tn-icon&gt; 用法"
 			code="<tn-icon name=&quot;home-fill&quot; :size=&quot;40&quot; color=&quot;tn-blue&quot; bold />"
 		>
 			<view class="icon-row">
-				<view v-for="item in ['home','home-fill','search','cart','like','star-fill','ai','fire','gift','vip','creative','image']" :key="item" class="icon-cell">
+				<view
+					v-for="item in ['home','home-fill','search','cart','like','star-fill','ai','fire','gift','vip','creative','image']"
+					:key="item"
+					class="icon-cell"
+					:class="{ 'icon-cell--active': selectedIcon === item }"
+					@click="pickIcon(item)"
+				>
 					<tn-icon :name="item" :size="40" color="tn-blue" />
 					<text class="icon-cell__label">{{ item }}</text>
 				</view>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">已选图标：{{ selectedIcon }} · 点击卡片复制用法</text>
 
 			<view class="tn-demo-row section-gap">
 				<tn-icon name="star-fill" :size="30" color="tn-orange" />
@@ -105,18 +137,29 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 			code="<tn-avatar icon=&quot;girl&quot; type=&quot;primary&quot; shape=&quot;square&quot; badge=&quot;9&quot; />"
 		>
 			<view class="tn-demo-row">
-				<tn-avatar icon="girl" type="primary" :size="56" />
-				<tn-avatar icon="boy" type="success" :size="56" shape="square" />
-				<tn-avatar url="/static/demo/goods-1.jpg" :size="56" border border-color="tn-blue" border-bold />
-				<tn-avatar icon="vip" type="warning" :size="56" shadow shadow-color="tn-orange" />
-				<tn-avatar icon="girl" type="danger" :size="56" badge="8" :badge-config="{ max: 99 }" />
+				<view class="avatar-pick" :class="{ 'avatar-pick--active': selectedAvatar === 'girl' }" @click="selectedAvatar = 'girl'">
+					<tn-avatar icon="girl" type="primary" :size="56" />
+				</view>
+				<view class="avatar-pick" :class="{ 'avatar-pick--active': selectedAvatar === 'boy' }" @click="selectedAvatar = 'boy'">
+					<tn-avatar icon="boy" type="success" :size="56" shape="square" />
+				</view>
+				<view class="avatar-pick" :class="{ 'avatar-pick--active': selectedAvatar === 'image' }" @click="selectedAvatar = 'image'">
+					<tn-avatar url="/static/demo/goods-1.jpg" :size="56" border border-color="tn-blue" border-bold />
+				</view>
+				<view class="avatar-pick" :class="{ 'avatar-pick--active': selectedAvatar === 'vip' }" @click="selectedAvatar = 'vip'">
+					<tn-avatar icon="vip" type="warning" :size="56" shadow shadow-color="tn-orange" />
+				</view>
+				<view class="avatar-pick" :class="{ 'avatar-pick--active': selectedAvatar === 'badge' }" @click="selectedAvatar = 'badge'">
+					<tn-avatar icon="girl" type="danger" :size="56" badge="8" :badge-config="{ max: 99 }" />
+				</view>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">已选头像：{{ selectedAvatar }}</text>
 
 			<view class="avatar-sizes section-gap">
 				<tn-avatar v-for="size in avatarSizes" :key="size" icon="boy" bg-color="tn-aquablue" :size="size || 44" />
 			</view>
 
-			<view class="section-gap">
+			<view class="section-gap avatar-group-pick" :class="{ 'avatar-group-pick--active': selectedAvatar === 'group' }" @click="selectedAvatar = 'group'">
 				<tn-avatar-group :gap="0.6">
 					<tn-avatar icon="girl" type="primary" :size="50" />
 					<tn-avatar icon="boy" type="success" :size="50" />
@@ -130,15 +173,24 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 		<!-- Badge -->
 		<demo-block
 			title="TnBadge 角标"
-			desc="数值角标 / 上限 max / 圆点 dot / 绝对定位（配合 relative 容器使用）"
-			code="<tn-badge value=&quot;99&quot; :max=&quot;99&quot; type=&quot;danger&quot; />"
+			desc="数值角标 / 上限 max / 圆点 dot / 绝对定位；下面可以加减数值观察角标实时更新"
+			code="<tn-badge :value=&quot;count&quot; :max=&quot;99&quot; type=&quot;danger&quot; />"
 		>
 			<view class="tn-demo-row">
-				<tn-badge value="5" />
+				<view class="badge-live">
+					<tn-badge :value="badgeCount" :max="99" type="primary" />
+					<text class="badge-live__text">{{ badgeCount }}</text>
+				</view>
 				<tn-badge value="120" :max="99" type="danger" />
 				<tn-badge value="NEW" type="warning" />
 				<tn-badge dot type="success" />
 				<tn-badge value="9" size="sm" type="info" />
+			</view>
+
+			<view class="badge-control section-gap">
+				<text class="badge-control__btn" @click="changeBadge(-1)">−</text>
+				<text class="badge-control__value">当前值 {{ badgeCount }}，超过 99 会显示 99+</text>
+				<text class="badge-control__btn" @click="changeBadge(1)">＋</text>
 			</view>
 
 			<view class="badge-anchor section-gap">
@@ -154,8 +206,16 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 			code="<tn-tag type=&quot;success&quot; size=&quot;sm&quot; shape=&quot;circleLeft&quot;>标签</tn-tag>"
 		>
 			<view class="tn-demo-row">
-				<tn-tag v-for="type in types" :key="type" :type="type">{{ typeLabels[type] }}</tn-tag>
+				<view
+					v-for="type in types"
+					:key="type"
+					class="tag-pick"
+					:class="{ 'tag-pick--active': selectedTag === type }"
+				>
+					<tn-tag :type="type" @click="selectedTag = type">{{ typeLabels[type] }}</tn-tag>
+				</view>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">当前标签：{{ selectedTag }}</text>
 			<view class="tn-demo-row section-gap">
 				<tn-tag size="sm">sm</tn-tag>
 				<tn-tag>默认</tn-tag>
@@ -170,15 +230,30 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 		<!-- Title -->
 		<demo-block
 			title="TnTitle 标题"
-			desc="6 种模式：normal / vLine / dot / hLine / subTitle / transparent，可对齐与自定义辅助色"
+			desc="6 种模式：normal / vLine / dot / hLine / subTitle / transparent，点击任意标题记录当前模式"
 			code="<tn-title title=&quot;标题&quot; sub-title=&quot;副标题&quot; mode=&quot;subTitle&quot; align=&quot;center&quot; />"
 		>
-			<tn-title title="normal 模式" />
-			<tn-title title="vLine 竖线" mode="vLine" assist-color="tn-blue" />
-			<tn-title title="dot 圆点" mode="dot" assist-color="tn-green" />
-			<tn-title title="hLine 横线" mode="hLine" align="center" assist-color="tn-orange" />
-			<tn-title title="subTitle" sub-title="带副标题的标题" mode="subTitle" />
-			<tn-title title="transparent" mode="transparent" />
+			<view class="tn-title-picks">
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'normal' }">
+					<tn-title title="normal 模式" @click="selectedTitle = 'normal'" />
+				</view>
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'vLine' }">
+					<tn-title title="vLine 竖线" mode="vLine" assist-color="tn-blue" @click="selectedTitle = 'vLine'" />
+				</view>
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'dot' }">
+					<tn-title title="dot 圆点" mode="dot" assist-color="tn-green" @click="selectedTitle = 'dot'" />
+				</view>
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'hLine' }">
+					<tn-title title="hLine 横线" mode="hLine" align="center" assist-color="tn-orange" @click="selectedTitle = 'hLine'" />
+				</view>
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'subTitle' }">
+					<tn-title title="subTitle" sub-title="带副标题的标题" mode="subTitle" @click="selectedTitle = 'subTitle'" />
+				</view>
+				<view class="title-pick" :class="{ 'title-pick--active': selectedTitle === 'transparent' }">
+					<tn-title title="transparent" mode="transparent" @click="selectedTitle = 'transparent'" />
+				</view>
+			</view>
+			<text class="tn-gray_text tn-mt-sm">当前标题模式：{{ selectedTitle }}</text>
 		</demo-block>
 
 		<view class="tip">点击计数：{{ clickCount }} 次（按钮事件与页面状态联动）</view>
@@ -230,12 +305,113 @@ const avatarSizes = ['sm', '', 'lg', 'xl']
 	padding: 14rpx 0;
 	border-radius: 14rpx;
 	background-color: #f7f9fc;
+	border: 2rpx solid transparent;
+}
+
+.icon-cell--active {
+	border-color: #5f4fd9;
+	background-color: #f0efff;
 }
 
 .icon-cell__label {
 	margin-top: 8rpx;
 	font-size: 20rpx;
 	color: #909399;
+}
+
+.avatar-pick {
+	padding: 6rpx;
+	border: 2rpx solid transparent;
+	border-radius: 16rpx;
+}
+
+.avatar-pick--active {
+	border-color: #5f4fd9;
+	background-color: #f3f1ff;
+}
+
+.avatar-group-pick {
+	align-self: flex-start;
+	display: inline-flex;
+	padding: 8rpx;
+	border: 2rpx solid transparent;
+	border-radius: 16rpx;
+}
+
+.avatar-group-pick--active {
+	border-color: #5f4fd9;
+	background-color: #f3f1ff;
+}
+
+.badge-live {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+	padding: 8rpx 14rpx;
+	border-radius: 12rpx;
+	background-color: #f4f6fb;
+}
+
+.badge-live__text {
+	font-size: 22rpx;
+	color: #606266;
+}
+
+.badge-control {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16rpx;
+	padding: 14rpx 16rpx;
+	border-radius: 12rpx;
+	background-color: #f7f9fc;
+}
+
+.badge-control__btn {
+	width: 56rpx;
+	height: 56rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background-color: #5f4fd9;
+	color: #ffffff;
+	font-size: 28rpx;
+}
+
+.badge-control__value {
+	flex: 1;
+	text-align: center;
+	font-size: 21rpx;
+	color: #606266;
+}
+
+.tag-pick {
+	padding: 6rpx;
+	border: 2rpx solid transparent;
+	border-radius: 12rpx;
+}
+
+.tag-pick--active {
+	border-color: #5f4fd9;
+	background-color: #f3f1ff;
+}
+
+.tn-title-picks {
+	display: flex;
+	flex-direction: column;
+	gap: 8rpx;
+}
+
+.title-pick {
+	padding: 6rpx 12rpx;
+	border: 2rpx solid transparent;
+	border-radius: 12rpx;
+}
+
+.title-pick--active {
+	border-color: #5f4fd9;
+	background-color: #f7f6ff;
 }
 
 .avatar-sizes {

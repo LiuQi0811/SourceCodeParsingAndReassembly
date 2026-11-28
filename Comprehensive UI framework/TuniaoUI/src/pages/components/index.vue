@@ -25,7 +25,7 @@ const categories: Category[] = [
 	{ key: 'form', title: '表单组件', desc: '输入、选择、校验、键盘、上传', icon: 'edit-form', color: 'tn-purple', url: '/pages/form/index', total: 13 },
 	{ key: 'feedback', title: '反馈组件', desc: '弹窗、通知、进度、加载、倒计时', icon: 'message', color: 'tn-orange', url: '/pages/feedback/index', total: 16 },
 	{ key: 'nav', title: '导航组件', desc: '导航栏、标签页、步骤条、折叠面板', icon: 'menu', color: 'tn-green', url: '/pages/nav/index', total: 9 },
-	{ key: 'data', title: '数据展示', desc: '日历、轮播、瀑布流、索引列表', icon: 'charts-column', color: 'tn-teal', url: '/pages/data/index', total: 8 },
+	{ key: 'data', title: '数据展示', desc: '日历、轮播、瀑布流、索引列表、吸顶', icon: 'charts-column', color: 'tn-teal', url: '/pages/data/index', total: 9 },
 	{ key: 'theme', title: '主题与规范', desc: 'CSS 变量换肤、色板、渐变、图标库、i18n', icon: 'creative', color: 'tn-red', url: '/pages/theme/index', total: 5 },
 	{ key: 'business', title: '业务闭环', desc: 'Pinia、请求封装、登录态、购物车、订单分页', icon: 'order', color: 'tn-orange', url: '/pages/business/index', total: 6 },
 	{ key: 'cross', title: '跨端与系统 API', desc: '生命周期、网络监听、分享、扫码、定位、拨号', icon: 'phone', color: 'tn-blue', url: '/pages/cross-platform/index', total: 8 },
@@ -126,7 +126,7 @@ const groups: { title: string; items: CompItem[] }[] = [
 		],
 	},
 	{
-		title: '数据展示（8）',
+		title: '数据展示（9）',
 		items: [
 			{ tag: 'tn-calendar', name: '日历', note: 'mode: date / multi / range', page: '/pages/data/index' },
 			{ tag: 'tn-week-calendar', name: '周历', note: 'customData 标记日期', page: '/pages/data/index' },

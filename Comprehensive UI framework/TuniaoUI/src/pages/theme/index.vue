@@ -47,6 +47,24 @@ const colors = [
 
 /* ---------------- 3. 渐变 ---------------- */
 const coolGradients = Array.from({ length: 16 }, (_, i) => i + 1)
+const activeColor = ref('blue')
+const activeGradient = ref(8)
+
+function copyColor(color: string) {
+	activeColor.value = color
+	uni.setClipboardData({
+		data: `tn-${color}_bg`,
+		success: () => uni.showToast({ title: `已复制 tn-${color}_bg`, icon: 'none' }),
+	})
+}
+
+function copyGradient(n: number) {
+	activeGradient.value = n
+	uni.setClipboardData({
+		data: `tn-gradient-bg__cool-${n}`,
+		success: () => uni.showToast({ title: `已复制 cool-${n}`, icon: 'none' }),
+	})
+}
 
 /* ---------------- 4. 图标检索 ---------------- */
 const iconKeyword = ref('')
@@ -142,15 +160,22 @@ platform = 'App（Android / iOS）'
 		<!-- 色板 -->
 		<demo-block
 			title="21 种内置色板"
-			desc="命名规则 tn-{颜色}_{属性}，属性有 bg / text / border / shadow；内置色还有 light / dark / disabled 三档"
+			desc="命名规则 tn-{颜色}_{属性}；点击色块会复制对应的背景类，下面再对比 light / dark / disabled 三档"
 			code="<text class=&quot;tn-red_text&quot;>  <view class=&quot;tn-blue_light_bg&quot;>"
 		>
 			<view class="palette-grid">
-				<view v-for="color in colors" :key="color" class="palette-cell">
+				<view
+					v-for="color in colors"
+					:key="color"
+					class="palette-cell"
+					:class="{ 'palette-cell--active': activeColor === color }"
+					@click="copyColor(color)"
+				>
 					<view class="palette-cell__block" :class="[`tn-${color}_bg`]" />
 					<text class="palette-cell__name">{{ color }}</text>
 				</view>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">已选色板：tn-{{ activeColor }}_bg</text>
 
 			<view class="tn-mt-sm">
 				<view v-for="color in ['blue', 'purple', 'green', 'orange']" :key="color" class="tn-demo-row tn-mt-xs">
@@ -165,20 +190,27 @@ platform = 'App（Android / iOS）'
 		<!-- 渐变 -->
 		<demo-block
 			title="渐变库"
-			desc="cool-1 ~ cool-16 通用渐变，以及 tn-gradient-bg__{颜色} 双色渐变"
+			desc="cool-1 ~ cool-16 通用渐变，以及 tn-gradient-bg__{颜色} 双色渐变；点击渐变会复制对应类名"
 			code="<view class=&quot;tn-gradient-bg__cool-8&quot; />"
 		>
 			<view class="gradient-grid">
-				<view v-for="n in coolGradients" :key="n" class="gradient-cell" :class="[`tn-gradient-bg__cool-${n}`]">
+				<view
+					v-for="n in coolGradients"
+					:key="n"
+					class="gradient-cell"
+					:class="[`tn-gradient-bg__cool-${n}`, { 'gradient-cell--active': activeGradient === n }]"
+					@click="copyGradient(n)"
+				>
 					<text class="gradient-cell__text">cool-{{ n }}</text>
 				</view>
 			</view>
+			<text class="tn-gray_text tn-mt-sm">已选渐变：tn-gradient-bg__cool-{{ activeGradient }}</text>
 		</demo-block>
 
 		<!-- 图标 -->
 		<demo-block
-			title="图标库（{{ tnIcons.length }} 个）"
-			desc="支持关键字过滤，点击任意图标会把 <tn-icon> 用法复制到剪贴板"
+			:title="`图标库（${tnIcons.length} 个）`"
+			desc="支持关键字过滤，点击任意图标会把 &lt;tn-icon&gt; 用法复制到剪贴板"
 			code="<tn-icon name=&quot;home&quot; :size=&quot;40&quot; color=&quot;tn-blue&quot; />"
 		>
 			<tn-search-box v-model="iconKeyword" placeholder="搜索图标名，如 home、cart、arrow" @change="iconPageSize = 120" />
@@ -365,10 +397,19 @@ platform = 'App（Android / iOS）'
 }
 
 .palette-cell {
+	box-sizing: border-box;
 	width: 78rpx;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	padding: 4rpx;
+	border: 2rpx solid transparent;
+	border-radius: 12rpx;
+}
+
+.palette-cell--active {
+	border-color: #5f4fd9;
+	background-color: #f3f1ff;
 }
 
 .palette-cell__block {
@@ -392,12 +433,18 @@ platform = 'App（Android / iOS）'
 }
 
 .gradient-cell {
+	box-sizing: border-box;
 	width: 22%;
 	height: 96rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	border: 3rpx solid transparent;
 	border-radius: 12rpx;
+}
+
+.gradient-cell--active {
+	border-color: #5f4fd9;
 }
 
 .gradient-cell__text {
