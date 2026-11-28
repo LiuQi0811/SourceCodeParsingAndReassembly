@@ -12,6 +12,8 @@ export interface MockContext {
   query: Record<string, any>
   /** 请求体 */
   body: Record<string, any>
+  /** 请求头（装修 Mock 用它区分多个小程序应用） */
+  headers: Record<string, string>
 }
 
 type MockHandler = (ctx: MockContext) => unknown | Promise<unknown>
@@ -87,7 +89,8 @@ export const mockRequest = async <T>(
   method: HttpMethod,
   url: string,
   query: Record<string, any> = {},
-  body: Record<string, any> = {}
+  body: Record<string, any> = {},
+  headers: Record<string, string> = {}
 ): Promise<ApiResponse<T>> => {
   const matched = matchRoute(method, url)
   // 模拟网络耗时，便于观察 loading / 骨架屏
@@ -108,6 +111,7 @@ export const mockRequest = async <T>(
       pathParams: matched.pathParams,
       query,
       body,
+      headers,
     })
     return {
       code: 0,

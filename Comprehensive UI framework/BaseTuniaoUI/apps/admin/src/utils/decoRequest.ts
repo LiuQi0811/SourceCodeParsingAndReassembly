@@ -1,6 +1,7 @@
 import { request, ApiError, type RequestOptions } from '@/utils/request'
 import { appConfig } from '@/config'
 import { getDecoToken } from '@/utils/decoAuth'
+import { getDecoTenantId } from '@/utils/decoTenant'
 
 /**
  * 装修专用请求通道。
@@ -10,7 +11,10 @@ import { getDecoToken } from '@/utils/decoAuth'
 const BASE = ((import.meta.env.VITE_DECO_API_BASE as string | undefined) || '').replace(/\/$/, '')
 
 export const decoRequest = async <T>(options: RequestOptions): Promise<T> => {
-  if (!BASE) return request<T>(options)
+  const tenantHeader = { 'X-Deco-Tenant': getDecoTenantId() }
+  if (!BASE) {
+    return request<T>({ ...options, headers: { ...(options.headers || {}), ...tenantHeader } })
+  }
 
   const method = options.method || 'GET'
   const showError = options.showError !== false
@@ -25,6 +29,8 @@ export const decoRequest = async <T>(options: RequestOptions): Promise<T> => {
       header: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...tenantHeader,
+        ...(options.headers || {}),
       },
       success: (res) => {
         const body = res.data as { code: number; msg: string; data: T } | undefined

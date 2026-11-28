@@ -24,9 +24,10 @@ npm run dev:h5       # 后台端调试，默认 http://localhost:5173
 npm run build:h5     # 后台端生产构建，产物在 apps/admin/dist/build/h5
 npm run dev:mp       # 小程序端调试（微信开发者工具导入 apps/mp/dist/dev/mp-weixin）
 npm run build:mp     # 小程序端构建，产物在 apps/mp/dist/build/mp-weixin
+npm run mp:tenant -- <应用标识> <AppID> [后端地址]  # 切换小程序构建目标（租户 + AppID）
 npm test             # 单元测试（Vitest，目前 96 条）
-npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 27 条）
-npm run smoke:api    # 装修后端冒烟：临时目录跑复制/发布/回滚/模板/上传
+npm run test:e2e     # 端到端测试（Playwright，自动拉起 dev server，目前 29 条）
+npm run smoke:api    # 装修后端冒烟：临时目录跑多应用隔离/复制/发布/回滚/模板/上传
 npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 + H5 构建（提交前建议）
 ```
 
@@ -58,9 +59,9 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 - **多语言**：`vue-i18n`（Composition API，`legacy: false`），文案按命名空间放在 `src/locales/{zh-CN,en-US}.ts`：`common`（通用词）、`layout`、`login`、`home` 与各业务页各自的命名空间（含 `deco`）。`src/locales/index.ts` 从 `BTN_locale` 读语言、`setLocale()` 写回；页面里 `const { t } = useI18n()` 后直接 `t('user.title')`。切换入口两处：登录页右上角「EN / 中文」、头像菜单「语言 / Language」面板。因为文案在 setup 时求值，切换语言后统一 `reLaunch` 当前页生效；通用控件（`AppDialog` / `AppTable` / `AppSelect` / `AppInput` / `AppEmpty` / `AppPagination`）的默认文案自己兜 `t()`，页面不传也不会出现中文残留。
 - **业务数据的英文层**：Mock 种子只存中文（它同时是新增/编辑后的真实数据），`src/mock/i18n.ts` 在 `en-US` 下把接口返回体深拷贝一份，按「中文原值 → 英文译文」翻译 `name` / `deptName` / `roleNames` / `label` / `remark` / `module` / `action` 这几个字段，覆盖菜单名、部门名、角色名与说明、字典标签、日志模块与动作；账号、昵称、手机号、路径、权限码不动，表里查不到的文案（用户自己输入的名称）原样保留。**译文绝不写回 db**，否则切回中文会看到英文。角色名、菜单树来自落在本地的 `profile`，所以切换语言时会先 `user.refreshProfile()` 再 `reLaunch`，避免侧边栏仍显示旧语言。Mock 抛出的业务错误（`MockError`）也走同一层：`localizeMockMessage()` 把「账号已存在」「该角色已被 N 个用户使用」这类提示翻成英文，未登记的开发期提示（如 Mock 接口未定义）保留中文方便排查。
 - **代码规范**：`npm run lint`（ESLint 9 flat config）、`npm run format`（Prettier）；`npm run type-check` 用 `vue-tsc --noEmit`；`npm run format:check` 只检查不改写。
-- **CI**：`.github/workflows/ci.yml` 两个 job —— `quality`（ESLint → 两端类型检查 → 格式检查 → 96 条单测 → `build:h5` → `build:mp`）与 `e2e`（`needs: quality`，安装 Chromium 后跑 27 条 Playwright 用例，失败上传 `apps/admin/test-results` / `apps/admin/playwright-report`）。CI 上设 `PW_BROWSER=chromium`，`playwright.config.ts` 据此从「系统 Chrome」切到 Playwright 自带 Chromium；本机仍复用系统 Chrome，不额外下载。提交前本地跑 `npm run verify` 等价于 `quality` job（但不含 `build:mp`，改小程序端时单独跑一次）。
+- **CI**：`.github/workflows/ci.yml` 两个 job —— `quality`（ESLint → 两端类型检查 → 格式检查 → 96 条单测 → `build:h5` → `build:mp`）与 `e2e`（`needs: quality`，安装 Chromium 后跑 29 条 Playwright 用例，失败上传 `apps/admin/test-results` / `apps/admin/playwright-report`）。CI 上设 `PW_BROWSER=chromium`，`playwright.config.ts` 据此从「系统 Chrome」切到 Playwright 自带 Chromium；本机仍复用系统 Chrome，不额外下载。提交前本地跑 `npm run verify` 等价于 `quality` job（但不含 `build:mp`，改小程序端时单独跑一次）。
 - **单元测试**：`npm test`（Vitest，配置在 `vitest.config.ts`，`src/**/*.spec.ts` 自动收集，目前 96 条）。覆盖权限判断（`utils/permission.ts`）、页面注册校验（`config/routes.ts`）、树工具、格式化工具、表单规则（`utils/validate.ts`）、`useCrudForm` 的打开/校验短路/新增/编辑/失败保留弹窗、主题外观与密度/圆角的读写与非法值回落（`store/app`）、Mock 业务数据英文层（各字段翻译、未命中保留原文、深拷贝不改 db、错误提示翻译、走真实请求链路验证）、删除确认的按钮文案与失败兜底（`utils/dialog.ts`）、装修协议校验（版本号、id 重复、轮播/公告/导航必填项、未知组件类型，`utils/deco.spec.ts`）、组件拖拽排序的插入点与索引换算（`utils/decoDrag.spec.ts`），以及请求层 + Mock 的契约（登录成功/失败、401 清理与 `auth:expired` 广播、404、`showError`、loading 成对调用、图片上传回显 base64 与非法格式拦截、装修多页面的新建/存草稿/发布/读取/删除与首页保护）。测试里用内存 Map 替身扮演 `uni` 存储，无需浏览器或 HBuilderX。
-- **端到端测试**：`npm run test:e2e`（Playwright，`e2e/*.spec.ts`，目前 6 个文件 27 条）。直接复用本机 Chrome（`channel: 'chrome'`，不额外下载浏览器），`playwright.config.ts` 里配了 `webServer`：没有 dev server 时自动 `npm run dev:h5`，已在跑则复用 5173 端口，单 worker 顺序执行。分两个 project：`desktop`（1280×800，跑 auth / permission / theme / user-crud / deco）与 `mobile`（660×570，命中 `<768` 断点，只跑 `mobile.spec.ts`）。装修用例覆盖组件联动、拖拽手柄排序、草稿持久化、发布状态、图片回填、多页增删切换、复制与模板复用、发布历史回滚。
+- **端到端测试**：`npm run test:e2e`（Playwright，`e2e/*.spec.ts`，目前 6 个文件 29 条）。直接复用本机 Chrome（`channel: 'chrome'`，不额外下载浏览器），`playwright.config.ts` 里配了 `webServer`：没有 dev server 时自动 `npm run dev:h5`，已在跑则复用 5173 端口，单 worker 顺序执行。分两个 project：`desktop`（1280×800，跑 auth / permission / theme / user-crud / deco）与 `mobile`（660×570，命中 `<768` 断点，只跑 `mobile.spec.ts`）。装修用例覆盖组件联动、拖拽手柄排序、新增/切换小程序应用后数据隔离、切换前未保存草稿确认、草稿持久化、发布状态、图片回填、多页增删切换、复制与模板复用、发布历史回滚。设置 `PW_BASE_URL` 可跳过自动拉起 dev server，把同一套用例指向真实后端模式。
   - 桌面覆盖登录与会话（未登录拦截、空账号、密码错误、admin 进工作台）、权限拦截（chenmo 无菜单管理、zhouye 无用户管理、admin 有新增按钮）、主题外观与语言（深色落 class + 落 storage、紧凑密度叠大圆角、切英文再切回中文且菜单名/角色名/日志模块同步变英文、英文列表页部门与角色列已翻译而昵称保持中文、英文环境重复账号得到英文错误提示）、用户 CRUD（空表单必填、手机号格式、新增→检索→删除，且删除确认框取消键为「取消」而非 `Cancel`）、装修编辑器（组件列表 4 项、预览渲染轮播、新增轮播后计数变 5、上移生效、改间距后保存草稿并刷新仍保留数值、选图后图片地址回填为 base64 且保存刷新仍在、发布后状态标签显示最近发布时间且刷新后仍在、新建页面后空白页可保存/切回首页/再切回/删除并自动回首页）。
   - 移动覆盖侧边栏不渲染 / 顶栏标题替面包屑、菜单按钮开抽屉且点菜单项后自动收起、用户列表渲染为卡片（`.table-cards` 且无 `.table-wrap`）、头像菜单收起昵称但仍可切深色。
   - 失败会留存 `test-results/` 下的截图、trace 与 `error-context.md`，`npm run test:e2e:report` 打开 HTML 报告。
@@ -79,17 +80,41 @@ npm run verify       # 一次跑完 lint + 两端类型检查 + 格式 + 单测 
 - 图片上传：属性面板的图片字段（轮播图、商品图）支持「选择图片 / 更换 / 移除」，也可继续手贴外部图片地址。前端把图读成 base64 后走 `POST /upload`，Mock 返回同一个 data URL（`inline: true`），单图上限 600KB；真实后端把这里换成 OSS 上传并返回 CDN 地址即可，协议与渲染器不用动。
 - 一期边界：支持拖拽排序、上下移、增删、改属性，不做画布自由拖拽；组件固定 4 种；页面之间通过「复制页面 / 存为模板」复用，不设自定义首页以外的入口页策略。图片在演示环境是 base64 内联，多张大图会顶到 localStorage 容量上限；Mock 数据只存在当前浏览器（含版本历史与模板），真机要看到后台发布的内容必须配置真实后端。
 
+### 多小程序共用（多租户）
+
+一套后台、一个后端维护多个微信小程序应用。每个应用有独立的页面、模板、草稿、发布历史和发布状态；小程序端只读取自己应用的数据，互不串页。
+
+- **应用标识**：每个应用有一个不可变的 `tenantId`，规则 `^[a-z0-9][a-z0-9-]{1,31}$`。默认应用为 `btn-mall`（图鸟商城，AppID `wx4cd3b6ba323e40ea`）。
+- **数据模型**：`apps/api/data/deco.json` 为 `{ version: 2, defaultTenantId, tenants: [{ id, name, appId, createdAt, pages, templates }] }`。老的单应用数据首次启动会自动迁移进默认应用，不丢页面和模板；新建应用首次进入会自动种入示例首页与「电商首页模板」。
+- **租户选择**：所有 `/deco/*` 请求通过请求头 `X-Deco-Tenant: <tenantId>` 选择应用，未带时回落默认应用，旧小程序和旧调用不用改。未知应用返回 404。C 端公开接口同样按该请求头只返回对应应用的已发布数据。
+- **后台入口**：页面装修顶部新增「小程序应用」卡片，可下拉切换、查看 AppID、新增或编辑应用。应用标识创建后不可修改，名称和 AppID 可以改；新增时标识留空会自动生成 `app-<timestamp>`。切换应用会重新加载该应用的页面、模板与版本；如果当前页有未保存草稿，会先弹窗确认「放弃并切换」。
+- **租户接口**：`GET /deco/tenants`（登录即可，返回 `{ defaultTenantId, tenants }`）、`POST /deco/tenants`（`admin`，body `{ id?, name, appId }`）、`PUT /deco/tenants/:id`（`admin`，body `{ name, appId }`）。AppID 规则 `^wx[a-z0-9]{16}$`，重复标识或重复 AppID 返回 409。
+- **小程序端**：`apps/mp/.env` 的 `VITE_DECO_TENANT` 决定读哪个应用，`apps/mp/src/utils/request.ts` 会自动带上 `X-Deco-Tenant`。一个小程序对应一份 `.env` + `manifest.json` 的 AppID，构建前切换：
+
+```bash
+# 根目录执行：应用标识 AppID [后端地址]
+npm run mp:tenant -- mall-xz wx1234567890abcdef http://192.168.1.20:3001
+
+# 然后照常构建，产物仍是 apps/mp/dist/build/mp-weixin
+npm run build:mp
+```
+
+`mp:tenant` 会同步改写 `apps/mp/.env` 的 `VITE_DECO_TENANT`（传了第三个参数时也改 `VITE_API_BASE`）和 `apps/mp/src/manifest.json` 的微信 AppID。每发布一个新小程序，就在后台新增一个应用，拿到它的 AppID，再用该脚本切换并构建；不要把不同小程序的产物混用同一个 AppID。
+
+- **边界**：当前装修 token 未按应用细分权限，任一有装修权限的管理员可切换所有应用；应用暂不支持删除；上传文件仍是全局目录，不按应用分目录。面向不同客户交付时，还需要补应用级权限、上传隔离和独立域名。
+
 ### 装修真实后端（apps/api）
 
 `apps/api` 是一个零依赖的 Node HTTP 服务，接口路径、响应结构（`{ code, msg, data }`）与后台 Mock 完全一致：
 
-- 数据落盘：`apps/api/data/deco.json`（首次启动自动种入「图鸟商城」首页与「电商首页模板」）
+- 数据落盘：`apps/api/data/deco.json`，v2 结构按应用存放页面与模板；首次启动自动种入默认应用「图鸟商城」及其首页与「电商首页模板」，老单应用数据自动迁移
 - 图片落盘：`apps/api/uploads/`，通过 `GET /uploads/<file>` 访问，上传接口为 `POST /upload`（仍收 base64，服务端转文件）
+- 多应用：管理端接口默认按 `X-Deco-Tenant` 读写对应应用，缺省回落默认应用；应用列表/新增/编辑见上节
 - 管理端接口：页面列表/新建/复制/删除、草稿读写、发布、版本历史与回滚、模板 CRUD 与套用、上传；全部要求 `Authorization: Bearer <token>`
-- C 端公开接口：`GET /deco/home`、`GET /deco/published`（只返回已发布页面）、`GET /deco/pages/:id`（只返回已发布数据）
-- 鉴权：`POST /auth/deco-login` 用后台演示账号换 token，仅 `admin`（密码 `123456`）有装修权限，`chenmo` / `zhouye` 会被拒绝；token 为 HMAC 签名，默认 8 小时过期；后台登录成功后会自动换一个装修 token
-- 启动：`npm run dev:api`（3001 端口，`PORT` / `HOST` 可覆盖，`DECO_TOKEN_SECRET` 可换签名密钥）
-- 冒烟：`npm run smoke:api`，使用临时目录与 3101 端口，不污染正式数据
+- C 端公开接口：`GET /deco/home`、`GET /deco/published`（只返回已发布页面）、`GET /deco/pages/:id`（只返回已发布数据）；均按 `X-Deco-Tenant` 返回对应应用
+- 鉴权：`POST /auth/deco-login` 用后台演示账号换 token，仅 `admin`（密码 `123456`）有装修权限，`chenmo` / `zhouye` 会被拒绝；token 为 HMAC 签名，默认 8 小时过期；后台登录成功后会自动换一个装修 token。当前 token 未绑定具体应用
+- 启动：`npm run dev:api`（3001 端口，`PORT` / `HOST` 可覆盖，`DECO_TOKEN_SECRET` 可换签名密钥；`DECO_DEFAULT_TENANT` / `DECO_DEFAULT_TENANT_NAME` / `DECO_DEFAULT_APP_ID` 可改默认应用）
+- 冒烟：`npm run smoke:api`，使用临时目录与 3101 端口，覆盖应用创建、鉴权、隔离与默认应用兼容，不污染正式数据
 
 后台切换真实后端（只影响装修与上传，登录等仍走 Mock）：
 
@@ -101,10 +126,12 @@ VITE_DECO_API_BASE=http://localhost:3001
 留空时继续走内置 Mock，所以单测/E2E 不需要启动后端。小程序端 `apps/mp/.env`：
 
 ```bash
+# apps/mp/.env
 VITE_API_BASE=http://localhost:3001
+VITE_DECO_TENANT=btn-mall
 ```
 
-微信开发者工具需勾选「不校验合法域名」；真机调试把地址改成电脑局域网 IP（手机与电脑同一网络），正式发布必须换 HTTPS 域名并在小程序后台配置 request 合法域名。
+`VITE_DECO_TENANT` 对应后台应用标识；换小程序时用 `npm run mp:tenant -- <应用标识> <AppID> [后端地址]` 一次改好租户与 AppID。微信开发者工具需勾选「不校验合法域名」；真机调试把 `VITE_API_BASE` 改成电脑局域网 IP（手机与电脑同一网络），正式发布必须换 HTTPS 域名并在小程序后台配置 request 合法域名。
 
 当前后端的边界：鉴权账号仍是演示账号、密码明文写在服务端；JSON 存储与本地图片只适合开发。生产环境要换数据库和真实账号体系、上传换 OSS/CDN，并上 HTTPS。
 
@@ -152,7 +179,7 @@ apps/admin/vitest.config.ts      单元测试配置
 ```
 apps/mp/src/
 ├── App.vue / main.ts     应用入口
-├── manifest.json         mp-weixin appid 留空，导入微信开发者工具时再填
+├── manifest.json         mp-weixin appid，默认图鸟商城，构建其他小程序前用 mp:tenant 切换
 ├── pages.json            只有 pages/home/index 一个页面
 ├── pages/home/index.vue  首页：拉取 /deco/home 或指定页，多页时显示「装修页面」切换入口
 └── deco/                 构建前由 packages/deco 同步生成（gitignore，勿手改）

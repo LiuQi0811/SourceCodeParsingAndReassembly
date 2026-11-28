@@ -25,6 +25,12 @@ const MAX_VERSIONS = 10
 const BODY_LIMIT = 30 * 1024 * 1024
 const TOKEN_SECRET = process.env.DECO_TOKEN_SECRET || 'btn-deco-dev-secret'
 const TOKEN_TTL = 8 * 60 * 60 * 1000
+const DEFAULT_TENANT_ID = process.env.DECO_DEFAULT_TENANT || 'btn-mall'
+const DEFAULT_TENANT_NAME = process.env.DECO_DEFAULT_TENANT_NAME || '图鸟商城'
+const DEFAULT_TENANT_APP_ID = process.env.DECO_DEFAULT_APP_ID || 'wx4cd3b6ba323e40ea'
+const TENANT_HEADER = 'x-deco-tenant'
+const TENANT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,31}$/
+const APP_ID_PATTERN = /^wx[a-z0-9]{16}$/
 
 /** 演示账号，与后台 Mock 保持一致；生产环境应换数据库 + 真实密码哈希 */
 const ACCOUNTS = [
@@ -37,9 +43,9 @@ const now = () => new Date().toISOString()
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const id = (prefix) => `${prefix}-${Date.now().toString(36)}${randomBytes(2).toString('hex')}`
 
-const demoPage = () => ({
+const demoPage = (title = DEFAULT_TENANT_NAME) => ({
   version: 1,
-  title: '图鸟商城',
+  title,
   primary: '#01beff',
   components: [
     {
@@ -85,43 +91,114 @@ const demoPage = () => ({
   ],
 })
 
-const createState = () => {
-  const home = demoPage()
+const seedPages = (title = DEFAULT_TENANT_NAME) => {
+  const home = demoPage(title)
+  return [
+    {
+      id: 'home',
+      path: 'pages/home/index',
+      isHome: true,
+      title: home.title,
+      draft: home,
+      draftUpdatedAt: now(),
+      published: clone(home),
+      publishedAt: now(),
+      versions: [],
+    },
+  ]
+}
+
+const seedTemplates = (title = DEFAULT_TENANT_NAME) => {
+  const home = demoPage(title)
+  return [
+    {
+      id: 'tpl-demo',
+      name: '电商首页模板',
+      page: clone(home),
+      createdAt: now(),
+    },
+  ]
+}
+
+const createTenantRecord = (tenantId, name, appId, pages, templates) => ({
+  id: tenantId,
+  name,
+  appId,
+  createdAt: now(),
+  pages: pages || seedPages(name),
+  templates: templates || seedTemplates(name),
+})
+
+const createState = () => ({
+  version: 2,
+  defaultTenantId: DEFAULT_TENANT_ID,
+  tenants: [
+    createTenantRecord(DEFAULT_TENANT_ID, DEFAULT_TENANT_NAME, DEFAULT_TENANT_APP_ID),
+  ],
+})
+
+let state = null
+
+/**
+ * 兼容单应用老数据：老文件顶层是 { pages, templates }，
+ * 迁移成默认租户，避免升级后历史装修数据丢失。
+ */
+const normalizeState = (raw) => {
+  if (Array.isArray(raw?.tenants) && raw.tenants.length > 0) {
+    const tenants = raw.tenants.map((tenant, index) => {
+      const tenantId = TENANT_ID_PATTERN.test(String(tenant?.id || ''))
+        ? String(tenant.id)
+        : `app-${index + 1}`
+      const name = String(tenant?.name || '').trim() || `小程序 ${index + 1}`
+      const pages = Array.isArray(tenant?.pages) && tenant.pages.length ? tenant.pages : seedPages(name)
+      pages.forEach((page) => {
+        if (!Array.isArray(page.versions)) page.versions = []
+      })
+      const templates = Array.isArray(tenant?.templates)
+        ? tenant.templates
+        : seedTemplates(name)
+      return {
+        id: tenantId,
+        name,
+        appId: String(tenant?.appId || ''),
+        createdAt: tenant?.createdAt || now(),
+        pages,
+        templates,
+      }
+    })
+    const ids = new Set(tenants.map((tenant) => tenant.id))
+    const defaultTenantId = ids.has(String(raw.defaultTenantId || ''))
+      ? String(raw.defaultTenantId)
+      : tenants[0].id
+    return { version: 2, defaultTenantId, tenants }
+  }
+
+  const legacyPages = Array.isArray(raw?.pages) && raw.pages.length ? raw.pages : seedPages()
+  legacyPages.forEach((page) => {
+    if (!Array.isArray(page.versions)) page.versions = []
+  })
+  const legacyTemplates = Array.isArray(raw?.templates) ? raw.templates : seedTemplates()
   return {
-    pages: [
-      {
-        id: 'home',
-        path: 'pages/home/index',
-        isHome: true,
-        title: home.title,
-        draft: home,
-        draftUpdatedAt: now(),
-        published: clone(home),
-        publishedAt: now(),
-        versions: [],
-      },
-    ],
-    templates: [
-      {
-        id: 'tpl-demo',
-        name: '电商首页模板',
-        page: clone(home),
-        createdAt: now(),
-      },
+    version: 2,
+    defaultTenantId: DEFAULT_TENANT_ID,
+    tenants: [
+      createTenantRecord(
+        DEFAULT_TENANT_ID,
+        DEFAULT_TENANT_NAME,
+        DEFAULT_TENANT_APP_ID,
+        legacyPages,
+        legacyTemplates
+      ),
     ],
   }
 }
-
-let state = null
 
 const loadState = async () => {
   await mkdir(DATA_DIR, { recursive: true })
   await mkdir(UPLOAD_DIR, { recursive: true })
   if (existsSync(DATA_FILE)) {
     try {
-      state = JSON.parse(await readFile(DATA_FILE, 'utf8'))
-      if (!Array.isArray(state.pages) || state.pages.length === 0) state = createState()
-      if (!Array.isArray(state.templates)) state.templates = []
+      state = normalizeState(JSON.parse(await readFile(DATA_FILE, 'utf8')))
     } catch (error) {
       console.warn('[api] 数据文件损坏，已重建示例数据', error)
       state = createState()
@@ -129,9 +206,6 @@ const loadState = async () => {
   } else {
     state = createState()
   }
-  state.pages.forEach((page) => {
-    if (!Array.isArray(page.versions)) page.versions = []
-  })
   await saveState()
 }
 
@@ -191,8 +265,48 @@ const requireAuth = (req) => {
   return claims
 }
 
-const findPage = (pageId) => {
-  const page = state.pages.find((item) => item.id === pageId)
+const readTenantId = (req) => String(req.headers[TENANT_HEADER] || '').trim()
+
+const resolveTenant = (req) => {
+  const tenantId = readTenantId(req) || state.defaultTenantId
+  const tenant = state.tenants.find((item) => item.id === tenantId)
+  if (!tenant) throw new HttpError(`装修应用不存在：${tenantId}`, 404)
+  return tenant
+}
+
+const tenantSummary = (tenant) => ({
+  id: tenant.id,
+  name: tenant.name,
+  appId: tenant.appId,
+  createdAt: tenant.createdAt,
+  pageCount: tenant.pages.length,
+})
+
+const assertTenantId = (tenantId) => {
+  if (!TENANT_ID_PATTERN.test(tenantId)) {
+    throw new HttpError('应用标识只能是 2-32 位小写字母、数字或中划线')
+  }
+  if (state.tenants.some((item) => item.id === tenantId)) {
+    throw new HttpError(`应用标识已存在：${tenantId}`, 409)
+  }
+  return tenantId
+}
+
+const assertAppId = (appId) => {
+  if (!APP_ID_PATTERN.test(appId)) throw new HttpError('AppID 格式不正确，应以 wx 开头且共 18 位')
+  return appId
+}
+
+const assertAppIdAvailable = (appId, exceptTenantId = '') => {
+  assertAppId(appId)
+  if (state.tenants.some((item) => item.appId === appId && item.id !== exceptTenantId)) {
+    throw new HttpError(`AppID 已被其他小程序应用使用：${appId}`, 409)
+  }
+  return appId
+}
+
+const findPage = (tenant, pageId) => {
+  const page = tenant.pages.find((item) => item.id === pageId)
   if (!page) throw new HttpError(`装修页面不存在：${pageId}`, 404)
   return page
 }
@@ -354,6 +468,49 @@ const route = async (req, res, url) => {
 
   if (parts[0] !== 'deco') throw new HttpError('接口不存在', 404)
 
+  // 应用（租户）管理：一个后台可以维护多个小程序，每个小程序的数据互相隔离
+  if (parts[1] === 'tenants') {
+    const claims = requireAuth(req)
+
+    if (parts.length === 2 && req.method === 'GET') {
+      return ok(res, {
+        defaultTenantId: state.defaultTenantId,
+        tenants: state.tenants.map(tenantSummary),
+      })
+    }
+
+    if (parts.length === 2 && req.method === 'POST') {
+      if (claims.role !== 'admin') throw new HttpError('只有管理员可以新增小程序应用', 403)
+      const body = await readBody(req)
+      const name = String(body.name || '').trim()
+      if (!name) throw new HttpError('请填写小程序名称')
+      const appId = assertAppIdAvailable(String(body.appId || '').trim())
+      const tenantId = assertTenantId(
+        String(body.id || '').trim() || `app-${Date.now().toString(36)}`
+      )
+      const tenant = createTenantRecord(tenantId, name, appId)
+      state.tenants.push(tenant)
+      await saveState()
+      return ok(res, tenantSummary(tenant))
+    }
+
+    if (parts.length === 3 && req.method === 'PUT') {
+      if (claims.role !== 'admin') throw new HttpError('只有管理员可以修改小程序应用', 403)
+      const tenant = state.tenants.find((item) => item.id === parts[2])
+      if (!tenant) throw new HttpError(`装修应用不存在：${parts[2]}`, 404)
+      const body = await readBody(req)
+      const name = String(body.name ?? tenant.name).trim()
+      if (!name) throw new HttpError('请填写小程序名称')
+      const appId = assertAppIdAvailable(String(body.appId ?? tenant.appId).trim(), tenant.id)
+      tenant.name = name
+      tenant.appId = appId
+      await saveState()
+      return ok(res, tenantSummary(tenant))
+    }
+
+    throw new HttpError('方法不支持', 405)
+  }
+
   // C 端公开接口：首页、已发布页清单、指定页的已发布数据
   const isPublicPageDetail =
     req.method === 'GET' && parts[1] === 'pages' && parts.length === 3
@@ -363,11 +520,14 @@ const route = async (req, res, url) => {
       url.pathname === '/deco/published' ||
       isPublicPageDetail)
   if (!isPublicGet) requireAuth(req)
+  const tenant = resolveTenant(req)
+  const tenantPages = tenant.pages
+  const tenantTemplates = tenant.templates
 
   // /deco/published 只返回已发布页面，避免把草稿页标题暴露给 C 端
   if (parts[1] === 'published' && parts.length === 2 && req.method === 'GET') {
     return ok(res, {
-      pages: state.pages
+      pages: tenantPages
         .filter((item) => item.published)
         .map((item) => ({
           id: item.id,
@@ -382,7 +542,7 @@ const route = async (req, res, url) => {
   // /deco/home
   if (parts[1] === 'home' && parts.length === 2) {
     if (req.method === 'GET') {
-      const home = state.pages.find((item) => item.isHome)
+      const home = tenantPages.find((item) => item.isHome)
       return ok(res, { page: home?.published || null, publishedAt: home?.publishedAt || '' })
     }
     throw new HttpError('方法不支持', 405)
@@ -390,13 +550,13 @@ const route = async (req, res, url) => {
 
   // /deco/pages
   if (parts[1] === 'pages' && parts.length === 2) {
-    if (req.method === 'GET') return ok(res, { pages: state.pages.map(summary) })
+    if (req.method === 'GET') return ok(res, { pages: tenantPages.map(summary) })
     if (req.method === 'POST') {
-      if (state.pages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
       const body = await readBody(req)
-      const title = String(body.title || '').trim() || `新页面 ${state.pages.length}`
+      const title = String(body.title || '').trim() || `新页面 ${tenantPages.length}`
       const record = createPage(title, { version: 1, title, components: [] })
-      state.pages.push(record)
+      tenantPages.push(record)
       await saveState()
       return ok(res, summary(record))
     }
@@ -407,7 +567,7 @@ const route = async (req, res, url) => {
     if (parts.length === 2) {
       if (req.method === 'GET') {
         return ok(res, {
-          templates: state.templates.map((item) => ({
+          templates: tenantTemplates.map((item) => ({
             id: item.id,
             name: item.name,
             createdAt: item.createdAt,
@@ -415,7 +575,7 @@ const route = async (req, res, url) => {
         })
       }
       if (req.method === 'POST') {
-        if (state.templates.length >= MAX_TEMPLATES) {
+        if (tenantTemplates.length >= MAX_TEMPLATES) {
           throw new HttpError(`最多只能保存 ${MAX_TEMPLATES} 个模板`)
         }
         const body = await readBody(req)
@@ -423,7 +583,7 @@ const route = async (req, res, url) => {
         const page = clone(body.page)
         const name = String(body.name || '').trim() || `${page.title || '未命名'}模板`
         const record = { id: id('tpl'), name, page, createdAt: now() }
-        state.templates.unshift(record)
+        tenantTemplates.unshift(record)
         await saveState()
         return ok(res, { id: record.id, name: record.name, createdAt: record.createdAt })
       }
@@ -431,23 +591,23 @@ const route = async (req, res, url) => {
     }
 
     if (parts.length === 3 && req.method === 'DELETE') {
-      const index = state.templates.findIndex((item) => item.id === parts[2])
+      const index = tenantTemplates.findIndex((item) => item.id === parts[2])
       if (index < 0) throw new HttpError('模板不存在', 404)
-      state.templates.splice(index, 1)
+      tenantTemplates.splice(index, 1)
       await saveState()
       return ok(res, true)
     }
 
     if (parts.length === 4 && parts[3] === 'use' && req.method === 'POST') {
-      if (state.pages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
-      const template = state.templates.find((item) => item.id === parts[2])
+      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      const template = tenantTemplates.find((item) => item.id === parts[2])
       if (!template) throw new HttpError('模板不存在', 404)
       const body = await readBody(req)
       const page = clone(template.page)
       const title = String(body.title || '').trim() || template.name
       page.title = title
       const record = createPage(title, page)
-      state.pages.push(record)
+      tenantPages.push(record)
       await saveState()
       return ok(res, summary(record))
     }
@@ -455,13 +615,13 @@ const route = async (req, res, url) => {
   }
 
   if (parts[1] === 'pages' && parts.length >= 3) {
-    const page = findPage(parts[2])
+    const page = findPage(tenant, parts[2])
 
     if (parts.length === 3) {
       if (req.method === 'GET') return ok(res, { page: page.published, publishedAt: page.publishedAt })
       if (req.method === 'DELETE') {
         if (page.isHome) throw new HttpError('首页不允许删除')
-        state.pages = state.pages.filter((item) => item.id !== page.id)
+        tenant.pages = tenant.pages.filter((item) => item.id !== page.id)
         await saveState()
         return ok(res, true)
       }
@@ -469,7 +629,7 @@ const route = async (req, res, url) => {
     }
 
     if (parts[3] === 'copy' && req.method === 'POST') {
-      if (state.pages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
+      if (tenantPages.length >= MAX_PAGES) throw new HttpError(`最多只能创建 ${MAX_PAGES} 个装修页面`)
       const base = page.draft || page.published
       if (!base) throw new HttpError('当前页面还没有内容可复制')
       const body = await readBody(req)
@@ -477,7 +637,7 @@ const route = async (req, res, url) => {
       const title = String(body.title || '').trim() || `${copied.title || page.title} 副本`
       copied.title = title
       const record = createPage(title, copied)
-      state.pages.push(record)
+      tenantPages.push(record)
       await saveState()
       return ok(res, summary(record))
     }
@@ -550,7 +710,7 @@ await loadState()
 const server = createHttpServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Deco-Tenant')
   if (req.method === 'OPTIONS') {
     res.writeHead(204)
     res.end()

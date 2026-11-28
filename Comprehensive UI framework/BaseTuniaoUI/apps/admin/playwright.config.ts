@@ -7,6 +7,8 @@ import { defineConfig } from '@playwright/test'
  * 已有 dev server 时自动复用。
  */
 const useSystemChrome = process.env.PW_BROWSER !== 'chromium'
+// 默认打 Mock 后台；设置 PW_BASE_URL 可把同一套用例跑在真实后端模式上
+const baseURL = process.env.PW_BASE_URL || 'http://localhost:5173'
 
 export default defineConfig({
   testDir: './e2e',
@@ -17,7 +19,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     channel: useSystemChrome ? 'chrome' : undefined,
     headless: true,
     trace: 'retain-on-failure',
@@ -36,10 +38,12 @@ export default defineConfig({
       testMatch: '**/mobile.spec.ts',
     },
   ],
-  webServer: {
-    command: 'npm run dev:h5',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 120000,
-  },
+  webServer: process.env.PW_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run dev:h5',
+        url: 'http://localhost:5173',
+        reuseExistingServer: true,
+        timeout: 120000,
+      },
 })

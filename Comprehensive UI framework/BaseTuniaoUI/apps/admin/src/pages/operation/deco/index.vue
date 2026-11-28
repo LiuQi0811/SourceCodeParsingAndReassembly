@@ -17,6 +17,7 @@ import {
   decoApi,
   type DecoPageSummary,
   type DecoTemplateSummary,
+  type DecoTenantSummary,
   type DecoVersionSummary,
 } from '@/api/deco'
 import { useUserStore } from '@/store/modules/user'
@@ -27,8 +28,10 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTag from '@/components/ui/AppTag.vue'
 import AppEmpty from '@/components/ui/AppEmpty.vue'
+import AppDialog from '@/components/ui/AppDialog.vue'
 import ImagePicker from '@/components/ui/ImagePicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { getDecoTenantId, setDecoTenantId } from '@/utils/decoTenant'
 import {
   insertIndexToMoveIndex,
   moveItem,
@@ -50,6 +53,14 @@ const toNum = (value: string): number => {
 const page = ref<DecoPage>(createDemoPage())
 const selectedId = ref(page.value.components[0]?.id ?? '')
 const publishedAt = ref<string>('')
+const tenants = ref<DecoTenantSummary[]>([])
+const tenantId = ref(getDecoTenantId())
+const tenantDialogVisible = ref(false)
+const tenantEditingId = ref('')
+const tenantName = ref('')
+const tenantAppId = ref('')
+const tenantCode = ref('')
+const tenantSaving = ref(false)
 const saving = ref(false)
 const publishing = ref(false)
 const pages = ref<DecoPageSummary[]>([])
@@ -76,6 +87,17 @@ const currentPage = computed<DecoPageSummary | null>(
   () => pages.value.find((item) => item.id === currentId.value) ?? null
 )
 
+const currentTenant = computed<DecoTenantSummary | null>(
+  () => tenants.value.find((item) => item.id === tenantId.value) ?? null
+)
+
+const tenantOptions = computed(() =>
+  tenants.value.map((item) => ({
+    label: item.name,
+    value: item.id,
+  }))
+)
+
 const pageOptions = computed(() =>
   pages.value.map((item) => ({
     label: item.isHome ? t('deco.pageHomeOption', { title: item.title }) : item.title,
@@ -84,10 +106,17 @@ const pageOptions = computed(() =>
 )
 
 const blankPage = (title: string): DecoPage => ({ version: 1, title, components: [] })
+const pageSnapshot = (value: DecoPage) => JSON.stringify(value)
+/** 已保存（或刚载入）的页面快照，用于切换应用前判断是否有未保存草稿 */
+const savedPageSnapshot = ref('')
+const hasUnsavedDraft = computed(
+  () => Boolean(currentId.value) && pageSnapshot(page.value) !== savedPageSnapshot.value
+)
 
 const applyDraft = (id: string, draftPage: DecoPage | null, fallbackTitle: string) => {
   currentId.value = id
   page.value = draftPage && validateDecoPage(draftPage).valid ? draftPage : blankPage(fallbackTitle)
+  savedPageSnapshot.value = pageSnapshot(page.value)
   selectedId.value = page.value.components[0]?.id ?? ''
 }
 
@@ -97,6 +126,111 @@ const refreshPages = async () => {
   pages.value = result.pages
   const current = result.pages.find((item) => item.id === currentId.value)
   publishedAt.value = current?.publishedAt || ''
+}
+
+const loadTenants = async () => {
+  const result = await decoApi.tenants()
+  tenants.value = result.tenants
+  const stored = getDecoTenantId()
+  const fallback =
+    result.tenants.find((item) => item.id === result.defaultTenantId)?.id ||
+    result.tenants[0]?.id ||
+    ''
+  tenantId.value = result.tenants.some((item) => item.id === stored) ? stored : fallback
+  if (tenantId.value) setDecoTenantId(tenantId.value)
+}
+
+/** 切换应用后清空当前编辑状态，重新读该应用自己的页面和模板 */
+const reloadWorkspace = async () => {
+  pages.value = []
+  currentId.value = ''
+  publishedAt.value = ''
+  templates.value = []
+  versions.value = []
+  showTemplates.value = false
+  showVersions.value = false
+  page.value = blankPage(t('deco.untitledPage'))
+  savedPageSnapshot.value = pageSnapshot(page.value)
+  selectedId.value = ''
+  const result = await decoApi.pages()
+  pages.value = result.pages
+  const first = result.pages[0]
+  if (first) await openPage(first.id)
+}
+
+const confirmDiscardDraft = () =>
+  new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: t('deco.tenantDiscardTitle'),
+      content: t('deco.tenantDiscardContent'),
+      confirmText: t('deco.tenantDiscardConfirm'),
+      cancelText: t('common.cancel'),
+      confirmColor: '#f0a020',
+      success: (res) => resolve(Boolean(res.confirm)),
+      fail: () => resolve(false),
+    })
+  })
+
+const switchTenant = async (value: string | number | (string | number)[]) => {
+  const id = String(Array.isArray(value) ? (value[0] ?? '') : value)
+  if (!id || id === tenantId.value) return
+  if (hasUnsavedDraft.value && !(await confirmDiscardDraft())) return
+  tenantId.value = id
+  setDecoTenantId(id)
+  try {
+    await reloadWorkspace()
+    const name = currentTenant.value?.name || id
+    uni.showToast({ title: t('deco.tenantSwitched', { name }), icon: 'none' })
+  } catch (error) {
+    // request 层已提示错误
+  }
+}
+
+const openTenantDialog = (mode: 'create' | 'edit') => {
+  tenantEditingId.value = mode === 'edit' ? tenantId.value : ''
+  tenantName.value = mode === 'edit' ? currentTenant.value?.name || '' : ''
+  tenantAppId.value = mode === 'edit' ? currentTenant.value?.appId || '' : ''
+  tenantCode.value = ''
+  tenantDialogVisible.value = true
+}
+
+const saveTenant = async () => {
+  if (tenantSaving.value) return
+  const name = tenantName.value.trim()
+  const appId = tenantAppId.value.trim()
+  if (!name) {
+    uni.showToast({ title: t('deco.tenantNameRequired'), icon: 'none' })
+    return
+  }
+  if (!/^wx[a-z0-9]{16}$/.test(appId)) {
+    uni.showToast({ title: t('deco.tenantAppIdInvalid'), icon: 'none' })
+    return
+  }
+
+  tenantSaving.value = true
+  try {
+    if (tenantEditingId.value) {
+      await decoApi.updateTenant(tenantEditingId.value, { name, appId })
+      await loadTenants()
+      uni.showToast({ title: t('deco.tenantUpdated'), icon: 'success' })
+    } else {
+      const created = await decoApi.createTenant({
+        name,
+        appId,
+        ...(tenantCode.value.trim() ? { id: tenantCode.value.trim() } : {}),
+      })
+      await loadTenants()
+      tenantId.value = created.id
+      setDecoTenantId(created.id)
+      await reloadWorkspace()
+      uni.showToast({ title: t('deco.tenantCreated'), icon: 'success' })
+    }
+    tenantDialogVisible.value = false
+  } catch (error) {
+    // request 层已提示错误
+  } finally {
+    tenantSaving.value = false
+  }
 }
 
 const openPage = async (id: string) => {
@@ -299,8 +433,10 @@ const resetDemo = () => {
 const saveDraft = async () => {
   if (saving.value || !currentId.value) return
   saving.value = true
+  const payload = JSON.parse(JSON.stringify(page.value)) as DecoPage
   try {
-    await decoApi.saveDraft(currentId.value, JSON.parse(JSON.stringify(page.value)))
+    await decoApi.saveDraft(currentId.value, payload)
+    savedPageSnapshot.value = pageSnapshot(payload)
     await refreshPages()
     uni.showToast({ title: t('deco.draftSaved'), icon: 'success' })
   } catch (error) {
@@ -318,9 +454,11 @@ const publish = async () => {
     return
   }
   publishing.value = true
+  const payload = JSON.parse(JSON.stringify(page.value)) as DecoPage
   try {
-    const res = await decoApi.publish(currentId.value, JSON.parse(JSON.stringify(page.value)))
+    const res = await decoApi.publish(currentId.value, payload)
     publishedAt.value = res.publishedAt
+    savedPageSnapshot.value = pageSnapshot(payload)
     await refreshPages()
     uni.showToast({ title: t('deco.published'), icon: 'success' })
   } catch (error) {
@@ -546,10 +684,12 @@ const primaryOptions = computed(() => [
 
 onLoad(async () => {
   try {
-    const result = await decoApi.pages()
-    pages.value = result.pages
-    const first = result.pages[0]
-    if (first) await openPage(first.id)
+    await loadTenants()
+  } catch (error) {
+    // 应用列表失败时仍允许继续用默认应用
+  }
+  try {
+    await reloadWorkspace()
   } catch (error) {
     // 接口失败时保留本地示例，页面仍可编辑（但保存/发布不可用）
   }
@@ -582,6 +722,34 @@ onLoad(async () => {
         {{ t('deco.publish') }}
       </app-button>
     </template>
+
+    <app-card padding="14" class="tenant-bar">
+      <view class="tenant-row">
+        <text class="prop-label">{{ t('deco.tenantLabel') }}</text>
+        <app-select
+          :model-value="tenantId"
+          :options="tenantOptions"
+          class="tenant-select"
+          :placeholder="t('deco.tenantLabel')"
+          @update:model-value="switchTenant"
+        />
+        <app-tag v-if="currentTenant?.appId" size="sm">{{ currentTenant.appId }}</app-tag>
+        <view class="tenant-actions">
+          <app-button size="sm" plain @click="openTenantDialog('create')">
+            + {{ t('deco.tenantAdd') }}
+          </app-button>
+          <app-button
+            size="sm"
+            type="text"
+            :disabled="!currentTenant"
+            @click="openTenantDialog('edit')"
+          >
+            {{ t('deco.tenantEdit') }}
+          </app-button>
+        </view>
+      </view>
+      <text class="tenant-tip">{{ t('deco.tenantTip', { id: tenantId }) }}</text>
+    </app-card>
 
     <app-card padding="14" class="page-bar">
       <view class="page-bar-row">
@@ -963,6 +1131,31 @@ onLoad(async () => {
         <app-select v-model="page.primary" :options="primaryOptions" class="meta-input" />
       </view>
     </app-card>
+
+    <app-dialog
+      v-model:visible="tenantDialogVisible"
+      :title="tenantEditingId ? t('deco.tenantDialogEdit') : t('deco.tenantDialogCreate')"
+      :loading="tenantSaving"
+      @confirm="saveTenant"
+    >
+      <view class="tenant-form">
+        <view class="prop-item">
+          <text class="prop-label">{{ t('deco.tenantName') }}</text>
+          <app-input v-model="tenantName" :placeholder="t('deco.tenantNamePlaceholder')" />
+        </view>
+        <view class="prop-item">
+          <text class="prop-label">{{ t('deco.tenantAppId') }}</text>
+          <app-input v-model="tenantAppId" placeholder="wxabcdef1234567890" />
+        </view>
+        <view v-if="!tenantEditingId" class="prop-item">
+          <text class="prop-label">{{ t('deco.tenantCode') }}</text>
+          <app-input v-model="tenantCode" :placeholder="t('deco.tenantCodePlaceholder')" />
+        </view>
+        <text class="tenant-dialog-tip">
+          {{ tenantEditingId ? t('deco.tenantEditTip') : t('deco.tenantCodeTip') }}
+        </text>
+      </view>
+    </app-dialog>
   </app-layout>
 </template>
 
@@ -978,6 +1171,44 @@ onLoad(async () => {
 
 .page-bar {
   margin-bottom: 14px;
+}
+
+.tenant-bar {
+  margin-bottom: 14px;
+}
+
+.tenant-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tenant-select {
+  width: 220px;
+}
+
+.tenant-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tenant-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--app-text-3);
+}
+
+.tenant-form {
+  gap: 12px;
+}
+
+.tenant-dialog-tip {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--app-text-3);
 }
 
 .page-bar-row {

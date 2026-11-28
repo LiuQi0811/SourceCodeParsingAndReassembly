@@ -12,6 +12,8 @@ export interface RequestOptions {
   data?: Record<string, any>
   /** 查询参数（GET 使用） */
   params?: Record<string, any>
+  /** 额外请求头，Mock 与真实接口都会透传 */
+  headers?: Record<string, string>
   /** 是否展示全局 loading */
   loading?: boolean
   /** 失败时是否自动 toast，默认 true */
@@ -67,6 +69,7 @@ const realRequest = <T>(options: RequestOptions): Promise<ApiResponse<T>> => {
       header: {
         'Content-Type': 'application/json',
         ...readAuthHeader(),
+        ...(options.headers || {}),
         ...(options.data?.header || {}),
       },
       success: (res) => {
@@ -97,7 +100,13 @@ export const request = async <T>(options: RequestOptions): Promise<T> => {
 
   try {
     const response = appConfig.useMock
-      ? await mockRequest<T>(method, options.url, options.params || {}, options.data || {})
+      ? await mockRequest<T>(
+          method,
+          options.url,
+          options.params || {},
+          options.data || {},
+          options.headers || {}
+        )
       : await realRequest<T>(options)
 
     if (response.code === 0) return response.data

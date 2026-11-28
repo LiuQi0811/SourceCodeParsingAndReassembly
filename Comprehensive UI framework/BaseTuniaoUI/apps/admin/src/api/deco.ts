@@ -33,6 +33,14 @@ export interface DecoTemplateSummary {
   createdAt: string
 }
 
+export interface DecoTenantSummary {
+  id: string
+  name: string
+  appId: string
+  createdAt: string
+  pageCount: number
+}
+
 /**
  * 装修接口契约（Mock 与真实后端保持一致）
  * GET    /deco/pages                 页面列表（第一条是首页）
@@ -50,8 +58,17 @@ export interface DecoTemplateSummary {
  * DELETE /deco/templates/:id         删除模板
  * POST   /deco/templates/:id/use     用模板新建页面 { title }
  * GET    /deco/home                  C 端读取首页（最近发布）
+ * GET    /deco/tenants               小程序应用列表
+ * POST   /deco/tenants               新增小程序应用 { id?, name, appId }
+ * PUT    /deco/tenants/:id           修改应用名称 / AppID
  */
 export const decoApi = {
+  tenants: () =>
+    decoGet<{ defaultTenantId: string; tenants: DecoTenantSummary[] }>('/deco/tenants'),
+  createTenant: (payload: { id?: string; name: string; appId: string }) =>
+    decoPost<DecoTenantSummary>('/deco/tenants', payload),
+  updateTenant: (id: string, payload: { name: string; appId: string }) =>
+    decoPut<DecoTenantSummary>(`/deco/tenants/${id}`, payload),
   pages: () => decoGet<{ pages: DecoPageSummary[] }>('/deco/pages'),
   createPage: (title: string) => decoPost<DecoPageSummary>('/deco/pages', { title }),
   copyPage: (id: string, title: string) =>

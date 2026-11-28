@@ -48,6 +48,70 @@ test.describe('页面装修编辑器', () => {
     await expect(page.locator('.comp-item').first()).toContainText('公告')
   })
 
+  test('新增小程序应用后页面数据按应用隔离', async ({ page }) => {
+    await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
+
+    await page.locator('.tenant-bar .app-btn', { hasText: '新增小程序' }).click()
+    const dialog = page.locator('.dialog-panel')
+    await expect(dialog).toContainText('新增小程序')
+    const inputs = dialog.locator('.app-input input')
+    await inputs.nth(0).fill('隔离测试小程序')
+    await inputs.nth(1).fill('wxabcdef1234567890')
+    await inputs.nth(2).fill('app-e2e')
+    await dialog.locator('.app-btn', { hasText: '确定' }).click()
+
+    await expect(page.getByText('小程序已创建').first()).toBeVisible()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('隔离测试小程序')
+    await expect(page.locator('.comp-item')).toHaveCount(4)
+
+    // 新应用里新增一个组件，并保存草稿
+    await page.locator('.app-btn', { hasText: '轮播' }).first().click()
+    await expect(page.locator('.comp-item')).toHaveCount(5)
+    await page.locator('.app-layout .app-btn', { hasText: '保存草稿' }).click()
+    await expect(page.getByText('草稿已保存').first()).toBeVisible()
+
+    // 切回默认应用，仍然是原来的 4 个组件
+    await page.locator('.tenant-select .select-trigger').click()
+    await page.locator('.select-panel .option-row', { hasText: '图鸟商城' }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
+    await expect(page.locator('.comp-item')).toHaveCount(4)
+
+    // 再切回新应用，新增的组件还在
+    await page.locator('.tenant-select .select-trigger').click()
+    await page.locator('.select-panel .option-row', { hasText: '隔离测试小程序' }).click()
+    await expect(page.locator('.comp-item')).toHaveCount(5)
+  })
+
+  test('切换应用会提示丢弃未保存草稿', async ({ page }) => {
+    await page.locator('.tenant-bar .app-btn', { hasText: '新增小程序' }).click()
+    const dialog = page.locator('.dialog-panel')
+    const inputs = dialog.locator('.app-input input')
+    await inputs.nth(0).fill('草稿保护小程序')
+    await inputs.nth(1).fill('wx1234567890abcdef')
+    await inputs.nth(2).fill('app-guard')
+    await dialog.locator('.app-btn', { hasText: '确定' }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('草稿保护小程序')
+
+    // 不保存直接改组件，切应用时应先确认
+    await page.locator('.app-btn', { hasText: '轮播' }).first().click()
+    await expect(page.locator('.comp-item')).toHaveCount(5)
+    await page.locator('.tenant-select .select-trigger').click()
+    await page.locator('.select-panel .option-row', { hasText: '图鸟商城' }).click()
+
+    const modal = page.locator('.uni-modal')
+    await expect(modal).toContainText('有未保存的草稿')
+    await modal.getByText('取消', { exact: true }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('草稿保护小程序')
+    await expect(page.locator('.comp-item')).toHaveCount(5)
+
+    // 再次切换并确认放弃，回到默认应用的 4 个组件
+    await page.locator('.tenant-select .select-trigger').click()
+    await page.locator('.select-panel .option-row', { hasText: '图鸟商城' }).click()
+    await page.locator('.uni-modal').getByText('放弃并切换', { exact: true }).click()
+    await expect(page.locator('.tenant-select .select-text')).toContainText('图鸟商城')
+    await expect(page.locator('.comp-item')).toHaveCount(4)
+  })
+
   test('保存草稿后刷新仍然保留', async ({ page }) => {
     await page.locator('.comp-item').first().click()
     await page.locator('.panel-props .app-input input').first().fill('24')
